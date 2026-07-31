@@ -1,0 +1,114 @@
+matcha.explainability.analogue_generator
+========================================
+
+.. py:module:: matcha.explainability.analogue_generator
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.explainability.analogue_generator.AnalogueGenerator
+
+
+Module Contents
+---------------
+
+.. py:class:: AnalogueGenerator
+
+   Generator of structural analogues for molecular explainability.
+
+   Provides class methods that produce analogues of a query molecule using
+   two complementary strategies:
+
+   - **Positional analogue scanning:** Substitutes atoms at anchor positions.
+   - **Nitrogen walk:** Replaces aromatic CH with nitrogen.
+
+   All generated analogues are validated via RDKit sanitization and deduplicated.
+
+
+   .. py:method:: generate_analogues(mol: rdkit.Chem.rdchem.Mol, positional_analogue_scanning_params: dict | None = {'substituents': ['F', 'I', 'Br', 'Cl', 'O', 'C', '[*]C(F)(F)F', '[*]C#N', '[*]OC', '[*]C1CC1', '[*]C(=O)N', '[*]S(=O)(=O)C'], 'anchors': ['[cH]', 'C'], 'num_sub': 1}, nitrogen_walk_params: dict | None = {'num_sub': 1}) -> list[rdkit.Chem.rdchem.Mol]
+      :classmethod:
+
+
+      Generate structural analogues of a molecule using scaffold-based and pairwise strategies.
+
+      Runs positional analogue scanning (PAS) and nitrogen walk on both the
+      input molecule and its Murcko scaffold, then applies a second round of
+      PAS and nitrogen walk to each first-pass PAS result. All results are
+      pooled, validated, deduplicated, and the input molecule is excluded.
+
+      :param Mol mol: Query RDKit molecule.
+      :param dict | None positional_analogue_scanning_params: Parameters for
+          positional analogue scanning. Set to None to skip. Keys:
+          ``substituents``, ``anchors``, ``num_sub``.
+      :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.
+          Set to None to skip. Keys: ``num_sub``.
+
+      :returns: List of unique, sanitized RDKit molecule objects (excluding
+          the input molecule).
+
+
+
+   .. py:method:: positional_analogue_scanning(mol_in: rdkit.Chem.rdchem.Mol, substituents: list = ['F', 'I', 'Br', 'Cl', 'O', 'C', '[*]C(F)(F)F', '[*]C#N', '[*]OC', '[*]C1CC1', '[*]C(=O)N', '[*]S(=O)(=O)C'], anchors: list = ['[cH]', 'C'], num_sub: int = 1, timeout: int = 60) -> list[rdkit.Chem.rdchem.Mol]
+      :classmethod:
+
+
+      Generate analogues via Positional Analogue Scanning.
+
+      Adds substituents at anchor positions in the molecule. Each entry in
+      ``substituents`` is either an element symbol (e.g. ``"F"``) or a
+      fragment SMILES with a ``[*]`` dummy attachment point
+      (e.g. ``"[*]C(F)(F)F"``). Based on the algorithm described in
+      https://pubs.acs.org/doi/10.1021/acs.jmedchem.9b02092.
+
+      Implementation adapted from:
+      https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html
+
+      :param Mol mol_in: Input RDKit molecule.
+      :param list substituents: Element symbols or fragment SMILES (with
+          ``[*]`` attachment point) to try as substituents.
+      :param list anchors: SMARTS patterns identifying attachment positions.
+      :param int num_sub: Number of simultaneous substitutions. Defaults to 1.
+      :param int timeout: Maximum runtime in seconds. Defaults to 60.
+
+      :returns: List of unique, deduplicated analogue molecules.
+
+
+
+   .. py:method:: nitrogen_walk(mol_in: rdkit.Chem.rdchem.Mol, num_sub: int = 1, timeout: int = 60) -> list[rdkit.Chem.rdchem.Mol]
+      :classmethod:
+
+
+      Generate analogues by replacing aromatic CH atoms with nitrogen.
+
+      Systematically walks aromatic carbon-hydrogen positions, replacing them
+      with nitrogen to produce aza-analogues.
+
+      Implementation adapted from:
+      https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html
+
+      :param Mol mol_in: Input RDKit molecule.
+      :param int num_sub: Number of simultaneous CH-to-N replacements. Defaults to 1.
+      :param int timeout: Maximum runtime in seconds. Defaults to 60.
+
+      :returns: List of unique, deduplicated analogue molecules.
+
+
+
+   .. py:method:: decompose(mol_in: rdkit.Chem.rdchem.Mol)
+      :classmethod:
+
+
+      Decompose a molecule into BRICS fragments.
+
+      Performs a single-pass BRICS decomposition and returns cleaned fragments
+      as RDKit molecules (with attachment-point labels removed).
+
+      :param Mol mol_in: Input RDKit molecule.
+
+      :returns: List of fragment molecules.
+
+
+

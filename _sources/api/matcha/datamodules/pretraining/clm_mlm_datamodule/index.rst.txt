@@ -1,0 +1,137 @@
+matcha.datamodules.pretraining.clm_mlm_datamodule
+=================================================
+
+.. py:module:: matcha.datamodules.pretraining.clm_mlm_datamodule
+
+.. autoapi-nested-parse::
+
+   CLM Masked Language Modeling DataModule for self-supervised pretraining.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: CLMMLMDataModule(mask_rate: float = 0.15, **kwargs)
+
+   Bases: :py:obj:`matcha.datamodules.classic.clm_datamodule.CLMDataModule`
+
+
+   CLM DataModule variant for Masked Language Modeling (MLM) pretraining.
+
+   This datamodule extends CLMDataModule to produce training data suitable for
+   self-supervised masked language modeling. Instead of returning labels (y),
+   it returns:
+   - `token_ids`: The masked input sequence (with some tokens replaced by mask token)
+   - `y`: The original token sequence (targets for MLM prediction)
+   - `mask`: Boolean mask indicating which positions were masked
+
+   Masking is applied AFTER augmentation to ensure consistency. Special tokens
+   (pad, unk, cls, mask) are never masked.
+
+   :param float mask_rate: Fraction of tokens to mask for MLM training, defaults to 0.15
+
+   All other parameters are inherited from CLMDataModule.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: export_to_classic() -> matcha.datamodules.classic.clm_datamodule.CLMDataModule
+
+      Return a :class:`CLMDataModule` that mirrors the current state.
+
+      The exported instance inherits the dictionary, max_length, and all
+      other CLM-specific settings so that it can be used directly for
+      downstream (non-MLM) training or inference.
+
+      :return CLMDataModule: a classic CLM datamodule with the same state
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, augment: bool = True, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate tokenized features with MLM masking applied.
+
+      Extends the parent to apply masking after tokenization and augmentation.
+      The *y* parameter is ignored; original tokens become the targets.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised); a dummy array is used
+      :param bound_mask: ignored for MLM
+      :param augment: whether to apply SMILES augmentation
+      :param is_training: whether to update the dictionary
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with keys ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, augment: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate a dataset ready for MLM pretraining.
+
+      Optionally applies resonance augmentation, then delegates to
+      :meth:`generate_features` for tokenization and masking. Commits
+      the dictionary on the first training call.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised)
+      :param bound_mask: ignored for MLM
+      :param is_training: whether to commit the dictionary after featurization
+      :param augment: whether to apply SMILES augmentation
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with keys ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: fit(dataset: torch.utils.data.StackDataset) -> None
+
+      Commit the cached dictionary. No Y scaling for MLM.
+
+      :param dataset: the featurized StackDataset (unused beyond triggering commit)
+
+
+
+   .. py:method:: transform(dataset: torch.utils.data.StackDataset) -> torch.utils.data.StackDataset
+
+      No-op for MLM since we don't scale Y.
+
+      :param dataset: featurized StackDataset
+      :return: the dataset unchanged
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, params, and dictionary
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Create a dummy instance with default parameters.
+
+      :return: a new :class:`CLMMLMDataModule` with default settings
+
+
+

@@ -1,0 +1,284 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.splitting &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.utils.splitting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.utils.splitting</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">PandasTools</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.cluster</span><span class="w"> </span><span class="kn">import</span> <span class="n">DBSCAN</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">umap</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.rdkit_engine</span><span class="w"> </span><span class="kn">import</span> <span class="n">Engine</span>
+
+
+<div class="viewcode-block" id="random_split">
+<a class="viewcode-back" href="../../../api/matcha/utils/splitting/index.html#matcha.utils.splitting.random_split">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">random_split</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">split_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span> <span class="n">random_flag</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">42</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform a random train/test split on a DataFrame.</span>
+
+<span class="sd">    :param pd.DataFrame df: The input DataFrame to split.</span>
+<span class="sd">    :param float split_size: Fraction of data to allocate to the test set.</span>
+<span class="sd">    :param int random_flag: Random seed for reproducibility.</span>
+<span class="sd">    :returns: A tuple of (train_df, test_df).</span>
+<span class="sd">    :rtype: tuple[pd.DataFrame, pd.DataFrame]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">train_df</span><span class="p">,</span> <span class="n">test_df</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span>
+        <span class="n">df</span><span class="p">,</span> <span class="n">test_size</span><span class="o">=</span><span class="n">split_size</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="n">random_flag</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">train_df</span><span class="p">,</span> <span class="n">test_df</span></div>
+
+
+
+<div class="viewcode-block" id="time_split">
+<a class="viewcode-back" href="../../../api/matcha/utils/splitting/index.html#matcha.utils.splitting.time_split">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">time_split</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">column_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">split_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">split_size</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform a time-based or ordered split on a DataFrame.</span>
+
+<span class="sd">    Sorts the DataFrame by the specified column and splits it into train and</span>
+<span class="sd">    test sets based on either a split value threshold or a fractional size.</span>
+
+<span class="sd">    :param pd.DataFrame df: The input DataFrame to split.</span>
+<span class="sd">    :param column_name: Name of the column to sort by. If ``None``, the</span>
+<span class="sd">        DataFrame is used in its current order.</span>
+<span class="sd">    :type column_name: str | None</span>
+<span class="sd">    :param split_value: Threshold value; rows with values &gt;= this go to test.</span>
+<span class="sd">    :type split_value: float | str | None</span>
+<span class="sd">    :param split_size: Fraction of data to allocate to the test set.</span>
+<span class="sd">    :type split_size: float | None</span>
+<span class="sd">    :returns: A tuple of (train_df, test_df).</span>
+<span class="sd">    :rtype: tuple[pd.DataFrame, pd.DataFrame]</span>
+<span class="sd">    :raises ValueError: If the column is not found, column type is unsupported,</span>
+<span class="sd">        split_size is not between 0 and 1, or neither split_value nor</span>
+<span class="sd">        split_size is provided.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">column_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">column_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Column &#39;</span><span class="si">{</span><span class="n">column_name</span><span class="si">}</span><span class="s2">&#39; not found in DataFrame.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Check for data type in the column</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">pd</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">is_numeric_dtype</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">column_name</span><span class="p">])</span>
+            <span class="ow">or</span> <span class="n">df</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="s2">&quot;object&quot;</span>
+        <span class="p">):</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">pd</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">is_datetime64_any_dtype</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">column_name</span><span class="p">]):</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">column_name</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Column type is not supported for splitting.&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+    <span class="k">if</span> <span class="n">split_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;</span> <span class="n">split_size</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Percentage must be between 0 and 1.&quot;</span><span class="p">)</span>
+        <span class="n">split_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">split_size</span><span class="p">))</span>
+    <span class="k">elif</span> <span class="n">split_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Split will be done based on the value </span><span class="si">{</span><span class="n">split_value</span><span class="si">}</span><span class="s2">. The entries with the value </span><span class="si">{</span><span class="n">split_value</span><span class="si">}</span><span class="s2"> will be part of test_df&quot;</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">pd</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">is_datetime64_any_dtype</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">column_name</span><span class="p">]):</span>
+            <span class="n">split_index</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">split_value</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">split_index</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="n">column_name</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">split_value</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Either split_value or percentage must be provided.&quot;</span><span class="p">)</span>
+
+    <span class="n">train_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">split_index</span><span class="p">]</span>
+    <span class="n">test_df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">split_index</span><span class="p">:]</span>
+
+    <span class="k">return</span> <span class="n">train_df</span><span class="p">,</span> <span class="n">test_df</span></div>
+
+
+
+<div class="viewcode-block" id="cluster_split">
+<a class="viewcode-back" href="../../../api/matcha/utils/splitting/index.html#matcha.utils.splitting.cluster_split">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">cluster_split</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">,</span>
+    <span class="n">split_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span>
+    <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span>
+    <span class="n">min_dist</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">n_components</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">low</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">high</span><span class="o">=</span><span class="mi">100000</span><span class="p">),</span>
+    <span class="n">feature_set</span><span class="o">=</span><span class="s2">&quot;ecfp&quot;</span><span class="p">,</span>
+    <span class="n">metric</span><span class="o">=</span><span class="s2">&quot;jaccard&quot;</span><span class="p">,</span>
+    <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Perform a cluster-based train/test split to minimize data leakage.</span>
+
+<span class="sd">    Computes molecular fingerprints, reduces dimensionality with UMAP, clusters</span>
+<span class="sd">    with DBSCAN, and assigns entire clusters to either train or test to prevent</span>
+<span class="sd">    similar molecules from appearing in both sets.</span>
+
+<span class="sd">    :param pd.DataFrame df: Input DataFrame containing a ``SMILES`` column.</span>
+<span class="sd">    :param float split_size: Fraction of data to allocate to the test set.</span>
+<span class="sd">    :param int n_neighbors: Number of neighbors for UMAP.</span>
+<span class="sd">    :param float min_dist: Minimum distance parameter for UMAP.</span>
+<span class="sd">    :param int n_components: Number of UMAP embedding dimensions.</span>
+<span class="sd">    :param int random_state: Random seed for UMAP.</span>
+<span class="sd">    :param str feature_set: Fingerprint type to compute (e.g., ``&quot;ecfp&quot;``).</span>
+<span class="sd">    :param str metric: Distance metric for UMAP.</span>
+<span class="sd">    :param int n_jobs: Number of parallel jobs for fingerprint computation.</span>
+<span class="sd">    :returns: A tuple of (train_df, test_df).</span>
+<span class="sd">    :rtype: tuple[pd.DataFrame, pd.DataFrame]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="c1"># Add molecules and compute fingerprints</span>
+    <span class="k">if</span> <span class="s2">&quot;ROMol&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+        <span class="n">PandasTools</span><span class="o">.</span><span class="n">AddMoleculeColumnToFrame</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="s2">&quot;SMILES&quot;</span><span class="p">,</span> <span class="s2">&quot;ROMol&quot;</span><span class="p">)</span>
+
+    <span class="n">engine</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">get_features</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">ROMol</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="p">[</span><span class="n">feature_set</span><span class="p">])</span>
+
+    <span class="c1"># Run UMAP dimensionality reduction</span>
+    <span class="n">umap_model</span> <span class="o">=</span> <span class="n">umap</span><span class="o">.</span><span class="n">UMAP</span><span class="p">(</span>
+        <span class="n">n_neighbors</span><span class="o">=</span><span class="n">n_neighbors</span><span class="p">,</span>
+        <span class="n">min_dist</span><span class="o">=</span><span class="n">min_dist</span><span class="p">,</span>
+        <span class="n">n_components</span><span class="o">=</span><span class="n">n_components</span><span class="p">,</span>
+        <span class="n">random_state</span><span class="o">=</span><span class="n">random_state</span><span class="p">,</span>
+        <span class="n">metric</span><span class="o">=</span><span class="n">metric</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">X_umap</span> <span class="o">=</span> <span class="n">umap_model</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+
+    <span class="c1"># Cluster using DBSCAN</span>
+    <span class="n">dbscan</span> <span class="o">=</span> <span class="n">DBSCAN</span><span class="p">(</span><span class="n">eps</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">min_samples</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;Cluster&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">dbscan</span><span class="o">.</span><span class="n">fit_predict</span><span class="p">(</span><span class="n">X_umap</span><span class="p">)</span>
+
+    <span class="c1"># Now split the data</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">frac</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">cluster_counts</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;Cluster&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">value_counts</span><span class="p">()</span>
+    <span class="n">clusters</span> <span class="o">=</span> <span class="n">cluster_counts</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">total_rows</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+    <span class="n">test_rows_count</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">total_rows</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">split_size</span><span class="p">))</span>
+    <span class="n">train_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="n">test_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">()</span>
+    <span class="n">shuffled_clusters</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">permutation</span><span class="p">(</span><span class="n">clusters</span><span class="p">)</span>
+    <span class="c1"># Selcet clusters for training and test set fulfilling to be as close to the desired split as possible while preventing data leakage</span>
+    <span class="k">for</span> <span class="n">cluster</span> <span class="ow">in</span> <span class="n">shuffled_clusters</span><span class="p">:</span>
+        <span class="n">cluster_size</span> <span class="o">=</span> <span class="n">cluster_counts</span><span class="p">[</span><span class="n">cluster</span><span class="p">]</span>
+        <span class="c1"># Check if adding this cluster would exceed the training row limit</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">test_df</span><span class="p">)</span> <span class="o">+</span> <span class="n">cluster_size</span> <span class="o">&lt;=</span> <span class="n">test_rows_count</span><span class="p">:</span>
+            <span class="n">test_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">test_df</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;Cluster&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">cluster</span><span class="p">]])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># If it exceeds, add it to the train set instead</span>
+            <span class="n">train_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">train_df</span><span class="p">,</span> <span class="n">df</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;Cluster&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">cluster</span><span class="p">]])</span>
+
+    <span class="k">return</span> <span class="n">train_df</span><span class="p">,</span> <span class="n">test_df</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

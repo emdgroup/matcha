@@ -1,0 +1,74 @@
+matcha.cli.prepare_sparse_dataset
+=================================
+
+.. py:module:: matcha.cli.prepare_sparse_dataset
+
+.. autoapi-nested-parse::
+
+   CLI command for preparing sparse multi-task datasets for pretraining.
+
+   Merges multiple parquet files into a single sparse matrix (compounds x tasks),
+   creates train/validation splits, applies standard scaling to regression tasks,
+   and saves the result in an efficient npz + parquet format consumed by the
+   ``pretrain_multitask`` command.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.prepare_sparse_dataset.compute_sparse_scaling_stats
+   matcha.cli.prepare_sparse_dataset.apply_sparse_scaling
+   matcha.cli.prepare_sparse_dataset.merge_datasets_streaming_sparse
+   matcha.cli.prepare_sparse_dataset.create_validation_set_sparse
+   matcha.cli.prepare_sparse_dataset.generate_datacard_sparse
+   matcha.cli.prepare_sparse_dataset.main
+
+
+Module Contents
+---------------
+
+.. py:function:: compute_sparse_scaling_stats(sparse_matrix: scipy.sparse.csr_matrix, task_indices: List[int], logger: Any) -> Dict[int, Dict[str, float]]
+
+   Compute mean and std for specified task columns in sparse matrix without densifying.
+
+   :param sparse_matrix: CSR sparse matrix.
+   :param task_indices: List of column indices to compute stats for.
+   :param logger: Logger instance.
+   :returns: Dictionary mapping task index to
+       ``{"mean": float, "std": float}``.
+
+
+.. py:function:: apply_sparse_scaling(sparse_matrix: scipy.sparse.csr_matrix, scaling_stats: Dict[int, Dict[str, float]], logger: Any) -> scipy.sparse.csr_matrix
+
+   Apply scaling to sparse matrix columns without densifying the entire matrix.
+
+   :param sparse_matrix: Input sparse matrix.
+   :param scaling_stats: Dictionary with scaling statistics per column
+       (from :func:`compute_sparse_scaling_stats`).
+   :param logger: Logger instance.
+   :returns: Scaled sparse matrix.
+
+
+.. py:function:: merge_datasets_streaming_sparse(files: List[str], merge_col: str, task_types: List[str], tag_to_add: str, logger: Any) -> Tuple[pandas.DataFrame, scipy.sparse.csr_matrix, List[str], Dict[str, str], Dict[str, str], Dict[str, List[int]]]
+
+   Build sparse matrix sequentially without loading all datasets into memory.
+
+
+.. py:function:: create_validation_set_sparse(mol_df: pandas.DataFrame, sparse_matrix: scipy.sparse.csr_matrix, task_cols: List[str], min_compounds: int, sampling_rate: float, seed: int, logger: Any) -> Tuple[pandas.DataFrame, pandas.DataFrame, scipy.sparse.csr_matrix, scipy.sparse.csr_matrix]
+
+   Create validation split for sparse data.
+
+
+.. py:function:: generate_datacard_sparse(train_mol_df: pandas.DataFrame, val_mol_df: pandas.DataFrame, train_sparse: scipy.sparse.csr_matrix, val_sparse: scipy.sparse.csr_matrix, task_cols: List[str], column_to_task_type: Dict[str, str], files: List[str], file_to_tasks: Dict[str, List[int]], logger: Any) -> Dict[str, Any]
+
+   Generate datacard for sparse format data.
+
+
+.. py:function:: main(cfg=None) -> None
+
+   Main function to process datasets according to config.
+
+

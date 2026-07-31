@@ -1,0 +1,429 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.summarize &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.cli.summarize</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/cli/summarize/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.cli.summarize">
+<span id="matcha-cli-summarize"></span><h1>matcha.cli.summarize<a class="headerlink" href="#module-matcha.cli.summarize" title="Link to this heading"></a></h1>
+<p>CLI command for summarizing and comparing MLflow experiment results.</p>
+<p>Loads performance artifacts from MLflow runs, runs statistical tests
+(parametric or non-parametric) to compare models, generates interactive
+plots, and saves a summary report as MLflow artifacts.</p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer" title="matcha.cli.summarize.ExperimentSummarizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ExperimentSummarizer</span></code></a></p></td>
+<td><p>Abstract base class for experiment summarizers.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.cli.summarize.MLflowExperimentSummarizer" title="matcha.cli.summarize.MLflowExperimentSummarizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MLflowExperimentSummarizer</span></code></a></p></td>
+<td><p>Summarizes MLflow experiments with statistical analysis.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.summarize.DirectoryExperimentSummarizer" title="matcha.cli.summarize.DirectoryExperimentSummarizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DirectoryExperimentSummarizer</span></code></a></p></td>
+<td><p>Summarizes model runs stored as subdirectories on disk.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.summarize.main" title="matcha.cli.summarize.main"><code class="xref py py-obj docutils literal notranslate"><span class="pre">main</span></code></a>([cfg])</p></td>
+<td><p>Run experiment summarization from a YAML configuration.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.cli.summarize.</span></span><span class="sig-name descname"><span class="pre">ExperimentSummarizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">statistical_test</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'non-parametric'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/abc.html#abc.ABC" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abc.ABC</span></code></a></p>
+<p>Abstract base class for experiment summarizers.</p>
+<p>Holds all shared analysis logic (artifact loading, statistical plots,
+summary statistics). Subclasses implement run discovery
+(<a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer.find_experiment_runs" title="matcha.cli.summarize.ExperimentSummarizer.find_experiment_runs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">find_experiment_runs()</span></code></a>) and result persistence
+(<a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer.save_summary_to_backend" title="matcha.cli.summarize.ExperimentSummarizer.save_summary_to_backend"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save_summary_to_backend()</span></code></a>).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.logger">
+<span class="sig-name descname"><span class="pre">logger</span></span><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.logger" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.comparison">
+<span class="sig-name descname"><span class="pre">comparison</span></span><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.comparison" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.statistical_test">
+<span class="sig-name descname"><span class="pre">statistical_test</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'non-parametric'</span></em><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.statistical_test" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.source_identifier_key">
+<span class="sig-name descname"><span class="pre">source_identifier_key</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.source_identifier_key" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.source_identifier">
+<span class="sig-name descname"><span class="pre">source_identifier</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">''</span></em><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.source_identifier" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.find_experiment_runs">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">find_experiment_runs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_runs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.find_experiment_runs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.find_experiment_runs" title="Link to this definition"></a></dt>
+<dd><p>Discover runs and return a list of run-info dicts.</p>
+<p>Each dict must contain <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, <code class="docutils literal notranslate"><span class="pre">run_name</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">artifact_path</span></code>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.save_summary_to_backend">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">save_summary_to_backend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">summary_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.save_summary_to_backend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.save_summary_to_backend" title="Link to this definition"></a></dt>
+<dd><p>Persist the summary JSON and plot files to the appropriate backend.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.load_performance_artifacts">
+<span class="sig-name descname"><span class="pre">load_performance_artifacts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">run_info_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.load_performance_artifacts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.load_performance_artifacts" title="Link to this definition"></a></dt>
+<dd><p>Load performance.json and performance_log10.json from all runs.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.load_predictions_artifacts">
+<span class="sig-name descname"><span class="pre">load_predictions_artifacts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">run_info_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.load_predictions_artifacts"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.load_predictions_artifacts" title="Link to this definition"></a></dt>
+<dd><p>Load prediction CSV files from all runs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>run_info_list</strong> – List of run info dicts from
+<a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer.find_experiment_runs" title="matcha.cli.summarize.ExperimentSummarizer.find_experiment_runs"><code class="xref py py-meth docutils literal notranslate"><span class="pre">find_experiment_runs()</span></code></a>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Nested dict <code class="docutils literal notranslate"><span class="pre">{run_id:</span> <span class="pre">{endpoint_split:</span> <span class="pre">DataFrame}}</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.extract_split_metrics">
+<span class="sig-name descname"><span class="pre">extract_split_metrics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">performance_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.extract_split_metrics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.extract_split_metrics" title="Link to this definition"></a></dt>
+<dd><p>Extract metrics organized by split, endpoint, and metric type.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>performance_data</strong> – Per-run performance dict from
+<a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer.load_performance_artifacts" title="matcha.cli.summarize.ExperimentSummarizer.load_performance_artifacts"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_performance_artifacts()</span></code></a>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Tuple of <code class="docutils literal notranslate"><span class="pre">(organized_data,</span> <span class="pre">run_id_order)</span></code> where
+<em>organized_data</em> maps
+<code class="docutils literal notranslate"><span class="pre">{split_id:</span> <span class="pre">{endpoint:</span> <span class="pre">{metric:</span> <span class="pre">[values_across_runs]}}}</span></code>
+and <em>run_id_order</em> is a list of run IDs.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.create_performance_plots">
+<span class="sig-name descname"><span class="pre">create_performance_plots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">performance_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">performance_log10_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_to_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corrected_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corrected_log10_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">omnibus_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omnibus_log10_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.create_performance_plots"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.create_performance_plots" title="Link to this definition"></a></dt>
+<dd><p>Create scatter plots for each metric-endpoint combination.</p>
+<p>Shows mean performance across runs with standard deviation error
+bars, for both unscaled and log10-scaled data. Points are
+color-coded based on statistical significance compared to the best
+model: green for best, light green for non-significant, light blue
+for significantly different.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>output_dir</strong> – Directory to write HTML files. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, files
+are written to the current working directory.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict mapping plot names to HTML file paths.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.create_correlation_heatmaps">
+<span class="sig-name descname"><span class="pre">create_correlation_heatmaps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">predictions_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_to_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.create_correlation_heatmaps"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.create_correlation_heatmaps" title="Link to this definition"></a></dt>
+<dd><p>Create correlation heatmaps between predictions and residuals across methods.</p>
+<p>Aggregates predictions across all splits for each endpoint. Creates
+two heatmaps per endpoint: one for prediction correlation and one
+for residual correlation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>predictions_data</strong> – Per-run prediction DataFrames from
+<a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer.load_predictions_artifacts" title="matcha.cli.summarize.ExperimentSummarizer.load_predictions_artifacts"><code class="xref py py-meth docutils literal notranslate"><span class="pre">load_predictions_artifacts()</span></code></a>.</p></li>
+<li><p><strong>run_id_to_name</strong> – Mapping from run IDs to display names.</p></li>
+<li><p><strong>output_dir</strong> – Directory to write HTML files. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, files
+are written to the current working directory.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict mapping plot names to HTML file paths.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.ExperimentSummarizer.create_summary_statistics">
+<span class="sig-name descname"><span class="pre">create_summary_statistics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">performance_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_experiments</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">comparison_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">omnibus_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#ExperimentSummarizer.create_summary_statistics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.ExperimentSummarizer.create_summary_statistics" title="Link to this definition"></a></dt>
+<dd><p>Create comprehensive summary statistics.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.cli.summarize.MLflowExperimentSummarizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.cli.summarize.</span></span><span class="sig-name descname"><span class="pre">MLflowExperimentSummarizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">experiment_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">mlruns_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">statistical_test</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'non-parametric'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#MLflowExperimentSummarizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.MLflowExperimentSummarizer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer" title="matcha.cli.summarize.ExperimentSummarizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ExperimentSummarizer</span></code></a></p>
+<p>Summarizes MLflow experiments with statistical analysis.</p>
+<p>Supports three statistical testing modes:
+- “parametric”: repeated-measures ANOVA (omnibus) + Tukey HSD against the</p>
+<blockquote>
+<div><p>RM-ANOVA error term (pairwise)</p>
+</div></blockquote>
+<ul class="simple">
+<li><p>“non-parametric”: Friedman chi-squared (omnibus) + Wilcoxon signed-rank + BH correction (pairwise)</p></li>
+<li><p>“bootstrap”: no omnibus test; bootstrap percentile CIs + Holm-Bonferroni
+pairwise comparisons (requires <code class="docutils literal notranslate"><span class="pre">split.n_bootstrap</span> <span class="pre">&gt;</span> <span class="pre">1</span></code> in evaluate config)</p></li>
+</ul>
+<p>The statistical tests themselves live in
+<a class="reference internal" href="../statistical_tests/index.html#module-matcha.cli.statistical_tests" title="matcha.cli.statistical_tests"><code class="xref py py-mod docutils literal notranslate"><span class="pre">matcha.cli.statistical_tests</span></code></a>; this class delegates omnibus,
+pairwise, and correction work to a comparison strategy selected by
+<em>statistical_test</em>.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.MLflowExperimentSummarizer.experiment_name">
+<span class="sig-name descname"><span class="pre">experiment_name</span></span><a class="headerlink" href="#matcha.cli.summarize.MLflowExperimentSummarizer.experiment_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.MLflowExperimentSummarizer.mlruns_path">
+<span class="sig-name descname"><span class="pre">mlruns_path</span></span><a class="headerlink" href="#matcha.cli.summarize.MLflowExperimentSummarizer.mlruns_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.MLflowExperimentSummarizer.source_identifier_key">
+<span class="sig-name descname"><span class="pre">source_identifier_key</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'experiment_name'</span></em><a class="headerlink" href="#matcha.cli.summarize.MLflowExperimentSummarizer.source_identifier_key" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.MLflowExperimentSummarizer.source_identifier">
+<span class="sig-name descname"><span class="pre">source_identifier</span></span><a class="headerlink" href="#matcha.cli.summarize.MLflowExperimentSummarizer.source_identifier" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.MLflowExperimentSummarizer.find_experiment_runs">
+<span class="sig-name descname"><span class="pre">find_experiment_runs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_runs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#MLflowExperimentSummarizer.find_experiment_runs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.MLflowExperimentSummarizer.find_experiment_runs" title="Link to this definition"></a></dt>
+<dd><p>Find all runs in the specified experiment and their artifact paths.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>selected_runs</strong> – Optional list of run names to select. If
+<code class="docutils literal notranslate"><span class="pre">None</span></code>, all runs are returned. If provided, only runs whose
+names match an entry in this list are included.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of dicts with <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, <code class="docutils literal notranslate"><span class="pre">run_name</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">artifact_path</span></code> for each qualifying run.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.MLflowExperimentSummarizer.save_summary_to_backend">
+<span class="sig-name descname"><span class="pre">save_summary_to_backend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">summary_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#MLflowExperimentSummarizer.save_summary_to_backend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.MLflowExperimentSummarizer.save_summary_to_backend" title="Link to this definition"></a></dt>
+<dd><p>Save summary analysis as a new MLflow run.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.cli.summarize.DirectoryExperimentSummarizer">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.cli.summarize.</span></span><span class="sig-name descname"><span class="pre">DirectoryExperimentSummarizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">root_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">statistical_test</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'non-parametric'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#DirectoryExperimentSummarizer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.DirectoryExperimentSummarizer" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.cli.summarize.ExperimentSummarizer" title="matcha.cli.summarize.ExperimentSummarizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ExperimentSummarizer</span></code></a></p>
+<p>Summarizes model runs stored as subdirectories on disk.</p>
+<p>Each immediate subdirectory of <em>root_dir</em> is treated as one run.
+<code class="docutils literal notranslate"><span class="pre">performance.json</span></code>, <code class="docutils literal notranslate"><span class="pre">performance_log10.json</span></code>, and <code class="docutils literal notranslate"><span class="pre">*_preds.csv</span></code> are
+loaded directly from each subdirectory. Results are written to
+<em>output_path</em> on disk.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.DirectoryExperimentSummarizer.root_dir">
+<span class="sig-name descname"><span class="pre">root_dir</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">b'.'</span></em><a class="headerlink" href="#matcha.cli.summarize.DirectoryExperimentSummarizer.root_dir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.DirectoryExperimentSummarizer.output_path">
+<span class="sig-name descname"><span class="pre">output_path</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">b'.'</span></em><a class="headerlink" href="#matcha.cli.summarize.DirectoryExperimentSummarizer.output_path" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.DirectoryExperimentSummarizer.source_identifier_key">
+<span class="sig-name descname"><span class="pre">source_identifier_key</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'root_dir'</span></em><a class="headerlink" href="#matcha.cli.summarize.DirectoryExperimentSummarizer.source_identifier_key" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.summarize.DirectoryExperimentSummarizer.source_identifier">
+<span class="sig-name descname"><span class="pre">source_identifier</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">b'.'</span></em><a class="headerlink" href="#matcha.cli.summarize.DirectoryExperimentSummarizer.source_identifier" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.DirectoryExperimentSummarizer.find_experiment_runs">
+<span class="sig-name descname"><span class="pre">find_experiment_runs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">selected_runs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#DirectoryExperimentSummarizer.find_experiment_runs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.DirectoryExperimentSummarizer.find_experiment_runs" title="Link to this definition"></a></dt>
+<dd><p>Discover runs as subdirectories of <em>root_dir</em>.</p>
+<p>Each subdirectory that contains a <code class="docutils literal notranslate"><span class="pre">performance.json</span></code> file is
+included. Subdirectories without it are skipped with a warning.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>selected_runs</strong> – Optional list of subdirectory names to include.
+If <code class="docutils literal notranslate"><span class="pre">None</span></code>, all qualifying subdirectories are returned.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of dicts with <code class="docutils literal notranslate"><span class="pre">run_id</span></code>, <code class="docutils literal notranslate"><span class="pre">run_name</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">artifact_path</span></code> for each qualifying subdirectory.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.summarize.DirectoryExperimentSummarizer.save_summary_to_backend">
+<span class="sig-name descname"><span class="pre">save_summary_to_backend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">summary_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plot_files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#DirectoryExperimentSummarizer.save_summary_to_backend"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.DirectoryExperimentSummarizer.save_summary_to_backend" title="Link to this definition"></a></dt>
+<dd><p>Write summary JSON to <em>output_path</em>.</p>
+<p>Plots are already written to <em>output_path</em> by the plot methods via
+<code class="docutils literal notranslate"><span class="pre">output_dir</span></code>; this method only persists the JSON and logs paths.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.summarize.main">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.summarize.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/summarize.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.summarize.main" title="Link to this definition"></a></dt>
+<dd><p>Run experiment summarization from a YAML configuration.</p>
+<p>Supports two modes selected by config fields:</p>
+<ul class="simple">
+<li><p><strong>MLflow mode</strong> (<code class="docutils literal notranslate"><span class="pre">experiment_name</span></code> + <code class="docutils literal notranslate"><span class="pre">mlruns_path</span></code>): loads artifacts
+from an MLflow tracking store, saves summary as MLflow artifacts.</p></li>
+<li><p><strong>Directory mode</strong> (<code class="docutils literal notranslate"><span class="pre">root_dir</span></code>): treats each immediate subdirectory as
+a run, reads artifacts directly from disk, writes results to
+<code class="docutils literal notranslate"><span class="pre">output_path</span></code>.</p></li>
+</ul>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cfg</strong> – Pre-parsed configuration object or <code class="docutils literal notranslate"><span class="pre">None</span></code> to parse from
+CLI <code class="docutils literal notranslate"><span class="pre">--config</span></code> argument. Accepts a
+<a class="reference internal" href="../../utils/schemas/cli/index.html#matcha.utils.schemas.cli.CLISummarizeInputModel" title="matcha.utils.schemas.cli.CLISummarizeInputModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">CLISummarizeInputModel</span></code></a> instance
+or a raw dict that will be validated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

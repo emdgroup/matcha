@@ -1,0 +1,485 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.classic.chemprop_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.classic.chemprop_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.classic.chemprop_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Chemprop-compatible molecular featurization using message-passing neural networks.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.tabular_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">TabularDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropDataModuleInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop</span><span class="w"> </span><span class="kn">import</span> <span class="n">data</span><span class="p">,</span> <span class="n">featurizers</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">silence_nuisance_warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">float32</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
+
+
+<div class="viewcode-block" id="ChempropDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;chemprop&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropDataModule</span><span class="p">(</span><span class="n">TabularDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Chemprop message-passing featurization class.</span>
+
+<span class="sd">    Extends :class:`TabularDataModule` to produce</span>
+<span class="sd">    :class:`chemprop.data.MoleculeDataset` objects compatible with the Chemprop</span>
+<span class="sd">    framework. Optionally includes tabular molecular features as extra</span>
+<span class="sd">    descriptors (``x_d``).</span>
+
+<span class="sd">    :param list[str] | None feature_list: list of tabular feature sets to</span>
+<span class="sd">        compute as extra descriptors, or None to use only MPNN features</span>
+<span class="sd">    :param dict | None engine_params: parameters for the RDKit engine</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">feature_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">engine_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Handle the case where no features are used</span>
+        <span class="n">original_feature_list</span> <span class="o">=</span> <span class="n">feature_list</span>  <span class="c1"># Store the original value</span>
+        <span class="k">if</span> <span class="n">feature_list</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_use_features</span> <span class="o">=</span> <span class="kc">False</span>
+            <span class="n">feature_list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;estate&quot;</span><span class="p">]</span>  <span class="c1"># will be ignored, just for parent init</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_use_features</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Let parent class handle all initialization including params, input_dim, etc.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">feature_list</span><span class="p">,</span>
+            <span class="n">engine_params</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Override the feature_list in params to preserve the original None value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">feature_list</span> <span class="o">=</span> <span class="n">original_feature_list</span>
+
+        <span class="c1"># ChemProp-specific initialization</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_chemprop</span> <span class="o">=</span> <span class="n">featurizers</span><span class="o">.</span><span class="n">SimpleMoleculeMolGraphFeaturizer</span><span class="p">()</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;datamodule_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;label_encoder_params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">label_encoder_params</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;label_transform_params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">label_transform_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">ChempropDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">silence_nuisance_warnings</span><span class="p">()</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">use_features</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_features</span>
+
+<div class="viewcode-block" id="ChempropDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates unscaled features for ChemProp and creates a StackDataset.</span>
+
+<span class="sd">        This method only handles feature generation without any X/Y scaling.</span>
+<span class="sd">        Use featurize() for scaled features.</span>
+
+<span class="sd">        :param mol_list: list of rdkit molecules to process</span>
+<span class="sd">        :param y: array (N, X) of labels, or None</span>
+<span class="sd">        :param bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+<span class="sd">        :param n_jobs: number of cores to use when featurizing the input,</span>
+<span class="sd">            if None is passed a reasonable n_jobs value will be guessed from the</span>
+<span class="sd">            amount of data</span>
+<span class="sd">        :return: Unscaled StackDataset with all components for ChemProp</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># validate inputs without scaling</span>
+        <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># If using features, get tabular features from parent</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_features</span><span class="p">:</span>
+            <span class="n">tab_feats</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+            <span class="c1"># Extract the molecular features for x_d</span>
+            <span class="n">mol_features</span> <span class="o">=</span> <span class="n">tab_feats</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span>
+            <span class="n">y_values</span> <span class="o">=</span> <span class="n">tab_feats</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mol_features</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">y_values</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Create masks for ChemProp (will be None if no bound_mask provided)</span>
+        <span class="n">lt_masks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">gt_masks</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Only process masks if bound_mask is provided</span>
+        <span class="k">if</span> <span class="n">bound_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bound_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mask</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bound_mask</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="s2">&quot;&lt;&quot;</span> <span class="ow">in</span> <span class="n">mask</span><span class="p">:</span>
+                        <span class="n">lt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span><span class="p">]))</span>
+                        <span class="n">gt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">False</span><span class="p">]))</span>
+                    <span class="k">elif</span> <span class="s2">&quot;&gt;&quot;</span> <span class="ow">in</span> <span class="n">mask</span><span class="p">:</span>
+                        <span class="n">lt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">False</span><span class="p">]))</span>
+                        <span class="n">gt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">True</span><span class="p">]))</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">lt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">False</span><span class="p">]))</span>
+                        <span class="n">gt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="kc">False</span><span class="p">]))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Multi-task case: bound_mask is task-first, then sample</span>
+                <span class="c1"># bound_mask[task_idx][sample_idx] gives mask for task_idx, sample_idx</span>
+                <span class="n">n_tasks</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">bound_mask</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">)):</span>
+                    <span class="n">lt_task_masks</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="n">gt_task_masks</span> <span class="o">=</span> <span class="p">[]</span>
+                    <span class="k">for</span> <span class="n">task_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_tasks</span><span class="p">):</span>
+                        <span class="n">mask</span> <span class="o">=</span> <span class="n">bound_mask</span><span class="p">[</span><span class="n">task_idx</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                        <span class="k">if</span> <span class="s2">&quot;&lt;&quot;</span> <span class="ow">in</span> <span class="n">mask</span><span class="p">:</span>
+                            <span class="n">lt_task_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                            <span class="n">gt_task_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="s2">&quot;&gt;&quot;</span> <span class="ow">in</span> <span class="n">mask</span><span class="p">:</span>
+                            <span class="n">lt_task_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                            <span class="n">gt_task_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">lt_task_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                            <span class="n">gt_task_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                    <span class="n">lt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">lt_task_masks</span><span class="p">))</span>
+                    <span class="n">gt_masks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">gt_task_masks</span><span class="p">))</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Create default masks (None for each molecule)</span>
+            <span class="n">lt_masks</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">)</span>
+            <span class="n">gt_masks</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">)</span>
+
+        <span class="c1"># Create StackDataset with all components needed for ChemProp</span>
+        <span class="n">dataset_dict</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;mol&quot;</span><span class="p">:</span> <span class="n">mol_list</span><span class="p">,</span>
+            <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">y_values</span><span class="p">,</span>
+            <span class="s2">&quot;lt_mask&quot;</span><span class="p">:</span> <span class="n">lt_masks</span><span class="p">,</span>
+            <span class="s2">&quot;gt_mask&quot;</span><span class="p">:</span> <span class="n">gt_masks</span><span class="p">,</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">mol_features</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dataset_dict</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mol_features</span>
+
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="o">**</span><span class="n">dataset_dict</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">is_training</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">build_dataloader</span><span class="p">(</span>
+            <span class="n">dataset</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="ChempropDataModule.create_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.create_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">is_training</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">is_training</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ChempropDataModule.fit">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fits scalers and other stateful transformations on the dataset.</span>
+
+<span class="sd">        This method fits both X and Y scalers on the training data.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to fit transformations on</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Fit X scaler if not frozen</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_freeze_x_scaler</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_features</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_x</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Fit Y scaler via parent class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ChempropDataModule.transform">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies fitted transformations to the dataset.</span>
+
+<span class="sd">        This method applies previously fitted X and Y scalers to the dataset.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to transform</span>
+<span class="sd">        :return StackDataset: transformed dataset (modified in-place)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_features</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transform_x</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_stack_to_moleculedataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">data</span><span class="o">.</span><span class="n">MoleculeDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert an internal StackDataset to a Chemprop MoleculeDataset.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset containing mol, y, masks, and</span>
+<span class="sd">            optionally mol_features</span>
+<span class="sd">        :returns: Chemprop-compatible dataset</span>
+<span class="sd">        :rtype: chemprop.data.MoleculeDataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract components from StackDataset and create MoleculeDataset</span>
+        <span class="n">mol_list</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol&quot;</span><span class="p">]</span>
+        <span class="n">y_values</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">lt_masks</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;lt_mask&quot;</span><span class="p">]</span>
+        <span class="n">gt_masks</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;gt_mask&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Get scaled molecular features if they exist</span>
+        <span class="n">mol_features</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="s2">&quot;mol_features&quot;</span> <span class="ow">in</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Create datapoints with processed features and labels</span>
+        <span class="n">datapoints</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">y_val</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y_values</span><span class="p">)):</span>
+            <span class="c1"># Get features if needed</span>
+            <span class="n">x_d</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">mol_features</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_features</span> <span class="ow">and</span> <span class="n">mol_features</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="kc">None</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Create datapoint with proper mask handling</span>
+            <span class="n">datapoint</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">MoleculeDatapoint</span><span class="p">(</span>
+                <span class="n">mol</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span>
+                <span class="n">y</span><span class="o">=</span><span class="n">y_val</span><span class="p">,</span>
+                <span class="n">x_d</span><span class="o">=</span><span class="n">x_d</span><span class="p">,</span>
+                <span class="n">lt_mask</span><span class="o">=</span><span class="n">lt_masks</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                <span class="n">gt_mask</span><span class="o">=</span><span class="n">gt_masks</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">datapoints</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">datapoint</span><span class="p">)</span>
+
+        <span class="c1"># Create and return processed MoleculeDataset</span>
+        <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">MoleculeDataset</span><span class="p">(</span><span class="n">datapoints</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ChempropDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">data</span><span class="o">.</span><span class="n">MoleculeDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Processes a list of N molecules and a numpy array (N,X) encoding the</span>
+<span class="sd">        labels into a ChemProp MoleculeDataset, which can then be further processed</span>
+<span class="sd">        for ChemProp neural network training.</span>
+
+<span class="sd">        This method chains the unscaled feature generation with</span>
+<span class="sd">        the necessary scaling operations.</span>
+
+<span class="sd">        :param mol_list: list of N rdkit molecules to process</span>
+<span class="sd">        :param y: array (N, X), where X is the number of classes or</span>
+<span class="sd">            endpoints, or None</span>
+<span class="sd">        :param bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+<span class="sd">        :param is_training: Whether to fit the X and Y scalers on the input,</span>
+<span class="sd">            or leverage pre-existing ones to only normalize</span>
+<span class="sd">        :param n_jobs: number of cores to use when featurizing the input,</span>
+<span class="sd">            if None is passed a reasonable n_jobs value will be guessed from the</span>
+<span class="sd">            amount of data, defaults to None</span>
+<span class="sd">        :return: Processed MoleculeDataset ready for ChemProp neural network training</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Generate unscaled features in StackDataset format</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="c1"># Apply X processing (scaling) if needed</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_features</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_freeze_x_scaler</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_fit_x</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transform_x</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Apply Y processing for classification (censor mask already handled)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+            <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">ith</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">_continuous_to_categorical</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">i</span><span class="p">)</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ith</span><span class="p">)</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># Update the dataset with the classification modifications</span>
+            <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Create and return processed MoleculeDataset</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack_to_moleculedataset</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ChempropDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;Chemprop&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;input_dim&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">input_dim</span><span class="p">,</span>
+            <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="s2">&quot;use_features&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_features</span><span class="p">,</span>
+            <span class="s2">&quot;y_scaler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span>
+            <span class="s2">&quot;x_scaler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span><span class="p">,</span>
+            <span class="s2">&quot;label_encoder&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="p">,</span>
+            <span class="s2">&quot;label_transform&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ChempropDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+        <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="s2">&quot;datamodule_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;tabular&quot;</span>
+        <span class="k">if</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="s2">&quot;feature_list&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">][</span><span class="s2">&quot;feature_list&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;estate&quot;</span><span class="p">]</span>  <span class="c1"># will be ignored</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">feature_list</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;datamodule_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">ChempropDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="c1"># Since parent handles params, we only need to restore chemprop-specific state</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_use_features</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;use_features&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="ChempropDataModule.dummy">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/chemprop_datamodule/index.html#matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule.dummy">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to make a dummy class with default params. Can be</span>
+<span class="sd">        combined with load_state_dict to recreate a datamodule from</span>
+<span class="sd">        a state dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">feature_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;estate&quot;</span><span class="p">])</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

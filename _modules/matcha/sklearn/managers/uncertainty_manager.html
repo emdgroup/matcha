@@ -1,0 +1,243 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.sklearn.managers.uncertainty_manager &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.sklearn.managers.uncertainty_manager</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.sklearn.managers.uncertainty_manager</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.calibration.base_calibration</span><span class="w"> </span><span class="kn">import</span> <span class="n">CalibrationRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.calibration</span><span class="w"> </span><span class="kn">import</span> <span class="n">CalibratorModel</span>
+
+
+<div class="viewcode-block" id="UncertaintyManager">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/uncertainty_manager/index.html#matcha.sklearn.managers.UncertaintyManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">UncertaintyManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Manages MC Dropout uncertainty estimation and calibration.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="s2">&quot;UNCERTAINTY&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calibrator</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The calibrator object, if one has been fitted.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CalibratorModel</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;The calibration params, or None if no calibrator has been fitted.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span><span class="o">.</span><span class="n">params</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="UncertaintyManager.create_calibrator">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/uncertainty_manager/index.html#matcha.sklearn.managers.UncertaintyManager.create_calibrator">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_calibrator</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">CalibratorModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Factory method to create a calibrator instance.</span>
+
+<span class="sd">        :param str name: name of the calibrator algorithm</span>
+<span class="sd">        :param dict params: parameters for the calibrator</span>
+<span class="sd">        :param CalibratorModel | None config: optional config object (overrides name/params)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;calibrator_type&quot;</span><span class="p">]</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;calibrator_type&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span> <span class="o">=</span> <span class="n">CalibrationRegistry</span><span class="p">[</span><span class="n">name</span><span class="p">](</span><span class="o">**</span><span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="UncertaintyManager.compute">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/uncertainty_manager/index.html#matcha.sklearn.managers.UncertaintyManager.compute">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model_instance</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">,</span>
+        <span class="n">num_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes uncertainty via Monte Carlo dropout for a test set.</span>
+
+<span class="sd">        :param model_instance: the sklearn model instance</span>
+<span class="sd">        :param x: input to compute uncertainty for</span>
+<span class="sd">        :param int num_iterations: how many iterations of dropout to do</span>
+<span class="sd">        :param str | None accelerator: hardware to use for predictions</span>
+<span class="sd">        :param int | None devices: how many resources to use</span>
+<span class="sd">        :param int | None batch_size: batch size to use</span>
+<span class="sd">        :return np.ndarray: array with the uncertainty for each prediction</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uncertainty estimation: beginning process&quot;</span><span class="p">)</span>
+
+        <span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">switch_mc_dropout</span><span class="p">()</span>
+        <span class="n">pred_box</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_iterations</span><span class="p">):</span>
+            <span class="n">pred_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">model_instance</span><span class="o">.</span><span class="n">_default_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">switch_mc_dropout</span><span class="p">()</span>
+        <span class="n">pred_box</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">pred_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">pred_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Adjusting uncertainty estimates with the calibrator&quot;</span><span class="p">)</span>
+            <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span><span class="o">.</span><span class="n">compute_uncertainty</span><span class="p">(</span><span class="n">std</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uncertainty estimation: finished&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">std</span></div>
+
+
+<div class="viewcode-block" id="UncertaintyManager.calibrate">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/uncertainty_manager/index.html#matcha.sklearn.managers.UncertaintyManager.calibrate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">calibrate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model_instance</span><span class="p">,</span>
+        <span class="n">calibration_mols</span><span class="p">,</span>
+        <span class="n">calibration_y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">num_iterations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">algorithm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;inductive_conformal&quot;</span><span class="p">,</span>
+        <span class="n">algorithm_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calibrate uncertainty estimates using a calibration set.</span>
+
+<span class="sd">        :param model_instance: the sklearn model instance</span>
+<span class="sd">        :param calibration_mols: molecules for calibration</span>
+<span class="sd">        :param np.ndarray calibration_y: true labels for calibration</span>
+<span class="sd">        :param int num_iterations: MC dropout iterations</span>
+<span class="sd">        :param str algorithm: calibration algorithm name</span>
+<span class="sd">        :param dict | None algorithm_args: arguments for the calibration algorithm</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">algorithm_args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">algorithm_args</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;confidence_alpha&quot;</span><span class="p">:</span> <span class="mf">0.2</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calibration: beginning process&quot;</span><span class="p">)</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="n">model_instance</span><span class="o">.</span><span class="n">_default_predict</span><span class="p">(</span><span class="n">calibration_mols</span><span class="p">)</span>
+        <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">model_instance</span><span class="p">,</span> <span class="n">calibration_mols</span><span class="p">,</span> <span class="n">num_iterations</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">create_calibrator</span><span class="p">(</span><span class="n">algorithm</span><span class="p">,</span> <span class="n">algorithm_args</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">model_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">is_classification</span>
+            <span class="ow">and</span> <span class="n">model_instance</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">is_set</span><span class="p">()</span>
+        <span class="p">):</span>
+            <span class="n">calibration_y</span> <span class="o">=</span> <span class="n">model_instance</span><span class="o">.</span><span class="n">encode_y</span><span class="p">(</span><span class="n">calibration_y</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">calibration_y</span><span class="p">,</span> <span class="n">preds</span><span class="p">,</span> <span class="n">std</span><span class="p">)</span>
+
+        <span class="c1"># Log to MLflow if active</span>
+        <span class="k">if</span> <span class="n">model_instance</span><span class="o">.</span><span class="n">_mlflow_manager</span><span class="o">.</span><span class="n">is_active</span><span class="p">:</span>
+            <span class="n">model_instance</span><span class="o">.</span><span class="n">_mlflow_manager</span><span class="o">.</span><span class="n">log_calibrator</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calibration: uncertainty calibrated&quot;</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

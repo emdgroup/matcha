@@ -1,0 +1,509 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.pretrain_multitask &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../cli.html">matcha.cli</a></li>
+      <li class="breadcrumb-item active">matcha.cli.pretrain_multitask</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.cli.pretrain_multitask</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;CLI command for multi-task pretraining of neural network models.</span>
+
+<span class="sd">Trains a MATCHA neural-network model (e.g. GatedGCN) on a sparse</span>
+<span class="sd">multi-task dataset produced by the ``prepare_sparse_dataset`` command.</span>
+<span class="sd">Supports multiple loss functions with independent weighting schedules,</span>
+<span class="sd">distributed training via DDP, and produces serialized artifacts</span>
+<span class="sd">compatible with downstream finetuning.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.sparse</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sp</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">L</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.callbacks</span><span class="w"> </span><span class="kn">import</span> <span class="n">EarlyStopping</span><span class="p">,</span> <span class="n">ModelCheckpoint</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.strategies</span><span class="w"> </span><span class="kn">import</span> <span class="n">DDPStrategy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.clm.base_sklearn_clm</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseScikitLearnCLM</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span><span class="p">,</span> <span class="n">MatchaLogger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">save_pickle</span><span class="p">,</span> <span class="n">save_yaml</span><span class="p">,</span> <span class="n">load_json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScikitLearnModelRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.cli</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">CLIPretrainMultitaskInputModel</span><span class="p">,</span>
+    <span class="n">PretrainTraining</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.cli.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">save_config_as_yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.on_the_fly_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">OnTheFlyDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+
+<span class="n">torch</span><span class="o">.</span><span class="n">set_float32_matmul_precision</span><span class="p">(</span><span class="s2">&quot;high&quot;</span><span class="p">)</span>
+
+
+<span class="c1"># ──────────────────────────────────────────────────────────────────────</span>
+<span class="c1"># Save artifacts</span>
+<span class="c1"># ──────────────────────────────────────────────────────────────────────</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_save_artifacts</span><span class="p">(</span>
+    <span class="n">cfg</span><span class="p">:</span> <span class="n">CLIPretrainMultitaskInputModel</span><span class="p">,</span>
+    <span class="n">model</span><span class="p">,</span>
+    <span class="n">trainer</span><span class="p">:</span> <span class="n">L</span><span class="o">.</span><span class="n">Trainer</span><span class="p">,</span>
+    <span class="n">base_dm</span><span class="p">,</span>
+    <span class="n">params</span><span class="p">,</span>
+    <span class="n">logger</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save pretraining artifacts (checkpoint, configs, manifest) to disk.</span>
+
+<span class="sd">    Produces the standard artifact layout expected by the MATCHA finetuning</span>
+<span class="sd">    pipeline: a full Lightning checkpoint, datamodule state, config YAMLs,</span>
+<span class="sd">    metadata, and a manifest file indicating ``origin_type: &quot;pretraining&quot;``.</span>
+
+<span class="sd">    :param cfg: The full CLI configuration.</span>
+<span class="sd">    :param model: Trained Lightning model.</span>
+<span class="sd">    :param trainer: Lightning trainer instance.</span>
+<span class="sd">    :param base_dm: Base datamodule (for state serialization).</span>
+<span class="sd">    :param params: Container params holding model and datamodule settings.</span>
+<span class="sd">    :param logger: Logger instance.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">out_dir</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span>
+    <span class="n">config_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span>
+    <span class="n">state_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s2">&quot;state&quot;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Full checkpoint</span>
+    <span class="n">ckpt_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s2">&quot;model.ckpt&quot;</span><span class="p">)</span>
+    <span class="n">trainer</span><span class="o">.</span><span class="n">save_checkpoint</span><span class="p">(</span><span class="n">ckpt_path</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Full checkpoint saved: </span><span class="si">{</span><span class="n">ckpt_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Datamodule state</span>
+    <span class="n">dm_state</span> <span class="o">=</span> <span class="n">base_dm</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
+    <span class="n">save_pickle</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="s2">&quot;datamodule_state.pkl&quot;</span><span class="p">),</span> <span class="n">dm_state</span><span class="p">)</span>
+
+    <span class="c1"># Config YAMLs</span>
+    <span class="n">save_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;model.yaml&quot;</span><span class="p">),</span> <span class="n">params</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+
+    <span class="n">training_cfg</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span> <span class="ow">or</span> <span class="n">PretrainTraining</span><span class="p">()</span>
+    <span class="n">training_yaml</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">num_epochs</span><span class="p">,</span>
+        <span class="s2">&quot;batch_size&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">training</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+        <span class="s2">&quot;accelerator&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">accelerator</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;accelerator&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+        <span class="s2">&quot;devices&quot;</span><span class="p">:</span> <span class="n">trainer</span><span class="o">.</span><span class="n">num_devices</span><span class="p">,</span>
+        <span class="s2">&quot;early_stopping&quot;</span><span class="p">:</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="n">EarlyStopping</span><span class="p">)</span> <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">callbacks</span> <span class="ow">or</span> <span class="p">[])</span>
+        <span class="p">),</span>
+        <span class="s2">&quot;patience&quot;</span><span class="p">:</span> <span class="nb">next</span><span class="p">(</span>
+            <span class="p">(</span>
+                <span class="n">cb</span><span class="o">.</span><span class="n">patience</span>
+                <span class="k">for</span> <span class="n">cb</span> <span class="ow">in</span> <span class="p">(</span><span class="n">trainer</span><span class="o">.</span><span class="n">callbacks</span> <span class="ow">or</span> <span class="p">[])</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cb</span><span class="p">,</span> <span class="n">EarlyStopping</span><span class="p">)</span>
+            <span class="p">),</span>
+            <span class="n">training_cfg</span><span class="o">.</span><span class="n">patience</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="s2">&quot;stochastic_weight_averaging&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">save_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;training.yaml&quot;</span><span class="p">),</span> <span class="n">training_yaml</span><span class="p">)</span>
+    <span class="n">save_yaml</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;datamodule.yaml&quot;</span><span class="p">),</span> <span class="n">params</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+    <span class="p">)</span>
+
+    <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;model_type&quot;</span><span class="p">:</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="p">,</span>
+        <span class="s2">&quot;model_name&quot;</span><span class="p">:</span> <span class="s2">&quot;multitask pretraining&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;model_version&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="s2">&quot;model_scope&quot;</span><span class="p">:</span> <span class="s2">&quot;pretraining&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;model_owner&quot;</span><span class="p">:</span> <span class="s2">&quot;matcha&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;matcha_version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
+        <span class="s2">&quot;date&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+        <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Multitask pretrained model (</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;extra&quot;</span><span class="p">:</span> <span class="p">{},</span>
+    <span class="p">}</span>
+    <span class="n">save_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;metadata.yaml&quot;</span><span class="p">),</span> <span class="n">metadata</span><span class="p">)</span>
+
+    <span class="c1"># Manifest — this is what the Finetuner reads</span>
+    <span class="n">save_yaml</span><span class="p">(</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;manifest.yaml&quot;</span><span class="p">),</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;matcha_version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
+            <span class="s2">&quot;serialization_version&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s2">&quot;origin_type&quot;</span><span class="p">:</span> <span class="s2">&quot;classic&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;source_class&quot;</span><span class="p">:</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="p">,</span>
+            <span class="s2">&quot;task_type&quot;</span><span class="p">:</span> <span class="s2">&quot;multitask&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;saved_at&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+        <span class="p">},</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Copy of input config</span>
+    <span class="n">save_config_as_yaml</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">out_dir</span><span class="p">,</span> <span class="s2">&quot;cfg.yaml&quot;</span><span class="p">))</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;All artifacts saved to </span><span class="si">{</span><span class="n">out_dir</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+
+<span class="c1"># ──────────────────────────────────────────────────────────────────────</span>
+<span class="c1"># Main</span>
+<span class="c1"># ──────────────────────────────────────────────────────────────────────</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../api/matcha/cli/pretrain_multitask/index.html#matcha.cli.pretrain_multitask.main">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run multi-task pretraining from a YAML configuration.</span>
+
+<span class="sd">    Loads sparse training/validation data, builds a neural-network model via</span>
+<span class="sd">    the scikit-learn registry interface, wraps the datamodule in an on-the-fly</span>
+<span class="sd">    featurizer for memory efficiency, trains with Lightning (optionally</span>
+<span class="sd">    distributed via DDP), and saves artifacts for downstream finetuning.</span>
+
+<span class="sd">    :param cfg: Pre-parsed configuration object or ``None`` to parse from</span>
+<span class="sd">        CLI ``--config`` argument. Accepts a</span>
+<span class="sd">        :class:`~matcha.utils.schemas.cli.CLIPretrainMultitaskInputModel`</span>
+<span class="sd">        instance or a raw dict that will be validated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">cfg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Pretrain a model&quot;</span><span class="p">)</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s2">&quot;--config&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Path to the YAML config file&quot;</span>
+        <span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">CLIPretrainMultitaskInputModel</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">CLIPretrainMultitaskInputModel</span><span class="p">):</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">CLIPretrainMultitaskInputModel</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">log_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="p">,</span> <span class="s2">&quot;pretrain.log&quot;</span><span class="p">)</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="s2">&quot;PRETRAIN&quot;</span><span class="p">,</span> <span class="n">logging_path</span><span class="o">=</span><span class="n">log_path</span><span class="p">)</span>
+
+    <span class="c1"># Environment (optional)</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">visible_devices</span><span class="p">:</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;CUDA_VISIBLE_DEVICES&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">visible_devices</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Set CUDA_VISIBLE_DEVICES=</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s1">&#39;CUDA_VISIBLE_DEVICES&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Resolve training config (use typed defaults when omitted)</span>
+    <span class="n">training_cfg</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">training</span> <span class="ow">or</span> <span class="n">PretrainTraining</span><span class="p">()</span>
+    <span class="n">seed</span> <span class="o">=</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">seed</span>
+    <span class="n">L</span><span class="o">.</span><span class="n">seed_everything</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Resolve dataset paths: use override if set, else construct from dataset_dir</span>
+    <span class="n">ds</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span>
+    <span class="n">train_smiles_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">train_smiles</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;train_molecules.parquet&quot;</span>
+    <span class="p">)</span>
+    <span class="n">val_smiles_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">val_smiles</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;val_molecules.parquet&quot;</span>
+    <span class="p">)</span>
+    <span class="n">train_tasks_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">train_tasks</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;train_tasks.npz&quot;</span><span class="p">)</span>
+    <span class="n">val_tasks_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">val_tasks</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;val_tasks.npz&quot;</span><span class="p">)</span>
+    <span class="n">task_metadata_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">task_metadata</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;task_metadata.json&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># load data</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s2">&quot;Loading train data&quot;</span><span class="p">)</span>
+    <span class="n">train_mols</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">train_smiles_path</span><span class="p">)</span><span class="o">.</span><span class="n">SMILES</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">train_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">train_tasks_path</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Training set size: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_mols</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s2">&quot;Loading validation data&quot;</span><span class="p">)</span>
+    <span class="n">val_mols</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">val_smiles_path</span><span class="p">)</span><span class="o">.</span><span class="n">SMILES</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+    <span class="n">val_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">val_tasks_path</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation set size: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">val_mols</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">task_metadata_path</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">train_y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> tasks for training&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">val_y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> tasks for validation&quot;</span><span class="p">)</span>
+
+    <span class="c1"># parse cfg for losses</span>
+    <span class="n">loss_box</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">loss</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">loss</span><span class="p">:</span>
+        <span class="n">loss_cfg</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;task_map&quot;</span><span class="p">:</span> <span class="n">metadata</span><span class="p">[</span><span class="s2">&quot;file_to_tasks&quot;</span><span class="p">][</span><span class="n">loss</span><span class="o">.</span><span class="n">dataset</span><span class="p">],</span>
+            <span class="s2">&quot;loss_fn&quot;</span><span class="p">:</span> <span class="n">loss</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span>
+            <span class="s2">&quot;loss_args&quot;</span><span class="p">:</span> <span class="n">loss</span><span class="o">.</span><span class="n">loss_args</span><span class="p">,</span>
+            <span class="s2">&quot;init_w&quot;</span><span class="p">:</span> <span class="n">loss</span><span class="o">.</span><span class="n">init_w</span><span class="p">,</span>
+            <span class="s2">&quot;final_w&quot;</span><span class="p">:</span> <span class="n">loss</span><span class="o">.</span><span class="n">final_w</span><span class="p">,</span>
+            <span class="s2">&quot;T&quot;</span><span class="p">:</span> <span class="n">loss</span><span class="o">.</span><span class="n">T</span><span class="p">,</span>
+            <span class="s2">&quot;warmup&quot;</span><span class="p">:</span> <span class="n">loss</span><span class="o">.</span><span class="n">warmup</span><span class="p">,</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">loss</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">loss_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loss_cfg</span><span class="p">)</span>
+
+    <span class="c1"># ── Build model via scikit-learn interface ─────────────────────────</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s2">&quot;Creating model and datamodule instance&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">visible_devices</span><span class="p">:</span>
+        <span class="n">devices</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">visible_devices</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">))</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">devices</span> <span class="o">=</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">devices</span>
+
+    <span class="k">if</span> <span class="s2">&quot;Model&quot;</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="p">:</span>
+        <span class="n">architecture</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;Model&quot;</span><span class="p">,</span> <span class="s2">&quot;Regressor&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">architecture</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span>
+
+    <span class="c1"># Build the flat kwargs expected by the ScikitLearnModelRegistry.</span>
+    <span class="c1"># Neural-network params come from cfg.model.params; training and</span>
+    <span class="c1"># datamodule overrides are merged in from their own config sections</span>
+    <span class="c1"># so that the container sees the full picture.</span>
+    <span class="n">container_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+    <span class="n">container_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;num_epochs&quot;</span><span class="p">:</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">num_epochs</span><span class="p">,</span>
+            <span class="s2">&quot;early_stopping&quot;</span><span class="p">:</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">early_stopping</span><span class="p">,</span>
+            <span class="s2">&quot;patience&quot;</span><span class="p">:</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">patience</span><span class="p">,</span>
+            <span class="s2">&quot;accelerator&quot;</span><span class="p">:</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">accelerator</span><span class="p">,</span>
+            <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="p">)</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">datamodule</span><span class="p">:</span>
+        <span class="n">container_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">datamodule</span><span class="p">)</span>
+
+    <span class="n">container</span> <span class="o">=</span> <span class="n">ScikitLearnModelRegistry</span><span class="p">[</span><span class="n">architecture</span><span class="p">](</span>
+        <span class="n">num_endpoints</span><span class="o">=</span><span class="n">train_y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="n">devices</span><span class="o">=</span><span class="n">devices</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;multiloss&quot;</span><span class="p">,</span>
+        <span class="n">loss_args</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;loss_configs&quot;</span><span class="p">:</span> <span class="n">loss_box</span><span class="p">},</span>
+        <span class="o">**</span><span class="n">container_kwargs</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">model</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">model</span>
+    <span class="n">datamodule</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">datamodule</span>
+    <span class="n">params</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">params</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Datamodule params: </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span><span class="w"> </span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Model params: </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span><span class="w"> </span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="c1"># fit datamodules on a sample of the training set</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">fit_datamodule_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Fitting base datamodule stateful components&quot;</span><span class="p">)</span>
+        <span class="n">sample_size</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">fit_datamodule_size</span>
+        <span class="n">sample_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_mols</span><span class="p">),</span> <span class="n">sample_size</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">sample_smiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">train_mols</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sample_indices</span><span class="p">]</span>
+        <span class="n">sample_mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">sample_smiles</span><span class="p">]</span>
+        <span class="n">sample_y</span> <span class="o">=</span> <span class="n">train_y</span><span class="p">[</span><span class="n">sample_indices</span><span class="p">]</span>
+        <span class="n">train_set</span> <span class="o">=</span> <span class="n">datamodule</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">sample_mols</span><span class="p">,</span> <span class="n">sample_y</span><span class="o">.</span><span class="n">toarray</span><span class="p">())</span>
+        <span class="n">datamodule</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_set</span><span class="p">)</span>
+
+    <span class="c1"># have to adjust num_tokens and remake model accordingly</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">container</span><span class="p">,</span> <span class="n">BaseScikitLearnCLM</span><span class="p">):</span>
+        <span class="n">model_params</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+        <span class="n">model_params</span><span class="p">[</span><span class="s2">&quot;enc_num_characters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_tokens</span>
+        <span class="n">model_params</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;torch_type&quot;</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">container</span><span class="o">.</span><span class="n">_architecture</span><span class="p">(</span><span class="o">**</span><span class="n">model_params</span><span class="p">)</span>
+
+    <span class="k">del</span> <span class="n">container</span>
+
+    <span class="c1"># ── On-the-fly datamodule wrapper ─────────────────────────────────</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating OnTheFly wrapper for delayed feature generation&quot;</span><span class="p">)</span>
+    <span class="n">on_the_fly_datamodule</span> <span class="o">=</span> <span class="n">OnTheFlyDataModule</span><span class="p">(</span>
+        <span class="n">base</span><span class="o">=</span><span class="n">datamodule</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">dataloader_num_workers</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Set raw data instead of pre-computing features</span>
+    <span class="n">on_the_fly_datamodule</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span>
+        <span class="n">train_smiles</span><span class="o">=</span><span class="n">train_mols</span><span class="p">,</span> <span class="n">train_y</span><span class="o">=</span><span class="n">train_y</span><span class="p">,</span> <span class="n">val_smiles</span><span class="o">=</span><span class="n">val_mols</span><span class="p">,</span> <span class="n">val_y</span><span class="o">=</span><span class="n">val_y</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Use the OnTheFly datamodule for training</span>
+    <span class="n">base_dm</span> <span class="o">=</span> <span class="n">datamodule</span>  <span class="c1"># keep reference for artifact saving</span>
+    <span class="n">datamodule</span> <span class="o">=</span> <span class="n">on_the_fly_datamodule</span>
+    <span class="n">datamodule</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="n">stage</span><span class="o">=</span><span class="s2">&quot;fit&quot;</span><span class="p">)</span>
+    <span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">training</span><span class="o">.</span><span class="n">batch_size</span><span class="p">)</span>
+
+    <span class="c1"># ── Trainer ───────────────────────────────────────────────────────</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Setting up Trainer...&quot;</span><span class="p">)</span>
+    <span class="n">num_epochs</span> <span class="o">=</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">num_epochs</span>
+    <span class="n">accelerator</span> <span class="o">=</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">accelerator</span>
+    <span class="n">patience</span> <span class="o">=</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">patience</span>
+    <span class="n">early_stopping</span> <span class="o">=</span> <span class="n">training_cfg</span><span class="o">.</span><span class="n">early_stopping</span>
+
+    <span class="n">strategy</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>
+    <span class="k">if</span> <span class="n">accelerator</span> <span class="o">==</span> <span class="s2">&quot;gpu&quot;</span> <span class="ow">and</span> <span class="n">devices</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Using DDP strategy for distributed training on </span><span class="si">{</span><span class="n">devices</span><span class="si">}</span><span class="s2"> GPUs&quot;</span><span class="p">)</span>
+        <span class="n">strategy</span> <span class="o">=</span> <span class="n">DDPStrategy</span><span class="p">(</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span>
+                <span class="n">seconds</span><span class="o">=</span><span class="nb">int</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout_seconds&quot;</span><span class="p">,</span> <span class="mi">3600</span><span class="p">))</span>
+            <span class="p">),</span>
+            <span class="n">find_unused_parameters</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span>
+                <span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">strategy</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;find_unused_parameters&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+    <span class="n">callbacks</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">early_stopping</span><span class="p">:</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+            <span class="n">EarlyStopping</span><span class="p">(</span><span class="n">monitor</span><span class="o">=</span><span class="s2">&quot;val_loss&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ModelCheckpoint</span><span class="p">(</span><span class="n">save_top_k</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">monitor</span><span class="o">=</span><span class="s2">&quot;val_loss&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">))</span>
+
+    <span class="n">mlflow_logger</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Setting up MLFlow logging | experiment: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">experiment_name</span><span class="si">}</span><span class="s2">&#39; &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;| log_dir: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">log_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+        <span class="p">)</span>
+
+        <span class="n">mlflow_logger</span> <span class="o">=</span> <span class="n">MatchaLogger</span><span class="p">(</span>
+            <span class="n">experiment_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">experiment_name</span><span class="p">,</span>
+            <span class="n">run_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">run_name</span><span class="p">,</span>
+            <span class="n">save_dir</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span>
+            <span class="n">tracking_uri</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">server_uri</span><span class="p">,</span>
+            <span class="n">log_model</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">tags</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">tags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">set_tag</span><span class="p">(</span><span class="n">mlflow_logger</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+
+    <span class="n">trainer</span> <span class="o">=</span> <span class="n">L</span><span class="o">.</span><span class="n">Trainer</span><span class="p">(</span>
+        <span class="n">max_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+        <span class="n">enable_checkpointing</span><span class="o">=</span><span class="nb">bool</span><span class="p">(</span><span class="n">early_stopping</span><span class="p">),</span>
+        <span class="n">devices</span><span class="o">=</span><span class="n">devices</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="o">=</span><span class="n">accelerator</span><span class="p">,</span>
+        <span class="n">strategy</span><span class="o">=</span><span class="n">strategy</span><span class="p">,</span>
+        <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">,</span>
+        <span class="n">logger</span><span class="o">=</span><span class="n">mlflow_logger</span><span class="p">,</span>
+        <span class="n">accumulate_grad_batches</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">gradient_accumulation_steps</span><span class="p">,</span>
+        <span class="n">gradient_clip_val</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">gradient_clip_val</span><span class="p">,</span>
+        <span class="n">num_sanity_val_steps</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">deterministic</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># ── Train ─────────────────────────────────────────────────────────</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Beginning training...&quot;</span><span class="p">)</span>
+    <span class="n">trainer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">datamodule</span><span class="o">=</span><span class="n">datamodule</span><span class="p">)</span>
+
+    <span class="c1"># If early stopping was used, reload best weights</span>
+    <span class="k">if</span> <span class="n">early_stopping</span> <span class="ow">and</span> <span class="n">trainer</span><span class="o">.</span><span class="n">checkpoint_callback</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">best</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">checkpoint_callback</span><span class="o">.</span><span class="n">best_model_path</span>
+        <span class="k">if</span> <span class="n">best</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading best checkpoint: </span><span class="si">{</span><span class="n">best</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">ckpt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">best</span><span class="p">,</span> <span class="n">weights_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">ckpt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;state_dict&quot;</span><span class="p">,</span> <span class="n">ckpt</span><span class="p">),</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># ── Save ──────────────────────────────────────────────────────────</span>
+    <span class="n">_save_artifacts</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">trainer</span><span class="p">,</span> <span class="n">base_dm</span><span class="p">,</span> <span class="n">params</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Done.&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

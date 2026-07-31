@@ -1,0 +1,73 @@
+matcha.utils.splitting
+======================
+
+.. py:module:: matcha.utils.splitting
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.utils.splitting.random_split
+   matcha.utils.splitting.time_split
+   matcha.utils.splitting.cluster_split
+
+
+Module Contents
+---------------
+
+.. py:function:: random_split(df: pandas.DataFrame, split_size: float = 0.2, random_flag: int = 42) -> tuple[pandas.DataFrame, pandas.DataFrame]
+
+   Perform a random train/test split on a DataFrame.
+
+   :param pd.DataFrame df: The input DataFrame to split.
+   :param float split_size: Fraction of data to allocate to the test set.
+   :param int random_flag: Random seed for reproducibility.
+   :returns: A tuple of (train_df, test_df).
+   :rtype: tuple[pd.DataFrame, pd.DataFrame]
+
+
+.. py:function:: time_split(df: pandas.DataFrame, column_name: str | None, split_value: float | str | None = None, split_size: float | None = None) -> tuple[pandas.DataFrame, pandas.DataFrame]
+
+   Perform a time-based or ordered split on a DataFrame.
+
+   Sorts the DataFrame by the specified column and splits it into train and
+   test sets based on either a split value threshold or a fractional size.
+
+   :param pd.DataFrame df: The input DataFrame to split.
+   :param column_name: Name of the column to sort by. If ``None``, the
+       DataFrame is used in its current order.
+   :type column_name: str | None
+   :param split_value: Threshold value; rows with values >= this go to test.
+   :type split_value: float | str | None
+   :param split_size: Fraction of data to allocate to the test set.
+   :type split_size: float | None
+   :returns: A tuple of (train_df, test_df).
+   :rtype: tuple[pd.DataFrame, pd.DataFrame]
+   :raises ValueError: If the column is not found, column type is unsupported,
+       split_size is not between 0 and 1, or neither split_value nor
+       split_size is provided.
+
+
+.. py:function:: cluster_split(df, split_size=0.2, n_neighbors=15, min_dist=0.1, n_components=2, random_state=np.random.randint(low=0, high=100000), feature_set='ecfp', metric='jaccard', n_jobs=1)
+
+   Perform a cluster-based train/test split to minimize data leakage.
+
+   Computes molecular fingerprints, reduces dimensionality with UMAP, clusters
+   with DBSCAN, and assigns entire clusters to either train or test to prevent
+   similar molecules from appearing in both sets.
+
+   :param pd.DataFrame df: Input DataFrame containing a ``SMILES`` column.
+   :param float split_size: Fraction of data to allocate to the test set.
+   :param int n_neighbors: Number of neighbors for UMAP.
+   :param float min_dist: Minimum distance parameter for UMAP.
+   :param int n_components: Number of UMAP embedding dimensions.
+   :param int random_state: Random seed for UMAP.
+   :param str feature_set: Fingerprint type to compute (e.g., ``"ecfp"``).
+   :param str metric: Distance metric for UMAP.
+   :param int n_jobs: Number of parallel jobs for fingerprint computation.
+   :returns: A tuple of (train_df, test_df).
+   :rtype: tuple[pd.DataFrame, pd.DataFrame]
+
+

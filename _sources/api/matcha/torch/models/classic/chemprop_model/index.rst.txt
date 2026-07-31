@@ -1,0 +1,109 @@
+matcha.torch.models.classic.chemprop_model
+==========================================
+
+.. py:module:: matcha.torch.models.classic.chemprop_model
+
+.. autoapi-nested-parse::
+
+   Chemprop (Directed Message Passing Neural Network) classic model.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.classic.chemprop_model.ChempropModel
+
+
+Module Contents
+---------------
+
+.. py:class:: ChempropModel(enc_atom_hidden_dim: int = 300, enc_num_layers: int = 3, enc_dropout: float = 0.2, enc_activation: str = 'relu', enc_readout: str = 'norm', additional_mol_features_dim: int = 0, pred_hidden_dim: int = 300, pred_num_layers: int = 2, pred_dropout: float = 0.2, pred_activation: str = 'relu', num_endpoints: int = 1, loss_fn: str = 'mse', optimizer: str = 'chemprop', optimizer_args: dict = {'lr': 0.001}, scheduler: str = 'chemprop', scheduler_args: dict = {'warmup_epochs': 5, 'max_lr': 0.01, 'final_lr': 1e-05})
+
+   Bases: :py:obj:`chemprop.models.model.MPNN`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Chemprop Directed Message Passing Neural Network (D-MPNN) for molecular
+   property prediction.
+
+   Wraps the Chemprop MPNN implementation with matcha's registry and
+   hyperparameter management. Unlike other classic models, this class inherits
+   directly from :class:`chemprop.models.model.MPNN` and uses Chemprop's
+   built-in scheduler and optimizer by default.
+
+   Reference: Yang et al., *Analyzing Learned Molecular Representations for
+   Property Prediction* (https://arxiv.org/abs/1904.01561)
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = ChempropModel(num_endpoints=1)
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int enc_atom_hidden_dim: hidden dimensionality of bond message passing,
+       defaults to 300
+   :param int enc_num_layers: depth of message passing, defaults to 3
+   :param float enc_dropout: dropout in message-passing layers, defaults to 0.2
+   :param str enc_activation: activation function in the encoder, defaults to 'relu'
+   :param str enc_readout: aggregation strategy ('norm', 'mean', 'sum', 'attentive'),
+       defaults to 'norm'
+   :param int additional_mol_features_dim: dimensionality of extra molecular
+       features concatenated to the learned fingerprint, defaults to 0
+   :param int pred_hidden_dim: hidden size of feed-forward predictor layers,
+       defaults to 300
+   :param int pred_num_layers: number of feed-forward predictor layers, defaults to 2
+   :param float pred_dropout: dropout in predictor layers, defaults to 0.2
+   :param str pred_activation: activation in predictor layers, defaults to 'relu'
+   :param int num_endpoints: number of prediction targets, defaults to 1
+   :param str loss_fn: loss function name ('mse', 'bce', 'ce'),
+       defaults to 'mse'
+   :param str optimizer: optimizer name, defaults to 'chemprop'
+   :param dict optimizer_args: optimizer arguments, defaults to {'lr': 1e-3}
+   :param str scheduler: scheduler name, defaults to 'chemprop'
+   :param dict scheduler_args: scheduler arguments,
+       defaults to {'warmup_epochs': 5, 'max_lr': 1e-2, 'final_lr': 1e-5}
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: compute_learned_embedding(dataloader) -> list
+
+      Extract learned fingerprints for all batches in a dataloader.
+
+      :param dataloader: dataloader yielding Chemprop batch objects
+      :returns: list of fingerprint tensors, one per batch
+      :rtype: list[torch.Tensor]
+
+
+
+   .. py:method:: encode(batch)
+
+      Encode a single batch into learned molecular fingerprints.
+
+      :param batch: Chemprop batch object
+      :returns: molecular fingerprint tensor
+      :rtype: torch.Tensor
+
+
+
+   .. py:method:: switch_mc_dropout(*args, **kwargs)
+
+      Not supported for Chemprop models.
+
+      :raises ValueError: always, as Chemprop does not support MC Dropout
+
+
+
+   .. py:method:: set_label_names(label_names: list[str])
+
+      Set endpoint label names for logging and metric tracking.
+
+      :param list[str] label_names: names of the prediction endpoints
+
+
+

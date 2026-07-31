@@ -1,0 +1,408 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.sklearn.graph.chemprop &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.sklearn.graph.chemprop</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.sklearn.graph.chemprop</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Sklearn-compatible Chemprop (D-MPNN) classifiers and regressors.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ScikitLearnRegressorMixin</span><span class="p">,</span>
+    <span class="n">ScikitLearnClassifierMixin</span><span class="p">,</span>
+    <span class="n">BaseScikitLearnModel</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScikitLearnModelRegistry</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.rdkit_engine</span><span class="w"> </span><span class="kn">import</span> <span class="n">Engine</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">silence_nuisance_warnings</span>
+
+
+<div class="viewcode-block" id="ChempropMixin">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/graph/chemprop/index.html#matcha.sklearn.graph.chemprop.ChempropMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropMixin</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin providing Chemprop-specific datamodule creation and modality adaptation.</span>
+
+<span class="sd">    Overrides the default graph datamodule logic from</span>
+<span class="sd">    :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` to use</span>
+<span class="sd">    :class:`~matcha.datamodules.ChempropDataModule` instead, and computes</span>
+<span class="sd">    additional molecular feature dimensions from the feature list.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_adapt_dict_for_modality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">model_params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute additional molecular feature dimensions from the feature list.</span>
+
+<span class="sd">        :param dict datamodule_params: datamodule configuration dictionary.</span>
+<span class="sd">        :param dict model_params: model configuration dictionary (modified in place).</span>
+<span class="sd">        :returns: the (datamodule_params, model_params) tuple with model_params updated.</span>
+<span class="sd">        :rtype: tuple[dict, dict]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">datamodule_params</span><span class="p">[</span><span class="s2">&quot;feature_list&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">input_dim</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">()</span><span class="o">.</span><span class="n">calculate_feature_dim</span><span class="p">(</span>
+                <span class="n">datamodule_params</span><span class="p">[</span><span class="s2">&quot;feature_list&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">model_params</span><span class="p">[</span><span class="s2">&quot;additional_mol_features_dim&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">input_dim</span>
+        <span class="k">return</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">model_params</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_datamodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">train_params</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create and configure a :class:`~matcha.datamodules.ChempropDataModule`.</span>
+
+<span class="sd">        :param dict datamodule_params: datamodule configuration dictionary.</span>
+<span class="sd">        :param dict train_params: training parameters containing ``batch_size``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">datamodule_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_parse_label_transform_map</span><span class="p">(</span><span class="n">datamodule_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datamodule_manager</span><span class="o">.</span><span class="n">datamodule</span> <span class="o">=</span> <span class="n">ChempropDataModule</span><span class="p">(</span><span class="o">**</span><span class="n">datamodule_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">train_params</span><span class="p">[</span><span class="s2">&quot;batch_size&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="ChempropClassifier">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/index.html#matcha.sklearn.graph.chemprop.ChempropClassifier">[docs]</a>
+<span class="nd">@ScikitLearnModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropClassifier</span><span class="p">(</span>
+    <span class="n">BaseScikitLearnModel</span><span class="p">,</span> <span class="n">ScikitLearnClassifierMixin</span><span class="p">,</span> <span class="n">ChempropMixin</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Chemprop (Directed Message Passing Neural Network) classifier.</span>
+
+<span class="sd">    Uses a directed message-passing neural network (D-MPNN) that operates on</span>
+<span class="sd">    molecular graphs for property prediction. Compatible with classification</span>
+<span class="sd">    datasets only.</span>
+
+<span class="sd">    Inherits from :class:`~matcha.sklearn.base_sklearn_model.BaseScikitLearnModel`</span>
+<span class="sd">    and :class:`ChempropMixin` for Chemprop-specific datamodule handling.</span>
+
+<span class="sd">    References:</span>
+
+<span class="sd">    - Yang et al., *Analyzing Learned Molecular Representations for Property Prediction*</span>
+<span class="sd">      https://arxiv.org/abs/1904.01561</span>
+
+<span class="sd">    Example usage:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        model = ChempropClassifier()</span>
+<span class="sd">        model.fit(train_mols, train_y)</span>
+<span class="sd">        predictions = model.predict(test_mols)</span>
+
+<span class="sd">    :param int enc_num_layers: number of message-passing layers, defaults to 3</span>
+<span class="sd">    :param int enc_atom_hidden_dim: hidden dimensionality in the encoder,</span>
+<span class="sd">        defaults to 300</span>
+<span class="sd">    :param str enc_readout: encoder readout aggregation, defaults to &#39;norm&#39;</span>
+<span class="sd">    :param float enc_dropout: dropout rate in the encoder, defaults to 0.1</span>
+<span class="sd">    :param str enc_activation: activation function in the encoder, defaults to &#39;relu&#39;</span>
+<span class="sd">    :param int pred_hidden_dim: hidden dimensionality in the predictor FFN,</span>
+<span class="sd">        defaults to 300</span>
+<span class="sd">    :param int pred_num_layers: number of FFN layers in the predictor, defaults to 2</span>
+<span class="sd">    :param str pred_activation: activation function in the predictor, defaults to &#39;relu&#39;</span>
+<span class="sd">    :param float pred_dropout: dropout rate in the predictor, defaults to 0.1</span>
+<span class="sd">    :param int num_endpoints: number of endpoints or classes to predict, defaults to 1</span>
+<span class="sd">    :param str loss_fn: loss function to optimize, defaults to &#39;bce&#39;</span>
+<span class="sd">    :param str optimizer: optimizer to use, defaults to &#39;chemprop&#39;</span>
+<span class="sd">    :param dict optimizer_args: optimizer arguments, defaults to {&#39;lr&#39;: 1e-4}</span>
+<span class="sd">    :param str scheduler: learning rate scheduler, defaults to &#39;chemprop&#39;</span>
+<span class="sd">    :param dict scheduler_args: scheduler arguments, defaults to</span>
+<span class="sd">        {&#39;warmup_epochs&#39;: 2, &#39;max_lr&#39;: 1e-3, &#39;final_lr&#39;: 1e-5}</span>
+<span class="sd">    :param int num_epochs: number of training epochs, defaults to 20</span>
+<span class="sd">    :param int batch_size: batch size for training and prediction, defaults to 64</span>
+<span class="sd">    :param bool stochastic_weight_averaging: whether to use SWA, defaults to False</span>
+<span class="sd">    :param bool early_stopping: whether to use early stopping, defaults to True</span>
+<span class="sd">    :param int patience: epochs to wait before early stopping, defaults to 10</span>
+<span class="sd">    :param int devices: number of devices for training, defaults to 1</span>
+<span class="sd">    :param str accelerator: hardware accelerator, defaults to &#39;gpu&#39;</span>
+<span class="sd">    :param list[str] | None feature_list: molecular feature set to compute,</span>
+<span class="sd">        defaults to [&#39;rdkit_all_descriptors&#39;]</span>
+<span class="sd">    :param dict label_encoder_params: label encoder parameters, defaults to {}</span>
+<span class="sd">    :param str | list[str] | dict | None label_transform_map: label transform</span>
+<span class="sd">        specification, defaults to None</span>
+<span class="sd">    :param int seed: random seed, defaults to 0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">enc_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">enc_atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;norm&quot;</span><span class="p">,</span>
+        <span class="n">enc_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">pred_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">pred_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;bce&quot;</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-4</span><span class="p">},</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">},</span>
+        <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="n">stochastic_weight_averaging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">early_stopping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">feature_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;rdkit_all_descriptors&quot;</span><span class="p">],</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_map</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;self&quot;</span><span class="p">,</span> <span class="s2">&quot;__class__&quot;</span><span class="p">]}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_architecture</span> <span class="o">=</span> <span class="n">ChempropModel</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ChempropClassifier</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">silence_nuisance_warnings</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_adapt_dict_for_modality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">model_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ChempropMixin</span><span class="o">.</span><span class="n">_adapt_dict_for_modality</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">model_params</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_datamodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">train_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ChempropMixin</span><span class="o">.</span><span class="n">_create_datamodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">train_params</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ChempropClassifier.predict_proba">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/index.html#matcha.sklearn.graph.chemprop.ChempropClassifier.predict_proba">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_proba</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allows to return probabilities instead of class labels for classification</span>
+<span class="sd">        models.</span>
+
+<span class="sd">        :param list[Mol] x: input to compute predictions for</span>
+
+<span class="sd">        :param str | None accelerator: hardware to use for predictions, if None</span>
+<span class="sd">            it is kept as training settings, defaults to None</span>
+
+<span class="sd">        :param int | None devices: how many resources to use, if None</span>
+<span class="sd">            it is kept as training settings, defaults to None</span>
+
+<span class="sd">        :param int | None batch_size: batch size to use, if None</span>
+<span class="sd">            it is kept as training settings, defaults to None</span>
+
+<span class="sd">        :return np.ndarray: class probabilities for the input</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inner_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">preds</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ChempropRegressor">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/index.html#matcha.sklearn.graph.chemprop.ChempropRegressor">[docs]</a>
+<span class="nd">@ScikitLearnModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropRegressor</span><span class="p">(</span><span class="n">BaseScikitLearnModel</span><span class="p">,</span> <span class="n">ScikitLearnRegressorMixin</span><span class="p">,</span> <span class="n">ChempropMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Chemprop (Directed Message Passing Neural Network) regressor.</span>
+
+<span class="sd">    Uses a directed message-passing neural network (D-MPNN) that operates on</span>
+<span class="sd">    molecular graphs for continuous property prediction. Compatible with</span>
+<span class="sd">    regression datasets only.</span>
+
+<span class="sd">    Inherits from :class:`~matcha.sklearn.base_sklearn_model.BaseScikitLearnModel`</span>
+<span class="sd">    and :class:`ChempropMixin` for Chemprop-specific datamodule handling.</span>
+
+<span class="sd">    References:</span>
+
+<span class="sd">    - Yang et al., *Analyzing Learned Molecular Representations for Property Prediction*</span>
+<span class="sd">      https://arxiv.org/abs/1904.01561</span>
+
+<span class="sd">    Example usage:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        model = ChempropRegressor()</span>
+<span class="sd">        model.fit(train_mols, train_y)</span>
+<span class="sd">        predictions = model.predict(test_mols)</span>
+
+<span class="sd">    :param int enc_num_layers: number of message-passing layers, defaults to 3</span>
+<span class="sd">    :param int enc_atom_hidden_dim: hidden dimensionality in the encoder,</span>
+<span class="sd">        defaults to 300</span>
+<span class="sd">    :param str enc_readout: encoder readout aggregation, defaults to &#39;norm&#39;</span>
+<span class="sd">    :param float enc_dropout: dropout rate in the encoder, defaults to 0.1</span>
+<span class="sd">    :param str enc_activation: activation function in the encoder, defaults to &#39;relu&#39;</span>
+<span class="sd">    :param int pred_hidden_dim: hidden dimensionality in the predictor FFN,</span>
+<span class="sd">        defaults to 300</span>
+<span class="sd">    :param int pred_num_layers: number of FFN layers in the predictor, defaults to 2</span>
+<span class="sd">    :param str pred_activation: activation function in the predictor, defaults to &#39;relu&#39;</span>
+<span class="sd">    :param float pred_dropout: dropout rate in the predictor, defaults to 0.1</span>
+<span class="sd">    :param int num_endpoints: number of endpoints to predict, defaults to 1</span>
+<span class="sd">    :param str loss_fn: loss function to optimize, defaults to &#39;mse&#39;</span>
+<span class="sd">    :param str optimizer: optimizer to use, defaults to &#39;chemprop&#39;</span>
+<span class="sd">    :param dict optimizer_args: optimizer arguments, defaults to {&#39;lr&#39;: 1e-4}</span>
+<span class="sd">    :param str scheduler: learning rate scheduler, defaults to &#39;chemprop&#39;</span>
+<span class="sd">    :param dict scheduler_args: scheduler arguments, defaults to</span>
+<span class="sd">        {&#39;warmup_epochs&#39;: 2, &#39;max_lr&#39;: 1e-3, &#39;final_lr&#39;: 1e-5}</span>
+<span class="sd">    :param int num_epochs: number of training epochs, defaults to 20</span>
+<span class="sd">    :param int batch_size: batch size for training and prediction, defaults to 64</span>
+<span class="sd">    :param bool stochastic_weight_averaging: whether to use SWA, defaults to False</span>
+<span class="sd">    :param bool early_stopping: whether to use early stopping, defaults to True</span>
+<span class="sd">    :param int patience: epochs to wait before early stopping, defaults to 10</span>
+<span class="sd">    :param int devices: number of devices for training, defaults to 1</span>
+<span class="sd">    :param str accelerator: hardware accelerator, defaults to &#39;gpu&#39;</span>
+<span class="sd">    :param list[str] | None feature_list: molecular feature set to compute,</span>
+<span class="sd">        defaults to [&#39;rdkit_all_descriptors&#39;]</span>
+<span class="sd">    :param bool clip: whether to clip predictions to training label range,</span>
+<span class="sd">        defaults to True</span>
+<span class="sd">    :param dict label_encoder_params: label encoder parameters, defaults to {}</span>
+<span class="sd">    :param str | list[str] | dict | None label_transform_map: label transform</span>
+<span class="sd">        specification, defaults to None</span>
+<span class="sd">    :param str scaler_type: type of target scaler, defaults to &#39;standard&#39;</span>
+<span class="sd">    :param int seed: random seed, defaults to 0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">enc_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">enc_atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;norm&quot;</span><span class="p">,</span>
+        <span class="n">enc_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">pred_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">pred_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-4</span><span class="p">},</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">,</span> <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">},</span>
+        <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="n">stochastic_weight_averaging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">early_stopping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">feature_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;rdkit_all_descriptors&quot;</span><span class="p">],</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_map</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;self&quot;</span><span class="p">,</span> <span class="s2">&quot;__class__&quot;</span><span class="p">]}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_architecture</span> <span class="o">=</span> <span class="n">ChempropModel</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">ChempropRegressor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+        <span class="n">silence_nuisance_warnings</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_adapt_dict_for_modality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">model_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ChempropMixin</span><span class="o">.</span><span class="n">_adapt_dict_for_modality</span><span class="p">(</span>
+            <span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">model_params</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_datamodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">train_params</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">ChempropMixin</span><span class="o">.</span><span class="n">_create_datamodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">train_params</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

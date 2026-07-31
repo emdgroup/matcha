@@ -1,0 +1,207 @@
+matcha.datamodules.classic.graph_datamodule
+===========================================
+
+.. py:module:: matcha.datamodules.classic.graph_datamodule
+
+.. autoapi-nested-parse::
+
+   Graph-based molecular featurization for 2D and 3D GNN training.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.graph_datamodule.ATOM_FEAT_DIM
+   matcha.datamodules.classic.graph_datamodule.BOND_FEAT_DIM
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.graph_datamodule.GraphDataModule
+   matcha.datamodules.classic.graph_datamodule.Graph3DDataModule
+
+
+Module Contents
+---------------
+
+.. py:data:: ATOM_FEAT_DIM
+   :value: 72
+
+
+.. py:data:: BOND_FEAT_DIM
+   :value: 14
+
+
+.. py:class:: GraphDataModule(laplacian_k: int = 10, rwse_k: int = 20, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, compute_distances: bool = True, num_virtual_nodes: int = 0, init_virtual_nodes: bool = False, is_classification: bool = False, scaler_type: str = 'standard', clip: bool = True, label_encoder_params: dict = {}, label_transform_params: dict = {}, batch_size: int = 256, num_workers: int = 0, augment_resonance: bool = False)
+
+   Bases: :py:obj:`matcha.datamodules.base_datamodule.BaseDataModule`
+
+
+   2D Graph molecular representation featurization class using PyTorch Geometric.
+
+   Allows users to convert a list of rdkit molecules and labels into a format ready
+   to be used for graph neural network training. It uses the Chemprop featurizer
+   backend to compute molecular graphs and converts them to PyTorch Geometric format.
+   Common featurization logic is inherited from :class:`BaseDataModule`.
+
+   The main purpose of the class is to enable the use of :method:`featurize`.
+   Please check out :method:`featurize` for further information on the class' usage.
+
+   :param int laplacian_k: number of components to use for the Laplacian PE embedding,
+       defaults to 10. If set to 0, none are computed.
+
+   :param int rwse_k: number of steps for Random Walk Structural Encoding,
+       defaults to 20. If set to 0, none are computed.
+
+   :param int elstatic_k: number of electrostatic PE components,
+       defaults to 0.
+
+   :param int distmat_k: number of distance matrix PE components,
+       defaults to 0.
+
+   :param int rrwp_k: number of relative random walk probability components,
+       defaults to 20. If set to 0, none are computed.
+
+   :param bool compute_distances: whether to compute shortest path distances,
+       defaults to True.
+
+   :param int num_virtual_nodes: number of virtual nodes to add to the graph to
+       improve message passing, defaults to 0.
+
+   :param bool init_virtual_nodes: whether to initialize virtual nodes with molecular
+       descriptors, defaults to False.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generates unscaled features for graph neural networks, with optional augmentation.
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generates a dataset ready for GNN training.
+
+      Processes a list of N molecules and a numpy array (N,X) encoding the
+      labels into a list, which can then be further processed for
+      graph neural network training.
+
+      This method chains the unscaled feature generation with
+      the necessary Y scaling operations.
+
+      Example usage:
+
+      .. code-block:: python
+          GF = GraphDataModulePyG()
+          train_dataset = GF.featurize(train_mols, train_y, is_training=True)
+          test_dataset = GF.featurize(test_mols, test_y, is_training=False)
+
+      :param list[Mol] mol_list: list of N rdkit molecules to process
+
+      :param np.ndarray | None y: array (N, X), where X is the number of classes or
+          endpoints
+
+      :param list[str] | None bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than', will be ignored if set
+          to None
+
+      :param bool is_training: Whether to fit Y scaler on the input,
+          or leverage a pre-existing one to only normalize
+
+      :param int | None n_jobs: number of cores to use when featurizing the input,
+          if None is passed a reasonable n_jobs value will be guessed from the
+          amount of data, defaults to None
+
+      :return StackDataset: Processed dataset providing keys 'graph' and 'y' ready
+          for graph neural network training
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Utility to make a dummy class with default params. Can be
+      combined with load_state_dict to recreate a datamodule from
+      a state dict
+
+
+
+.. py:class:: Graph3DDataModule(laplacian_k: int = 10, rwse_k: int = 20, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, compute_distances: bool = True, num_virtual_nodes: int = 0, init_virtual_nodes: bool = False, embed_timeout: float = 30.0, is_classification: bool = False, scaler_type: str = 'standard', clip: bool = True, label_encoder_params: dict = {}, label_transform_params: dict = {}, batch_size: int = 256, num_workers: int = 0, augment_resonance: bool = False)
+
+   Bases: :py:obj:`GraphDataModule`
+
+
+   3D Graph molecular representation featurization class using PyTorch Geometric.
+
+   Allows users to convert a list of rdkit molecules and labels into a format ready
+   to be used for 3D graph neural network training. It uses the Chemprop featurizer
+   backend to compute molecular graphs and converts them to PyTorch Geometric format.
+   Common featurization logic is inherited from :class:`BaseDataModule`.
+
+   The main purpose of the class is to enable the use of :method:`featurize`.
+   Please check out :method:`featurize` for further information on the class' usage.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generates unscaled features for 3D graph neural networks, with optional augmentation.
+
+
+
+   .. py:method:: collate_fn(data: list[dict]) -> dict
+
+      Allows batching for 3DGNN datasets.
+
+      Middleman between the output of :method:`featurize` and the actual batch input
+      needed by a graph neural network to train. Reshapes the tuple from :method:`featurize`
+      into the necessary torch tensors for the forward pass. It is meant to be
+      passed to torch.data.DataLoader objects upon construction.
+
+      Example usage:
+      GF = Graph3DDataModulePyG()
+      ...
+      loader = DataLoader(..., collate_fn=GF.collate_fn)
+
+      :param list[dict] data: list of dicts containing PyG graphs, coords and labels
+
+      :return dict: dictionary with batched graph, coords and y tensors
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Utility for MLFlow logging
+
+
+

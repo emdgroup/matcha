@@ -1,0 +1,115 @@
+matcha.utils.schemas.label
+==========================
+
+.. py:module:: matcha.utils.schemas.label
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.label.LabelEncoderModel
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.label.LabelTransformInputModel
+   matcha.utils.schemas.label.BaseEncoderInputModel
+   matcha.utils.schemas.label.RegressionEncoderInputModel
+   matcha.utils.schemas.label.BinaryClassificationEncoderInputModel
+   matcha.utils.schemas.label.DataModuleModels
+
+
+Module Contents
+---------------
+
+.. py:class:: LabelTransformInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for label transformation settings including mapping and clipping.
+
+
+   .. py:attribute:: transform_map
+      :type:  str | list[str] | dict | None
+
+
+   .. py:attribute:: y_clip
+      :type:  dict | None
+
+
+.. py:class:: BaseEncoderInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base schema for label encoder configuration with task and class metadata.
+
+
+   .. py:attribute:: task_labels
+      :type:  dict
+
+
+   .. py:attribute:: class_thresholds
+      :type:  dict
+
+
+   .. py:attribute:: class_labels
+      :type:  dict
+
+
+   .. py:attribute:: num_classes
+      :type:  dict
+
+
+.. py:class:: RegressionEncoderInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for regression label encoder configuration.
+
+
+   .. py:attribute:: task_labels
+      :type:  dict
+
+
+   .. py:attribute:: encoder_type
+      :type:  Literal['regression']
+      :value: 'regression'
+
+
+
+.. py:class:: BinaryClassificationEncoderInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseEncoderInputModel`
+
+
+   Schema for binary classification label encoder with thresholds and class labels.
+
+
+   .. py:attribute:: encoder_type
+      :type:  Literal['binary_classification']
+      :value: 'binary_classification'
+
+
+
+.. py:data:: LabelEncoderModel
+
+.. py:class:: DataModuleModels(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Container holding a sequence of label encoder models discriminated by encoder type.
+
+
+   .. py:attribute:: inputmodels
+      :type:  Sequence[Annotated[LabelEncoderModel, Field(discriminator='encoder_type')]]
+
+

@@ -1,0 +1,59 @@
+matcha.cli.pretrain_encoder
+===========================
+
+.. py:module:: matcha.cli.pretrain_encoder
+
+.. autoapi-nested-parse::
+
+   CLI entrypoint for encoder-only pretraining (MLM or graph multi-task).
+
+   Produces an artifact directory that the :class:`Finetuner` can consume
+   directly via ``origin_type: "pretraining"`` in the manifest.
+
+   Artifact layout::
+
+       <output>/
+       ├── model.ckpt               # full Lightning checkpoint (for resumption)
+       ├── encoder.ckpt             # encoder-only state_dict (for finetuning)
+       ├── config/
+       │   ├── manifest.yaml        # origin_type: "pretraining", source_class, …
+       │   ├── model.yaml           # pretraining model hparams
+       │   ├── training.yaml        # training hparams
+       │   ├── datamodule.yaml      # datamodule params
+       │   └── metadata.yaml        # metadata
+       ├── state/
+       │   └── datamodule_state.pkl # fitted scalers / encoders / dictionary
+       └── cfg.yaml                 # copy of the input config
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.pretrain_encoder.main
+
+
+Module Contents
+---------------
+
+.. py:function:: main(cfg=None) -> None
+
+   Run encoder pretraining (MLM or graph multi-task) from a YAML configuration.
+
+   Supports two pretraining modes controlled by ``dataset.task_type``:
+
+   - **mlm**: Masked language modelling over SMILES strings.
+   - **graph**: Supervised node-level and graph-level multi-task objectives.
+
+   Trains the encoder with Lightning, optionally using DDP for multi-GPU
+   training, and saves artifacts (encoder checkpoint, configs, manifest)
+   compatible with downstream finetuning via the ``Finetuner``.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLIEncoderPretrainInputModel`
+       instance or a raw dict that will be validated.
+
+

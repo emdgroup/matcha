@@ -1,0 +1,162 @@
+matcha.torch.encoders.gt
+========================
+
+.. py:module:: matcha.torch.encoders.gt
+
+.. autoapi-nested-parse::
+
+   Graph Transformer (GT) encoder with distance-biased dense attention.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.gt.GTConv
+   matcha.torch.encoders.gt.GT
+
+
+Module Contents
+---------------
+
+.. py:class:: GTConv(node_in_dim: int, hidden_dim: int, edge_in_dim: Optional[int] = None, num_heads: int = 8, dropout: float = 0.0, activation: str = 'gelu', expansion_k: int = 4)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Graph Transformer Convolution layer with dense attention.
+
+   Uses dense multi-head attention over ALL node pairs with distance bias,
+   plus sparse edge bias that only applies between connected nodes.
+
+   Features (inspired by EGT - arXiv:2108.03348):
+   - Distance bias: applied to ALL node pairs (enables global attention based on graph distance)
+   - Edge bias: applied only to CONNECTED nodes (encodes bond features into attention)
+   - Logit clipping: clamps attention logits to [-5, 5] for numerical stability
+
+
+   .. py:attribute:: num_heads
+      :value: 8
+
+
+
+   .. py:attribute:: hidden_dim
+
+
+   .. py:attribute:: head_dim
+
+
+   .. py:attribute:: node_in_dim
+
+
+   .. py:attribute:: edge_in_dim
+      :value: None
+
+
+
+   .. py:attribute:: scale
+
+
+   .. py:attribute:: WQ
+
+
+   .. py:attribute:: WK
+
+
+   .. py:attribute:: WV
+
+
+   .. py:attribute:: WO
+
+
+   .. py:attribute:: norm1
+
+
+   .. py:attribute:: norm2
+
+
+   .. py:attribute:: dropout_layer
+
+
+   .. py:attribute:: attn_dropout
+
+
+   .. py:attribute:: ffn
+
+
+   .. py:method:: forward(x: torch.Tensor, edge_index: torch.Tensor, edge_attr: Optional[torch.Tensor], graph_id: torch.Tensor, dist_bias: Optional[torch.Tensor] = None) -> torch.Tensor
+
+      Forward pass through the GT convolution layer.
+
+      :param torch.Tensor x: Node features [N, node_in_dim].
+      :param torch.Tensor edge_index: Edge indices [2, E].
+      :param torch.Tensor | None edge_attr: Edge features [E, edge_in_dim] or None.
+      :param torch.Tensor graph_id: Graph assignment for each node [N] (long tensor).
+      :param torch.Tensor | None dist_bias: Distance bias for all node pairs
+          [B, max_nodes, max_nodes, num_heads], or None.
+      :returns: Updated node features [N, node_in_dim].
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: GT(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, distance_k: int | None, activation: str, dropout: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Graph Transformer encoder using stacked GTConv layers with distance-biased attention.
+
+   A graph transformer architecture that uses multi-head self-attention
+   with edge features and shortest-path distance encoding as attention bias.
+
+   Architecture: atom_projection, bond_projection → GTConv stack (with distance bias) → readout
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - Graph Transformer: https://arxiv.org/abs/2012.09699
+   - GPS: https://arxiv.org/abs/2205.12454
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+
+   :param int num_layers: number of GTConv layers
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+   :param int atom_hidden_dim: hidden dimension for atom features in GTConv layers
+   :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
+   :param int expansion_k: expansion factor for the feed-forward network in GTConv layers
+   :param int | None distance_k: maximum shortest-path distance for spatial encoding, None to disable
+   :param str activation: activation function to be used in all layers
+   :param float dropout: dropout noise level
+   :param str jk: jumping knowledge strategy ('last', 'concat', 'max', 'sum')
+   :param str readout: readout function to aggregate atom representations
+
+
+   .. py:attribute:: num_heads
+
+
+   .. py:attribute:: expansion_k
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: bond_projection
+
+
+   .. py:attribute:: layers
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (batch_size, fp_dim) tensor.
+
+      :param Batch graph: batched PyG graph from the dataloader
+      :return torch.Tensor: learned molecular representation
+
+
+

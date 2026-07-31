@@ -1,0 +1,575 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.classic.clm_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.classic.clm_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.classic.clm_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Chemical language model featurization for SMILES-based neural network training.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">float32</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModule</span><span class="p">,</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">Wrapper</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLMDataModuleInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">parallelize</span>
+
+<span class="c1"># SMILES tokenization regex pattern (adapted from https://www.arxiv.org/pdf/2409.15370v3)</span>
+<span class="n">SMILES_REGEX</span> <span class="o">=</span> <span class="sa">r</span><span class="s2">&quot;(\[[^\]]+]|Br?|Cl?|N|O|S|P|F|I|b|c|n|o|s|p|\(|\)|\.|=|#|-|\+|</span><span class="se">\\\\</span><span class="s2">|\/|:|~|@|\?|&gt;|\*|\$|\%[0-9]</span><span class="si">{2}</span><span class="s2">|[0-9])&quot;</span>
+
+<span class="c1"># due to how joblib works, some rdkit functions require an additional wrapper to</span>
+<span class="c1"># be properly parallelized</span>
+<span class="n">wrapped_MolToSmiles</span> <span class="o">=</span> <span class="n">Wrapper</span><span class="p">(</span><span class="s2">&quot;MolToSmiles&quot;</span><span class="p">,</span> <span class="s2">&quot;rdkit.Chem&quot;</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="batch_moltosmiles">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.batch_moltosmiles">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">batch_moltosmiles</span><span class="p">(</span><span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">wrapped_MolToSmiles</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mol_list</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="batch_smiles_tokenize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.batch_smiles_tokenize">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">batch_smiles_tokenize</span><span class="p">(</span><span class="n">smi_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">pattern</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SMILES_REGEX</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tokenize SMILES strings using regex pattern.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">re</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="n">pattern</span><span class="p">,</span> <span class="n">smi</span><span class="p">)</span> <span class="k">for</span> <span class="n">smi</span> <span class="ow">in</span> <span class="n">smi_list</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="CLMDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;clm&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CLMDataModule</span><span class="p">(</span><span class="n">BaseDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Chemical language representation featurization class.</span>
+
+<span class="sd">    Allows users to convert a list of rdkit molecules and labels into a Tensordataset ready</span>
+<span class="sd">    to be used for SMILES-based neural network training. Compounds are tokenized</span>
+<span class="sd">    directly from SMILES strings using regex-based tokenization. Common featurization logic is inherited from</span>
+<span class="sd">    :class:`BaseFeaturizer`.</span>
+
+<span class="sd">    The main purpose of the class is to enable the use of :method:`featurize`.</span>
+<span class="sd">    Please check out :method:`featurize` for further information on the class&#39; usage.</span>
+
+<span class="sd">    :param int max_length: max length for the SMILES token sequence</span>
+
+<span class="sd">    :param int n_augmentation: number of augmentations to do when encoding a list of</span>
+<span class="sd">        molecules</span>
+
+<span class="sd">    :param int n_test_augmentations: number of augmentations to do when encoding a list of</span>
+<span class="sd">        molecules for testing</span>
+
+<span class="sd">    :param include_canonical: whether to compute canonical SMILES</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">max_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+        <span class="n">num_augmentations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">num_test_augmentations</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">include_canonical</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">is_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">CLMDataModuleInputModel</span><span class="p">(</span>
+            <span class="n">max_length</span><span class="o">=</span><span class="n">max_length</span><span class="p">,</span>
+            <span class="n">dictionary</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;pad&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;unk&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;cls&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
+            <span class="n">num_tokens</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+            <span class="n">num_augmentations</span><span class="o">=</span><span class="n">num_augmentations</span><span class="p">,</span>
+            <span class="n">num_test_augmentations</span><span class="o">=</span><span class="n">num_test_augmentations</span><span class="p">,</span>
+            <span class="n">include_canonical</span><span class="o">=</span><span class="n">include_canonical</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Cache for temporary dictionary during feature generation</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_mol_to_smiles</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span> <span class="n">random</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a list of rdkit molecules to their SMILES strings.</span>
+
+<span class="sd">        :param list[Mol] mol_list: list of rdkit molecules to process</span>
+
+<span class="sd">        :param bool random: Whether to use random smiles, defaults to True</span>
+
+<span class="sd">        :param int n_jobs: number of cores to use for processing the list, defaults to 4</span>
+
+<span class="sd">        :return list[str]: list of SMILES strings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># make deepcopy to avoid in-place editing</span>
+        <span class="n">mol_copy</span> <span class="o">=</span> <span class="p">[</span><span class="n">Mol</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mol_list</span><span class="p">]</span>
+
+        <span class="c1"># compute either random or canonical</span>
+        <span class="k">if</span> <span class="n">random</span><span class="p">:</span>
+            <span class="n">smi</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
+                <span class="n">batch_moltosmiles</span><span class="p">,</span> <span class="n">mol_copy</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">,</span> <span class="n">doRandom</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">smi</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="n">batch_moltosmiles</span><span class="p">,</span> <span class="n">mol_copy</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">smi</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_tokenize_smiles</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">smi_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a list of SMILES to a list of tokenized SMILES.</span>
+
+<span class="sd">        :param list[str] smi_list: list of SMILES to process</span>
+
+<span class="sd">        :param int n_jobs: number of cores to use when parallelizing, defaults to 4</span>
+
+<span class="sd">        :return list[list[str]]: list of tokenized SMILES lists (nested list)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># tokenize SMILES using regex</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="n">batch_smiles_tokenize</span><span class="p">,</span> <span class="n">smi_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">tokens</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_pad_tokens</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pads each tokenized SMILES sublist in a list to self.params.max_length.</span>
+
+<span class="sd">        :param list[list[str]] token_list: list of tokenized SMILES lists to pad</span>
+
+<span class="sd">        :return list[list[str]]: list of padded token strings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">padded_tokens</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tokens</span> <span class="ow">in</span> <span class="n">token_list</span><span class="p">:</span>
+            <span class="c1"># add class token for attention-based CLM</span>
+            <span class="n">tokens</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;cls&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">tokens</span>
+
+            <span class="c1"># either pad, or cut to max length</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_length</span><span class="p">:</span>
+                <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokens</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;pad&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_length</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">tokens</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokens</span><span class="p">[:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">max_length</span><span class="p">]</span>
+            <span class="n">padded_tokens</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">padded_tokens</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_dictionary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates a dictionary pairing each unique SMILES token</span>
+<span class="sd">        to an integer and stores it in the cached dictionary.</span>
+
+<span class="sd">        Generates a dictionary from the training set, including four additional</span>
+<span class="sd">        characters for padding, unknown tokens, the class token, and the mask token.</span>
+
+<span class="sd">        :param list[list[str]] token_list: list of tokenized SMILES lists to generate the dict</span>
+<span class="sd">            from (e.g. the training set)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">unique_tokens</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1"># collect all unique tokens and discard duplicates (this is definitely</span>
+        <span class="c1"># suboptimal since it keeps pruning, but for now it will do)</span>
+        <span class="k">for</span> <span class="n">tokens</span> <span class="ow">in</span> <span class="n">token_list</span><span class="p">:</span>
+            <span class="n">unique_tokens</span> <span class="o">+=</span> <span class="n">tokens</span>
+            <span class="n">unique_tokens</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">unique_tokens</span><span class="p">))</span>
+
+        <span class="c1"># add special tokens to unique tokens</span>
+        <span class="n">unique_tokens</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="s2">&quot;unk&quot;</span><span class="p">,</span> <span class="s2">&quot;cls&quot;</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">unique_tokens</span>
+
+        <span class="c1"># create integer IDs for tokens, create dict and save in cache</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">unique_tokens</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">unique_tokens</span><span class="p">,</span> <span class="n">idx</span><span class="p">))</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_encode_tokens</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a list of tokenized SMILES in a nested list of integers.</span>
+
+<span class="sd">        Converts a token sequence in a list of integers, by mapping each</span>
+<span class="sd">        token to a value according to the cached dictionary (if available) or the params dictionary.</span>
+
+<span class="sd">        :param list[list[str]] token_list: list of tokenized SMILES lists</span>
+
+<span class="sd">        :return list[list[int]]: nested list of integer embeddings for the token list</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Use cached dictionary if available, otherwise use params dictionary</span>
+        <span class="n">dictionary</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="o">!=</span> <span class="p">{}</span>
+            <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span>
+        <span class="p">)</span>
+
+        <span class="n">encoded_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">tokens</span> <span class="ow">in</span> <span class="n">token_list</span><span class="p">:</span>
+            <span class="n">encoded</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokens</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="n">token</span><span class="p">]</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;unk&quot;</span><span class="p">]</span>
+                <span class="n">encoded</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">t</span><span class="p">)</span>
+            <span class="n">encoded_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">encoded_list</span>
+
+<div class="viewcode-block" id="CLMDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates unscaled features for CLM training.</span>
+
+<span class="sd">        This method only handles feature generation without any Y scaling.</span>
+<span class="sd">        Use featurize() for scaled features.</span>
+
+<span class="sd">        :param list[Mol] mol_list: list of N rdkit molecules to process</span>
+
+<span class="sd">        :param np.ndarray | None y: array (N, X), where X is the number of classes or</span>
+<span class="sd">            endpoints or None</span>
+
+<span class="sd">        :param list[str] | None bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+
+<span class="sd">        :param bool augment: whether to compute augmentations</span>
+
+<span class="sd">        :param bool is_training: Whether to fit the X and Y scalers on the input,</span>
+<span class="sd">            or leverage pre-existing ones to only normalize</span>
+
+<span class="sd">        :param int | None n_jobs: number of cores to use when featurizing the input,</span>
+<span class="sd">        if None is passed a reasonable n_jobs value will be guessed from the</span>
+<span class="sd">        amount of data, defaults to None</span>
+
+<span class="sd">        :return StackDataset: Unscaled dataset providing keys `token_ids` and `y`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># validate inputs without scaling</span>
+        <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># get SMILES and tokenize</span>
+        <span class="n">smi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mol_to_smiles</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">random</span><span class="o">=</span><span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">include_canonical</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span>
+        <span class="p">)</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokenize_smiles</span><span class="p">(</span><span class="n">smi</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="c1"># get dictionary depending on is_training</span>
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span> <span class="o">==</span> <span class="p">{</span>
+            <span class="s2">&quot;pad&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="s2">&quot;unk&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="s2">&quot;cls&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+            <span class="s2">&quot;mask&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="p">}:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_get_dictionary</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+
+        <span class="c1"># pad and encode</span>
+        <span class="n">tokens</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pad_tokens</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+        <span class="n">encoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode_tokens</span><span class="p">(</span><span class="n">tokens</span><span class="p">)</span>
+
+        <span class="c1"># if augment is True, repeat procedure self.params.num_augmentations times with</span>
+        <span class="c1"># random smiles and concatenate</span>
+        <span class="k">if</span> <span class="n">augment</span><span class="p">:</span>
+            <span class="n">y_i</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">n_augmentations</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_augmentations</span>
+                <span class="k">if</span> <span class="n">is_training</span>
+                <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_test_augmentations</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_augmentations</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">smi_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mol_to_smiles</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">random</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span>
+                    <span class="n">tokens_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokenize_smiles</span><span class="p">(</span><span class="n">smi_i</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span>
+                    <span class="n">tokens_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pad_tokens</span><span class="p">(</span><span class="n">tokens_i</span><span class="p">)</span>
+                    <span class="n">encoded_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode_tokens</span><span class="p">(</span><span class="n">tokens_i</span><span class="p">)</span>
+                    <span class="n">encoded</span> <span class="o">+=</span> <span class="n">encoded_i</span>
+                    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">y</span><span class="p">,</span> <span class="n">y_i</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="n">smi_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mol_to_smiles</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">random</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span>
+                    <span class="n">tokens_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_tokenize_smiles</span><span class="p">(</span><span class="n">smi_i</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span>
+                    <span class="n">tokens_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pad_tokens</span><span class="p">(</span><span class="n">tokens_i</span><span class="p">)</span>
+                    <span class="n">encoded_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode_tokens</span><span class="p">(</span><span class="n">tokens_i</span><span class="p">)</span>
+                    <span class="n">encoded</span> <span class="o">+=</span> <span class="n">encoded_i</span>
+                    <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">y</span><span class="p">,</span> <span class="n">y_i</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">tokens_tensor</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">encoded</span><span class="p">)</span>
+        <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">token_ids</span><span class="o">=</span><span class="n">tokens_tensor</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CLMDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates the features for CLM training.</span>
+
+<span class="sd">        Processes a list of N molecules and a numpy array (N,X) encoding the</span>
+<span class="sd">        labels into a TensorDataset, which can then be further processed for</span>
+<span class="sd">        CLM neural network training.</span>
+
+<span class="sd">        This method chains the unscaled feature generation with</span>
+<span class="sd">        the necessary Y scaling operations.</span>
+
+<span class="sd">        Example usage:</span>
+
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">            CLM = CLMFeaturizer(200, 3)</span>
+<span class="sd">            train_dataset = CLM.featurize(train_mols, train_y, is_training=True)</span>
+<span class="sd">            test_dataset = CLM.featurize(test_mols, test_y, is_training=False)</span>
+
+<span class="sd">        :param list[Mol] mol_list: list of N rdkit molecules to process</span>
+
+<span class="sd">        :param np.ndarray | None y: array (N, X), where X is the number of classes or</span>
+<span class="sd">            endpoints or None</span>
+
+<span class="sd">        :param list[str] | None bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+
+<span class="sd">        :param bool is_training: Whether to fit the X and Y scalers on the input,</span>
+<span class="sd">            or leverage pre-existing ones to only normalize</span>
+
+<span class="sd">        :param bool augment: whether to compute augmentations</span>
+
+<span class="sd">        :param int | None n_jobs: number of cores to use when featurizing the input,</span>
+<span class="sd">        if None is passed a reasonable n_jobs value will be guessed from the</span>
+<span class="sd">        amount of data, defaults to None</span>
+
+<span class="sd">        :return StackDataset: Processed dataset providing keys `token_ids` and `y` ready for MLP-like neural network training</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Apply augmentation if enabled</span>
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
+                <span class="n">mol_list</span><span class="p">,</span>
+                <span class="n">y</span><span class="p">,</span>
+                <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span>
+                <span class="n">use_resonance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+                <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Generate unscaled features</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">augment</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Apply scaling based on is_training flag</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_tokens</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span><span class="p">)</span>
+            <span class="c1"># Clear the cache after committing</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Handle bound mask and classification transformations (only if not regression)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="CLMDataModule.fit">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fits scalers and other stateful transformations on the dataset.</span>
+
+<span class="sd">        For CLMDataModule, this commits the cached dictionary to params.dictionary</span>
+<span class="sd">        and fits the Y scaler.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to fit transformations on</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Commit cached dictionary to params if it exists</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_tokens</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span><span class="p">)</span>
+            <span class="c1"># Clear the cache after committing</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Fit Y scaler via parent class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CLMDataModule.transform">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies fitted transformations to the dataset.</span>
+
+<span class="sd">        For CLMDataModule, this applies Y scaling transformations.</span>
+<span class="sd">        The dictionary should already be fitted in params.dictionary.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to transform</span>
+<span class="sd">        :return StackDataset: transformed dataset (modified in-place)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Apply Y scaling if fitted</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="CLMDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;clm&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="s2">&quot;dictionary&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span><span class="p">,</span>
+            <span class="s2">&quot;y_scaler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span>
+            <span class="s2">&quot;label_encoder&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="p">,</span>
+            <span class="s2">&quot;label_transform&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="CLMDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">CLMDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="CLMDataModule.dummy">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/clm_datamodule/index.html#matcha.datamodules.classic.clm_datamodule.CLMDataModule.dummy">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to make a dummy class with default params. Can be</span>
+<span class="sd">        combined with load_state_dict to recreate a datamodule from</span>
+<span class="sd">        a state dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

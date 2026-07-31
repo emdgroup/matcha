@@ -1,0 +1,235 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adding a new fingerprint or descriptor set &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Adding a new loss function" href="adding-a-loss.html" />
+    <link rel="prev" title="Adding a new model" href="adding-a-model.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding a new fingerprint or descriptor set</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#add-the-calculator-method">1. Add the calculator method</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#register-the-alias-in-mapping-defaults-dims">2. Register the alias in <code class="docutils literal notranslate"><span class="pre">_mapping</span></code>, <code class="docutils literal notranslate"><span class="pre">_defaults</span></code>, <code class="docutils literal notranslate"><span class="pre">_dims</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tests-tests-datamodules-test-rdkit-engine-py">3. Tests — <code class="docutils literal notranslate"><span class="pre">tests/datamodules/test_rdkit_engine.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checklist">Checklist</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Adding a new fingerprint or descriptor set</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/contributing/adding-a-fingerprint.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="adding-a-new-fingerprint-or-descriptor-set">
+<h1>Adding a new fingerprint or descriptor set<a class="headerlink" href="#adding-a-new-fingerprint-or-descriptor-set" title="Link to this heading"></a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This page is written for LLM agents contributing to MATCHA. It trades prose for a step-by-step recipe with concrete file paths and code snippets.</p>
+</div>
+<p>All descriptor / fingerprint calculators live in <code class="docutils literal notranslate"><span class="pre">src/matcha/datamodules/classic/rdkit_engine.py</span></code> inside the <code class="docutils literal notranslate"><span class="pre">Engine</span></code> class. Adding a new one is a <strong>single-file change</strong> plus tests — do not scatter feature code across datamodules.</p>
+<p>A new feature set touches four locations in <code class="docutils literal notranslate"><span class="pre">Engine</span></code>, plus the test file:</p>
+<ol class="arabic simple">
+<li><p>A <code class="docutils literal notranslate"><span class="pre">get_&lt;name&gt;</span></code> method on <code class="docutils literal notranslate"><span class="pre">Engine</span></code>.</p></li>
+<li><p>An entry in <code class="docutils literal notranslate"><span class="pre">Engine._mapping</span></code> (alias → method).</p></li>
+<li><p>An entry in <code class="docutils literal notranslate"><span class="pre">Engine._defaults</span></code> (alias → parameter dict), if the calculator has tunable knobs.</p></li>
+<li><p>An entry in <code class="docutils literal notranslate"><span class="pre">Engine._dims</span></code> (alias → output dimensionality).</p></li>
+<li><p>Coverage in <code class="docutils literal notranslate"><span class="pre">tests/datamodules/test_rdkit_engine.py</span></code>.</p></li>
+</ol>
+<hr class="docutils" />
+<section id="add-the-calculator-method">
+<h2>1. Add the calculator method<a class="headerlink" href="#add-the-calculator-method" title="Link to this heading"></a></h2>
+<p>Follow the shape of <code class="docutils literal notranslate"><span class="pre">get_ECFP</span></code> — parallelize over the mol list with <code class="docutils literal notranslate"><span class="pre">parallelize</span></code>, read tunables from <code class="docutils literal notranslate"><span class="pre">self.defaults[&lt;alias&gt;]</span></code>, return a <code class="docutils literal notranslate"><span class="pre">np.ndarray</span></code> of shape <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">dim)</span></code> with <code class="docutils literal notranslate"><span class="pre">dtype=np.float32</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/matcha/datamodules/classic/rdkit_engine.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">AllChem</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">get_dummy_embedding</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span> <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dummy example: mean of Morgan bit vector per molecule, then tiled to `dim`.</span>
+
+<span class="sd">    Purpose here is to show the shape, not to be a useful descriptor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">batch_wrapper</span><span class="p">(</span><span class="n">batch</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;dummy_embedding&quot;</span><span class="p">]</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">:</span>
+            <span class="n">fp</span> <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">GetMorganFingerprintAsBitVect</span><span class="p">(</span>
+                <span class="n">mol</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;radius&quot;</span><span class="p">],</span> <span class="n">nBits</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;n_source_bits&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;n_source_bits&quot;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataStructs</span>
+            <span class="n">DataStructs</span><span class="o">.</span><span class="n">ConvertToNumpyArray</span><span class="p">(</span><span class="n">fp</span><span class="p">,</span> <span class="n">arr</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">tile</span><span class="p">(</span><span class="n">arr</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;dim&quot;</span><span class="p">]))</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="n">feats</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
+        <span class="n">batch_wrapper</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span> <span class="k">if</span> <span class="n">n_jobs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">parallelize(batch_wrapper,</span> <span class="pre">mols,</span> <span class="pre">n_jobs=...)</span></code> — RDKit objects are non-pickleable at module scope, so the batch closure pattern is load-bearing.</p></li>
+<li><p>If the underlying RDKit function is not picklable at all (e.g. <code class="docutils literal notranslate"><span class="pre">GetErGFingerprint</span></code>), wrap it with <code class="docutils literal notranslate"><span class="pre">Wrapper(name,</span> <span class="pre">module)</span></code> at module top-level — see <code class="docutils literal notranslate"><span class="pre">_wrapped_GetErGFingerprint</span></code>.</p></li>
+<li><p>Return <code class="docutils literal notranslate"><span class="pre">float32</span></code> for consistency with the rest of <code class="docutils literal notranslate"><span class="pre">Engine</span></code>.</p></li>
+</ul>
+</section>
+<section id="register-the-alias-in-mapping-defaults-dims">
+<h2>2. Register the alias in <code class="docutils literal notranslate"><span class="pre">_mapping</span></code>, <code class="docutils literal notranslate"><span class="pre">_defaults</span></code>, <code class="docutils literal notranslate"><span class="pre">_dims</span></code><a class="headerlink" href="#register-the-alias-in-mapping-defaults-dims" title="Link to this heading"></a></h2>
+<p>All three dicts are populated in <code class="docutils literal notranslate"><span class="pre">Engine.__init__</span></code>. Add matching entries:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/matcha/datamodules/classic/rdkit_engine.py, inside Engine.__init__</span>
+<span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="s2">&quot;dummy_embedding&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_dummy_embedding</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="bp">self</span><span class="o">.</span><span class="n">_defaults</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="s2">&quot;dummy_embedding&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;radius&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;n_source_bits&quot;</span><span class="p">:</span> <span class="mi">1024</span><span class="p">,</span> <span class="s2">&quot;dim&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">},</span>
+<span class="p">}</span>
+
+<span class="bp">self</span><span class="o">.</span><span class="n">_dims</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="o">...</span><span class="p">,</span>
+    <span class="s2">&quot;dummy_embedding&quot;</span><span class="p">:</span> <span class="mi">64</span><span class="p">,</span>  <span class="c1"># must match self._defaults[&quot;dummy_embedding&quot;][&quot;dim&quot;]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>The <strong>alias is load-bearing</strong> — it’s what <code class="docutils literal notranslate"><span class="pre">TabularFeaturizer</span></code> / <code class="docutils literal notranslate"><span class="pre">get_features</span></code> / <code class="docutils literal notranslate"><span class="pre">calculate_feature_dim</span></code> look up. Lowercase, snake_case, no renaming later without a migration.</p></li>
+<li><p>If <code class="docutils literal notranslate"><span class="pre">dim</span></code> depends on a default (e.g. <code class="docutils literal notranslate"><span class="pre">nBits</span></code>), reference it: <code class="docutils literal notranslate"><span class="pre">self._dims[&quot;dummy_embedding&quot;]</span> <span class="pre">=</span> <span class="pre">self._defaults[&quot;dummy_embedding&quot;][&quot;dim&quot;]</span></code>.</p></li>
+<li><p>If the feature has no tunables, still register the empty dict in <code class="docutils literal notranslate"><span class="pre">_defaults</span></code> only if <code class="docutils literal notranslate"><span class="pre">get_features</span></code> needs a lookup — otherwise skip it (see <code class="docutils literal notranslate"><span class="pre">pubchem_fp</span></code> and <code class="docutils literal notranslate"><span class="pre">estate</span></code> for the mixed pattern).</p></li>
+</ul>
+</section>
+<section id="tests-tests-datamodules-test-rdkit-engine-py">
+<h2>3. Tests — <code class="docutils literal notranslate"><span class="pre">tests/datamodules/test_rdkit_engine.py</span></code><a class="headerlink" href="#tests-tests-datamodules-test-rdkit-engine-py" title="Link to this heading"></a></h2>
+<p>The suite has one <code class="docutils literal notranslate"><span class="pre">TestGet&lt;Name&gt;</span></code> class per feature. Mirror the smallest existing one:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># tests/datamodules/test_rdkit_engine.py</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TestGetDummyEmbedding</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_shape</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">engine</span><span class="p">,</span> <span class="n">mols</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">get_dummy_embedding</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">),</span> <span class="n">engine</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;dummy_embedding&quot;</span><span class="p">][</span><span class="s2">&quot;dim&quot;</span><span class="p">])</span>
+        <span class="k">assert</span> <span class="n">out</span><span class="o">.</span><span class="n">dtype</span> <span class="o">==</span> <span class="n">np</span><span class="o">.</span><span class="n">float32</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_dim_matches_registry</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">engine</span><span class="p">):</span>
+        <span class="k">assert</span> <span class="n">engine</span><span class="o">.</span><span class="n">_dims</span><span class="p">[</span><span class="s2">&quot;dummy_embedding&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">engine</span><span class="o">.</span><span class="n">defaults</span><span class="p">[</span><span class="s2">&quot;dummy_embedding&quot;</span><span class="p">][</span><span class="s2">&quot;dim&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Also add <code class="docutils literal notranslate"><span class="pre">&quot;dummy_embedding&quot;</span></code> to any parametrized <code class="docutils literal notranslate"><span class="pre">get_features</span></code> / <code class="docutils literal notranslate"><span class="pre">calculate_feature_dim</span></code> test that iterates over <code class="docutils literal notranslate"><span class="pre">Engine._mapping.keys()</span></code>.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="checklist">
+<h2>Checklist<a class="headerlink" href="#checklist" title="Link to this heading"></a></h2>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">get_&lt;name&gt;</span></code> method on <code class="docutils literal notranslate"><span class="pre">Engine</span></code>, uses <code class="docutils literal notranslate"><span class="pre">parallelize</span></code>, returns <code class="docutils literal notranslate"><span class="pre">np.ndarray</span></code> of <code class="docutils literal notranslate"><span class="pre">float32</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Alias added to <code class="docutils literal notranslate"><span class="pre">Engine._mapping</span></code>, <code class="docutils literal notranslate"><span class="pre">Engine._defaults</span></code> (if tunable), <code class="docutils literal notranslate"><span class="pre">Engine._dims</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">_dims[alias]</span></code> matches actual output width.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Test class in <code class="docutils literal notranslate"><span class="pre">tests/datamodules/test_rdkit_engine.py</span></code> covering shape + dtype.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/datamodules/test_rdkit_engine.py</span></code> passes.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Codecov PR check stays green — new lines are covered and total coverage doesn’t drop (see <code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code> → Testing).</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="adding-a-model.html" class="btn btn-neutral float-left" title="Adding a new model" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="adding-a-loss.html" class="btn btn-neutral float-right" title="Adding a new loss function" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,448 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.schedulers &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.nn.schedulers</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.nn.schedulers</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Learning-rate schedulers registered in the :data:`SchedulerRegistry`.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.optim</span><span class="w"> </span><span class="kn">import</span> <span class="n">lr_scheduler</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.optim.optimizer</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optimizer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassRegistry</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="n">SchedulerRegistry</span> <span class="o">=</span> <span class="n">ClassRegistry</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="ChempropSchedulerConfig">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.ChempropSchedulerConfig">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;chemprop&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropSchedulerConfig</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Thin configuration holder for Chemprop&#39;s built-in NoamLR scheduler.</span>
+
+<span class="sd">    Chemprop&#39;s MPNN base class manages its own learning-rate schedule internally</span>
+<span class="sd">    (via ``NoamLR``).  This class simply stores the configuration so that the</span>
+<span class="sd">    rest of the Matcha scheduler interface can treat ``&quot;chemprop&quot;`` uniformly</span>
+<span class="sd">    as a scheduler name with associated ``scheduler_args``.</span>
+
+<span class="sd">    Unlike real PyTorch schedulers this is **never stepped** — the MPNN</span>
+<span class="sd">    ``configure_optimizers`` takes care of that.</span>
+
+<span class="sd">    Expected ``scheduler_args`` keys:</span>
+<span class="sd">        * ``warmup_epochs`` (int)</span>
+<span class="sd">        * ``max_lr`` (float)</span>
+<span class="sd">        * ``final_lr`` (float)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warmup_epochs</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_lr</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_lr&quot;</span><span class="p">,</span> <span class="mf">1e-3</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final_lr</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;final_lr&quot;</span><span class="p">,</span> <span class="mf">1e-5</span><span class="p">)</span>
+
+<div class="viewcode-block" id="ChempropSchedulerConfig.step">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.ChempropSchedulerConfig.step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;No-op: MPNN handles its own scheduling.&quot;&quot;&quot;</span>
+        <span class="k">pass</span></div>
+
+
+<div class="viewcode-block" id="ChempropSchedulerConfig.state_dict">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.ChempropSchedulerConfig.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">warmup_epochs</span><span class="p">,</span>
+            <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lr</span><span class="p">,</span>
+            <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_lr</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ChempropSchedulerConfig.load_state_dict">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.ChempropSchedulerConfig.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warmup_epochs</span> <span class="o">=</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">warmup_epochs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_lr</span> <span class="o">=</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;max_lr&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_lr</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final_lr</span> <span class="o">=</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;final_lr&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">final_lr</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="OneCycleLR">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.OneCycleLR">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;one_cycle&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OneCycleLR</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">OneCycleLR</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One-cycle learning rate policy (wraps :class:`torch.optim.lr_scheduler.OneCycleLR`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="CosineAnnealing">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.CosineAnnealing">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;cosine_annealing&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CosineAnnealing</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">CosineAnnealingLR</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cosine annealing scheduler with configurable minimum learning rate.</span>
+
+<span class="sd">    :param optimizer: Wrapped optimizer.</span>
+<span class="sd">    :param float min_lr: Minimum learning rate.</span>
+<span class="sd">    :param int total_steps: Total number of steps (mapped to ``T_max``).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">min_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span> <span class="n">total_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">T_max</span><span class="o">=</span><span class="n">total_steps</span><span class="p">,</span> <span class="n">eta_min</span><span class="o">=</span><span class="n">min_lr</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="CosineAnnealingCyclic">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.CosineAnnealingCyclic">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;cosine_annealing_cyclic&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CosineAnnealingCyclic</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">CosineAnnealingWarmRestarts</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cosine annealing with warm restarts, dividing total steps into equal cycles.</span>
+
+<span class="sd">    :param optimizer: Wrapped optimizer.</span>
+<span class="sd">    :param int total_steps: Total number of steps.</span>
+<span class="sd">    :param int num_cycles: Number of restart cycles.</span>
+<span class="sd">    :param float min_lr: Minimum learning rate.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">total_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_cycles</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">min_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="n">T_0</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">total_steps</span> <span class="o">//</span> <span class="n">num_cycles</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">T_0</span><span class="o">=</span><span class="n">T_0</span><span class="p">,</span> <span class="n">eta_min</span><span class="o">=</span><span class="n">min_lr</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Step">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.Step">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;step&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Step</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">StepLR</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Step decay scheduler (wraps :class:`torch.optim.lr_scheduler.StepLR`).</span>
+
+<span class="sd">    Accepts and discards a ``total_steps`` kwarg for interface compatibility.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;total_steps&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="WarmupCosineAnnealingLR">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.WarmupCosineAnnealingLR">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;warmup_cosine_annealing&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WarmupCosineAnnealingLR</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">_LRScheduler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Linear warmup followed by cosine annealing decay.</span>
+
+<span class="sd">    :param optimizer: Wrapped optimizer.</span>
+<span class="sd">    :param int total_steps: Total number of steps (warmup + annealing).</span>
+<span class="sd">    :param float warmup_ratio: Fraction of ``total_steps`` used for warmup.</span>
+<span class="sd">    :param float peak_lr_factor: Multiplier applied to base LR to compute peak LR.</span>
+<span class="sd">    :param float min_lr: Minimum learning rate after annealing.</span>
+<span class="sd">    :param int last_epoch: Index of last epoch (for resume).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">,</span>
+        <span class="n">total_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">warmup_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">peak_lr_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+        <span class="n">min_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
+        <span class="n">last_epoch</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_steps</span> <span class="o">=</span> <span class="n">total_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span> <span class="o">=</span> <span class="n">min_lr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">=</span> <span class="n">last_epoch</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">param_groups</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">total_steps</span> <span class="o">*</span> <span class="n">warmup_ratio</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">cosine_steps</span> <span class="o">=</span> <span class="n">total_steps</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak_lr_factor</span> <span class="o">=</span> <span class="n">peak_lr_factor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">WarmupCosineAnnealingLR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">last_epoch</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WarmupCosineAnnealingLR.get_lr">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.WarmupCosineAnnealingLR.get_lr">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_lr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span><span class="p">:</span>
+            <span class="c1"># Linear warmup</span>
+            <span class="k">return</span> <span class="p">[</span>
+                <span class="n">base_lr</span>
+                <span class="o">+</span> <span class="p">(</span><span class="n">base_lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">peak_lr_factor</span> <span class="o">-</span> <span class="n">base_lr</span><span class="p">)</span>
+                <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">base_lr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Cosine annealing</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_steps</span><span class="p">:</span>
+                <span class="n">decay_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span>
+                <span class="k">return</span> <span class="p">[</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span>
+                    <span class="o">+</span> <span class="p">(</span><span class="n">base_lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">peak_lr_factor</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span><span class="p">)</span>
+                    <span class="o">*</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">math</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">decay_step</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">cosine_steps</span><span class="p">)))</span>
+                    <span class="k">for</span> <span class="n">base_lr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span>
+                <span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span> <span class="k">for</span> <span class="n">base_lr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span><span class="p">]</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Linear">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.Linear">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;linear&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Linear</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">LinearLR</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Linear learning rate schedule (wraps :class:`torch.optim.lr_scheduler.LinearLR`).</span>
+
+<span class="sd">    Maps ``total_steps`` to ``total_iters`` for interface compatibility.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;total_steps&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;total_iters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;total_steps&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="Constant">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.Constant">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;constant&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Constant</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">ConstantLR</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Constant learning rate schedule (wraps :class:`torch.optim.lr_scheduler.ConstantLR`).</span>
+
+<span class="sd">    Maps ``total_steps`` to ``total_iters`` for interface compatibility.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;total_steps&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;total_iters&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;total_steps&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="WarmupLinearDecayLR">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.WarmupLinearDecayLR">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;warmup_linear_decay&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WarmupLinearDecayLR</span><span class="p">(</span><span class="n">lr_scheduler</span><span class="o">.</span><span class="n">_LRScheduler</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Linear warmup followed by linear decay.</span>
+
+<span class="sd">    :param optimizer: Wrapped optimizer.</span>
+<span class="sd">    :param int total_steps: Total number of steps (warmup + decay).</span>
+<span class="sd">    :param float warmup_ratio: Fraction of ``total_steps`` used for warmup.</span>
+<span class="sd">    :param float peak_lr_factor: Multiplier applied to base LR to compute peak LR.</span>
+<span class="sd">    :param float min_lr: Minimum learning rate after decay.</span>
+<span class="sd">    :param int last_epoch: Index of last epoch (for resume).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">,</span>
+        <span class="n">total_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">warmup_ratio</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.05</span><span class="p">,</span>
+        <span class="n">peak_lr_factor</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">10.0</span><span class="p">,</span>
+        <span class="n">min_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
+        <span class="n">last_epoch</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">total_steps</span> <span class="o">=</span> <span class="n">total_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span> <span class="o">=</span> <span class="n">min_lr</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">=</span> <span class="n">last_epoch</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span> <span class="o">=</span> <span class="p">[</span><span class="n">group</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">param_groups</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">total_steps</span> <span class="o">*</span> <span class="n">warmup_ratio</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">decay_steps</span> <span class="o">=</span> <span class="n">total_steps</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">current_step</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">peak_lr_factor</span> <span class="o">=</span> <span class="n">peak_lr_factor</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">WarmupLinearDecayLR</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="n">last_epoch</span><span class="p">)</span>
+
+<div class="viewcode-block" id="WarmupLinearDecayLR.get_lr">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.WarmupLinearDecayLR.get_lr">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_lr</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span><span class="p">:</span>
+            <span class="c1"># Linear warmup</span>
+            <span class="k">return</span> <span class="p">[</span>
+                <span class="n">base_lr</span>
+                <span class="o">+</span> <span class="p">(</span><span class="n">base_lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">peak_lr_factor</span> <span class="o">-</span> <span class="n">base_lr</span><span class="p">)</span>
+                <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">base_lr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Linear decay</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">total_steps</span><span class="p">:</span>
+                <span class="n">decay_step</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">last_epoch</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">_warmup_steps</span>
+                <span class="k">return</span> <span class="p">[</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span>
+                    <span class="o">+</span> <span class="p">(</span><span class="n">base_lr</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">peak_lr_factor</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span><span class="p">)</span>
+                    <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">decay_step</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">decay_steps</span><span class="p">)</span>
+                    <span class="k">for</span> <span class="n">base_lr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span>
+                <span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">min_lr</span> <span class="k">for</span> <span class="n">base_lr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">start_lr</span><span class="p">]</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Sequential">
+<a class="viewcode-back" href="../../../api/matcha/nn/schedulers/index.html#matcha.nn.schedulers.Sequential">[docs]</a>
+<span class="nd">@SchedulerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;sequential&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Sequential</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper that composes multiple schedulers sequentially via ``SequentialLR``.</span>
+
+<span class="sd">    Uses ``__new__`` to return a real ``torch.optim.lr_scheduler.SequentialLR``</span>
+<span class="sd">    instance, so all standard scheduler methods (``step``, ``state_dict``, etc.)</span>
+<span class="sd">    work without delegation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_PHASE_LENGTH_PARAM</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">:</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cosine_annealing_cyclic&quot;</span><span class="p">:</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;warmup_cosine_annealing&quot;</span><span class="p">:</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;warmup_linear_decay&quot;</span><span class="p">:</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;one_cycle&quot;</span><span class="p">:</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;linear&quot;</span><span class="p">:</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;constant&quot;</span><span class="p">:</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__new__</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="n">Optimizer</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">schedulers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">dict</span><span class="p">],</span>
+        <span class="n">total_steps</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">lr_scheduler</span><span class="o">.</span><span class="n">SequentialLR</span><span class="p">:</span>
+        <span class="k">if</span> <span class="s2">&quot;chemprop&quot;</span> <span class="ow">in</span> <span class="n">schedulers</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;The &#39;chemprop&#39; scheduler cannot be used as a phase in a &quot;</span>
+                <span class="s2">&quot;sequential schedule because it is a no-op config holder that &quot;</span>
+                <span class="s2">&quot;manages its own schedule internally.&quot;</span>
+            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+        <span class="n">n_phases</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">schedulers</span><span class="p">)</span>
+        <span class="n">phase_length</span> <span class="o">=</span> <span class="n">total_steps</span> <span class="o">//</span> <span class="n">n_phases</span>
+        <span class="n">milestones</span> <span class="o">=</span> <span class="p">[</span><span class="n">phase_length</span> <span class="o">*</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_phases</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
+
+        <span class="n">sub_schedulers</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">kwargs</span> <span class="ow">in</span> <span class="n">schedulers</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_PHASE_LENGTH_PARAM</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">_PHASE_LENGTH_PARAM</span><span class="p">[</span><span class="n">name</span><span class="p">]]</span> <span class="o">=</span> <span class="n">phase_length</span>
+            <span class="n">sub_schedulers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">SchedulerRegistry</span><span class="p">[</span><span class="n">name</span><span class="p">](</span><span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">lr_scheduler</span><span class="o">.</span><span class="n">SequentialLR</span><span class="p">(</span>
+            <span class="n">optimizer</span><span class="p">,</span> <span class="n">schedulers</span><span class="o">=</span><span class="n">sub_schedulers</span><span class="p">,</span> <span class="n">milestones</span><span class="o">=</span><span class="n">milestones</span>
+        <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

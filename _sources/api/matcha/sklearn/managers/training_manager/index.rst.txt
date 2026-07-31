@@ -1,0 +1,125 @@
+matcha.sklearn.managers.training_manager
+========================================
+
+.. py:module:: matcha.sklearn.managers.training_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.training_manager.TrainingManager
+   matcha.sklearn.managers.training_manager.CLMTrainingManager
+   matcha.sklearn.managers.training_manager.FinetunerTrainingManager
+
+
+Module Contents
+---------------
+
+.. py:class:: TrainingManager
+
+   Manages Lightning Trainer creation, callbacks, and training loop.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: trainer
+      :type: lightning.Trainer | None
+
+
+      The underlying Lightning Trainer, available after training.
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.sklearn_api.TrainingInputModel | None
+
+
+      The training parameters owned by this manager.
+
+
+   .. py:property:: is_fitted
+      :type: bool
+
+
+      Whether the model has been successfully trained via run().
+
+
+   .. py:method:: configure(train_dict: dict) -> None
+
+      Set training parameters. Called once during init.
+
+      :param dict train_dict: dictionary of training parameters
+
+
+
+   .. py:method:: build_callbacks(training_params: matcha.utils.schemas.sklearn_api.TrainingInputModel) -> list
+
+      Create training callbacks based on training parameters.
+
+      :param TrainingInputModel training_params: training configuration
+      :return list: list of Lightning callbacks
+
+
+
+   .. py:method:: run(model, datamodule, architecture_cls, mlflow_manager=None, model_instance=None)
+
+      Execute the training loop.
+
+      :param model: the Lightning model to train
+      :param datamodule: the Lightning datamodule
+      :param architecture_cls: the model class (for checkpoint loading)
+      :param mlflow_manager: optional MLFlowManager for logging
+      :param model_instance: the sklearn model instance (for mlflow logging)
+      :return: the trained model (potentially loaded from best checkpoint)
+
+
+
+   .. py:method:: save_checkpoint(path: str)
+
+      Delegate to trainer.save_checkpoint.
+
+      :param str path: file path for the checkpoint
+
+
+
+.. py:class:: CLMTrainingManager
+
+   Bases: :py:obj:`TrainingManager`
+
+
+   Training manager specialized for CLM (Chemical Language Model) training.
+
+   Overrides the training loop to recreate the model with the correct num_tokens
+   parameter before training, and customizes MLflow logging to exclude
+   the vocabulary dictionary.
+
+
+   .. py:method:: run(model, datamodule, architecture_cls, mlflow_manager=None, model_instance=None)
+
+      Execute CLM training loop.
+
+      Recreates the model with the correct num_tokens parameter discovered
+      during featurization, then delegates to the parent training loop.
+
+      :param model: the Lightning model to train
+      :param datamodule: the Lightning datamodule
+      :param architecture_cls: the model class (for checkpoint loading)
+      :param mlflow_manager: optional MLFlowManager for logging
+      :param model_instance: the sklearn model instance (for mlflow logging and model recreation)
+      :return: the trained model
+
+
+
+.. py:class:: FinetunerTrainingManager
+
+   Bases: :py:obj:`TrainingManager`
+
+
+   Training manager specialized for fine-tuning models.
+
+   Customizes MLflow logging to exclude the vocabulary dictionary
+   when present in the datamodule params.
+
+

@@ -1,0 +1,183 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.finetuning.pretrained_encoder_wrapper &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.finetuning.pretrained_encoder_wrapper</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../../_sources/api/matcha/torch/models/finetuning/pretrained_encoder_wrapper/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.torch.models.finetuning.pretrained_encoder_wrapper">
+<span id="matcha-torch-models-finetuning-pretrained-encoder-wrapper"></span><h1>matcha.torch.models.finetuning.pretrained_encoder_wrapper<a class="headerlink" href="#module-matcha.torch.models.finetuning.pretrained_encoder_wrapper" title="Link to this heading"></a></h1>
+<p>Adapter that gives a pretraining encoder the classic-model interface.</p>
+<p>The <code class="xref py py-class docutils literal notranslate"><span class="pre">Finetuner</span></code> expects its <code class="docutils literal notranslate"><span class="pre">self.pretrain</span></code> object to expose:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">encoder</span></code>                     — the encoder module</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">predictor.prediction_head</span></code>   — (set to <code class="docutils literal notranslate"><span class="pre">None</span></code> during init)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">encode(batch)</span> <span class="pre">-&gt;</span> <span class="pre">Tensor</span></code>     — returns a flat <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code> embedding</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">latent_dim</span></code>                  — output dimensionality of the encoder</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_label_names</span></code>                — label name list (empty for pretrained)</p></li>
+</ul>
+<p>Pretraining models (<code class="xref py py-class docutils literal notranslate"><span class="pre">BaseGraphPretrainingModel</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">RoFormerMLM</span></code>)
+do not naturally satisfy this contract.  This thin wrapper bridges the gap
+so that the <code class="docutils literal notranslate"><span class="pre">Finetuner</span></code> code does not need to know whether the upstream
+model was trained via classic or pretraining.</p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper" title="matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PretrainedEncoderWrapper</span></code></a></p></td>
+<td><p>Wraps a pretraining encoder to present the classic-model interface.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.models.finetuning.pretrained_encoder_wrapper.</span></span><span class="sig-name descname"><span class="pre">PretrainedEncoderWrapper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">encoder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><span class="pre">torch.nn.Module</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoder_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../../_modules/matcha/torch/models/finetuning/pretrained_encoder_wrapper.html#PretrainedEncoderWrapper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Wraps a pretraining encoder to present the classic-model interface.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>encoder</strong> (<em>nn.Module</em>) – the encoder from a pretraining model</p></li>
+<li><p><strong>encoder_type</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – one of <code class="docutils literal notranslate"><span class="pre">&quot;graph&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;mlm&quot;</span></code></p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.encoder">
+<span class="sig-name descname"><span class="pre">encoder</span></span><a class="headerlink" href="#matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.encoder" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.predictor">
+<span class="sig-name descname"><span class="pre">predictor</span></span><a class="headerlink" href="#matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.predictor" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.latent_dim">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">latent_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.latent_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.encode">
+<span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../../_modules/matcha/torch/models/finetuning/pretrained_encoder_wrapper.html#PretrainedEncoderWrapper.encode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper.encode" title="Link to this definition"></a></dt>
+<dd><p>Return a flat <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code> embedding, regardless of encoder family.</p>
+<ul class="simple">
+<li><p><strong>Graph encoders</strong> already aggregate via readout, returning
+<code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code> from their <code class="docutils literal notranslate"><span class="pre">forward(graph)</span></code> call.</p></li>
+<li><p><strong>MLM encoders</strong> return per-token embeddings <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">S,</span> <span class="pre">D]</span></code>;
+we CLS-pool (take index 0) to get <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code>.</p></li>
+</ul>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

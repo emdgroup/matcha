@@ -1,0 +1,48 @@
+matcha.nn.deep_lasso
+====================
+
+.. py:module:: matcha.nn.deep_lasso
+
+.. autoapi-nested-parse::
+
+   Deep Lasso input-gradient regularization.
+
+   Reference: https://arxiv.org/pdf/2311.05877
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.nn.deep_lasso.add_dimension_glasso
+   matcha.nn.deep_lasso.deep_lasso_regularizer
+
+
+Module Contents
+---------------
+
+.. py:function:: add_dimension_glasso(var, dim=0)
+
+   Compute the group-lasso norm (L2 per group, then summed) over a dimension.
+
+   :param torch.Tensor var: Gradient tensor.
+   :param int dim: Dimension along which to compute the L2 norms.
+   :returns: Scalar group-lasso regularization value.
+   :rtype: torch.Tensor
+
+
+.. py:function:: deep_lasso_regularizer(loss, inputs)
+
+   Compute the Deep Lasso regularization term.
+
+   Calculates the group-lasso norm of the gradient of *loss* with respect to
+   *inputs*, encouraging sparsity in the input-gradient space.
+
+   :param torch.Tensor loss: Scalar loss tensor (must support ``autograd.grad``).
+   :param torch.Tensor inputs: Input tensor that ``loss`` was computed from.
+   :returns: Scalar regularization value.
+   :rtype: torch.Tensor
+
+

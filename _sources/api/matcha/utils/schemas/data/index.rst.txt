@@ -1,0 +1,95 @@
+matcha.utils.schemas.data
+=========================
+
+.. py:module:: matcha.utils.schemas.data
+
+.. autoapi-nested-parse::
+
+   Pydantic schemas and dataclasses for molecular datasets used in matcha.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.data.MolReadout
+   matcha.utils.schemas.data.MolDataset
+
+
+Module Contents
+---------------
+
+.. py:class:: MolReadout
+
+   Dataclass representing a single molecule with its target value and censoring bound.
+
+
+   .. py:attribute:: mol
+      :type:  rdkit.Chem.rdchem.Mol
+
+
+   .. py:attribute:: y
+      :type:  int | float | numpy.ndarray | None
+      :value: None
+
+
+
+   .. py:attribute:: bound
+      :type:  str | list | None
+      :value: None
+
+
+
+.. py:class:: MolDataset(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Validated dataset of RDKit molecules with optional targets and censoring masks.
+
+   Supports indexing and length queries, converting SMILES strings to Mol objects on
+   construction.
+
+
+   .. py:attribute:: mols
+      :type:  list[rdkit.Chem.rdchem.Mol] | list[str]
+
+
+   .. py:attribute:: y
+      :type:  numpy.ndarray | None
+      :value: None
+
+
+
+   .. py:attribute:: bound_mask
+      :type:  list[list[str]] | list[str] | None
+      :value: None
+
+
+
+   .. py:method:: check_lengths()
+
+      Validate that mols, y, and bound_mask have consistent lengths.
+
+
+
+   .. py:method:: validate_y(v, info: pydantic.ValidationInfo)
+
+      Validate that y is a 2D numpy array, reshaping 1D arrays as needed.
+
+
+
+   .. py:method:: validate_mols(v, info: pydantic.ValidationInfo)
+
+      Validate and convert SMILES strings to RDKit Mol objects.
+
+
+
+   .. py:method:: validate_bound_mask(v, info: pydantic.ValidationInfo)
+
+      Validate that bound_mask is a list of strings or list of lists of strings.
+
+
+

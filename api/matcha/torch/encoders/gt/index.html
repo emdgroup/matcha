@@ -1,0 +1,317 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.gt &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.gt</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../_sources/api/matcha/torch/encoders/gt/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.torch.encoders.gt">
+<span id="matcha-torch-encoders-gt"></span><h1>matcha.torch.encoders.gt<a class="headerlink" href="#module-matcha.torch.encoders.gt" title="Link to this heading"></a></h1>
+<p>Graph Transformer (GT) encoder with distance-biased dense attention.</p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.torch.encoders.gt.GTConv" title="matcha.torch.encoders.gt.GTConv"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GTConv</span></code></a></p></td>
+<td><p>Graph Transformer Convolution layer with dense attention.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.torch.encoders.gt.GT" title="matcha.torch.encoders.gt.GT"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GT</span></code></a></p></td>
+<td><p>Graph Transformer encoder using stacked GTConv layers with distance-biased attention.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.encoders.gt.</span></span><span class="sig-name descname"><span class="pre">GTConv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_in_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'gelu'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">expansion_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/gt.html#GTConv"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Graph Transformer Convolution layer with dense attention.</p>
+<p>Uses dense multi-head attention over ALL node pairs with distance bias,
+plus sparse edge bias that only applies between connected nodes.</p>
+<p>Features (inspired by EGT - arXiv:2108.03348):
+- Distance bias: applied to ALL node pairs (enables global attention based on graph distance)
+- Edge bias: applied only to CONNECTED nodes (encodes bond features into attention)
+- Logit clipping: clamps attention logits to [-5, 5] for numerical stability</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.num_heads">
+<span class="sig-name descname"><span class="pre">num_heads</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.hidden_dim">
+<span class="sig-name descname"><span class="pre">hidden_dim</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.hidden_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.head_dim">
+<span class="sig-name descname"><span class="pre">head_dim</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.head_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.node_in_dim">
+<span class="sig-name descname"><span class="pre">node_in_dim</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.node_in_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.edge_in_dim">
+<span class="sig-name descname"><span class="pre">edge_in_dim</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.edge_in_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.scale">
+<span class="sig-name descname"><span class="pre">scale</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.scale" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.WQ">
+<span class="sig-name descname"><span class="pre">WQ</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.WQ" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.WK">
+<span class="sig-name descname"><span class="pre">WK</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.WK" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.WV">
+<span class="sig-name descname"><span class="pre">WV</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.WV" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.WO">
+<span class="sig-name descname"><span class="pre">WO</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.WO" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.norm1">
+<span class="sig-name descname"><span class="pre">norm1</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.norm1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.norm2">
+<span class="sig-name descname"><span class="pre">norm2</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.norm2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.dropout_layer">
+<span class="sig-name descname"><span class="pre">dropout_layer</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.dropout_layer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.attn_dropout">
+<span class="sig-name descname"><span class="pre">attn_dropout</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.attn_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.ffn">
+<span class="sig-name descname"><span class="pre">ffn</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.ffn" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GTConv.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_attr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">graph_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dist_bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/gt.html#GTConv.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.gt.GTConv.forward" title="Link to this definition"></a></dt>
+<dd><p>Forward pass through the GT convolution layer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Node features [N, node_in_dim].</p></li>
+<li><p><strong>edge_index</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Edge indices [2, E].</p></li>
+<li><p><strong>edge_attr</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a><em> | </em><em>None</em>) – Edge features [E, edge_in_dim] or None.</p></li>
+<li><p><strong>graph_id</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Graph assignment for each node [N] (long tensor).</p></li>
+<li><p><strong>dist_bias</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a><em> | </em><em>None</em>) – Distance bias for all node pairs
+[B, max_nodes, max_nodes, num_heads], or None.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Updated node features [N, node_in_dim].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GT">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.encoders.gt.</span></span><span class="sig-name descname"><span class="pre">GT</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">atom_input_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">bond_input_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">atom_hidden_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">expansion_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">distance_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">jk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">readout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">laplacian_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">rwse_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">elstatic_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">distmat_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">rrwp_k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/gt.html#GT"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.gt.GT" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base_graph_encoder/index.html#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">lightning.pytorch.core.mixins.HyperparametersMixin</span></code></p>
+<p>Graph Transformer encoder using stacked GTConv layers with distance-biased attention.</p>
+<p>A graph transformer architecture that uses multi-head self-attention
+with edge features and shortest-path distance encoding as attention bias.</p>
+<p>Architecture: atom_projection, bond_projection → GTConv stack (with distance bias) → readout</p>
+<p>It inherits from <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseGraphEncoder</span></code> for common graph encoding routines
+(e.g. jk-related routines) and from <code class="xref py py-class docutils literal notranslate"><span class="pre">lightning.pytorch.core.mixins</span></code>
+for saving its hyperparameters.</p>
+<p>References:
+- Graph Transformer: <a class="reference external" href="https://arxiv.org/abs/2012.09699">https://arxiv.org/abs/2012.09699</a>
+- GPS: <a class="reference external" href="https://arxiv.org/abs/2205.12454">https://arxiv.org/abs/2205.12454</a></p>
+<p>It is intended to be used inside a <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseClassicModel</span></code> instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of GTConv layers</p></li>
+<li><p><strong>atom_input_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of input atom features from GraphFeaturizer</p></li>
+<li><p><strong>bond_input_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of input bond features from GraphFeaturizer</p></li>
+<li><p><strong>atom_hidden_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – hidden dimension for atom features in GTConv layers</p></li>
+<li><p><strong>num_heads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of attention heads, must divide atom_hidden_dim evenly</p></li>
+<li><p><strong>expansion_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – expansion factor for the feed-forward network in GTConv layers</p></li>
+<li><p><strong>distance_k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – maximum shortest-path distance for spatial encoding, None to disable</p></li>
+<li><p><strong>activation</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – activation function to be used in all layers</p></li>
+<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – dropout noise level</p></li>
+<li><p><strong>jk</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – jumping knowledge strategy (‘last’, ‘concat’, ‘max’, ‘sum’)</p></li>
+<li><p><strong>readout</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – readout function to aggregate atom representations</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GT.num_heads">
+<span class="sig-name descname"><span class="pre">num_heads</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GT.num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GT.expansion_k">
+<span class="sig-name descname"><span class="pre">expansion_k</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GT.expansion_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GT.atom_projection">
+<span class="sig-name descname"><span class="pre">atom_projection</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GT.atom_projection" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GT.bond_projection">
+<span class="sig-name descname"><span class="pre">bond_projection</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GT.bond_projection" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GT.layers">
+<span class="sig-name descname"><span class="pre">layers</span></span><a class="headerlink" href="#matcha.torch.encoders.gt.GT.layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.encoders.gt.GT.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch_geometric.data.Batch</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/gt.html#GT.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.gt.GT.forward" title="Link to this definition"></a></dt>
+<dd><p>Converts a batched PyG graph into a (batch_size, fp_dim) tensor.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>graph</strong> (<em>Batch</em>) – batched PyG graph from the dataloader</p>
+</dd>
+<dt class="field-even">Return torch.Tensor<span class="colon">:</span></dt>
+<dd class="field-even"><p>learned molecular representation</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,204 @@
+matcha.cli.statistical_tests
+============================
+
+.. py:module:: matcha.cli.statistical_tests
+
+.. autoapi-nested-parse::
+
+   Statistical comparison of model performance across paired data splits.
+
+   The ``summarize`` CLI compares several models that were all evaluated on the
+   *same* set of data splits (CV folds, time windows, clusters, or external
+   files). Because every model sees the same splits, the observations are
+   **paired** (a within-subject / repeated-measures design): the split-to-split
+   variance is shared across models and must be partitioned out rather than
+   pooled into the error term.
+
+   This module provides two comparison strategies that both respect the paired
+   design:
+
+   * :class:`ParametricComparison` -- one-way **repeated-measures ANOVA** as the
+     omnibus test, followed by **Tukey HSD computed against the RM-ANOVA error
+     term** for the pairwise comparisons. Both are implemented directly on top of
+     numpy + scipy (no extra runtime dependency). Bonferroni correction is
+     applied across the endpoint-metric combinations at the omnibus level; the
+     studentized-range Tukey controls the family-wise error rate of the pairwise
+     tests intrinsically, so no further pairwise correction is applied.
+   * :class:`NonParametricComparison` -- Friedman chi-squared omnibus test
+     followed by pairwise Wilcoxon signed-rank tests with Benjamini-Hochberg
+     correction. This path is unchanged in behaviour from the previous inline
+     implementation in ``summarize.py``.
+
+   The parametric methodology (RM-ANOVA + Tukey against the ANOVA error term)
+   follows the Polaris model-comparison example:
+   https://github.com/polaris-hub/polaris-method-comparison/blob/main/ADME_example/model_comparison.py
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.cli.statistical_tests.ParametricComparison
+   matcha.cli.statistical_tests.NonParametricComparison
+   matcha.cli.statistical_tests.BootstrapComparison
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.statistical_tests.build_comparison
+
+
+Module Contents
+---------------
+
+.. py:class:: ParametricComparison(logger)
+
+   Bases: :py:obj:`_PairedComparison`
+
+
+   Repeated-measures ANOVA omnibus + Tukey-on-residuals pairwise tests.
+
+
+   .. py:attribute:: omnibus_name
+      :value: 'rm_anova'
+
+
+
+   .. py:attribute:: omnibus_method
+      :value: 'rm_anova'
+
+
+
+   .. py:attribute:: pairwise_method
+      :value: 'tukey_hsd'
+
+
+
+   .. py:attribute:: correction_method
+      :value: 'bonferroni (omnibus) + tukey_hsd studentized-range (pairwise)'
+
+
+
+   .. py:method:: run_pairwise(organized_data: Dict, run_id_order: List[str], run_id_to_name: Dict) -> List[Dict]
+
+      Tukey HSD pairwise comparisons against the RM-ANOVA error term.
+
+      Tukey's studentized range controls the family-wise error rate within
+      each endpoint-metric combination, so no additional correction is
+      applied downstream.
+
+
+
+   .. py:method:: correct_pairwise(comparison_results: List[Dict]) -> List[Dict]
+
+      No-op: Tukey's studentized range already controls family-wise error.
+
+
+
+.. py:class:: NonParametricComparison(logger)
+
+   Bases: :py:obj:`_PairedComparison`
+
+
+   Friedman omnibus + Wilcoxon signed-rank pairwise with BH correction.
+
+
+   .. py:attribute:: omnibus_name
+      :value: 'Friedman'
+
+
+
+   .. py:attribute:: omnibus_method
+      :value: 'friedman_chi_squared'
+
+
+
+   .. py:attribute:: pairwise_method
+      :value: 'wilcoxon_signed_rank'
+
+
+
+   .. py:attribute:: correction_method
+      :value: 'bonferroni (omnibus) + benjamini_hochberg (pairwise)'
+
+
+
+   .. py:method:: run_pairwise(organized_data: Dict, run_id_order: List[str], run_id_to_name: Dict) -> List[Dict]
+
+      Pairwise Wilcoxon signed-rank tests across paired splits.
+
+
+
+   .. py:method:: correct_pairwise(comparison_results: List[Dict]) -> List[Dict]
+
+      Benjamini-Hochberg correction, grouped by endpoint-metric combination.
+
+
+
+.. py:class:: BootstrapComparison(logger)
+
+   Bases: :py:obj:`_PairedComparison`
+
+
+   Bootstrap percentile CIs + Holm-Bonferroni pairwise comparisons.
+
+   Uses the ``"{split_idx}_{bootstrap_idx}"`` keys written by ``evaluate``
+   when ``split.n_bootstrap > 1``. Each bootstrap sample is paired across
+   runs because all models were evaluated with the same fixed seed, so
+   element-wise differences form a valid paired distribution.
+
+
+   .. py:attribute:: omnibus_name
+      :value: 'bootstrap_skipped'
+
+
+
+   .. py:attribute:: omnibus_method
+      :value: 'none'
+
+
+
+   .. py:attribute:: pairwise_method
+      :value: 'bootstrap_percentile'
+
+
+
+   .. py:attribute:: correction_method
+      :value: 'holm_bonferroni (pairwise, per endpoint-metric)'
+
+
+
+   .. py:method:: run_omnibus(organized_data: Dict) -> Dict
+
+      Bootstrap has no omnibus test; logs a warning and returns empty.
+
+
+
+   .. py:method:: run_pairwise(organized_data: Dict, run_id_order: List[str], run_id_to_name: Dict) -> List[Dict]
+
+      Pairwise bootstrap percentile CIs and empirical p-values.
+
+
+
+   .. py:method:: correct_pairwise(comparison_results: List[Dict]) -> List[Dict]
+
+      Holm-Bonferroni correction grouped by endpoint-metric combination.
+
+
+
+.. py:function:: build_comparison(statistical_test: str, logger) -> _PairedComparison
+
+   Construct the comparison strategy for the requested testing mode.
+
+   :param statistical_test: ``"parametric"`` or ``"non-parametric"``.
+   :param logger: Logger passed through to the comparison instance.
+   :returns: A :class:`ParametricComparison` or
+       :class:`NonParametricComparison`.
+   :raises ValueError: If *statistical_test* is not a supported mode.
+
+

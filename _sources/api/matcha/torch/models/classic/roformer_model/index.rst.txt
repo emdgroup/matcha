@@ -1,0 +1,79 @@
+matcha.torch.models.classic.roformer_model
+==========================================
+
+.. py:module:: matcha.torch.models.classic.roformer_model
+
+.. autoapi-nested-parse::
+
+   RoFormer (rotary position embedding transformer) classic model for chemical language.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.classic.roformer_model.RoFormerModel
+
+
+Module Contents
+---------------
+
+.. py:class:: RoFormerModel(enc_num_characters: int, enc_hidden_dim: int = 256, enc_expansion_dim: int = 1024, enc_num_heads: int = 4, enc_num_layers: int = 2, enc_attention_dropout: float = 0.1, enc_hidden_dropout: float = 0.1, additional_mol_features_dim: int = 0, pred_hidden_dims: list[int] = [512, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50})
+
+   Bases: :py:obj:`matcha.torch.models.classic.base_classic_model.BaseClassicModel`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   RoFormer-based transformer for molecular property prediction from
+   chemical language (e.g. SMILES via augmented input strings).
+
+   Uses rotary position embeddings (RoPE) for relative position encoding in
+   self-attention. Inherits from :class:`BaseClassicModel` for common
+   training/prediction routines and from
+   :class:`~lightning.pytorch.core.mixins.HyperparametersMixin` for saving
+   hyperparameters.
+
+   References:
+
+   - Su et al., *RoFormer: Enhanced Transformer with Rotary Position Embedding*
+     (https://arxiv.org/abs/2106.09553)
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = RoFormerModel(enc_num_characters=n_tokens)
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int enc_num_characters: vocabulary size (unique tokens), required
+   :param int enc_hidden_dim: token embedding and hidden dimensionality, defaults to 256
+   :param int enc_expansion_dim: feed-forward expansion dimensionality, defaults to 1024
+   :param int enc_num_heads: number of self-attention heads, defaults to 4
+   :param int enc_num_layers: number of transformer blocks, defaults to 2
+   :param float enc_attention_dropout: dropout in attention computation, defaults to 0.1
+   :param float enc_hidden_dropout: dropout in feed-forward layers, defaults to 0.1
+   :param int additional_mol_features_dim: dimensionality of extra molecular
+       features concatenated to encoder output, defaults to 0
+   :param list[int] pred_hidden_dims: hidden layer sizes in the MLP predictor,
+       defaults to [512, 256]
+   :param list[int] | None pred_task_head_dims: per-task head dimensions, defaults to None
+   :param str pred_activation: activation in the predictor, defaults to 'swish'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of prediction targets, defaults to 1
+   :param str loss_fn: loss function name, defaults to 'mse'
+   :param dict loss_args: additional loss function arguments, defaults to {}
+   :param str optimizer: optimizer name, defaults to 'adam'
+   :param dict optimizer_args: additional optimizer arguments, defaults to {'lr': 1e-3}
+   :param str scheduler: learning rate scheduler name, defaults to 'cosine_annealing'
+   :param dict scheduler_args: additional scheduler arguments,
+       defaults to {'min_lr': 1e-6, 'total_steps': 50}
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: encoder
+
+

@@ -1,0 +1,86 @@
+matcha.torch.encoders.gin
+=========================
+
+.. py:module:: matcha.torch.encoders.gin
+
+.. autoapi-nested-parse::
+
+   Graph Isomorphism Network (GIN) encoder for molecular graphs.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.gin.GIN
+
+
+Module Contents
+---------------
+
+.. py:class:: GIN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, activation: str, aggregation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Graph Isomorphism Network (GIN) encoder as described in 'How powerful are
+   graph neural networks?'. This class performes message passing via graph convolutions,
+   updates the atom representations and returns a molecular embedding which can
+   then be used for molecular property prediction.
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+   References:
+   - https://arxiv.org/abs/1810.00826
+   - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GINEConv.html
+   - https://arxiv.org/abs/1806.03536
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.GINModel` for further details.
+
+   :param int num_layers: number of message passing layers
+
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+
+   :param int atom_hidden_dim: number of hidden atom features in message passing layers
+
+   :param str activation: activation function to be used in all layers
+
+   :param str aggregation: function to use to aggregate atom messages in a given
+       neighborhood
+
+   :param float dropout: dropout noise level
+
+   :param str | None norm: which norm to use inside GIN layers ('batch', 'layer',
+       'graph', or None), defaults to 'graph'
+
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: norms
+
+
+   .. py:attribute:: norm_type
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (x, self.fp_dim) tensor for further
+      processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+

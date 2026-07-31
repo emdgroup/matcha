@@ -1,0 +1,248 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.cnn &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.cnn</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../_sources/api/matcha/torch/encoders/cnn/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.torch.encoders.cnn">
+<span id="matcha-torch-encoders-cnn"></span><h1>matcha.torch.encoders.cnn<a class="headerlink" href="#module-matcha.torch.encoders.cnn" title="Link to this heading"></a></h1>
+<p>1D Convolutional Neural Network (CNN) encoder for chemical language representations.</p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.torch.encoders.cnn.Conv1d" title="matcha.torch.encoders.cnn.Conv1d"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Conv1d</span></code></a></p></td>
+<td><p>Single 1D convolution layer with dropout and activation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.torch.encoders.cnn.CNN" title="matcha.torch.encoders.cnn.CNN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CNN</span></code></a></p></td>
+<td><p>1D convolution neural network (CNN) encoder for modelling chemical language</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.Conv1d">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.encoders.cnn.</span></span><span class="sig-name descname"><span class="pre">Conv1d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">channel_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_dim</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/cnn.html#Conv1d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.cnn.Conv1d" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Single 1D convolution layer with dropout and activation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of input channels.</p></li>
+<li><p><strong>channel_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of output channels.</p></li>
+<li><p><strong>kernel_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Kernel size for the convolution.</p></li>
+<li><p><strong>activation</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Activation function name.</p></li>
+<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Dropout rate applied after convolution.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.Conv1d.conv">
+<span class="sig-name descname"><span class="pre">conv</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.Conv1d.conv" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.Conv1d.dropout">
+<span class="sig-name descname"><span class="pre">dropout</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.Conv1d.dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.Conv1d.activation">
+<span class="sig-name descname"><span class="pre">activation</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.Conv1d.activation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.Conv1d.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/cnn.html#Conv1d.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.cnn.Conv1d.forward" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.encoders.cnn.</span></span><span class="sig-name descname"><span class="pre">CNN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_characters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">embedding_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">kernel_dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/cnn.html#CNN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base_encoder/index.html#matcha.torch.encoders.base_encoder.BaseEncoder" title="matcha.torch.encoders.base_encoder.BaseEncoder"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.torch.encoders.base_encoder.BaseEncoder</span></code></a>, <code class="xref py py-obj docutils literal notranslate"><span class="pre">lightning.pytorch.core.mixins.HyperparametersMixin</span></code></p>
+<p>1D convolution neural network (CNN) encoder for modelling chemical language
+representations. After processing the input sequence, self attention is used
+to compute a global representation of the molecule by making the [cls] token
+attend to each other position in the string.
+It inherits from  <code class="xref py py-class docutils literal notranslate"><span class="pre">lightning.pytorch.core.mixins</span></code> for saving its hyperparameters,
+and from <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseEncoder</span></code> to be consistent with other encoders.
+References:
+- <a class="reference external" href="https://arxiv.org/abs/2407.12152">https://arxiv.org/abs/2407.12152</a>
+- <a class="reference external" href="https://pubs.rsc.org/en/content/articlehtml/2023/dd/d2dd00099g">https://pubs.rsc.org/en/content/articlehtml/2023/dd/d2dd00099g</a></p>
+<p>It is intended to be used inside a <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseClassicModel</span></code> instance.
+Check the docs of <a class="reference internal" href="../../models/classic/index.html#matcha.torch.models.classic.CNNModel" title="matcha.torch.models.classic.CNNModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">matcha.torch.models.classic.CNNModel</span></code></a> for further details.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>num_characters</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – total number of unique tokens in the dataset’s
+dictionary</p></li>
+<li><p><strong>embedding_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of token embedding features</p></li>
+<li><p><strong>hidden_dims</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – number of hidden token dimensionality across each
+convolutional layer</p></li>
+<li><p><strong>kernel_dims</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – kernel sizes for each convolutional layer</p></li>
+<li><p><strong>num_heads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of self attention heads, must divide hidden_dims
+evenly</p></li>
+<li><p><strong>activation</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – activation function to use throughout all layers</p></li>
+<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – dropout noise level</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN.embedding">
+<span class="sig-name descname"><span class="pre">embedding</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN.embedding" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN.layers">
+<span class="sig-name descname"><span class="pre">layers</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN.layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN.attention">
+<span class="sig-name descname"><span class="pre">attention</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN.attention" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN.pre_norm">
+<span class="sig-name descname"><span class="pre">pre_norm</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN.pre_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN.post_norm">
+<span class="sig-name descname"><span class="pre">post_norm</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN.post_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN.layer_weights">
+<span class="sig-name descname"><span class="pre">layer_weights</span></span><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN.layer_weights" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.encoders.cnn.CNN.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/cnn.html#CNN.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.cnn.CNN.forward" title="Link to this definition"></a></dt>
+<dd><p>Converts a nested list of integers objects into a (x, self.fp_dim) tensor for further
+processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>token_ids</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em><em>]</em>) – batched input from the dataloader</p>
+</dd>
+<dt class="field-even">Return torch.Tensor<span class="colon">:</span></dt>
+<dd class="field-even"><p>learned representation</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

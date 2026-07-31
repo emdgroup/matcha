@@ -1,0 +1,226 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.sklearn.managers.mlflow_manager &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.sklearn.managers.mlflow_manager</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.sklearn.managers.mlflow_manager</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">MatchaLogger</span><span class="p">,</span> <span class="n">get_default_logger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.sklearn_api</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLFlowInputModel</span>
+
+
+<div class="viewcode-block" id="MLFlowManager">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/mlflow_manager/index.html#matcha.sklearn.managers.MLFlowManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MLFlowManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Manages MLflow experiment setup, logging, and artifact tracking.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="p">:</span> <span class="n">MLFlowInputModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="s2">&quot;MLFLOW&quot;</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">is_active</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether an MLflow experiment has been configured.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="MLFlowManager.setup_experiment">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/mlflow_manager/index.html#matcha.sklearn.managers.MLFlowManager.setup_experiment">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setup_experiment</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">experiment_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">run_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;run&quot;</span><span class="p">,</span>
+        <span class="n">tag</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">log_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s2">&quot;./matcha_log&quot;</span><span class="p">,</span>
+        <span class="n">server_uri</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MLFlowInputModel</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Sets the experiment name and run name for the model.</span>
+
+<span class="sd">        :param str experiment_name: name of the experiment to set</span>
+<span class="sd">        :param str run_name: name of the run to associate with the experiment</span>
+<span class="sd">        :param dict | None tag: tags to associate with the run</span>
+<span class="sd">        :param str | None log_dir: directory for logging</span>
+<span class="sd">        :param str | None server_uri: MLflow server URI</span>
+<span class="sd">        :return MLFlowInputModel: the configured MLflow params</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">tag</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tag</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># MLflow 4.9+ requires opt-in for filesystem backends; set the flag</span>
+        <span class="c1"># when no remote server URI is configured so existing workflows keep working.</span>
+        <span class="k">if</span> <span class="n">server_uri</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;MLFLOW_ALLOW_FILE_STORE&quot;</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;MLFlow: setting experiment&quot;</span><span class="p">)</span>
+        <span class="n">mlflow_params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;experiment&quot;</span><span class="p">:</span> <span class="n">experiment_name</span><span class="p">,</span>
+            <span class="s2">&quot;run&quot;</span><span class="p">:</span> <span class="n">run_name</span><span class="p">,</span>
+            <span class="s2">&quot;tag&quot;</span><span class="p">:</span> <span class="n">tag</span><span class="p">,</span>
+            <span class="s2">&quot;log_dir&quot;</span><span class="p">:</span> <span class="n">log_dir</span><span class="p">,</span>
+            <span class="s2">&quot;server_uri&quot;</span><span class="p">:</span> <span class="n">server_uri</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">MLFlowInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">mlflow_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;MLFlow: setup done&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span></div>
+
+
+<div class="viewcode-block" id="MLFlowManager.create_logger">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/mlflow_manager/index.html#matcha.sklearn.managers.MLFlowManager.create_logger">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">create_logger</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MatchaLogger</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Creates a MatchaLogger instance from the current MLflow params.</span>
+
+<span class="sd">        :return MatchaLogger: configured MLflow logger</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mlflow_logger</span> <span class="o">=</span> <span class="n">MatchaLogger</span><span class="p">(</span>
+            <span class="n">experiment_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">experiment</span><span class="p">,</span>
+            <span class="n">run_name</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">run</span><span class="p">,</span>
+            <span class="n">save_dir</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span>
+            <span class="n">tracking_uri</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">server_uri</span><span class="p">,</span>
+            <span class="n">log_model</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">tag</span> <span class="o">!=</span> <span class="p">{}:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">tag</span><span class="p">)):</span>
+                <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">set_tag</span><span class="p">(</span>
+                    <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">tag</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">tag</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="n">i</span><span class="p">],</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">mlflow_logger</span></div>
+
+
+<div class="viewcode-block" id="MLFlowManager.log_training">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/mlflow_manager/index.html#matcha.sklearn.managers.MLFlowManager.log_training">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_training</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model_instance</span><span class="p">,</span> <span class="n">mlflow_logger</span><span class="p">:</span> <span class="n">MatchaLogger</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Log training artifacts and params to MLflow.</span>
+
+<span class="sd">        :param model_instance: the sklearn model instance to log</span>
+<span class="sd">        :param MatchaLogger mlflow_logger: the MLflow logger to use</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">store</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">log_hyperparams</span><span class="p">(</span><span class="n">model_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+        <span class="n">model_instance</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="s2">&quot;./.matcha_temp&quot;</span><span class="p">)</span>
+        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">log_matcha_artifacts</span><span class="p">(</span><span class="s2">&quot;./.matcha_temp&quot;</span><span class="p">)</span>
+        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">conclude_experiment</span><span class="p">()</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s2">&quot;./.matcha_temp&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MLFlowManager.log_calibrator">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/mlflow_manager/index.html#matcha.sklearn.managers.MLFlowManager.log_calibrator">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">log_calibrator</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">calibrator</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Log calibrator artifact to a new MLflow run.</span>
+
+<span class="sd">        :param calibrator: the calibrator object to log</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">logger</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">create_logger</span><span class="p">()</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">set_tag</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">run_id</span><span class="p">,</span> <span class="s2">&quot;artifact_type&quot;</span><span class="p">,</span> <span class="s2">&quot;calibrator&quot;</span><span class="p">)</span>
+        <span class="n">calibrator</span><span class="o">.</span><span class="n">save_calibrator</span><span class="p">(</span><span class="s2">&quot;./.matcha_temp&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">log_artifact</span><span class="p">(</span><span class="n">logger</span><span class="o">.</span><span class="n">_run_id</span><span class="p">,</span> <span class="s2">&quot;./.matcha_temp/calibrator.pkl&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">conclude_experiment</span><span class="p">()</span>
+        <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s2">&quot;./.matcha_temp&quot;</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

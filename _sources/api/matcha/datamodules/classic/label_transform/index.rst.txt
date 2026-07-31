@@ -1,0 +1,175 @@
+matcha.datamodules.classic.label_transform
+==========================================
+
+.. py:module:: matcha.datamodules.classic.label_transform
+
+.. autoapi-nested-parse::
+
+   Label transformation functions for scaling targets (log, ln, etc.).
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.label_transform.tolerance
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.label_transform.ForwardTransformRegistry
+   matcha.datamodules.classic.label_transform.BackwardTransformRegistry
+   matcha.datamodules.classic.label_transform.LabelTransform
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.label_transform.no_scale
+   matcha.datamodules.classic.label_transform.log10p
+   matcha.datamodules.classic.label_transform.norm_log10
+   matcha.datamodules.classic.label_transform.norm_log2
+   matcha.datamodules.classic.label_transform.norm_log1p
+   matcha.datamodules.classic.label_transform.norm_ln
+   matcha.datamodules.classic.label_transform.norm_logk100
+   matcha.datamodules.classic.label_transform.inv_log10
+   matcha.datamodules.classic.label_transform.inv_log2
+   matcha.datamodules.classic.label_transform.inv_log1p
+   matcha.datamodules.classic.label_transform.inv_ln
+   matcha.datamodules.classic.label_transform.inv_logk100
+   matcha.datamodules.classic.label_transform.inv_log10p
+
+
+Module Contents
+---------------
+
+.. py:data:: tolerance
+   :value: 0.001
+
+
+.. py:function:: no_scale(x: numpy.ndarray, tol: float = tolerance)
+
+.. py:function:: log10p(x: numpy.ndarray)
+
+.. py:function:: norm_log10(x: numpy.ndarray, tol: float = tolerance)
+
+.. py:function:: norm_log2(x: numpy.ndarray, tol: float = tolerance)
+
+.. py:function:: norm_log1p(x: numpy.ndarray, tol: float = tolerance)
+
+.. py:function:: norm_ln(x: numpy.ndarray, tol: float = tolerance)
+
+.. py:function:: norm_logk100(x: numpy.ndarray, tol: float = tolerance)
+
+.. py:function:: inv_log10(x: numpy.ndarray)
+
+.. py:function:: inv_log2(x: numpy.ndarray)
+
+.. py:function:: inv_log1p(x: numpy.ndarray)
+
+.. py:function:: inv_ln(x: numpy.ndarray)
+
+.. py:function:: inv_logk100(x: numpy.ndarray)
+
+.. py:function:: inv_log10p(x: numpy.ndarray)
+
+.. py:class:: ForwardTransformRegistry
+
+   Simple registry for label transformation functions in forward mode
+   (e.g., from unscaled to scaled)
+
+
+   .. py:attribute:: mapping
+
+
+   .. py:method:: scale(x, method)
+      :classmethod:
+
+
+
+.. py:class:: BackwardTransformRegistry
+
+   Simple registry for inverted label transformation functions
+   (e.g., from scaled to original space)
+
+
+   .. py:attribute:: mapping
+
+
+   .. py:method:: scale(x, method)
+      :classmethod:
+
+
+
+.. py:class:: LabelTransform(transform_map: str | list[str] | dict | None = None, y_clip: dict | None = None)
+
+   Scales labels back and forth according to a specified
+   function.
+
+   If users pass transform_map=str, then that transform is
+   used across all tasks.
+
+   If users pass transform_map=list[str], then transform_map[0]
+   is used on y[:,0] and so forth.
+
+   If users pass transform_map=dict, the keys correspond to the
+   task idx, the values correspond to the function. For convenience,
+   this pattern can also be the opposite way when many tasks share
+   the same scaling fn. Internally, it will be still stored with
+   task idx as keys.
+
+   Example usage:
+
+   .. code-block:: python
+       t = LabelTransform(["log10", "logk100])
+       y = np.random.rand(100,2)
+       y_scaled = t.process(y, forward=True)
+       y_recon = t.process(y_scaled, forward=False)
+
+   :param str | list[str] | dict | None transform_map: ruleset to
+       follow when trnasforming inputs
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: set_clipping_bounds(y_clip: dict | None)
+
+      Set clipping bounds for the label transformer.
+
+      :param dict | None y_clip: dictionary with ``"Min"`` and ``"Max"`` keys
+          for clipping bounds, or None to disable clipping
+
+
+
+   .. py:method:: process(x: numpy.ndarray, forward: bool)
+
+      Apply label transformation in forward or inverse direction.
+
+      :param np.ndarray x: array to transform
+      :param bool forward: if True, apply forward transform (e.g. log);
+          if False, apply inverse transform (e.g. 10^x)
+      :returns: transformed array (copy, not in-place)
+      :rtype: np.ndarray
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Utility for MLFlow logging
+
+
+

@@ -1,0 +1,88 @@
+matcha.sklearn.managers.ensemble_mlflow_manager
+===============================================
+
+.. py:module:: matcha.sklearn.managers.ensemble_mlflow_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.ensemble_mlflow_manager.EnsembleMLFlowManager
+
+
+Module Contents
+---------------
+
+.. py:class:: EnsembleMLFlowManager
+
+   Manages MLflow experiment setup and artifact logging for ensembles.
+
+   This mirrors :class:`MLFlowManager` but is tailored to ensemble-specific
+   concerns such as per-member run naming and ensemble-level artifact logging.
+
+
+   .. py:attribute:: params
+      :type:  matcha.utils.schemas.sklearn_api.MLFlowInputModel | None
+      :value: None
+
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: is_active
+      :type: bool
+
+
+      Whether an MLflow experiment has been configured.
+
+
+   .. py:method:: setup_experiment(experiment_name: str, run_name: str = 'model', tag: dict | None = None, log_dir: str | None = './matcha_log', server_uri: str | None = None) -> matcha.utils.schemas.sklearn_api.MLFlowInputModel
+
+      Configure the MLflow experiment for the ensemble.
+
+      :param str experiment_name: name of the experiment to set
+      :param str run_name: name of the run to associate with the experiment
+      :param dict | None tag: optional tags to associate with the run
+      :param str | None log_dir: optional directory for logging
+      :param str | None server_uri: optional MLflow server URI
+      :return MLFlowInputModel: the configured MLflow params
+
+
+
+   .. py:method:: setup_member_mlflow(member_model, member_idx: int) -> None
+
+      Configure MLflow on an individual ensemble member for its training run.
+
+      :param member_model: the BaseScikitLearnModel member
+      :param int member_idx: index of the member in the ensemble
+
+
+
+   .. py:method:: log_artifact(artifact_path: str, tag: dict) -> None
+
+      Log an artifact to a dedicated ensemble-level MLflow run.
+
+      :param str artifact_path: path to the artifact file to log
+      :param dict tag: tags specific to this artifact
+
+
+
+   .. py:method:: log_ensemble_params(params_dump: dict) -> None
+
+      Log ensemble parameters as a YAML artifact.
+
+      :param dict params_dump: the ensemble params dict to serialize
+
+
+
+   .. py:method:: log_calibrator(calibrator) -> None
+
+      Log a fitted calibrator artifact to MLflow.
+
+      :param calibrator: the calibrator object to log
+
+
+

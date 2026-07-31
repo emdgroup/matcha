@@ -1,0 +1,880 @@
+matcha.datamodules
+==================
+
+.. py:module:: matcha.datamodules
+
+.. autoapi-nested-parse::
+
+   Data modules for molecular featurization and dataset preparation.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/datamodules/base_datamodule/index
+   /api/matcha/datamodules/classic/index
+   /api/matcha/datamodules/pretraining/index
+   /api/matcha/datamodules/utils/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.datamodules.DataModuleRegistry
+   matcha.datamodules.LabelEncoderRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.BaseDataModule
+   matcha.datamodules.BaseLabelEncoder
+   matcha.datamodules.BinaryClassificationLabelEncoder
+   matcha.datamodules.RegressionLabelEncoder
+   matcha.datamodules.LabelTransform
+   matcha.datamodules.Engine
+   matcha.datamodules.CombinedStackDataset
+
+
+Package Contents
+----------------
+
+.. py:class:: BaseDataModule(scaler_type: str = 'standard', augment_resonance: bool = False, label_encoder_params: dict = {}, label_transform_params: dict = {})
+
+   Bases: :py:obj:`abc.ABC`, :py:obj:`lightning.LightningDataModule`
+
+
+   Base class for all datamodules.
+
+   It is not meant to be instantiated directly, but rather to be used as a parent
+   class for each datamodule.
+   The most important method for the children classes is :method:`self.featurize`. Please
+   check out the docs for that method for more information.
+
+
+   .. py:attribute:: collate_fn_map
+
+
+   .. py:property:: dataset_train
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: dataset_val
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: dataset_test
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: dataset_predict
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: y_scaler
+      :type: sklearn.preprocessing.StandardScaler | sklearn.preprocessing.QuantileTransformer
+
+
+      Property to access the y scaler instance.
+
+
+   .. py:property:: label_encoder
+      :type: matcha.datamodules.classic.label_encoder.RegressionLabelEncoder | matcha.datamodules.classic.label_encoder.BinaryClassificationLabelEncoder
+
+
+      Property to access the label encoder instance.
+
+
+   .. py:property:: label_transform
+      :type: matcha.datamodules.classic.label_transform.LabelTransform
+
+
+      Property to access the label transform instance.
+
+
+   .. py:method:: train_dataloader()
+
+      An iterable or collection of iterables specifying training samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      The dataloader you return will not be reloaded unless you set
+      :paramref:`~lightning.pytorch.trainer.trainer.Trainer.reload_dataloaders_every_n_epochs` to
+      a positive integer.
+
+      For data processing use the following pattern:
+
+          - download in :meth:`prepare_data`
+          - process and split in :meth:`setup`
+
+      However, the above are only necessary for distributed processing.
+
+      .. warning:: do not assign state in prepare_data
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.fit`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware.
+         There is no need to set it yourself.
+
+
+
+   .. py:method:: val_dataloader()
+
+      An iterable or collection of iterables specifying validation samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      The dataloader you return will not be reloaded unless you set
+      :paramref:`~lightning.pytorch.trainer.trainer.Trainer.reload_dataloaders_every_n_epochs` to
+      a positive integer.
+
+      It's recommended that all data downloads and preparation happen in :meth:`prepare_data`.
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.fit`
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.validate`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware
+         There is no need to set it yourself.
+
+      .. note::
+
+         If you don't need a validation dataset and a :meth:`validation_step`, you don't need to
+         implement this method.
+
+
+
+   .. py:method:: test_dataloader()
+
+      An iterable or collection of iterables specifying test samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      For data processing use the following pattern:
+
+          - download in :meth:`prepare_data`
+          - process and split in :meth:`setup`
+
+      However, the above are only necessary for distributed processing.
+
+      .. warning:: do not assign state in prepare_data
+
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.test`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware.
+         There is no need to set it yourself.
+
+      .. note::
+
+         If you don't need a test dataset and a :meth:`test_step`, you don't need to implement
+         this method.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      An iterable or collection of iterables specifying prediction samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      It's recommended that all data downloads and preparation happen in :meth:`prepare_data`.
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.predict`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware
+         There is no need to set it yourself.
+
+      :returns: A :class:`torch.utils.data.DataLoader` or a sequence of them specifying prediction samples.
+
+
+
+   .. py:method:: featurize(x: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None, is_training: bool = True, bound_mask: list[str] | None = None) -> torch.utils.data.StackDataset
+      :abstractmethod:
+
+
+      Converts a list of rdkit molecules into a format fit for neural network training,
+      depending on the architecture to be used downstream.
+
+      This method generates features and applies scaling as needed. It toggles between
+      fitting (when is_training=True) and transforming (when is_training=False) scalers.
+
+      Returns a StackDataset in dictionary format, with the following keys:
+      - 'y': a tensor containing the labels to predict (required)
+      - 'mol_features': a tensor containing fixed-size molecular features
+      - 'graph': a DGLGraph object containing the molecular graph, e.g. for GNNs
+      - 'token_ids': a tensor containing the tokenized SMILES strings, e.g. for CLMs
+
+      Depending on the architecture, more inputs might be required.
+
+      :param list[Mol] x: list of rdkit molecules to featurize
+
+      :param np.ndarray | None y: labels to predict for each molecule, or None
+
+      :param bool is_training: Whether to fit the X and Y scalers on the input,
+          or leverage pre-existing ones to only normalize
+
+      :param list[str] | None bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than', will be ignored if set
+          to None
+
+      :return StackDataset: output ready to be batched by a torch.Dataloader
+
+
+
+   .. py:method:: state_dict() -> dict
+      :abstractmethod:
+
+
+      Returns the parameters necessary for datamodule tracking. The
+      parameters should be outputted inside a dictionary.
+
+      Necessary for MLFlow monitoring.
+
+
+
+   .. py:method:: fit(dataset: torch.utils.data.StackDataset) -> None
+
+      Fits scalers and other stateful transformations on the dataset.
+
+      :param StackDataset dataset: dataset to fit transformations on
+
+
+
+   .. py:method:: transform(dataset: torch.utils.data.StackDataset) -> torch.utils.data.StackDataset
+
+      Applies fitted transformations to the dataset.
+
+      :param StackDataset dataset: dataset to transform
+      :return StackDataset: transformed dataset (modified in-place)
+
+
+
+   .. py:method:: augment(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray, bound_mask: list[str] | None = None, use_resonance: bool = True, max_n: int = 5, n_jobs: int = 1) -> tuple[list[rdkit.Chem.rdchem.Mol], numpy.ndarray, list[str] | None]
+
+      Augment the dataset with resonance structures.
+
+      :param list[Mol] mol_list: list of rdkit molecules to augment
+      :param np.ndarray y: labels array of shape (N, T)
+      :param list[str] | None bound_mask: bound mask or None
+      :param bool use_resonance: whether to use resonance augmentation
+      :param int max_n: maximum number of resonance structures per molecule
+      :param int n_jobs: number of parallel jobs
+      :returns: tuple of (augmented molecules, augmented labels, augmented bound mask)
+      :rtype: tuple[list[Mol], np.ndarray, list[str] | None]
+
+
+
+   .. py:method:: encode_y(y: numpy.ndarray) -> numpy.ndarray
+
+      Convert raw, continuous values into a one-hot encoded matrix
+      for classification using the label encoder.
+
+      :param np.ndarray y: continuous target values of shape (N, T)
+      :return np.ndarray: one-hot encoded matrix
+
+
+
+   .. py:method:: invert_y(y: numpy.array) -> None
+
+      Inverts all y transformations from numpy arrays.
+
+      :param y: np.array to invert
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Collate a batch of samples into a single dictionary of batched tensors.
+
+      :param list[dict] batch: list of sample dictionaries from the dataset
+      :returns: dictionary with collated tensors for each key
+      :rtype: dict
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Set up dataloaders for a given Lightning stage.
+
+      :param str stage: one of ``'fit'``, ``'test'``, or ``'predict'``
+
+
+
+   .. py:method:: configure_label_encoder(params: dict)
+
+      Configure the label encoder with new parameters.
+
+      :param dict params: parameters for label encoder configuration
+
+
+
+   .. py:method:: configure_label_encoder_task(task_idx: int = 0, task_label: str = 'output', class_thresholds: list[float] | None = None, class_labels: list[str] | None = None)
+
+      Configure a single task in the label encoder.
+
+      :param int task_idx: index of the task to configure
+      :param str task_label: human-readable label for the task
+      :param list[float] | None class_thresholds: thresholds for binary classification
+      :param list[str] | None class_labels: class label names
+
+
+
+   .. py:method:: parse_output(output: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Parse model output using the label encoder.
+
+      :param np.ndarray output: raw model output array
+      :param str tag: suffix for column names (e.g. ``'predictions'``)
+      :param bool convert_to_labels: whether to convert to class labels
+      :returns: labelled DataFrame with parsed outputs
+      :rtype: pandas.DataFrame
+
+
+
+   .. py:method:: has_class_labels()
+
+      Check whether the label encoder has classification thresholds configured.
+
+      :returns: True if class labels are configured and non-None
+      :rtype: bool
+
+
+
+   .. py:method:: load_state_dict(state_dict)
+
+      Restore internal state from a serialized state dictionary.
+
+      :param dict state_dict: dictionary containing y_scaler, label_encoder,
+          and label_transform objects
+
+
+
+.. py:data:: DataModuleRegistry
+
+.. py:class:: BaseLabelEncoder(params: dict = {})
+
+   Converts predictions into human-readable outputs.
+
+   This base class wraps output arrays from models into dataframes
+   with meaningful, user-defined column names.
+
+   Example usage:
+
+   .. code-block:: python
+       encoder = RegressionLabelEncoder({
+           0: {"task_label": "LOGS_THERMO"},
+           1: {"task_label": "LOGS"}
+               })
+       preds = np.random.rand(1000,2)
+       output = encoder.process(preds, tag="predictions")
+
+   :param dict params: ruleset to use when processing arrays, see
+       example above
+
+
+   .. py:method:: is_set() -> bool
+
+      Check whether the encoder has classification thresholds configured.
+
+      :returns: False for the base class; overridden by subclasses
+      :rtype: bool
+
+
+
+   .. py:property:: label_names
+      :type: str | list[str]
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Return the complete internal state for serialization
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Load the complete internal state from serialization
+
+
+
+   .. py:method:: create_empty()
+      :classmethod:
+
+
+      Create an empty label encoder that can be populated via load_state_dict
+
+
+
+.. py:class:: BinaryClassificationLabelEncoder(params: dict = {})
+
+   Bases: :py:obj:`BaseLabelEncoder`
+
+
+   Label encoder for binary classification tasks.
+
+   Converts continuous predictions into categorical labels using
+   user-defined thresholds.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: is_set() -> bool
+
+      Check whether the encoder has classification thresholds configured.
+
+      :returns: False for the base class; overridden by subclasses
+      :rtype: bool
+
+
+
+   .. py:method:: process(input: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Executes the pipeline end-to-end
+
+
+
+.. py:class:: RegressionLabelEncoder(params: dict = {})
+
+   Bases: :py:obj:`BaseLabelEncoder`
+
+
+   Label encoder for regression tasks.
+
+   Wraps raw prediction arrays into labelled DataFrames with user-defined
+   column names.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: process(input: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Converts the prediction array into a labelled dataframe,
+      dropping any dummy columns.
+
+
+
+.. py:data:: LabelEncoderRegistry
+
+.. py:class:: LabelTransform(transform_map: str | list[str] | dict | None = None, y_clip: dict | None = None)
+
+   Scales labels back and forth according to a specified
+   function.
+
+   If users pass transform_map=str, then that transform is
+   used across all tasks.
+
+   If users pass transform_map=list[str], then transform_map[0]
+   is used on y[:,0] and so forth.
+
+   If users pass transform_map=dict, the keys correspond to the
+   task idx, the values correspond to the function. For convenience,
+   this pattern can also be the opposite way when many tasks share
+   the same scaling fn. Internally, it will be still stored with
+   task idx as keys.
+
+   Example usage:
+
+   .. code-block:: python
+       t = LabelTransform(["log10", "logk100])
+       y = np.random.rand(100,2)
+       y_scaled = t.process(y, forward=True)
+       y_recon = t.process(y_scaled, forward=False)
+
+   :param str | list[str] | dict | None transform_map: ruleset to
+       follow when trnasforming inputs
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: set_clipping_bounds(y_clip: dict | None)
+
+      Set clipping bounds for the label transformer.
+
+      :param dict | None y_clip: dictionary with ``"Min"`` and ``"Max"`` keys
+          for clipping bounds, or None to disable clipping
+
+
+
+   .. py:method:: process(x: numpy.ndarray, forward: bool)
+
+      Apply label transformation in forward or inverse direction.
+
+      :param np.ndarray x: array to transform
+      :param bool forward: if True, apply forward transform (e.g. log);
+          if False, apply inverse transform (e.g. 10^x)
+      :returns: transformed array (copy, not in-place)
+      :rtype: np.ndarray
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Utility for MLFlow logging
+
+
+
+.. py:class:: Engine(n_jobs: int = 32)
+
+   RDKIT descriptor and fingerprint calculation class. Each molecular
+   representation is computed according to the parameters set in self.defaults,
+   so that the featurization performed by a given Engine object is reproducible
+   across datasets.
+   The class can be instantiated directly, but in general it should be used
+   within the TabularFeaturizer class.
+
+   :param int n_jobs: number of cores to use when featurizing compounds, defaults
+       to 32
+
+
+   .. py:property:: n_jobs
+      :type: int
+
+
+
+   .. py:property:: pretrained_model_dir
+      :type: str
+
+
+
+   .. py:property:: rdkit_common_descriptors
+      :type: list[str]
+
+
+
+   .. py:property:: rdkit_custom_descriptors
+      :type: list[str]
+
+
+
+   .. py:property:: rdkit_all_descriptors
+      :type: list[str]
+
+
+
+   .. py:property:: defaults
+      :type: dict
+
+
+
+   .. py:method:: set_defaults(key: str, params: dict)
+
+      Set default parameters for a specific feature type.
+
+      :param key: The feature type (e.g., 'ecfp', 'erg', etc.)
+      :param params: Dictionary of parameters to set for that feature type
+
+
+
+   .. py:property:: feature_dimensionality
+      :type: int
+
+
+
+   .. py:method:: get_ECFP(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes binary Extended Connectivity Fingerprints (ECFP) for a list
+      of molecules. Calculation will be performed according to the params in
+      self.defaults.
+      Reference: https://pubs.acs.org/doi/10.1021/ci100050t
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_ECFP(mols)
+
+      :param list[Mol] mols: list of rdkit molecules to compute ECFPs for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_ECFP_count(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes count-based Extended Connectivity Fingerprints (ECFP) for a
+      list of molecules. Calculation will be performed according to the params in
+      self.defaults.
+      Reference: https://pubs.acs.org/doi/10.1021/ci100050t
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_ECFP_count(mols)
+
+      :param list[Mol] mols: list of rdkit molecules to compute ECFPs for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_ERG(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes Extended Reduced Graph (ERG) 2D pharmacophore fingerprints
+      for a list of molecules. Calculation will be performed according to the params in
+      self.defaults.
+      Reference: https://pubmed.ncbi.nlm.nih.gov/16426057/
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_ERG(mols)
+
+      :param list[Mol] mols: list of rdkit molecules to compute ERG fingerprints for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_Avalon(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes Avalon path-based fingerprints for a list of molecules. Calculation
+      will be performed according to the params in self.defaults.
+      Reference: https://pubs.acs.org/doi/10.1021/ci050413p
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_Avalon(mols)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute Avalon fingerprints for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_ESTATE(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes Electrotopological state (ESTATE) fingerprints for a list of molecules.
+      Calculation will be performed according to the params in self.defaults.
+      Reference: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6147309/
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_ESTATE(mols)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute ESTATE fingerprints for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_rdkit_all_descriptors(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes all RDKIT descriptors for a list of molecules. The list
+      of descriptors is stored in self._all_descs. Calculation will be performed
+      according to the params in self.defaults.
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_rdkit_all_descriptors(mols)
+
+      :param List mols: list of N rdkit molecules to compute descriptors for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_arbitrary_rdkit_descriptors(mols: list[rdkit.Chem.rdchem.Mol], desc_list: list[str], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes a set or arbitrary RDKIT descriptors for a list of molecules.
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_arbitrary_rdkit_descriptors(mols, desc_list)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute descriptors for
+      :param list[str] desc_list: descriptors to compute
+      :return np.ndarray
+
+
+
+   .. py:method:: get_MAP4(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes MAP4 fingerprints for a list of molecules.
+      Calculation will be performed according to the params in self.defaults.
+      Reference: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-020-00445-4
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_MAP4(mols)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute fingerprints for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_MHFP(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes MHFP fingerprints for a list of molecules.
+      Calculation will be performed according to the params in self.defaults.
+      Reference: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-018-0321-8
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_MHFP(mols)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute fingerprints for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_rdkit_fp(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes RDKIT fingerprints for a list of molecules.
+      Calculation will be performed according to the params in self.defaults.
+      Reference: https://www.rdkit.org/UGM/2012/Landrum_RDKit_UGM.Fingerprints.Final.pptx.pdf
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_rdkit_fp(mols)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute fingerprints for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_pubchem_fp(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes Electrotopological state (ESTATE) fingerprints for a list of molecules.
+      Calculation will be performed according to the params in self.defaults.
+      Reference: https://ftp.ncbi.nlm.nih.gov/pubchem/specifications/pubchem_fingerprints.txt
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_pubchem_fp(mols)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute fingerprints for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_mordred(mols: list[rdkit.Chem.rdchem.Mol], n_jobs: int | None = None) -> numpy.ndarray
+
+      Computes Mordred descriptors for a list of molecules.
+      Calculation will be performed according to the params in self.defaults.
+      Reference: https://jcheminf.biomedcentral.com/articles/10.1186/s13321-018-0258-y
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_mordred(mols)
+
+      :param list[Mol] mols: list of N rdkit molecules to compute descriptors for
+
+      :return np.ndarray
+
+
+
+   .. py:method:: get_features(mols: list[rdkit.Chem.rdchem.Mol], feature_names: list[str], n_jobs: int | None = None) -> numpy.ndarray
+
+      Utility method to compute several feature sets for a list of molecules
+      and concatenate them along axis 1 into a single array. Each feature set
+      will be computed according to the params in self.defaults.
+
+      Example usage:
+
+      .. code-block:: python
+          engine = Engine()
+          x = engine.get_features(mols, ['ecpf', 'rdkit_all_descs'])
+
+      :param list[Mol] mols: list of N rdkit molecules to compute descriptors for
+
+      :param list[str] feature_names: list of strings defining which feature set
+          to compute
+
+      :return np.ndarray: array (N,X), axis 1 shape depends on chosen feature sets
+
+
+
+   .. py:method:: calculate_feature_dim(feature_list)
+
+      Utility function to dynamically calculate the dimensionality of the
+      output from the datamodule without needing to first run the engine on
+      some molecules
+
+      :return int input_dim: dimensionality of the concatenated feature vector
+          obtained from the list of features stored in self.params.feature_list
+
+
+
+.. py:class:: CombinedStackDataset(datasets: list[torch.utils.data.StackDataset], merge_fn: dict[str, collections.abc.Callable] = None)
+
+   Bases: :py:obj:`torch.utils.data.Dataset`
+
+
+   A Dataset that can combine multiple `StackDataset`s.
+
+   This class is useful when you have multiple datasets that you want to combine into a single
+   dataset.
+
+   If a key appears in multiple datasets, the values get merged according to merge_fn.
+
+   :param datasets: a list of datasets to combine
+
+
+   .. py:attribute:: datasets
+
+
+   .. py:attribute:: merge_fn
+
+

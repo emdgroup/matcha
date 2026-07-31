@@ -1,0 +1,258 @@
+matcha.nn.schedulers
+====================
+
+.. py:module:: matcha.nn.schedulers
+
+.. autoapi-nested-parse::
+
+   Learning-rate schedulers registered in the :data:`SchedulerRegistry`.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.nn.schedulers.SchedulerRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.nn.schedulers.ChempropSchedulerConfig
+   matcha.nn.schedulers.OneCycleLR
+   matcha.nn.schedulers.CosineAnnealing
+   matcha.nn.schedulers.CosineAnnealingCyclic
+   matcha.nn.schedulers.Step
+   matcha.nn.schedulers.WarmupCosineAnnealingLR
+   matcha.nn.schedulers.Linear
+   matcha.nn.schedulers.Constant
+   matcha.nn.schedulers.WarmupLinearDecayLR
+   matcha.nn.schedulers.Sequential
+
+
+Module Contents
+---------------
+
+.. py:data:: SchedulerRegistry
+
+.. py:class:: ChempropSchedulerConfig(optimizer=None, **kwargs)
+
+   Thin configuration holder for Chemprop's built-in NoamLR scheduler.
+
+   Chemprop's MPNN base class manages its own learning-rate schedule internally
+   (via ``NoamLR``).  This class simply stores the configuration so that the
+   rest of the Matcha scheduler interface can treat ``"chemprop"`` uniformly
+   as a scheduler name with associated ``scheduler_args``.
+
+   Unlike real PyTorch schedulers this is **never stepped** — the MPNN
+   ``configure_optimizers`` takes care of that.
+
+   Expected ``scheduler_args`` keys:
+       * ``warmup_epochs`` (int)
+       * ``max_lr`` (float)
+       * ``final_lr`` (float)
+
+
+   .. py:attribute:: warmup_epochs
+
+
+   .. py:attribute:: max_lr
+
+
+   .. py:attribute:: final_lr
+
+
+   .. py:method:: step(*args, **kwargs)
+
+      No-op: MPNN handles its own scheduling.
+
+
+
+   .. py:method:: state_dict()
+
+
+   .. py:method:: load_state_dict(state_dict)
+
+
+.. py:class:: OneCycleLR(optimizer: torch.optim.optimizer.Optimizer, max_lr: Union[float, list[float]], total_steps: Optional[int] = None, epochs: Optional[int] = None, steps_per_epoch: Optional[int] = None, pct_start: float = 0.3, anneal_strategy: Literal['cos', 'linear'] = 'cos', cycle_momentum: bool = True, base_momentum: Union[float, list[float]] = 0.85, max_momentum: Union[float, list[float]] = 0.95, div_factor: float = 25.0, final_div_factor: float = 10000.0, three_phase: bool = False, last_epoch: int = -1)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler.OneCycleLR`
+
+
+   One-cycle learning rate policy (wraps :class:`torch.optim.lr_scheduler.OneCycleLR`).
+
+
+.. py:class:: CosineAnnealing(optimizer, *, min_lr: float = 1e-05, total_steps: int = 1, **kwargs)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler.CosineAnnealingLR`
+
+
+   Cosine annealing scheduler with configurable minimum learning rate.
+
+   :param optimizer: Wrapped optimizer.
+   :param float min_lr: Minimum learning rate.
+   :param int total_steps: Total number of steps (mapped to ``T_max``).
+
+
+.. py:class:: CosineAnnealingCyclic(optimizer, *, total_steps: int, num_cycles: int = 5, min_lr: float = 0, **kwargs)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler.CosineAnnealingWarmRestarts`
+
+
+   Cosine annealing with warm restarts, dividing total steps into equal cycles.
+
+   :param optimizer: Wrapped optimizer.
+   :param int total_steps: Total number of steps.
+   :param int num_cycles: Number of restart cycles.
+   :param float min_lr: Minimum learning rate.
+
+
+.. py:class:: Step(optimizer, **kwargs)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler.StepLR`
+
+
+   Step decay scheduler (wraps :class:`torch.optim.lr_scheduler.StepLR`).
+
+   Accepts and discards a ``total_steps`` kwarg for interface compatibility.
+
+
+.. py:class:: WarmupCosineAnnealingLR(optimizer, total_steps: int, warmup_ratio: float = 0.05, peak_lr_factor: float = 10.0, min_lr: float = 1e-05, last_epoch: int = -1)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler._LRScheduler`
+
+
+   Linear warmup followed by cosine annealing decay.
+
+   :param optimizer: Wrapped optimizer.
+   :param int total_steps: Total number of steps (warmup + annealing).
+   :param float warmup_ratio: Fraction of ``total_steps`` used for warmup.
+   :param float peak_lr_factor: Multiplier applied to base LR to compute peak LR.
+   :param float min_lr: Minimum learning rate after annealing.
+   :param int last_epoch: Index of last epoch (for resume).
+
+
+   .. py:attribute:: optimizer
+
+
+   .. py:attribute:: total_steps
+
+
+   .. py:attribute:: min_lr
+      :value: 1e-05
+
+
+
+   .. py:attribute:: last_epoch
+      :value: -1
+
+
+
+   .. py:attribute:: start_lr
+
+
+   .. py:attribute:: cosine_steps
+
+
+   .. py:attribute:: current_step
+      :value: 0
+
+
+
+   .. py:attribute:: peak_lr_factor
+      :value: 10.0
+
+
+
+   .. py:method:: get_lr()
+
+      Compute learning rate using chainable form of the scheduler.
+
+
+
+.. py:class:: Linear(optimizer, **kwargs)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler.LinearLR`
+
+
+   Linear learning rate schedule (wraps :class:`torch.optim.lr_scheduler.LinearLR`).
+
+   Maps ``total_steps`` to ``total_iters`` for interface compatibility.
+
+
+.. py:class:: Constant(optimizer, **kwargs)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler.ConstantLR`
+
+
+   Constant learning rate schedule (wraps :class:`torch.optim.lr_scheduler.ConstantLR`).
+
+   Maps ``total_steps`` to ``total_iters`` for interface compatibility.
+
+
+.. py:class:: WarmupLinearDecayLR(optimizer, total_steps: int, warmup_ratio: float = 0.05, peak_lr_factor: float = 10.0, min_lr: float = 1e-05, last_epoch: int = -1)
+
+   Bases: :py:obj:`torch.optim.lr_scheduler._LRScheduler`
+
+
+   Linear warmup followed by linear decay.
+
+   :param optimizer: Wrapped optimizer.
+   :param int total_steps: Total number of steps (warmup + decay).
+   :param float warmup_ratio: Fraction of ``total_steps`` used for warmup.
+   :param float peak_lr_factor: Multiplier applied to base LR to compute peak LR.
+   :param float min_lr: Minimum learning rate after decay.
+   :param int last_epoch: Index of last epoch (for resume).
+
+
+   .. py:attribute:: optimizer
+
+
+   .. py:attribute:: total_steps
+
+
+   .. py:attribute:: min_lr
+      :value: 1e-05
+
+
+
+   .. py:attribute:: last_epoch
+      :value: -1
+
+
+
+   .. py:attribute:: start_lr
+
+
+   .. py:attribute:: decay_steps
+
+
+   .. py:attribute:: current_step
+      :value: 0
+
+
+
+   .. py:attribute:: peak_lr_factor
+      :value: 10.0
+
+
+
+   .. py:method:: get_lr()
+
+      Compute learning rate using chainable form of the scheduler.
+
+
+
+.. py:class:: Sequential
+
+   Wrapper that composes multiple schedulers sequentially via ``SequentialLR``.
+
+   Uses ``__new__`` to return a real ``torch.optim.lr_scheduler.SequentialLR``
+   instance, so all standard scheduler methods (``step``, ``state_dict``, etc.)
+   work without delegation.
+
+

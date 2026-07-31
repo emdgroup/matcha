@@ -1,0 +1,418 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.classic.tabular_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.classic.tabular_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.classic.tabular_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Tabular molecular featurization for MLP-based neural network training.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">float32</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.rdkit_engine</span><span class="w"> </span><span class="kn">import</span> <span class="n">Engine</span> <span class="k">as</span> <span class="n">RDKitEngine</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModule</span><span class="p">,</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">TabularDataModuleInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">MolDataset</span>
+
+<span class="c1"># Define which features belong to which engine</span>
+<span class="n">RDKIT_FEATURES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;ecfp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ecfp_count&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;erg&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;avalon&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;estate&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rdkit_all_descriptors&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;map4&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mhfp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;rdkit_fp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;pubchem_fp&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;mordred&quot;</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="TabularDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;tabular&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TabularDataModule</span><span class="p">(</span><span class="n">BaseDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tabular molecular representation featurization class. Allows users to</span>
+<span class="sd">    convert a list of rdkit molecules and labels into a TensorDataset ready</span>
+<span class="sd">    to be used for MLP-like neural network training. It uses the</span>
+<span class="sd">    :class:`mnet.datamodules.rdkit_engine.Engine` class for molecular fingerprints</span>
+<span class="sd">    and descriptors. Common featurization logic is inherited from</span>
+<span class="sd">    :class:`BaseDataModule`.</span>
+
+<span class="sd">    The main purpose of the class is to enable the use of :method:`featurize`.</span>
+<span class="sd">    Please check out :method:`featurize` for further information on the class&#39; usage.</span>
+
+<span class="sd">    :param list feature_list: list of strings defining which feature set</span>
+<span class="sd">            to compute</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">feature_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">engine_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Calculate input dimension</span>
+        <span class="n">input_dim</span> <span class="o">=</span> <span class="n">RDKitEngine</span><span class="p">()</span><span class="o">.</span><span class="n">calculate_feature_dim</span><span class="p">(</span><span class="n">feature_list</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">TabularDataModuleInputModel</span><span class="p">(</span>
+            <span class="n">input_dim</span><span class="o">=</span><span class="n">input_dim</span><span class="p">,</span>
+            <span class="n">feature_list</span><span class="o">=</span><span class="n">feature_list</span><span class="p">,</span>
+            <span class="n">engine_params</span><span class="o">=</span><span class="n">engine_params</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">(</span><span class="n">TabularDataModule</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_freeze_x_scaler</span> <span class="o">=</span> <span class="kc">False</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_datamodule_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Simple validation function to check that the input dataset</span>
+<span class="sd">        has adequate types. In case it doesn&#39;t, either throw an error or fix it.&quot;&quot;&quot;</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="n">MolDataset</span><span class="p">(</span><span class="n">mols</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">valid</span><span class="o">.</span><span class="n">mols</span><span class="p">,</span> <span class="n">valid</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">valid</span><span class="o">.</span><span class="n">bound_mask</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">x_scaler</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StandardScaler</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Property to access the feature scaler instance.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span>
+
+<div class="viewcode-block" id="TabularDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates unscaled features for molecules and creates a StackDataset.</span>
+
+<span class="sd">        This method only handles feature generation without any scaling.</span>
+<span class="sd">        Use featurize() for scaled features.</span>
+
+<span class="sd">        :param input_list: list of rdkit molecules to process</span>
+<span class="sd">        :param y: array (N, X) of labels, or None</span>
+<span class="sd">        :param bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+<span class="sd">        :param n_jobs: number of cores to use when featurizing the input,</span>
+<span class="sd">            if None is passed a reasonable n_jobs value will be guessed from the</span>
+<span class="sd">            amount of data</span>
+<span class="sd">        :return: Unscaled StackDataset with keys `mol_features` and `y`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># validate inputs without scaling</span>
+        <span class="n">input_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
+            <span class="n">input_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># compute features using RDKit engine</span>
+        <span class="n">rdkit_engine</span> <span class="o">=</span> <span class="n">RDKitEngine</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">engine_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">engine_params</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">key</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">RDKIT_FEATURES</span><span class="p">:</span>
+                    <span class="n">rdkit_engine</span><span class="o">.</span><span class="n">set_defaults</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">engine_params</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">rdkit_engine</span><span class="o">.</span><span class="n">get_features</span><span class="p">(</span><span class="n">input_list</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">feature_list</span><span class="p">)</span>
+
+        <span class="n">x_tensor</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+        <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">mol_features</span><span class="o">=</span><span class="n">x_tensor</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_invert_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to invert X scaling, modifying dataset in-place.</span>
+
+<span class="sd">        :param dataset: StackDataset to invert</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">inverted_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">inverted_features</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to fit and transform X, modifying dataset in-place.</span>
+
+<span class="sd">        :param dataset: StackDataset to fit and transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to transform X, modifying dataset in-place.</span>
+
+<span class="sd">        :param dataset: StackDataset to transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">scaled_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+        <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">scaled_features</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+<div class="viewcode-block" id="TabularDataModule.fit">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fits scalers and other stateful transformations on the dataset.</span>
+
+<span class="sd">        This method fits both X and Y scalers on the training data.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to fit transformations on</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Fit X scaler if not frozen</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_freeze_x_scaler</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_x</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Fit Y scaler via parent class</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="TabularDataModule.transform">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies fitted transformations to the dataset.</span>
+
+<span class="sd">        This method applies previously fitted X and Y scalers to the dataset.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to transform</span>
+<span class="sd">        :return StackDataset: transformed dataset (modified in-place)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_x</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="TabularDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Processes a list of N molecules and a numpy array (N,X) encoding the</span>
+<span class="sd">        labels into a TensorDataset, which can then be further processed for</span>
+<span class="sd">        MLP-like neural network training.</span>
+
+<span class="sd">        This method chains the unscaled feature generation with</span>
+<span class="sd">        the necessary scaling operations.</span>
+
+<span class="sd">        Example usage:</span>
+
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">            TF = TabularDataModule([&#39;ecfp&#39;, &#39;erg&#39;])</span>
+<span class="sd">            train_dataset = TF.featurize(train_mols, train_y, is_training=True)</span>
+<span class="sd">            test_dataset = TF.featurize(test_mols, test_y, is_training=False)</span>
+
+<span class="sd">        :param input_list: list of N rdkit molecules to process</span>
+
+<span class="sd">        :param y: array (N, X), where X is the number of classes or</span>
+<span class="sd">            endpoints, or None</span>
+
+<span class="sd">        :param bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+
+<span class="sd">        :param is_training: Whether to fit the X and Y scalers on the input,</span>
+<span class="sd">            or leverage pre-existing ones to only normalize</span>
+
+<span class="sd">        :param n_jobs: number of cores to use when featurizing the input,</span>
+<span class="sd">            if None is passed a reasonable n_jobs value will be guessed from the</span>
+<span class="sd">            amount of data, defaults to None</span>
+
+<span class="sd">        :return: Processed dataset providing keys `mol_features` and `y` ready for MLP-like neural network training</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Apply augmentation if enabled</span>
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+            <span class="n">input_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
+                <span class="n">input_list</span><span class="p">,</span>
+                <span class="n">y</span><span class="p">,</span>
+                <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span>
+                <span class="n">use_resonance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+                <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Generate unscaled features</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">input_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="c1"># Apply scaling based on is_training flag</span>
+        <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Handle bound mask and classification transformations (only if not regression)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="TabularDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;tabular&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;input_dim&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">input_dim</span><span class="p">,</span>
+            <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="s2">&quot;y_scaler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span>
+            <span class="s2">&quot;x_scaler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span><span class="p">,</span>
+            <span class="s2">&quot;label_encoder&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="p">,</span>
+            <span class="s2">&quot;label_transform&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="TabularDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span>
+
+        <span class="c1"># Create InputModel with the remaining parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">TabularDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">])</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_x_scaler</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;x_scaler&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="TabularDataModule.dummy">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/tabular_datamodule/index.html#matcha.datamodules.classic.tabular_datamodule.TabularDataModule.dummy">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to make a dummy class with default params. Can be</span>
+<span class="sd">        combined with load_state_dict to recreate a datamodule from</span>
+<span class="sd">        a state dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">feature_list</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ECFP&quot;</span><span class="p">])</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,442 @@
+matcha.utils.schemas.datamodules
+================================
+
+.. py:module:: matcha.utils.schemas.datamodules
+
+.. autoapi-nested-parse::
+
+   Pydantic schemas for matcha datamodule configurations.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.datamodules.DataModuleModel
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.datamodules.HandleMissing
+   matcha.utils.schemas.datamodules.BaseDataModuleFields
+   matcha.utils.schemas.datamodules.TabularDataModuleInputModel
+   matcha.utils.schemas.datamodules.CLMDataModuleInputModel
+   matcha.utils.schemas.datamodules.CLMMLMDataModuleInputModel
+   matcha.utils.schemas.datamodules.GraphDataModuleInputModel
+   matcha.utils.schemas.datamodules.GraphPretrainingDataModuleInputModel
+   matcha.utils.schemas.datamodules.Graph3DDataModuleInputModel
+   matcha.utils.schemas.datamodules.CombinedDataModuleInputModel
+   matcha.utils.schemas.datamodules.ChempropDataModuleInputModel
+   matcha.utils.schemas.datamodules.DataModuleModels
+
+
+Module Contents
+---------------
+
+.. py:class:: HandleMissing(*args, **kwds)
+
+   Bases: :py:obj:`enum.Enum`
+
+
+   Enum class to handle missing values in the data.
+
+
+   .. py:attribute:: RAISE
+      :value: 'raise'
+
+
+
+   .. py:attribute:: FILL
+      :value: 'fill'
+
+
+
+.. py:class:: BaseDataModuleFields(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base fields common to all datamodule types.
+
+
+   .. py:attribute:: is_classification
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: scaler_type
+      :type:  Literal['standard', 'quantile']
+      :value: 'standard'
+
+
+
+   .. py:attribute:: clip
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: label_encoder_params
+      :type:  dict | matcha.utils.schemas.label.RegressionEncoderInputModel | matcha.utils.schemas.label.BinaryClassificationEncoderInputModel
+
+
+   .. py:attribute:: label_transform_params
+      :type:  dict | matcha.utils.schemas.label.LabelTransformInputModel
+
+
+   .. py:attribute:: batch_size
+      :type:  int
+      :value: 256
+
+
+
+   .. py:attribute:: num_workers
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: augment_resonance
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: TabularDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for tabular feature-based datamodule configuration.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['tabular']
+      :value: 'tabular'
+
+
+
+   .. py:attribute:: input_dim
+      :type:  int
+
+
+   .. py:attribute:: feature_list
+      :type:  list[str]
+
+
+   .. py:attribute:: engine_params
+      :type:  Optional[Dict]
+      :value: None
+
+
+
+.. py:class:: CLMDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for character-level model datamodule with SMILES augmentation settings.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['clm']
+      :value: 'clm'
+
+
+
+   .. py:attribute:: max_length
+      :type:  Annotated[int, Field(gt=0)]
+      :value: 200
+
+
+
+   .. py:attribute:: num_augmentations
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 3
+
+
+
+   .. py:attribute:: num_test_augmentations
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: include_canonical
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: dictionary
+      :type:  dict
+
+
+   .. py:attribute:: num_tokens
+      :type:  int
+      :value: 4
+
+
+
+.. py:class:: CLMMLMDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`CLMDataModuleInputModel`
+
+
+   Schema for masked language model datamodule extending CLM with a mask rate.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['clm_mlm']
+      :value: 'clm_mlm'
+
+
+
+   .. py:attribute:: mask_rate
+      :type:  Annotated[float, Field(ge=0.0, le=1.0)]
+      :value: 0.15
+
+
+
+.. py:class:: GraphDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for molecular graph datamodule with positional encoding settings.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph']
+      :value: 'graph'
+
+
+
+   .. py:attribute:: laplacian_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 10
+
+
+
+   .. py:attribute:: rwse_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: rrwp_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: elstatic_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: distmat_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: compute_distances
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: num_virtual_nodes
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: init_virtual_nodes
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: GraphPretrainingDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`GraphDataModuleInputModel`
+
+
+   Schema for graph pretraining datamodule with optional graph/node-level scaling.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph_pretraining']
+      :value: 'graph_pretraining'
+
+
+
+   .. py:attribute:: scale_y_graph
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: scale_y_node
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: Graph3DDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for 3D molecular graph datamodule with conformer generation settings.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph3d']
+      :value: 'graph3d'
+
+
+
+   .. py:attribute:: laplacian_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 10
+
+
+
+   .. py:attribute:: rwse_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: rrwp_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: elstatic_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: distmat_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: compute_distances
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: num_virtual_nodes
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: init_virtual_nodes
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: embed_timeout
+      :type:  Annotated[float, Field(gt=0.0)]
+      :value: 30.0
+
+
+
+.. py:class:: CombinedDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for combining multiple datamodules with optional merge functions.
+
+
+   .. py:attribute:: model_config
+
+      Configuration for the model, should be a dictionary conforming to [`ConfigDict`][pydantic.config.ConfigDict].
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['combined']
+      :value: 'combined'
+
+
+
+   .. py:attribute:: datamodules
+      :type:  list
+
+
+   .. py:attribute:: merge_fn
+      :type:  Optional[Dict[str, Callable]]
+      :value: None
+
+
+
+   .. py:method:: validate_merge_fn(v)
+      :classmethod:
+
+
+
+.. py:class:: ChempropDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for Chemprop datamodule configuration with optional tabular features.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['chemprop']
+      :value: 'chemprop'
+
+
+
+   .. py:attribute:: input_dim
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: feature_list
+      :type:  Optional[list[str]]
+      :value: None
+
+
+
+   .. py:attribute:: engine_params
+      :type:  Optional[Dict]
+      :value: None
+
+
+
+.. py:data:: DataModuleModel
+
+.. py:class:: DataModuleModels(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Container schema for a sequence of discriminated datamodule configurations.
+
+
+   .. py:attribute:: inputmodels
+      :type:  Sequence[Annotated[DataModuleModel, Field(discriminator='datamodule_type')]]
+
+

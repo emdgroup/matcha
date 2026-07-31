@@ -1,0 +1,444 @@
+matcha.sklearn.base_sklearn_model
+=================================
+
+.. py:module:: matcha.sklearn.base_sklearn_model
+
+.. autoapi-nested-parse::
+
+   Base classes and mixins for the scikit-learn-compatible model API.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.sklearn.base_sklearn_model.ScikitLearnModelRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.base_sklearn_model.BaseScikitLearnModel
+   matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin
+   matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin
+
+
+Module Contents
+---------------
+
+.. py:class:: BaseScikitLearnModel(params)
+
+   Bases: :py:obj:`abc.ABC`
+
+
+   Base class for all sklearn API models. It is not meant to be instantiated directly,
+   but rather to be used as a parent class for each sklearn API model.
+   This class already implements all (or most) methods needed to get the API running,
+   so child classes only need to parse the arguments for the desired architecture.
+
+   **Ownership model:**
+
+   * The ``BaseScikitLearnModel`` directly owns the Lightning model
+     (``self._model``) and the run metadata (``self._metadata``).
+   * All other cross-cutting concerns are delegated to dedicated managers:
+
+     - ``DataModuleManager``       — datamodule lifecycle, featurization, label encoding
+     - ``TrainingManager``         — Lightning Trainer, callbacks, training loop, fit state
+     - ``MLFlowManager``           — experiment tracking and artifact logging
+     - ``SerializationManager``    — save / load / export
+     - ``UncertaintyManager``      — MC-dropout uncertainty and calibration
+     - ``ExplainabilityManager``   — LIME-based explanations
+     - ``HPOManager``              — hyperparameter optimization via Optuna
+
+   Concrete subclasses must:
+
+   1. Set ``self._architecture`` to the Lightning module class **before**
+      calling ``super().__init__(params)``.
+   2. Implement ``_create_datamodule(datamodule_params, train_params)``
+      to build the appropriate datamodule.
+   3. Implement ``_adapt_dict_for_modality(datamodule_params, model_params)``
+      to adjust parameters for the specific modality (e.g. graph, CLM, tabular).
+
+   :param dict params: all the arguments required to make the neural network for
+       the child class work, which are then split into datamodule_params,
+       model_params and train_params
+
+
+   .. py:property:: calibrator
+
+      The calibration object used for uncertainty calibration, or None.
+
+
+   .. py:property:: explainer
+
+      The explainability object used for LIME explanations, or None.
+
+
+   .. py:property:: datamodule
+
+      The Lightning datamodule managing featurization and batching.
+
+
+   .. py:property:: model
+
+      The underlying Lightning model instance.
+
+
+   .. py:property:: is_fitted
+      :type: bool
+
+
+      Whether the model has been successfully trained.
+
+
+   .. py:property:: is_classifier
+      :type: bool
+
+
+      Whether this model instance is a classifier (vs regressor).
+
+
+   .. py:property:: task_type
+      :type: str
+
+
+      'binary_classification' or 'regression'.
+
+      :type: Inferred from the mixin
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.sklearn_api.ScikitLearnInputModel
+
+
+      Assembled on demand from canonical sources — no drift possible.
+
+
+   .. py:method:: set_mlflow_experiment(experiment_name: str, run_name: str = 'run', tag: dict | None = None, log_dir: str | None = './matcha_log', server_uri: str | None = None)
+
+      Sets the experiment name and run name for the model.
+
+      :param str experiment_name: name of the experiment to set
+      :param str run_name: name of the run to associate with the experiment
+      :param dict | None tag: tags to associate with the run
+      :param str | None log_dir: directory for logging
+      :param str | None server_uri: MLflow server URI
+
+
+
+   .. py:method:: transform(mols: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Transforms a list of molecules into the input shape required by the model
+      architecture. Will infer whether to fit standardizers depending on whether
+      the y vector is passed or not.
+
+      :param list[Mol] mols: list of rdkit molecules to featurize
+
+      :param np.ndarray y: property labels for each molecule (if present). If not
+          present, it will switch to test set mode
+
+      :param list[str] | None bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than', will be ignored if set
+          to None
+
+      :param bool is_training: whether to fit a new standard scaler or not (
+          relevant for validation sets for early stopping)
+
+      :return StackDataset: featurized dataset ready to be batched for training
+          or inference
+
+
+
+   .. py:method:: fit(x: list[rdkit.Chem.rdchem.Mol] | torch.utils.data.StackDataset, y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, validation_set: torch.utils.data.StackDataset | None = None)
+
+      Runs training with the desired model architecture with early stopping on 10%
+      of the training dataset. Optionally, will add a few more epochs on top with
+      SWA.
+
+      :param list[Mol] | StackDataset x: either a list of molecules, or a StackDataset computed by
+          the appropriate datamodule, which contains both the input and labels
+          for training
+
+      :param np.ndarray | None y: either property labels in a numpy array or None
+          if a StackDataset was passed for x, defaults to None
+
+      :param list[str] | None bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than', will be ignored if set
+          to None
+
+      :param StackDataset | None validation_set: pre-transformed data to use for early-stopping,
+          defaults to None
+
+
+
+   .. py:method:: calibrate_uncertainty(calibration_mols: list[rdkit.Chem.rdchem.Mol], calibration_y: numpy.ndarray, num_iterations: int = 10, algorithm: str = 'inductive_conformal', algorithm_args: dict | None = None)
+
+      Calibrate uncertainty estimates using a calibration set.
+
+      :param list[Mol] calibration_mols: molecules for calibration
+      :param np.ndarray calibration_y: true labels for calibration
+      :param int num_iterations: MC dropout iterations
+      :param str algorithm: calibration algorithm name
+      :param dict | None algorithm_args: arguments for the calibration algorithm
+
+
+
+   .. py:method:: compute_uncertainty(x: list[rdkit.Chem.rdchem.Mol] | torch.utils.data.StackDataset, num_iterations: int = 10, accelerator: str | None = None, devices: int | None = None, batch_size: int | None = None) -> numpy.ndarray
+
+      Computes uncertainty via Monte Carlo dropout for a test set.
+
+      :param list[Mol] | StackDataset x: input to compute uncertainty for
+      :param int num_iterations: how many iterations of dropout to do
+      :param str | None accelerator: hardware to use for predictions
+      :param int | None devices: how many resources to use
+      :param int | None batch_size: batch size to use
+      :return np.ndarray: array with the uncertainty for each prediction
+
+
+
+   .. py:method:: compute_learned_embedding(x: list[rdkit.Chem.rdchem.Mol] | torch.utils.data.StackDataset, accelerator: str | None = None, devices: int | None = None, batch_size: int | None = None) -> numpy.ndarray
+
+      Returns learned fingerprints from the model. Can be either the output
+      of the encoder or the representation from the last layer.
+
+      :param list[Mol] | StackDataset x: input (X,) to compute learned embeddings for
+
+      :param str | None accelerator: hardware to use, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None devices: how many resources to use, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None batch_size: batch size to use, if None
+          it is kept as training settings, defaults to None
+
+      :return np.ndarray: learned representation for the input, with dimensionality
+          (X, fp_dim)
+
+
+
+   .. py:method:: annotate(key: str, dictionary: dict)
+
+      Stores arbitrary dictionaries in params.metadata.extra under the specified key.
+      If the key already exists, a warning is logged and the value is overwritten.
+
+      :param str key: key to store the dictionary under in metadata.extra
+
+      :param dictionary dict: dictionary to store in params.metadata.extra[key]
+
+
+
+   .. py:method:: quantize()
+
+      Apply dynamic quantization to the model.
+
+
+
+   .. py:method:: save_model(folder_path: str, quantize: bool = False)
+
+      Saves all components of a sklearn model into the target folder.
+
+      :param str folder_path: folder where to store the components
+      :param bool quantize: whether to quantize the model before saving
+
+
+
+   .. py:method:: get_input_args() -> dict
+
+      Returns the input arguments for the model as a dictionary.
+
+
+
+   .. py:method:: export_to_yaml(path: str) -> None
+
+      Export the model configuration YAMLs to a directory (no weights, no state).
+
+      Writes the same ``config/`` subtree that :meth:`save_model` produces,
+      so the output can be inspected, version-controlled, or used as a template.
+
+      :param str path: directory where the config YAMLs will be written
+
+
+
+   .. py:method:: from_folder(folder_path: str, accelerator: str = 'cuda') -> object
+      :classmethod:
+
+
+      Constructor method to generate a fully restored copy of a saved sklearn model.
+
+      :param str folder_path: location of folder with saved model artifacts
+      :param str accelerator: accelerator to use for model loading
+      :return object: fully restored class instance
+
+
+
+   .. py:method:: from_config(param_dict: dict) -> object
+      :classmethod:
+
+
+      Constructor method to create a new class instance "shell" from saved params.
+
+      Expects a structured dict with top-level keys:
+      ``model``, ``training``, ``datamodule``, ``metadata``,
+      and optionally ``calibration``, ``tuning``.
+
+      :param dict param_dict: structured parameter dictionary
+      :return object: class instance with architecture but no fitted weights
+
+
+
+   .. py:method:: tune(train_set: list[torch.utils.data.StackDataset] | torch.utils.data.StackDataset, val_set: list[torch.utils.data.StackDataset] | torch.utils.data.StackDataset, architecture_search_budget: int = 30, architecture_grid: dict | None = None, optimizer_search_budget: int = 30, optimizer_grid: dict | None = None, scheduler_grid: dict | None = None) -> tuple
+
+      Hyperparameter tuning routine.
+
+      :param StackDataset train_set: dataset to use for training
+      :param StackDataset val_set: target to tune parameters against
+      :param int architecture_search_budget: iterations for architecture search
+      :param dict | None architecture_grid: architecture parameters to tune
+      :param int optimizer_search_budget: iterations for optimizer search
+      :param dict | None optimizer_grid: optimizer parameters to tune
+      :param dict | None scheduler_grid: scheduler parameters to tune
+      :return tuple: study objects from Optuna for architecture and optimizer
+
+
+
+   .. py:method:: explain_prediction(input: rdkit.Chem.rdchem.Mol, task_idx: int = 0, lime_bootstrap_num: int = 25, lime_descriptor_set: list[str] | None = None, use_std: bool = False)
+
+      Generate LIME explanations for a molecule prediction.
+
+      :param Mol input: RDKit molecule to explain
+      :param int task_idx: index of the task to explain
+      :param int lime_bootstrap_num: number of bootstrap iterations for LIME
+      :param list[str] | None lime_descriptor_set: RDKit descriptors for LIME
+      :param bool use_std: use uncertainty estimates for predictions
+      :return MatchaExplanation: LIME results with plotting methods
+
+
+
+   .. py:method:: configure_label_encoder(params: dict)
+
+      Configure the label encoder with the given parameters.
+
+      :param dict params: label encoder configuration dictionary
+
+
+
+   .. py:method:: configure_label_encoder_task(task_idx: int, task_label: str, class_thresholds: list[float] | None = None, class_labels: list[str] | None = None)
+
+      Configure a single task in the label encoder.
+
+      :param int task_idx: index of the task to configure
+      :param str task_label: human-readable label for the task
+      :param list[float] | None class_thresholds: thresholds for binarization
+      :param list[str] | None class_labels: class label names
+
+
+
+   .. py:method:: parse_output(output: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Parse raw model output into a structured format with label decoding.
+
+      :param np.ndarray output: raw model predictions
+      :param str tag: column name prefix for the output DataFrame
+      :param bool convert_to_labels: whether to convert to class labels
+      :returns: parsed output as a DataFrame
+
+
+
+   .. py:method:: has_class_labels() -> bool
+
+      Whether the label encoder has been configured with class labels.
+
+      :returns: True if class labels are available
+      :rtype: bool
+
+
+
+.. py:class:: ScikitLearnRegressorMixin
+
+   Mixin to add regression-specific methods to scikit-learn models
+
+
+   .. py:method:: predict(x: list[rdkit.Chem.rdchem.Mol] | torch.utils.data.StackDataset, accelerator: str | None = None, devices: int | None = None, batch_size: int | None = None) -> numpy.ndarray
+
+      Wraps self._inner_predict to account for regression
+      scenarios, mimicking the functioning of the original sklearn method.
+
+      :param list[Mol] | StackDataset x: input to compute predictions for
+
+      :param str | None accelerator: hardware to use for predictions, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None devices: how many resources to use, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None batch_size: batch size to use, if None
+          it is kept as training settings, defaults to None
+
+      :return np.ndarray: predictions for the input, modulated depending whether
+          the model is a classifier or regressor
+
+
+
+.. py:class:: ScikitLearnClassifierMixin
+
+   Mixin to add classification-specific methods to scikit-learn models
+
+
+   .. py:method:: predict_proba(x: list[rdkit.Chem.rdchem.Mol] | torch.utils.data.StackDataset, accelerator: str | None = None, devices: int | None = None, batch_size: int | None = None) -> numpy.ndarray
+
+      Allows to return probabilities instead of class labels for classification
+      models.
+
+      :param list[Mol] | StackDataset x: input to compute predictions for
+
+      :param str | None accelerator: hardware to use for predictions, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None devices: how many resources to use, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None batch_size: batch size to use, if None
+          it is kept as training settings, defaults to None
+
+      :return np.ndarray: class probabilities for the input
+
+
+
+   .. py:method:: predict(x: list[rdkit.Chem.rdchem.Mol] | torch.utils.data.StackDataset, accelerator: str | None = None, devices: int | None = None, batch_size: int | None = None) -> numpy.ndarray
+
+      Wraps self._inner_predict to account for classification
+      scenarios, mimicking the functioning of the original sklearn method.
+
+      :param list[Mol] | StackDataset x: input to compute predictions for
+
+      :param str | None accelerator: hardware to use for predictions, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None devices: how many resources to use, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None batch_size: batch size to use, if None
+          it is kept as training settings, defaults to None
+
+      :return np.ndarray: predictions for the input, modulated depending whether
+          the model is a classifier or regressor
+
+
+
+   .. py:method:: encode_y(y: numpy.ndarray) -> numpy.ndarray
+
+      Convert raw, continuous values into a one-hot encoded matrix
+      for classification.
+
+      :param np.ndarray y: continuous target values
+      :return np.ndarray: one-hot encoded matrix
+
+
+
+.. py:data:: ScikitLearnModelRegistry
+

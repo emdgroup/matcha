@@ -1,0 +1,792 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.classic.graph_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.classic.graph_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.classic.graph_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Graph-based molecular featurization for 2D and 3D GNN training.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop</span><span class="w"> </span><span class="kn">import</span> <span class="n">featurizers</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">concurrent.futures</span><span class="w"> </span><span class="kn">import</span> <span class="n">ThreadPoolExecutor</span><span class="p">,</span> <span class="ne">TimeoutError</span> <span class="k">as</span> <span class="n">FuturesTimeoutError</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">AllChem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_scipy_sparse_matrix</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.sparse.csgraph</span><span class="w"> </span><span class="kn">import</span> <span class="n">shortest_path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModule</span><span class="p">,</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.graph_positional_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphPE</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">Graph3DDataModuleInputModel</span><span class="p">,</span>
+    <span class="n">GraphDataModuleInputModel</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">collate_fn_pyg_graph</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">parallelize</span>
+
+<span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="n">ATOM_FEAT_DIM</span> <span class="o">=</span> <span class="mi">72</span>
+<span class="n">BOND_FEAT_DIM</span> <span class="o">=</span> <span class="mi">14</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_embed_with_timeout</span><span class="p">(</span><span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">,</span> <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run AllChem.EmbedMolecule in a thread with a timeout.</span>
+
+<span class="sd">    RDKit releases the GIL during its C++ distance geometry solver, so a</span>
+<span class="sd">    ThreadPoolExecutor future can interrupt a hung call from within a worker.</span>
+<span class="sd">    Using shutdown(wait=False) ensures we do not block on stuck C++ threads</span>
+<span class="sd">    after the timeout fires.</span>
+
+<span class="sd">    Returns 0 on success, -1 on timeout or any exception.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">executor</span> <span class="o">=</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">future</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">AllChem</span><span class="o">.</span><span class="n">EmbedMolecule</span><span class="p">,</span> <span class="n">mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="n">FuturesTimeoutError</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
+        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="k">finally</span><span class="p">:</span>
+        <span class="n">executor</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="GraphDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.GraphDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;graph&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GraphDataModule</span><span class="p">(</span><span class="n">BaseDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;2D Graph molecular representation featurization class using PyTorch Geometric.</span>
+
+<span class="sd">    Allows users to convert a list of rdkit molecules and labels into a format ready</span>
+<span class="sd">    to be used for graph neural network training. It uses the Chemprop featurizer</span>
+<span class="sd">    backend to compute molecular graphs and converts them to PyTorch Geometric format.</span>
+<span class="sd">    Common featurization logic is inherited from :class:`BaseDataModule`.</span>
+
+<span class="sd">    The main purpose of the class is to enable the use of :method:`featurize`.</span>
+<span class="sd">    Please check out :method:`featurize` for further information on the class&#39; usage.</span>
+
+<span class="sd">    :param int laplacian_k: number of components to use for the Laplacian PE embedding,</span>
+<span class="sd">        defaults to 10. If set to 0, none are computed.</span>
+
+<span class="sd">    :param int rwse_k: number of steps for Random Walk Structural Encoding,</span>
+<span class="sd">        defaults to 20. If set to 0, none are computed.</span>
+
+<span class="sd">    :param int elstatic_k: number of electrostatic PE components,</span>
+<span class="sd">        defaults to 0.</span>
+
+<span class="sd">    :param int distmat_k: number of distance matrix PE components,</span>
+<span class="sd">        defaults to 0.</span>
+
+<span class="sd">    :param int rrwp_k: number of relative random walk probability components,</span>
+<span class="sd">        defaults to 20. If set to 0, none are computed.</span>
+
+<span class="sd">    :param bool compute_distances: whether to compute shortest path distances,</span>
+<span class="sd">        defaults to True.</span>
+
+<span class="sd">    :param int num_virtual_nodes: number of virtual nodes to add to the graph to</span>
+<span class="sd">        improve message passing, defaults to 0.</span>
+
+<span class="sd">    :param bool init_virtual_nodes: whether to initialize virtual nodes with molecular</span>
+<span class="sd">        descriptors, defaults to False.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">compute_distances</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">num_virtual_nodes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">init_virtual_nodes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">is_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">GraphDataModuleInputModel</span><span class="p">(</span>
+            <span class="n">laplacian_k</span><span class="o">=</span><span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="o">=</span><span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="o">=</span><span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="o">=</span><span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="o">=</span><span class="n">rrwp_k</span><span class="p">,</span>
+            <span class="n">compute_distances</span><span class="o">=</span><span class="n">compute_distances</span><span class="p">,</span>
+            <span class="n">num_virtual_nodes</span><span class="o">=</span><span class="n">num_virtual_nodes</span><span class="p">,</span>
+            <span class="n">init_virtual_nodes</span><span class="o">=</span><span class="n">init_virtual_nodes</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Initialize chemprop featurizer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_chemprop_featurizer</span> <span class="o">=</span> <span class="n">featurizers</span><span class="o">.</span><span class="n">SimpleMoleculeMolGraphFeaturizer</span><span class="p">(</span>
+            <span class="n">atom_featurizer</span><span class="o">=</span><span class="n">featurizers</span><span class="o">.</span><span class="n">atom</span><span class="o">.</span><span class="n">MultiHotAtomFeaturizer</span><span class="o">.</span><span class="n">v2</span><span class="p">(),</span>
+            <span class="n">bond_featurizer</span><span class="o">=</span><span class="n">featurizers</span><span class="o">.</span><span class="n">bond</span><span class="o">.</span><span class="n">MultiHotBondFeaturizer</span><span class="p">(),</span>
+        <span class="p">)</span>
+        <span class="c1"># Update collate function map for PyG Data objects</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">Data</span><span class="p">:</span> <span class="n">collate_fn_pyg_graph</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts an RDKit molecule into a PyTorch Geometric Data object.</span>
+
+<span class="sd">        Uses the Chemprop featurizer for node and edge features, then converts</span>
+<span class="sd">        to PyG format and adds positional encodings.</span>
+
+<span class="sd">        :param Mol mol: molecule to convert</span>
+<span class="sd">        :param bool is_training: whether this is for training (unused, for compatibility)</span>
+
+<span class="sd">        :return Data: PyTorch Geometric graph ready for GNN input</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Sort atoms according to canonical SMILES order</span>
+        <span class="n">mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+
+        <span class="c1"># Use chemprop featurizer to get molecular graph features</span>
+        <span class="n">molgraph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_chemprop_featurizer</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+
+        <span class="c1"># Convert to PyG Data object</span>
+        <span class="c1"># mg.edge_index is (2, num_edges) numpy array</span>
+        <span class="c1"># mg.V is (num_atoms, atom_feat_dim) numpy array for node features</span>
+        <span class="c1"># mg.E is (num_edges, edge_feat_dim) numpy array for edge features</span>
+        <span class="n">edge_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">molgraph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">molgraph</span><span class="o">.</span><span class="n">V</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+        <span class="n">edge_attr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">molgraph</span><span class="o">.</span><span class="n">E</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+
+        <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Create the PyG Data object (without virtual nodes first for PE computation)</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">Data</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">edge_index</span><span class="o">=</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="n">edge_attr</span><span class="p">,</span> <span class="n">num_nodes</span><span class="o">=</span><span class="n">num_nodes</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Compute positional encodings BEFORE adding virtual nodes</span>
+        <span class="c1"># so that PEs are not affected by virtual node connectivity</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">laplacian_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">laplacian_k</span> <span class="o">=</span> <span class="n">GraphPE</span><span class="o">.</span><span class="n">lap_pe</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">laplacian_k</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rwse_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">rwse_k</span> <span class="o">=</span> <span class="n">GraphPE</span><span class="o">.</span><span class="n">rw_se</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rwse_k</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">elstatic_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">elstatic_k</span> <span class="o">=</span> <span class="n">GraphPE</span><span class="o">.</span><span class="n">elstatic_pe</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">elstatic_k</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">distmat_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">distmat_k</span> <span class="o">=</span> <span class="n">GraphPE</span><span class="o">.</span><span class="n">distmat_pe</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">distmat_k</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rrwp_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">rrwp_k</span> <span class="o">=</span> <span class="n">GraphPE</span><span class="o">.</span><span class="n">rrwp_re</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rrwp_k</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">compute_distances</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">spd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_shortest_paths</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="n">num_nodes</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">spd</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Now add virtual nodes AFTER positional encoding computation</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="c1"># Add virtual node indicator feature to real nodes (0 = real)</span>
+            <span class="n">real_node_indicator</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_nodes</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">real_node_indicator</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="c1"># Add virtual edge indicator feature to real edges (0 = real)</span>
+            <span class="n">num_real_edges</span> <span class="o">=</span> <span class="n">edge_attr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">edge_attr</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">real_edge_indicator</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_real_edges</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span><span class="p">,</span> <span class="n">real_edge_indicator</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="c1"># Add virtual nodes with zero features + virtual indicator (1 = virtual)</span>
+            <span class="n">virtual_node_feats</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span>
+            <span class="p">)</span>
+            <span class="n">virtual_node_indicator</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span>
+            <span class="p">)</span>
+            <span class="n">virtual_node_feats</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">virtual_node_feats</span><span class="p">,</span> <span class="n">virtual_node_indicator</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">virtual_node_feats</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># Add edges from virtual nodes to all real nodes (bidirectional)</span>
+            <span class="n">new_edges</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="c1"># Use BOND_FEAT_DIM + 1 (for virtual indicator) to ensure consistent</span>
+            <span class="c1"># edge feature dimensions, even for disconnected atoms / single-atom</span>
+            <span class="c1"># molecules where graph.edge_attr may be empty.</span>
+            <span class="n">full_edge_dim</span> <span class="o">=</span> <span class="n">BOND_FEAT_DIM</span> <span class="o">+</span> <span class="mi">1</span>
+            <span class="n">new_edge_attrs</span> <span class="o">=</span> <span class="p">[]</span>
+
+            <span class="k">for</span> <span class="n">v_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">num_nodes</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">real_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">):</span>
+                    <span class="c1"># Virtual node -&gt; real node</span>
+                    <span class="n">new_edges</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">v_idx</span><span class="p">,</span> <span class="n">real_idx</span><span class="p">])</span>
+                    <span class="c1"># Real node -&gt; virtual node</span>
+                    <span class="n">new_edges</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">real_idx</span><span class="p">,</span> <span class="n">v_idx</span><span class="p">])</span>
+                    <span class="c1"># Add zero edge features with virtual indicator (1 = virtual)</span>
+                    <span class="n">virtual_edge_feat</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">full_edge_dim</span><span class="p">)</span>
+                    <span class="n">virtual_edge_feat</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>  <span class="c1"># virtual indicator</span>
+                    <span class="n">new_edge_attrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">virtual_edge_feat</span><span class="p">)</span>
+                    <span class="n">new_edge_attrs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">virtual_edge_feat</span><span class="o">.</span><span class="n">clone</span><span class="p">())</span>
+
+            <span class="k">if</span> <span class="n">new_edges</span><span class="p">:</span>
+                <span class="n">new_edge_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">new_edges</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">)</span><span class="o">.</span><span class="n">t</span><span class="p">()</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">new_edge_tensor</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">new_edge_attrs</span><span class="p">:</span>
+                    <span class="n">new_edge_attr_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">new_edge_attrs</span><span class="p">)</span>
+                    <span class="c1"># Reshape empty edge_attr to match expected dimension for</span>
+                    <span class="c1"># disconnected atoms / single-atom molecules with no bonds</span>
+                    <span class="k">if</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                        <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">full_edge_dim</span><span class="p">)</span>
+                    <span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                        <span class="p">[</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_attr</span><span class="p">,</span> <span class="n">new_edge_attr_tensor</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span>
+                    <span class="p">)</span>
+
+            <span class="c1"># Update num_nodes to include virtual nodes</span>
+            <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span> <span class="o">=</span> <span class="n">num_nodes</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span>
+
+            <span class="c1"># Pad positional encodings with zeros for virtual nodes</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">laplacian_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">laplacian_k</span><span class="p">),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">laplacian_k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">laplacian_k</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rwse_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rwse_k</span><span class="p">),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">rwse_k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">rwse_k</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">elstatic_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">elstatic_k</span><span class="p">),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">elstatic_k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">elstatic_k</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">distmat_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                    <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">distmat_k</span><span class="p">),</span>
+                    <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">distmat_k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">distmat_k</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rrwp_k</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># RRWP is an edge-level encoding with shape (num_edges, k)</span>
+                <span class="c1"># We need to pad for the new virtual node edges</span>
+                <span class="n">num_virtual_edges</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">num_nodes</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span>
+                <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                    <span class="p">(</span><span class="n">num_virtual_edges</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">rrwp_k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span>
+                <span class="p">)</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">rrwp_k</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">graph</span><span class="o">.</span><span class="n">rrwp_k</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">compute_distances</span> <span class="ow">and</span> <span class="n">graph</span><span class="o">.</span><span class="n">spd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># SPD is a 2D tensor (num_nodes, num_nodes) - already handled</span>
+                <span class="c1"># in _compute_shortest_paths, but we need to recompute with virtual nodes</span>
+                <span class="c1"># The SPD was computed on the real nodes only, now pad for virtual nodes</span>
+                <span class="c1"># Use -1 for unreachable (consistent with batch padding and _compute_shortest_paths)</span>
+                <span class="n">spd</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">spd</span>
+                <span class="n">total_nodes</span> <span class="o">=</span> <span class="n">num_nodes</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span>
+                <span class="n">full_spd</span> <span class="o">=</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">total_nodes</span><span class="p">,</span> <span class="n">total_nodes</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+                <span class="n">full_spd</span><span class="o">.</span><span class="n">fill_diagonal_</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">full_spd</span><span class="p">[:</span><span class="n">num_nodes</span><span class="p">,</span> <span class="p">:</span><span class="n">num_nodes</span><span class="p">]</span> <span class="o">=</span> <span class="n">spd</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">spd</span> <span class="o">=</span> <span class="n">full_spd</span>
+
+        <span class="k">return</span> <span class="n">graph</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_shortest_paths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span> <span class="n">num_real_nodes</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute shortest path distances for the graph.</span>
+
+<span class="sd">        This is called before virtual nodes are added, so we only compute</span>
+<span class="sd">        SPD for the real molecular graph. Padding for virtual nodes is</span>
+<span class="sd">        handled in _calculate_graph after virtual nodes are added.</span>
+
+<span class="sd">        :param graph: PyG Data object (without virtual nodes)</span>
+<span class="sd">        :param num_real_nodes: number of real (non-virtual) nodes</span>
+<span class="sd">        :return: tensor of shortest path distances, with -1 for unreachable pairs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">adj</span> <span class="o">=</span> <span class="n">to_scipy_sparse_matrix</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">num_nodes</span><span class="o">=</span><span class="n">num_real_nodes</span><span class="p">)</span>
+        <span class="n">adj_csr</span> <span class="o">=</span> <span class="n">adj</span><span class="o">.</span><span class="n">tocsr</span><span class="p">()</span>  <span class="c1"># Convert COO to CSR format for shortest_path</span>
+        <span class="n">spd</span> <span class="o">=</span> <span class="n">shortest_path</span><span class="p">(</span><span class="n">adj_csr</span><span class="p">,</span> <span class="n">directed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unweighted</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="c1"># Replace np.inf (unreachable) with -1 before converting to int</span>
+        <span class="n">spd</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">spd</span><span class="p">),</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">spd</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">spd</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Data</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a batch of molecules in a single process&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mol_batch</span><span class="p">]</span>
+
+<div class="viewcode-block" id="GraphDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.GraphDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates unscaled features for graph neural networks, with optional augmentation.&quot;&quot;&quot;</span>
+        <span class="c1"># validate inputs without scaling</span>
+        <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="n">graphs</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_batch</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">graphs</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.GraphDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates a dataset ready for GNN training.</span>
+
+<span class="sd">        Processes a list of N molecules and a numpy array (N,X) encoding the</span>
+<span class="sd">        labels into a list, which can then be further processed for</span>
+<span class="sd">        graph neural network training.</span>
+
+<span class="sd">        This method chains the unscaled feature generation with</span>
+<span class="sd">        the necessary Y scaling operations.</span>
+
+<span class="sd">        Example usage:</span>
+
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">            GF = GraphDataModulePyG()</span>
+<span class="sd">            train_dataset = GF.featurize(train_mols, train_y, is_training=True)</span>
+<span class="sd">            test_dataset = GF.featurize(test_mols, test_y, is_training=False)</span>
+
+<span class="sd">        :param list[Mol] mol_list: list of N rdkit molecules to process</span>
+
+<span class="sd">        :param np.ndarray | None y: array (N, X), where X is the number of classes or</span>
+<span class="sd">            endpoints</span>
+
+<span class="sd">        :param list[str] | None bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+
+<span class="sd">        :param bool is_training: Whether to fit Y scaler on the input,</span>
+<span class="sd">            or leverage a pre-existing one to only normalize</span>
+
+<span class="sd">        :param int | None n_jobs: number of cores to use when featurizing the input,</span>
+<span class="sd">            if None is passed a reasonable n_jobs value will be guessed from the</span>
+<span class="sd">            amount of data, defaults to None</span>
+
+<span class="sd">        :return StackDataset: Processed dataset providing keys &#39;graph&#39; and &#39;y&#39; ready</span>
+<span class="sd">            for graph neural network training</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Apply augmentation if enabled</span>
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
+                <span class="n">mol_list</span><span class="p">,</span>
+                <span class="n">y</span><span class="p">,</span>
+                <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span>
+                <span class="n">use_resonance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+                <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Generate unscaled features</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="c1"># Apply scaling based on is_training flag</span>
+        <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Handle bound mask and classification transformations (only if not regression)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="GraphDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.GraphDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;graph&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="s2">&quot;y_scaler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span>
+            <span class="s2">&quot;label_encoder&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="p">,</span>
+            <span class="s2">&quot;label_transform&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="p">,</span>
+            <span class="s2">&quot;augment_resonance&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="GraphDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.GraphDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">GraphDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="GraphDataModule.dummy">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.GraphDataModule.dummy">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to make a dummy class with default params. Can be</span>
+<span class="sd">        combined with load_state_dict to recreate a datamodule from</span>
+<span class="sd">        a state dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Graph3DDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;graph3d&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Graph3DDataModule</span><span class="p">(</span><span class="n">GraphDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;3D Graph molecular representation featurization class using PyTorch Geometric.</span>
+
+<span class="sd">    Allows users to convert a list of rdkit molecules and labels into a format ready</span>
+<span class="sd">    to be used for 3D graph neural network training. It uses the Chemprop featurizer</span>
+<span class="sd">    backend to compute molecular graphs and converts them to PyTorch Geometric format.</span>
+<span class="sd">    Common featurization logic is inherited from :class:`BaseDataModule`.</span>
+
+<span class="sd">    The main purpose of the class is to enable the use of :method:`featurize`.</span>
+<span class="sd">    Please check out :method:`featurize` for further information on the class&#39; usage.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">compute_distances</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">num_virtual_nodes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">init_virtual_nodes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">embed_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span><span class="p">,</span>
+        <span class="n">is_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">laplacian_k</span><span class="o">=</span><span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="o">=</span><span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="o">=</span><span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="o">=</span><span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="o">=</span><span class="n">rrwp_k</span><span class="p">,</span>
+            <span class="n">compute_distances</span><span class="o">=</span><span class="n">compute_distances</span><span class="p">,</span>
+            <span class="n">num_virtual_nodes</span><span class="o">=</span><span class="n">num_virtual_nodes</span><span class="p">,</span>
+            <span class="n">init_virtual_nodes</span><span class="o">=</span><span class="n">init_virtual_nodes</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">super_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_copy</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">Graph3DDataModuleInputModel</span><span class="p">(</span>
+            <span class="n">laplacian_k</span><span class="o">=</span><span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="o">=</span><span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="o">=</span><span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="o">=</span><span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="o">=</span><span class="n">rrwp_k</span><span class="p">,</span>
+            <span class="n">compute_distances</span><span class="o">=</span><span class="n">compute_distances</span><span class="p">,</span>
+            <span class="n">num_virtual_nodes</span><span class="o">=</span><span class="n">num_virtual_nodes</span><span class="p">,</span>
+            <span class="n">init_virtual_nodes</span><span class="o">=</span><span class="n">init_virtual_nodes</span><span class="p">,</span>
+            <span class="n">embed_timeout</span><span class="o">=</span><span class="n">embed_timeout</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">super_params</span><span class="o">.</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">super_params</span><span class="o">.</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">Data</span><span class="p">:</span> <span class="n">collate_fn_pyg_graph</span><span class="p">})</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the 3D atomic coordinates for a given molecule using ETKDG.</span>
+
+<span class="sd">        Example usage:</span>
+
+<span class="sd">        .. code-block:: python</span>
+<span class="sd">            coords = get_3D_coords(mol)</span>
+
+<span class="sd">        :param rdkit.Chem.rdchem.Mol mol: molecule to compute a conformer for</span>
+
+<span class="sd">        :return torch.tensor: tensor (A,3) corresponding to the 3D coordinates</span>
+<span class="sd">            for each a-th atom in the ETKDG-generated conformer</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># count number of atoms before adding H</span>
+        <span class="n">start_n_atoms</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span>
+
+        <span class="c1"># add Hs to get reasonable conformers</span>
+        <span class="n">mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">AddHs</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+
+        <span class="c1"># Use ETKDGv3 for conformer generation</span>
+        <span class="n">etkdg_params</span> <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">ETKDGv3</span><span class="p">()</span>
+
+        <span class="c1"># try to embed molecule with ETKDG</span>
+        <span class="n">flag</span> <span class="o">=</span> <span class="n">_embed_with_timeout</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">embed_timeout</span><span class="p">)</span>
+
+        <span class="c1"># if embedding failed, retry with random coordinates as a fallback</span>
+        <span class="k">if</span> <span class="n">flag</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">etkdg_params</span><span class="o">.</span><span class="n">useRandomCoords</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">flag</span> <span class="o">=</span> <span class="n">_embed_with_timeout</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">embed_timeout</span><span class="p">)</span>
+
+        <span class="c1"># if all embedding attempts fail, fall back to 2D coordinates</span>
+        <span class="k">if</span> <span class="n">flag</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+            <span class="n">AllChem</span><span class="o">.</span><span class="n">Compute2DCoords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+
+        <span class="c1"># get coords as numpy array of shape (N+n_H, 3)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">conf</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetConformer</span><span class="p">()</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">GetPositions</span><span class="p">()</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">AllChem</span><span class="o">.</span><span class="n">Compute2DCoords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+            <span class="n">conf</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetConformer</span><span class="p">()</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">GetPositions</span><span class="p">()</span>
+
+        <span class="c1"># slice coord array only on non-H indexes</span>
+        <span class="n">non_h_idx</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start_n_atoms</span><span class="p">):</span>
+            <span class="n">non_h_idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">non_h_idx</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="c1"># add coords for virtual node</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">virtual_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">coords</span><span class="p">,</span> <span class="n">virtual_coords</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_batch_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a batch of molecules in a single process&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_coords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mol_batch</span><span class="p">]</span>
+
+<div class="viewcode-block" id="Graph3DDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates unscaled features for 3D graph neural networks, with optional augmentation.&quot;&quot;&quot;</span>
+        <span class="c1"># validate inputs without scaling</span>
+        <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Apply augmentation if enabled</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
+                <span class="n">mol_list</span><span class="p">,</span>
+                <span class="n">y</span><span class="p">,</span>
+                <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span>
+                <span class="n">use_resonance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+                <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">graphs</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_batch</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_batch_coords</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">graphs</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Graph3DDataModule.collate_fn">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.collate_fn">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allows batching for 3DGNN datasets.</span>
+
+<span class="sd">        Middleman between the output of :method:`featurize` and the actual batch input</span>
+<span class="sd">        needed by a graph neural network to train. Reshapes the tuple from :method:`featurize`</span>
+<span class="sd">        into the necessary torch tensors for the forward pass. It is meant to be</span>
+<span class="sd">        passed to torch.data.DataLoader objects upon construction.</span>
+
+<span class="sd">        Example usage:</span>
+<span class="sd">        GF = Graph3DDataModulePyG()</span>
+<span class="sd">        ...</span>
+<span class="sd">        loader = DataLoader(..., collate_fn=GF.collate_fn)</span>
+
+<span class="sd">        :param list[dict] data: list of dicts containing PyG graphs, coords and labels</span>
+
+<span class="sd">        :return dict: dictionary with batched graph, coords and y tensors</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># list of dicts to dict of lists</span>
+        <span class="n">dict_of_lists</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">[</span><span class="n">dic</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">dic</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]}</span>
+        <span class="n">graph</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">],</span>
+            <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;coords&quot;</span><span class="p">],</span>
+            <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+        <span class="c1"># batch graphs via PyG backend</span>
+        <span class="n">bg</span> <span class="o">=</span> <span class="n">collate_fn_pyg_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+
+        <span class="c1"># reshape labels and coords into batch shape</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;graph&quot;</span><span class="p">:</span> <span class="n">bg</span><span class="p">,</span> <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Graph3DDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;graph3d&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="s2">&quot;y_scaler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span>
+            <span class="s2">&quot;label_encoder&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="p">,</span>
+            <span class="s2">&quot;label_transform&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="p">,</span>
+            <span class="s2">&quot;augment_resonance&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Graph3DDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+        <span class="n">BaseDataModule</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">Graph3DDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">])</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

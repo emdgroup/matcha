@@ -1,0 +1,215 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adding a new loss function &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Adding a new fingerprint or descriptor set" href="adding-a-fingerprint.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding a new loss function</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#add-the-loss-class">1. Add the loss class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tests-tests-nn-test-losses-py">2. Tests — <code class="docutils literal notranslate"><span class="pre">tests/nn/test_losses.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checklist">Checklist</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Adding a new loss function</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/contributing/adding-a-loss.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="adding-a-new-loss-function">
+<h1>Adding a new loss function<a class="headerlink" href="#adding-a-new-loss-function" title="Link to this heading"></a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This page is written for LLM agents contributing to MATCHA. It trades prose for a step-by-step recipe with concrete file paths and code snippets.</p>
+</div>
+<p>All loss functions live in <code class="docutils literal notranslate"><span class="pre">src/matcha/nn/losses.py</span></code> and register with <code class="docutils literal notranslate"><span class="pre">LossRegistry</span></code>. Lightning modules resolve <code class="docutils literal notranslate"><span class="pre">loss_fn=&quot;&lt;alias&gt;&quot;</span></code> strings through this registry — no other file needs to change to make a new loss available to every model.</p>
+<p>A new loss touches two locations:</p>
+<ol class="arabic simple">
+<li><p>A <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code> subclass in <code class="docutils literal notranslate"><span class="pre">src/matcha/nn/losses.py</span></code>, decorated with <code class="docutils literal notranslate"><span class="pre">&#64;LossRegistry.register(alias=...)</span></code>.</p></li>
+<li><p>Coverage in <code class="docutils literal notranslate"><span class="pre">tests/nn/test_losses.py</span></code> (registry key + at least one forward-pass check).</p></li>
+</ol>
+<hr class="docutils" />
+<section id="add-the-loss-class">
+<h2>1. Add the loss class<a class="headerlink" href="#add-the-loss-class" title="Link to this heading"></a></h2>
+<p>Subclass <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code>, register with an alias, and implement <code class="docutils literal notranslate"><span class="pre">forward(inputs,</span> <span class="pre">targets)</span> <span class="pre">-&gt;</span> <span class="pre">torch.Tensor</span></code>. Accept <code class="docutils literal notranslate"><span class="pre">reduction</span></code> if the loss can be broadcast per-element — several composed losses (<code class="docutils literal notranslate"><span class="pre">MultitaskLoss</span></code>, <code class="docutils literal notranslate"><span class="pre">MultiLoss</span></code>, <code class="docutils literal notranslate"><span class="pre">GradNormLoss</span></code>, <code class="docutils literal notranslate"><span class="pre">BoundedLoss</span></code>) instantiate their inner loss with <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code>, so this is required if you want your loss to compose.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/matcha/nn/losses.py</span>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dummy-mse&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DummyScaledMSELoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dummy example: MSE scaled by a constant. Not useful — shape only.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scale</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param float scale: Multiplicative factor on the squared error.</span>
+<span class="sd">        :param str reduction: Reduction mode: ``&#39;mean&#39;``, ``&#39;sum&#39;``, or ``&#39;none&#39;``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">inputs</span> <span class="o">-</span> <span class="n">targets</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">loss</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">loss</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>The <strong>alias is load-bearing</strong> — it’s what <code class="docutils literal notranslate"><span class="pre">loss_fn=&quot;dummy-mse&quot;</span></code> resolves to from YAML configs, pydantic schemas, and Lightning modules. Lowercase, kebab-case, no renaming later without a migration.</p></li>
+<li><p>If your loss simply wraps a <code class="docutils literal notranslate"><span class="pre">torch.nn</span></code> class, you can subclass it directly (see <code class="docutils literal notranslate"><span class="pre">MSELoss</span></code>, <code class="docutils literal notranslate"><span class="pre">BCELoss</span></code>, <code class="docutils literal notranslate"><span class="pre">HuberLoss</span></code> — one-liners).</p></li>
+<li><p>If your loss needs multitask semantics (per-column NaN masking, per-task weights, epoch scheduling), follow <code class="docutils literal notranslate"><span class="pre">MultitaskLoss</span></code> / <code class="docutils literal notranslate"><span class="pre">MultiLoss</span></code> — do not reimplement the masking logic.</p></li>
+</ul>
+</section>
+<section id="tests-tests-nn-test-losses-py">
+<h2>2. Tests — <code class="docutils literal notranslate"><span class="pre">tests/nn/test_losses.py</span></code><a class="headerlink" href="#tests-tests-nn-test-losses-py" title="Link to this heading"></a></h2>
+<p>Two touches:</p>
+<ol class="arabic">
+<li><p>Add the alias to <code class="docutils literal notranslate"><span class="pre">TestLossRegistryKeys.EXPECTED_KEYS</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># tests/nn/test_losses.py</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TestLossRegistryKeys</span><span class="p">:</span>
+    <span class="n">EXPECTED_KEYS</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="o">...</span><span class="p">,</span>
+        <span class="s2">&quot;dummy-mse&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+</pre></div>
+</div>
+</li>
+<li><p>Add a <code class="docutils literal notranslate"><span class="pre">TestDummyScaledMSELoss</span></code> class with at least a scalar-output check and a value check:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">TestDummyScaledMSELoss</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_output_scalar_mean</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="s2">&quot;dummy-mse&quot;</span><span class="p">](</span><span class="n">scale</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">8</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">loss</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_matches_manual</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="s2">&quot;dummy-mse&quot;</span><span class="p">](</span><span class="n">scale</span><span class="o">=</span><span class="mf">3.0</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">1.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">2.0</span><span class="p">]])</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">([[</span><span class="mf">0.0</span><span class="p">],</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]])</span>
+        <span class="n">expected</span> <span class="o">=</span> <span class="mf">3.0</span> <span class="o">*</span> <span class="p">((</span><span class="mf">1.0</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mf">2.0</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">torch</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">targets</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">expected</span><span class="p">))</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<ul class="simple">
+<li><p>Resolve through <code class="docutils literal notranslate"><span class="pre">LossRegistry[&quot;dummy-mse&quot;](...)</span></code> in tests, not by importing the class — this exercises the alias, which is what real callers use.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="checklist">
+<h2>Checklist<a class="headerlink" href="#checklist" title="Link to this heading"></a></h2>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code> subclass in <code class="docutils literal notranslate"><span class="pre">src/matcha/nn/losses.py</span></code>, registered via <code class="docutils literal notranslate"><span class="pre">&#64;LossRegistry.register(alias=&quot;...&quot;)</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Supports <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code> if the loss should compose inside <code class="docutils literal notranslate"><span class="pre">MultitaskLoss</span></code> / <code class="docutils literal notranslate"><span class="pre">MultiLoss</span></code> / <code class="docutils literal notranslate"><span class="pre">GradNormLoss</span></code> / <code class="docutils literal notranslate"><span class="pre">BoundedLoss</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Alias added to <code class="docutils literal notranslate"><span class="pre">TestLossRegistryKeys.EXPECTED_KEYS</span></code> in <code class="docutils literal notranslate"><span class="pre">tests/nn/test_losses.py</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Forward-pass test class covering shape + at least one numeric check, resolving through <code class="docutils literal notranslate"><span class="pre">LossRegistry[alias]</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/nn/test_losses.py</span></code> passes.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Codecov PR check stays green — new lines are covered and total coverage doesn’t drop (see <code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code> → Testing).</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="adding-a-fingerprint.html" class="btn btn-neutral float-left" title="Adding a new fingerprint or descriptor set" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

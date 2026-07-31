@@ -1,0 +1,272 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adding a new model &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Adding a new fingerprint or descriptor set" href="adding-a-fingerprint.html" />
+    <link rel="prev" title="Getting started" href="../getting-started.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started.html">Getting started</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding a new model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#encoder-src-matcha-torch-encoders-name-py">1. Encoder — <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/encoders/&lt;name&gt;.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lightning-module-src-matcha-torch-models-classic-name-model-py">2. Lightning module — <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/classic/&lt;name&gt;_model.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#schema-src-matcha-utils-schemas">3. Schema — <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#sklearn-wrapper-src-matcha-sklearn-family-name-py">4. Sklearn wrapper — <code class="docutils literal notranslate"><span class="pre">src/matcha/sklearn/&lt;family&gt;/&lt;name&gt;.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tests-tests-sklearn-models-conftest-py-friends">5. Tests — <code class="docutils literal notranslate"><span class="pre">tests/sklearn_models/conftest.py</span></code> + friends</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checklist">Checklist</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Adding a new model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/contributing/adding-a-model.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="adding-a-new-model">
+<h1>Adding a new model<a class="headerlink" href="#adding-a-new-model" title="Link to this heading"></a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This page is written for LLM agents contributing to MATCHA. It trades prose for a step-by-step recipe with concrete file paths and code snippets.</p>
+</div>
+<p>This recipe walks through everything that has to line up when adding a new model architecture to MATCHA. The reference implementation used throughout is <strong>GIN</strong> — every step below points at the corresponding file in the existing GIN pipeline so you can copy the shape.</p>
+<p>A new model touches five layers, in this order:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>torch/encoders/        →  torch/models/classic/   →  utils/schemas/    →  sklearn/&lt;family&gt;/   →  tests/
+(encoder)                 (Lightning module)         (pydantic schema)    (Classifier + Regressor)
+</pre></div>
+</div>
+<p>Skipping a layer will break something downstream: unregistered encoders won’t be resolvable by string alias, missing schemas will fail input validation, missing sklearn wrappers can’t be <code class="docutils literal notranslate"><span class="pre">autoload</span></code>ed, and the parametrized test suite won’t cover the new class.</p>
+<hr class="docutils" />
+<section id="encoder-src-matcha-torch-encoders-name-py">
+<h2>1. Encoder — <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/encoders/&lt;name&gt;.py</span></code><a class="headerlink" href="#encoder-src-matcha-torch-encoders-name-py" title="Link to this heading"></a></h2>
+<p>Subclass the appropriate base (<code class="docutils literal notranslate"><span class="pre">BaseGraphEncoder</span></code>, <code class="docutils literal notranslate"><span class="pre">BaseGraphEncoder3D</span></code>, or the CLM / tabular equivalents) and register with <code class="docutils literal notranslate"><span class="pre">EncoderRegistry</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/torch/encoders/gin.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">EncoderRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+
+<span class="nd">@EncoderRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GIN</span><span class="p">(</span><span class="n">BaseGraphEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_layers</span><span class="p">,</span> <span class="n">atom_input_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Inherit <code class="docutils literal notranslate"><span class="pre">HyperparametersMixin</span></code> and call <code class="docutils literal notranslate"><span class="pre">save_hyperparameters()</span></code> — the serializer relies on it.</p></li>
+<li><p>Encoder arguments should be prefixed nothing (they’re internal); the <code class="docutils literal notranslate"><span class="pre">enc_*</span></code> prefix appears at the Lightning-module level in step 2.</p></li>
+</ul>
+</section>
+<section id="lightning-module-src-matcha-torch-models-classic-name-model-py">
+<h2>2. Lightning module — <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/classic/&lt;name&gt;_model.py</span></code><a class="headerlink" href="#lightning-module-src-matcha-torch-models-classic-name-model-py" title="Link to this heading"></a></h2>
+<p>Wrap the encoder + a predictor head into a <code class="docutils literal notranslate"><span class="pre">BaseClassicModel</span></code> subclass and register with <code class="docutils literal notranslate"><span class="pre">ClassicModelRegistry</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/torch/models/classic/gin_model.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseClassicModel</span><span class="p">,</span> <span class="n">ClassicModelRegistry</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.gin</span><span class="w"> </span><span class="kn">import</span> <span class="n">GIN</span>
+
+<span class="nd">@ClassicModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GINModel</span><span class="p">(</span><span class="n">BaseClassicModel</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enc_num_layers</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span> <span class="n">enc_atom_hidden_dim</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span>
+                 <span class="n">pred_hidden_dims</span><span class="o">=</span><span class="p">[</span><span class="mi">512</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span> <span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="n">optimizer</span><span class="o">=</span><span class="s2">&quot;adam&quot;</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Encoder-facing args use the <code class="docutils literal notranslate"><span class="pre">enc_*</span></code> prefix; predictor-facing args use <code class="docutils literal notranslate"><span class="pre">pred_*</span></code>. Loss / optimizer / scheduler are string aliases resolved through the <code class="docutils literal notranslate"><span class="pre">nn/</span></code> registries.</p></li>
+<li><p>Add the class to <code class="docutils literal notranslate"><span class="pre">torch/models/classic/__init__.py</span></code> (import + <code class="docutils literal notranslate"><span class="pre">__all__</span></code>).</p></li>
+</ul>
+<p>For finetuning or pretraining variants, use <code class="docutils literal notranslate"><span class="pre">BaseFinetuningModel</span></code> / <code class="docutils literal notranslate"><span class="pre">BasePretrainingModel</span></code> under the corresponding subfolder instead.</p>
+</section>
+<section id="schema-src-matcha-utils-schemas">
+<h2>3. Schema — <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/</span></code><a class="headerlink" href="#schema-src-matcha-utils-schemas" title="Link to this heading"></a></h2>
+<p>Two touches:</p>
+<ol class="arabic">
+<li><p><strong>Add an encoder mixin</strong> in <code class="docutils literal notranslate"><span class="pre">generic_models.py</span></code> for the fields specific to this architecture:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/utils/schemas/generic_models.py</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GINMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+    <span class="n">enc_aggregation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">enc_norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Compose the top-level input model</strong> in <code class="docutils literal notranslate"><span class="pre">torch_api.py</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">GINInputModel</span><span class="p">(</span><span class="n">ClassicMatchaModel</span><span class="p">,</span> <span class="n">GraphMixin</span><span class="p">,</span> <span class="n">GINMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for the GIN model configuration.&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+</li>
+</ol>
+<ul class="simple">
+<li><p>Reuse existing mixins (<code class="docutils literal notranslate"><span class="pre">ClassicMatchaModel</span></code>, <code class="docutils literal notranslate"><span class="pre">GraphMixin</span></code>, <code class="docutils literal notranslate"><span class="pre">TabularMixin</span></code>, <code class="docutils literal notranslate"><span class="pre">CLMMixin</span></code>, …) wherever possible — only put genuinely new fields into the new mixin.</p></li>
+<li><p>Update the <code class="docutils literal notranslate"><span class="pre">__init__.py</span></code> / <code class="docutils literal notranslate"><span class="pre">__all__</span></code> of <code class="docutils literal notranslate"><span class="pre">utils/schemas/</span></code> and <code class="docutils literal notranslate"><span class="pre">utils/schemas/torch_api.py</span></code>.</p></li>
+</ul>
+</section>
+<section id="sklearn-wrapper-src-matcha-sklearn-family-name-py">
+<h2>4. Sklearn wrapper — <code class="docutils literal notranslate"><span class="pre">src/matcha/sklearn/&lt;family&gt;/&lt;name&gt;.py</span></code><a class="headerlink" href="#sklearn-wrapper-src-matcha-sklearn-family-name-py" title="Link to this heading"></a></h2>
+<p>Ship a <strong><code class="docutils literal notranslate"><span class="pre">Classifier</span></code> + <code class="docutils literal notranslate"><span class="pre">Regressor</span></code> pair</strong> subclassing the family base + the appropriate mixin, and register both:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/sklearn/graph/gin.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic</span><span class="w"> </span><span class="kn">import</span> <span class="n">GINModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ScikitLearnModelRegistry</span><span class="p">,</span>
+    <span class="n">ScikitLearnClassifierMixin</span><span class="p">,</span>
+    <span class="n">ScikitLearnRegressorMixin</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.graph.base_sklearn_gnn</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseScikitLearnGNN</span>
+
+<span class="nd">@ScikitLearnModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GINClassifier</span><span class="p">(</span><span class="n">BaseScikitLearnGNN</span><span class="p">,</span> <span class="n">ScikitLearnClassifierMixin</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enc_num_layers</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">enc_atom_hidden_dim</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span> <span class="n">label_encoder_params</span><span class="o">=</span><span class="p">{}):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">locals</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;self&quot;</span><span class="p">,</span> <span class="s2">&quot;__class__&quot;</span><span class="p">]}</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+
+<span class="nd">@ScikitLearnModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GINRegressor</span><span class="p">(</span><span class="n">BaseScikitLearnGNN</span><span class="p">,</span> <span class="n">ScikitLearnRegressorMixin</span><span class="p">):</span>
+    <span class="o">...</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">params</span> <span class="pre">=</span> <span class="pre">{k:</span> <span class="pre">v</span> <span class="pre">for</span> <span class="pre">k,</span> <span class="pre">v</span> <span class="pre">in</span> <span class="pre">locals().items()</span> <span class="pre">...}</span></code> idiom is how the base captures the hyperparameters — keep it exactly.</p></li>
+<li><p>The registered alias (default: lowercase class name) is what <code class="docutils literal notranslate"><span class="pre">autoload</span></code> looks up from <code class="docutils literal notranslate"><span class="pre">manifest.yaml</span></code>. Do not rename it later without a migration.</p></li>
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">sklearn/&lt;family&gt;/__init__.py</span></code> and <code class="docutils literal notranslate"><span class="pre">sklearn/__init__.py</span></code> (both <code class="docutils literal notranslate"><span class="pre">import</span></code> and <code class="docutils literal notranslate"><span class="pre">__all__</span></code>).</p></li>
+</ul>
+</section>
+<section id="tests-tests-sklearn-models-conftest-py-friends">
+<h2>5. Tests — <code class="docutils literal notranslate"><span class="pre">tests/sklearn_models/conftest.py</span></code> + friends<a class="headerlink" href="#tests-tests-sklearn-models-conftest-py-friends" title="Link to this heading"></a></h2>
+<p>The suite is parametrized over every <code class="docutils literal notranslate"><span class="pre">Classifier</span></code> / <code class="docutils literal notranslate"><span class="pre">Regressor</span></code> — you only need to plug the new class in:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see tests/sklearn_models/conftest.py</span>
+<span class="n">_ARCH_KWARGS</span><span class="p">[</span><span class="n">GINClassifier</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="o">**</span><span class="n">_GRAPH_SHARED</span><span class="p">,</span>
+    <span class="s2">&quot;enc_num_layers&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>          <span class="c1"># keep tiny — this runs on CPU in CI</span>
+    <span class="s2">&quot;enc_atom_hidden_dim&quot;</span><span class="p">:</span> <span class="mi">32</span><span class="p">,</span>
+    <span class="s2">&quot;pred_hidden_dims&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">32</span><span class="p">],</span>
+<span class="p">}</span>
+<span class="n">_ARCH_KWARGS</span><span class="p">[</span><span class="n">GINRegressor</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">_ARCH_KWARGS</span><span class="p">[</span><span class="n">GINClassifier</span><span class="p">]}</span>
+
+<span class="n">_CLASSIFIER_CLASSES</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">GINClassifier</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+<span class="n">_REGRESSOR_CLASSES</span> <span class="o">=</span> <span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">GINRegressor</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Match kwargs to the <strong>smallest</strong> configuration that exercises the model — no big hidden dims, no expensive positional encoders.</p></li>
+<li><p>If the model needs a distinct datamodule or feature setup, mirror an existing entry in <code class="docutils literal notranslate"><span class="pre">tests/datamodules/</span></code> first.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="checklist">
+<h2>Checklist<a class="headerlink" href="#checklist" title="Link to this heading"></a></h2>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Encoder in <code class="docutils literal notranslate"><span class="pre">torch/encoders/</span></code>, registered with <code class="docutils literal notranslate"><span class="pre">EncoderRegistry</span></code>, calls <code class="docutils literal notranslate"><span class="pre">save_hyperparameters()</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Lightning module in <code class="docutils literal notranslate"><span class="pre">torch/models/classic/</span></code> (or <code class="docutils literal notranslate"><span class="pre">finetuning/</span></code> / <code class="docutils literal notranslate"><span class="pre">pretraining/</span></code>), registered with the family registry, <code class="docutils literal notranslate"><span class="pre">enc_*</span></code> / <code class="docutils literal notranslate"><span class="pre">pred_*</span></code> prefixes.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Mixin in <code class="docutils literal notranslate"><span class="pre">utils/schemas/generic_models.py</span></code> + input model in <code class="docutils literal notranslate"><span class="pre">utils/schemas/torch_api.py</span></code>, both re-exported.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">Classifier</span></code> + <code class="docutils literal notranslate"><span class="pre">Regressor</span></code> in <code class="docutils literal notranslate"><span class="pre">sklearn/&lt;family&gt;/</span></code>, both registered with <code class="docutils literal notranslate"><span class="pre">ScikitLearnModelRegistry</span></code>, both exported from <code class="docutils literal notranslate"><span class="pre">sklearn/__init__.py</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Test kwargs added to <code class="docutils literal notranslate"><span class="pre">tests/sklearn_models/conftest.py</span></code> and the class added to <code class="docutils literal notranslate"><span class="pre">_CLASSIFIER_CLASSES</span></code> / <code class="docutils literal notranslate"><span class="pre">_REGRESSOR_CLASSES</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">-k</span> <span class="pre">'not</span> <span class="pre">gpu'</span></code> passes locally.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Codecov PR check stays green — new lines are covered and total coverage doesn’t drop (see <code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code> → Testing).</p></li>
+</ul>
+<p>If any of these steps feels awkward — e.g. the new model doesn’t cleanly fit an existing family — flag it in the PR rather than inventing a parallel hierarchy.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../getting-started.html" class="btn btn-neutral float-left" title="Getting started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="adding-a-fingerprint.html" class="btn btn-neutral float-right" title="Adding a new fingerprint or descriptor set" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

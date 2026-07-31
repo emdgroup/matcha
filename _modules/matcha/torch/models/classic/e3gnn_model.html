@@ -1,0 +1,255 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.classic.e3gnn_model &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.classic.e3gnn_model</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.models.classic.e3gnn_model</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;E(3)-equivariant graph neural network (E3GNN) classic model.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseClassicModel</span><span class="p">,</span>
+    <span class="n">ClassicModelRegistry</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.e3gnn</span><span class="w"> </span><span class="kn">import</span> <span class="n">E3GNN</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">E3GNNInputModel</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+
+
+<div class="viewcode-block" id="E3GNNModel">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.e3gnn_model.E3GNNModel">[docs]</a>
+<span class="nd">@ClassicModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">E3GNNModel</span><span class="p">(</span><span class="n">BaseClassicModel</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;E(3)-equivariant graph neural network (E3GNN) for molecular property</span>
+<span class="sd">    prediction from 3-D conformers.</span>
+
+<span class="sd">    Uses E(n)-equivariant message passing that operates on both node features</span>
+<span class="sd">    and 3-D coordinates. Inherits from :class:`BaseClassicModel` for common</span>
+<span class="sd">    training/prediction routines and from</span>
+<span class="sd">    :class:`~lightning.pytorch.core.mixins.HyperparametersMixin` for saving</span>
+<span class="sd">    hyperparameters.</span>
+
+<span class="sd">    Reference: Satorras et al., *E(n) Equivariant Graph Neural Networks*</span>
+<span class="sd">    (https://arxiv.org/abs/2102.09844)</span>
+
+<span class="sd">    Example usage:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        model = E3GNNModel()</span>
+<span class="sd">        trainer = L.Trainer(max_epochs=50)</span>
+<span class="sd">        trainer.fit(model=model, train_dataloaders=train_dataloader)</span>
+
+<span class="sd">    :param int additional_mol_features_dim: dimensionality of extra molecular</span>
+<span class="sd">        features concatenated to encoder output, defaults to 0</span>
+<span class="sd">    :param int enc_num_layers: number of equivariant message-passing layers,</span>
+<span class="sd">        defaults to 3</span>
+<span class="sd">    :param int enc_atom_input_dim: input atom feature dimensionality, defaults to 44</span>
+<span class="sd">    :param int enc_bond_input_dim: input bond feature dimensionality, defaults to 14</span>
+<span class="sd">    :param int enc_atom_hidden_dim: hidden atom feature dimensionality, defaults to 128</span>
+<span class="sd">    :param int enc_m_dim: message dimensionality, defaults to 16</span>
+<span class="sd">    :param int enc_fourier_features: number of Fourier features for distance encoding,</span>
+<span class="sd">        defaults to 4</span>
+<span class="sd">    :param bool enc_soft_edge: whether to use soft edge weights, defaults to False</span>
+<span class="sd">    :param bool enc_norm_feats: whether to normalise node features, defaults to True</span>
+<span class="sd">    :param bool enc_norm_coors: whether to normalise coordinate updates, defaults to True</span>
+<span class="sd">    :param bool enc_update_coors: whether to update coordinates, defaults to True</span>
+<span class="sd">    :param str enc_jk: jumping knowledge strategy, defaults to &#39;last&#39;</span>
+<span class="sd">    :param str enc_readout: graph-level readout strategy, defaults to &#39;vpa&#39;</span>
+<span class="sd">    :param str enc_activation: activation function in the encoder, defaults to &#39;swish&#39;</span>
+<span class="sd">    :param float enc_dropout: dropout rate in the encoder, defaults to 0.2</span>
+<span class="sd">    :param int enc_laplacian_k: Laplacian positional encoding dimension, defaults to 10</span>
+<span class="sd">    :param int enc_rwse_k: random-walk structural encoding dimension, defaults to 20</span>
+<span class="sd">    :param int enc_elstatic_k: electrostatic encoding dimension, defaults to 0</span>
+<span class="sd">    :param int enc_distmat_k: distance matrix encoding dimension, defaults to 0</span>
+<span class="sd">    :param int enc_rrwp_k: relative random-walk probabilities dimension, defaults to 0</span>
+<span class="sd">    :param list[int] pred_hidden_dims: hidden layer sizes in the MLP predictor,</span>
+<span class="sd">        defaults to [512, 256]</span>
+<span class="sd">    :param list[int] | None pred_task_head_dims: per-task head dimensions, defaults to None</span>
+<span class="sd">    :param str pred_activation: activation in the predictor, defaults to &#39;swish&#39;</span>
+<span class="sd">    :param float pred_dropout: dropout rate in the predictor, defaults to 0.2</span>
+<span class="sd">    :param int num_endpoints: number of prediction targets, defaults to 1</span>
+<span class="sd">    :param str loss_fn: loss function name, defaults to &#39;mse&#39;</span>
+<span class="sd">    :param dict loss_args: additional loss function arguments, defaults to {}</span>
+<span class="sd">    :param str optimizer: optimizer name, defaults to &#39;adam&#39;</span>
+<span class="sd">    :param dict optimizer_args: additional optimizer arguments, defaults to {&#39;lr&#39;: 1e-3}</span>
+<span class="sd">    :param str scheduler: learning rate scheduler name, defaults to &#39;cosine_annealing&#39;</span>
+<span class="sd">    :param dict scheduler_args: additional scheduler arguments,</span>
+<span class="sd">        defaults to {&#39;min_lr&#39;: 1e-6, &#39;total_steps&#39;: 50}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">additional_mol_features_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">enc_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">enc_atom_input_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">44</span><span class="p">,</span>
+        <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">14</span><span class="p">,</span>
+        <span class="n">enc_atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="n">enc_m_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+        <span class="n">enc_fourier_features</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">enc_soft_edge</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">enc_norm_feats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">enc_norm_coors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">enc_update_coors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;last&quot;</span><span class="p">,</span>
+        <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;vpa&quot;</span><span class="p">,</span>
+        <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
+        <span class="n">enc_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+        <span class="n">enc_laplacian_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">enc_rwse_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">enc_elstatic_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">enc_distmat_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">enc_rrwp_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">512</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span>
+        <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
+        <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">},</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">,</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;min_lr&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">},</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">additional_mol_features_dim</span><span class="o">=</span><span class="n">additional_mol_features_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">E3GNNInputModel</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">)</span>
+        <span class="n">atom_input_dim</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">enc_atom_input_dim</span>
+            <span class="o">+</span> <span class="n">enc_laplacian_k</span>
+            <span class="o">+</span> <span class="n">enc_rwse_k</span>
+            <span class="o">+</span> <span class="n">enc_distmat_k</span>
+            <span class="o">+</span> <span class="n">enc_elstatic_k</span>
+        <span class="p">)</span>
+        <span class="n">edge_input_dim</span> <span class="o">=</span> <span class="n">enc_bond_input_dim</span> <span class="o">+</span> <span class="n">enc_rrwp_k</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">E3GNN</span><span class="p">(</span>
+            <span class="n">num_layers</span><span class="o">=</span><span class="n">enc_num_layers</span><span class="p">,</span>
+            <span class="n">atom_input_dim</span><span class="o">=</span><span class="n">atom_input_dim</span><span class="p">,</span>
+            <span class="n">bond_input_dim</span><span class="o">=</span><span class="n">edge_input_dim</span><span class="p">,</span>
+            <span class="n">atom_hidden_dim</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">,</span>
+            <span class="n">m_dim</span><span class="o">=</span><span class="n">enc_m_dim</span><span class="p">,</span>
+            <span class="n">fourier_features</span><span class="o">=</span><span class="n">enc_fourier_features</span><span class="p">,</span>
+            <span class="n">soft_edge</span><span class="o">=</span><span class="n">enc_soft_edge</span><span class="p">,</span>
+            <span class="n">norm_feats</span><span class="o">=</span><span class="n">enc_norm_feats</span><span class="p">,</span>
+            <span class="n">norm_coors</span><span class="o">=</span><span class="n">enc_norm_coors</span><span class="p">,</span>
+            <span class="n">update_coors</span><span class="o">=</span><span class="n">enc_update_coors</span><span class="p">,</span>
+            <span class="n">activation</span><span class="o">=</span><span class="n">enc_activation</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="n">enc_dropout</span><span class="p">,</span>
+            <span class="n">jk</span><span class="o">=</span><span class="n">enc_jk</span><span class="p">,</span>
+            <span class="n">readout</span><span class="o">=</span><span class="n">enc_readout</span><span class="p">,</span>
+            <span class="n">laplacian_k</span><span class="o">=</span><span class="n">enc_laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="o">=</span><span class="n">enc_rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="o">=</span><span class="n">enc_elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="o">=</span><span class="n">enc_distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="o">=</span><span class="n">enc_rrwp_k</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_predictor</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_train_config</span><span class="p">()</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

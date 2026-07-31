@@ -1,0 +1,397 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.classic.base_classic_model &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.classic.base_classic_model</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.models.classic.base_classic_model</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Base class for classic (encoder + predictor) model architectures.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiLoss</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.optimizers</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizerRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.mixin</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.predictors.mlp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">silence_nuisance_warnings</span>
+
+
+<div class="viewcode-block" id="BaseClassicModel">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BaseClassicModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ABC</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all classic models. It is not meant to be instantiated directly,</span>
+<span class="sd">    but rather to be used as a parent class for each classic model. It should encompass</span>
+<span class="sd">    all basic routines needed for training and inference, therefore child classes only</span>
+<span class="sd">    need to define what are the encoder and predictor attributes.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">additional_mol_features_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise the base classic model.</span>
+
+<span class="sd">        :param int additional_mol_features_dim: dimensionality of any extra</span>
+<span class="sd">            molecular features concatenated to the encoder output before</span>
+<span class="sd">            prediction, defaults to 0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">silence_nuisance_warnings</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mc_dropout_flag</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_max_task_tracking_n</span> <span class="o">=</span> <span class="mi">100</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_additional_mol_features_dim</span> <span class="o">=</span> <span class="n">additional_mol_features_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">additional_mol_features_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dimensionality of extra molecular features appended to the encoder output.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_additional_mol_features_dim</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">latent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Dimensionality of the learned representation, i.e. the output of the</span>
+<span class="sd">        hidden layers right before the prediction head.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">latent_dim</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_predictor_input_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the input dimensionality of the predictor head.</span>
+
+<span class="sd">        :returns: sum of the encoder fingerprint dimension and any additional</span>
+<span class="sd">            molecular features dimension</span>
+<span class="sd">        :rtype: int</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">predictor_input_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_mol_features_dim</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">predictor_input_dim</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">fp_dim</span>
+        <span class="k">return</span> <span class="n">predictor_input_dim</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_train_config</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility function to parse the string/dict inputs related to losses, optimizers and</span>
+<span class="sd">        schedulers into proper torch objects.</span>
+
+<span class="sd">        Will read the required arguments from self.hparams, as created by the</span>
+<span class="sd">        HyperparametersMixin of the child class.</span>
+
+<span class="sd">        If ``total_steps`` is required by the scheduler but not provided in</span>
+<span class="sd">        ``scheduler_args``, a placeholder value of 1 is used. The real value</span>
+<span class="sd">        is injected later by ``TrainingManager._maybe_inject_total_steps``</span>
+<span class="sd">        once the training dataset size is known.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span> <span class="o">=</span> <span class="n">OptimizerRegistry</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;optimizer&quot;</span><span class="p">]](</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;optimizer_args&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_make_scheduler</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;scheduler&quot;</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;scheduler_args&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_loss_fn</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;loss_fn&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;loss_args&quot;</span><span class="p">],</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_init_metric_containers</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_predictor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility function to parse the arguments related to the predictor.</span>
+
+<span class="sd">        Will read the required arguments from self.hparams, as created by the</span>
+<span class="sd">        HyperparametersMixin of the child class</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+            <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_predictor_input_dim</span><span class="p">(),</span>
+            <span class="n">hidden_dims</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_hidden_dims&quot;</span><span class="p">],</span>
+            <span class="n">task_head_dims</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_task_head_dims&quot;</span><span class="p">],</span>
+            <span class="n">num_endpoints</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">],</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_dropout&quot;</span><span class="p">],</span>
+            <span class="n">activation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_activation&quot;</span><span class="p">],</span>
+            <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_unpack_batch_and_call</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">function</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility function to forward a batch through a given module.</span>
+
+<span class="sd">        :param dict[str, Any] batch: batch of inputs to process</span>
+
+<span class="sd">        :param Callable[..., torch.Tensor] function: function to call on the batch</span>
+
+<span class="sd">        :return torch.Tensor: processed batch</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">forward_args</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Get the signature of the forward method</span>
+        <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">function</span><span class="p">)</span>
+
+        <span class="c1"># Iterate through the parameters</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">default</span> <span class="o">==</span> <span class="n">inspect</span><span class="o">.</span><span class="n">Parameter</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">:</span>
+                    <span class="n">forward_args</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing required argument: </span><span class="si">{</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">name</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">:</span>
+                    <span class="n">forward_args</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">forward_args</span><span class="p">[</span><span class="n">param</span><span class="o">.</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">param</span><span class="o">.</span><span class="n">default</span>
+
+        <span class="k">return</span> <span class="n">function</span><span class="p">(</span><span class="o">**</span><span class="n">forward_args</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BaseClassicModel.forward">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Simple forward function for the training and prediction step. Depending</span>
+<span class="sd">        on the architecture, the input can be in different formats.</span>
+
+<span class="sd">        :param dict[str, Any] batch: batch of inputs to process</span>
+
+<span class="sd">        :return torch.Tensor: batched predictions</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># Collect the features from the encoder and the input mol features</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mol_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_batch_and_call</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">forward</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;mol_features&quot;</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">:</span>
+                <span class="n">mol_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">mol_features</span><span class="p">,</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mol_features</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_batch_and_call</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">forward</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseClassicModel.encode">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Simple encoding function for getting the latent space of a batch. Depending</span>
+<span class="sd">        on the architecture, the input can be in different formats.</span>
+
+<span class="sd">        :param dict[str, Any] batch: batch of inputs to process</span>
+
+<span class="sd">        :return torch.Tensor: latent space</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Collect the features from the encoder and the input mol features</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mol_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_batch_and_call</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">forward</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;mol_features&quot;</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">:</span>
+                <span class="n">mol_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">mol_features</span><span class="p">,</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;mol_features&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">mol_features</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unpack_batch_and_call</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">encode</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseClassicModel.training_step">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.training_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">training_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">batch_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Training step logic for classic models.</span>
+
+<span class="sd">        :param dict[str, Any] batch: batch of inputs to process</span>
+
+<span class="sd">        :param int batch_idx: leftover from lightning tutorial which I am too scared</span>
+<span class="sd">            to remove (TODO)</span>
+
+<span class="sd">        :return torch.Tensor: batch loss</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">MultiLoss</span><span class="p">):</span>
+            <span class="n">train_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">&quot;train_loss&quot;</span><span class="p">,</span> <span class="n">train_loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">train_loss</span><span class="p">,</span> <span class="n">loss_log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">&quot;train_loss&quot;</span><span class="p">,</span> <span class="n">train_loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">log</span> <span class="ow">in</span> <span class="n">loss_log</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;train_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_loss&quot;</span><span class="p">,</span>
+                    <span class="n">log</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">],</span>
+                    <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;train_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_weight&quot;</span><span class="p">,</span>
+                    <span class="n">log</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">],</span>
+                    <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">train_loss</span></div>
+
+
+<div class="viewcode-block" id="BaseClassicModel.validation_step">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.validation_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validation_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">batch_idx</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">validation_step</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">batch_idx</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseClassicModel.compute_learned_embedding">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.compute_learned_embedding">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_learned_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">DataLoader</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extracts learned embeddings for a given batch from a dataloader.</span>
+
+<span class="sd">        :param object x: dataloader object containing the batched dataset to compute</span>
+<span class="sd">            embeddings of</span>
+
+<span class="sd">        :return torch.Tensor: learned embeddings for the dataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">x</span><span class="p">:</span>
+            <span class="n">mol_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+            <span class="n">output</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mol_features</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">output</span></div>
+
+
+<div class="viewcode-block" id="BaseClassicModel.predict_step">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.predict_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prediction step logic for classic models.</span>
+
+<span class="sd">        :param dict[str, Any] batch: batch of inputs to process</span>
+
+<span class="sd">        :return torch.Tensor: predictions for the batch</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># decide whether to keep dropout on or off depending on flag</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mc_dropout_flag</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
+                    <span class="n">module</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
+                    <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseClassicModel.configure_optimizers">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.configure_optimizers">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">configure_optimizers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configuration utility function to comply with the Lightning Trainer</span>
+<span class="sd">        API</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizer</span><span class="p">,</span>
+            <span class="s2">&quot;lr_scheduler&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;scheduler&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="p">,</span>
+                <span class="s2">&quot;interval&quot;</span><span class="p">:</span> <span class="s2">&quot;step&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;frequency&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">}</span></div>
+</div>
+
+
+
+<span class="n">ClassicModelRegistry</span> <span class="o">=</span> <span class="n">ClassRegistry</span><span class="p">[</span><span class="n">BaseClassicModel</span><span class="p">]()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+matcha.utils.registry
+=====================
+
+.. py:module:: matcha.utils.registry
+
+.. autoapi-nested-parse::
+
+   Taken from: https://github.com/chemprop/chemprop/blob/main/chemprop/utils/registry.py
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.utils.registry.T
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.registry.ClassRegistry
+
+
+Module Contents
+---------------
+
+.. py:data:: T
+
+.. py:class:: ClassRegistry
+
+   Bases: :py:obj:`dict`\ [\ :py:obj:`str`\ , :py:obj:`Type`\ [\ :py:obj:`T`\ ]\ ]
+
+
+   A dictionary-based registry that maps string aliases to classes.
+
+   Provides a decorator-based interface for registering classes under one or
+   more aliases. Lookups are case-insensitive.
+
+
+   .. py:method:: register(alias: Any | Iterable[Any] | None = None)
+
+      Register a class in the registry under one or more aliases.
+
+      Can be used as a decorator. If no alias is provided, the lowercase
+      class name is used as the default key.
+
+      :param alias: One or more string aliases to register the class under.
+          If ``None``, defaults to the lowercase class name.
+      :type alias: Any | Iterable[Any] | None
+      :returns: A decorator that registers the class and returns it unchanged.
+      :rtype: Callable
+
+
+

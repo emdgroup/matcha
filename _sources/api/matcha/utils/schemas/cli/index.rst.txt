@@ -1,0 +1,1430 @@
+matcha.utils.schemas.cli
+========================
+
+.. py:module:: matcha.utils.schemas.cli
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.cli.Pipe
+   matcha.utils.schemas.cli.EncoderPretrainPipe
+   matcha.utils.schemas.cli.EncoderPretrainTraining
+   matcha.utils.schemas.cli.PretrainMultitaskOutput
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.cli.CalibrationDataSettings
+   matcha.utils.schemas.cli.Dataset
+   matcha.utils.schemas.cli.CalibrationModelSettings
+   matcha.utils.schemas.cli.Metadata
+   matcha.utils.schemas.cli.Model
+   matcha.utils.schemas.cli.MLFlow
+   matcha.utils.schemas.cli.Serialization
+   matcha.utils.schemas.cli.Output
+   matcha.utils.schemas.cli.Split
+   matcha.utils.schemas.cli.CLITrainInputModel
+   matcha.utils.schemas.cli.ModelEvaluation
+   matcha.utils.schemas.cli.CLIEvaluationInputModel
+   matcha.utils.schemas.cli.BaselineModel
+   matcha.utils.schemas.cli.CLIBaselineInputModel
+   matcha.utils.schemas.cli.CLISummarizeInputModel
+   matcha.utils.schemas.cli.StitcherInputModel
+   matcha.utils.schemas.cli.StitcherOutputModel
+   matcha.utils.schemas.cli.CLIStitcherInputModel
+   matcha.utils.schemas.cli.AutotuneOptimum
+   matcha.utils.schemas.cli.AutotuneOutput
+   matcha.utils.schemas.cli.Search
+   matcha.utils.schemas.cli.Tuning
+   matcha.utils.schemas.cli.CLIAutotuneOutput
+   matcha.utils.schemas.cli.PrepareDatasets
+   matcha.utils.schemas.cli.PrepareMetadata
+   matcha.utils.schemas.cli.PrepareValidation
+   matcha.utils.schemas.cli.CLIPrepareInputModel
+   matcha.utils.schemas.cli.PredictDataset
+   matcha.utils.schemas.cli.Inference
+   matcha.utils.schemas.cli.PredictModel
+   matcha.utils.schemas.cli.CLIPredictInputModel
+   matcha.utils.schemas.cli.PretrainPipe
+   matcha.utils.schemas.cli.PretrainTraining
+   matcha.utils.schemas.cli.PretrainOutput
+   matcha.utils.schemas.cli.MultitaskPretrainDataset
+   matcha.utils.schemas.cli.Loss
+   matcha.utils.schemas.cli.PretrainMultitaskModel
+   matcha.utils.schemas.cli.CLIPretrainMultitaskInputModel
+   matcha.utils.schemas.cli.EncoderPretrainDataset
+   matcha.utils.schemas.cli.EncoderPretrainGraphDatamodule
+   matcha.utils.schemas.cli.EncoderPretrainMLMDatamodule
+   matcha.utils.schemas.cli.EncoderPretrainModel
+   matcha.utils.schemas.cli.CLIEncoderPretrainInputModel
+
+
+Module Contents
+---------------
+
+.. py:class:: CalibrationDataSettings(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Settings for splitting calibration data by column and ratio.
+
+
+   .. py:attribute:: split_column
+      :type:  str
+      :value: 'compound_id'
+
+
+
+   .. py:attribute:: split_ratio
+      :type:  float
+      :value: 0.99
+
+
+
+.. py:class:: Dataset(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for dataset configuration including file path, column keys, and calibration.
+
+
+   .. py:attribute:: path
+      :type:  str
+
+
+   .. py:attribute:: label_key
+      :type:  str
+
+
+   .. py:attribute:: smiles_key
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: operator_key
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: calibration
+      :type:  Optional[CalibrationDataSettings]
+      :value: None
+
+
+
+   .. py:attribute:: statistics
+      :type:  Optional[dict]
+      :value: None
+
+
+
+.. py:class:: CalibrationModelSettings(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Settings for the calibration model algorithm and its parameters.
+
+
+   .. py:attribute:: algorithm
+      :type:  str
+
+
+   .. py:attribute:: params
+      :type:  Optional[dict]
+      :value: None
+
+
+
+.. py:class:: Metadata(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for model metadata such as name, version, scope, and owner.
+
+
+   .. py:attribute:: model_name
+      :type:  str
+
+
+   .. py:attribute:: model_version
+      :type:  int
+
+
+   .. py:attribute:: model_scope
+      :type:  str
+
+
+   .. py:attribute:: model_owner
+      :type:  str
+
+
+   .. py:attribute:: description
+      :type:  Optional[str]
+      :value: 'no description provided'
+
+
+
+.. py:class:: Model(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for model configuration including architecture, parameters, and metadata.
+
+
+   .. py:attribute:: architecture
+      :type:  str
+
+
+   .. py:attribute:: params
+      :type:  dict
+
+
+   .. py:attribute:: metadata
+      :type:  Metadata
+
+
+   .. py:attribute:: ensemble
+      :type:  Optional[int]
+      :value: None
+
+
+
+   .. py:attribute:: config_path
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: calibration
+      :type:  Optional[CalibrationModelSettings]
+      :value: None
+
+
+
+.. py:class:: MLFlow(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for MLflow experiment tracking configuration.
+
+
+   .. py:attribute:: experiment_name
+      :type:  str
+
+
+   .. py:attribute:: tags
+      :type:  Optional[dict]
+
+
+   .. py:attribute:: log_dir
+      :type:  str
+
+
+   .. py:attribute:: run_name
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: server_uri
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: Serialization(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for model serialization settings including path and quantization.
+
+
+   .. py:attribute:: path
+      :type:  str
+
+
+   .. py:attribute:: quantize
+      :type:  Optional[bool]
+      :value: False
+
+
+
+.. py:class:: Output(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for training output configuration combining MLflow and serialization.
+
+
+   .. py:attribute:: mlflow
+      :type:  Optional[MLFlow]
+      :value: None
+
+
+
+   .. py:attribute:: serialization
+      :type:  Optional[Serialization]
+      :value: None
+
+
+
+.. py:class:: Split(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for data splitting strategy including method, subsets, and bootstrapping.
+
+   ``n_bootstrap`` and ``frac_bootstrap`` apply uniformly across all split
+   methods (cv, time, cluster, file): each split's test set is resampled
+   ``n_bootstrap`` times at ``frac_bootstrap`` fraction for uncertainty
+   estimation.
+
+
+   .. py:attribute:: method
+      :type:  str
+
+
+   .. py:attribute:: n_subset
+      :type:  int
+
+
+   .. py:attribute:: n_bootstrap
+      :type:  Optional[int]
+      :value: None
+
+
+
+   .. py:attribute:: frac_bootstrap
+      :type:  Optional[float]
+      :value: None
+
+
+
+   .. py:attribute:: method_params
+      :type:  Optional[dict]
+      :value: None
+
+
+
+.. py:class:: CLITrainInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``train`` CLI command.
+
+
+   .. py:attribute:: dataset
+      :type:  Dataset
+
+
+   .. py:attribute:: model
+      :type:  Model
+
+
+   .. py:attribute:: output
+      :type:  Output
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: ModelEvaluation(/, **data: Any)
+
+   Bases: :py:obj:`Model`
+
+
+   Model schema variant for evaluation where metadata is optional.
+
+
+   .. py:attribute:: metadata
+      :type:  Optional[Metadata]
+      :value: None
+
+
+
+.. py:class:: CLIEvaluationInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``evaluate`` CLI command.
+
+
+   .. py:attribute:: dataset
+      :type:  Dataset
+
+
+   .. py:attribute:: model
+      :type:  ModelEvaluation
+
+
+   .. py:attribute:: output
+      :type:  Output
+
+
+   .. py:attribute:: split
+      :type:  Split
+
+
+   .. py:attribute:: quantize
+      :type:  Optional[bool]
+      :value: False
+
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: BaselineModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for scikit-learn baseline model configuration.
+
+
+   .. py:attribute:: n_jobs
+      :type:  int
+      :value: 16
+
+
+
+   .. py:attribute:: feature_list
+      :type:  list[str]
+      :value: ['rdkit_all_descriptors', 'ecfp']
+
+
+
+   .. py:attribute:: params
+      :type:  dict
+
+
+   .. py:attribute:: label_transform
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: label_encoder_params
+      :type:  Optional[dict]
+      :value: None
+
+
+
+   .. py:attribute:: algorithm
+      :type:  str
+      :value: 'RandomForestRegressor'
+
+
+
+.. py:class:: CLIBaselineInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``baseline`` CLI command.
+
+
+   .. py:attribute:: dataset
+      :type:  Dataset
+
+
+   .. py:attribute:: model
+      :type:  BaselineModel
+
+
+   .. py:attribute:: output
+      :type:  Output
+
+
+   .. py:attribute:: split
+      :type:  Split
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: CLISummarizeInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``summarize`` CLI command.
+
+   Supports two mutually exclusive input modes:
+
+   **MLflow mode** — supply ``experiment_name`` and ``mlruns_path``::
+
+       experiment_name: my_experiment
+       mlruns_path: ./mlruns
+       output_path: ./outputs
+
+   **Directory mode** — supply ``root_dir``; each immediate subdirectory is
+   treated as one model run, identified by its folder name::
+
+       root_dir: ./experiment
+       output_path: ./outputs
+
+   ``output_path`` is shared by both modes (default: ``./outputs``).
+   In MLflow mode it receives the summary files written to disk; in directory
+   mode it additionally receives the HTML plot files.
+
+
+   .. py:attribute:: experiment_name
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: mlruns_path
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: root_dir
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: output_path
+      :type:  Optional[str]
+      :value: './outputs'
+
+
+
+   .. py:attribute:: statistical_test
+      :type:  Optional[str]
+      :value: 'non-parametric'
+
+
+
+   .. py:attribute:: runs
+      :type:  Optional[list[str]]
+      :value: None
+
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: StitcherInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Input schema for the dataset stitcher specifying source files and column keys.
+
+
+   .. py:attribute:: folder_path
+      :type:  str
+
+
+   .. py:attribute:: dataset_names
+      :type:  list[str]
+
+
+   .. py:attribute:: label_keys
+      :type:  list[str]
+
+
+   .. py:attribute:: tag
+      :type:  str
+      :value: 'endpoint'
+
+
+
+   .. py:attribute:: operator_key
+      :type:  str
+      :value: 'OPERATOR'
+
+
+
+   .. py:attribute:: smiles_key
+      :type:  str
+      :value: 'SMILES'
+
+
+
+   .. py:attribute:: index_key
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: StitcherOutputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Output schema for the dataset stitcher specifying destination path and filename.
+
+
+   .. py:attribute:: folder_path
+      :type:  str
+      :value: './outputs'
+
+
+
+   .. py:attribute:: filename
+      :type:  str
+      :value: 'df.csv'
+
+
+
+.. py:class:: CLIStitcherInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``prepare_multitask`` CLI command.
+
+
+   .. py:attribute:: input
+      :type:  StitcherInputModel
+
+
+   .. py:attribute:: output
+      :type:  StitcherOutputModel
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: AutotuneOptimum(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for autotune optimum output path and filename.
+
+
+   .. py:attribute:: path
+      :type:  str
+      :value: './outputs'
+
+
+
+   .. py:attribute:: filename
+      :type:  str
+      :value: 'hpo_output'
+
+
+
+.. py:class:: AutotuneOutput(/, **data: Any)
+
+   Bases: :py:obj:`Output`
+
+
+   Extended output schema for autotune that adds the optimum result location.
+
+
+   .. py:attribute:: optimum
+      :type:  AutotuneOptimum
+
+
+.. py:class:: Search(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for a hyperparameter search space configuration and budget.
+
+
+   .. py:attribute:: config
+      :type:  str | dict
+      :value: 'default'
+
+
+
+   .. py:attribute:: budget
+      :type:  int
+      :value: 70
+
+
+
+.. py:class:: Tuning(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for autotune tuning settings with architecture and optimizer search.
+
+
+   .. py:attribute:: architecture_search
+      :type:  Search
+
+
+   .. py:attribute:: optimizer_search
+      :type:  Search
+
+
+.. py:class:: CLIAutotuneOutput(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``autotune`` CLI command.
+
+
+   .. py:attribute:: dataset
+      :type:  Dataset
+
+
+   .. py:attribute:: model
+      :type:  ModelEvaluation
+
+
+   .. py:attribute:: split
+      :type:  Split
+
+
+   .. py:attribute:: tuning
+      :type:  Tuning
+
+
+   .. py:attribute:: output
+      :type:  AutotuneOutput
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: PrepareDatasets(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for listing dataset files and their task types for pretraining preparation.
+
+
+   .. py:attribute:: files
+      :type:  list[str]
+
+
+   .. py:attribute:: task_type
+      :type:  list[str]
+
+
+.. py:class:: PrepareMetadata(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for metadata settings used during pretraining data preparation.
+
+
+   .. py:attribute:: merge_col
+      :type:  str
+      :value: 'SMILES'
+
+
+
+   .. py:attribute:: tag_to_add
+      :type:  str
+      :value: 'PRETRAIN'
+
+
+
+.. py:class:: PrepareValidation(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for validation set creation parameters during data preparation.
+
+
+   .. py:attribute:: min_compounds
+      :type:  int
+      :value: 10
+
+
+
+   .. py:attribute:: sampling_rate
+      :type:  float
+      :value: 0.001
+
+
+
+   .. py:attribute:: seed
+      :type:  int
+      :value: 42
+
+
+
+.. py:class:: CLIPrepareInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``prepare`` CLI command.
+
+
+   .. py:attribute:: datasets
+      :type:  PrepareDatasets
+
+
+   .. py:attribute:: metadata
+      :type:  PrepareMetadata
+
+
+   .. py:attribute:: validation
+      :type:  PrepareValidation
+
+
+   .. py:attribute:: output
+      :type:  str
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: PredictDataset(/, **data: Any)
+
+   Bases: :py:obj:`Dataset`
+
+
+   Dataset schema variant for prediction where label_key is optional.
+
+
+   .. py:attribute:: label_key
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: keep_cols
+      :type:  bool
+      :value: True
+
+
+
+.. py:class:: Inference(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for inference hardware and batching settings.
+
+
+   .. py:attribute:: accelerator
+      :type:  str
+      :value: 'cpu'
+
+
+
+   .. py:attribute:: devices
+      :type:  int
+      :value: 1
+
+
+
+   .. py:attribute:: batch_size
+      :type:  int
+      :value: 256
+
+
+
+.. py:class:: PredictModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for the model used in prediction, referencing a serialized model path.
+
+
+   .. py:attribute:: path
+      :type:  str
+
+
+   .. py:attribute:: inference
+      :type:  Optional[Inference]
+      :value: None
+
+
+
+.. py:class:: CLIPredictInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``predict`` CLI command.
+
+
+   .. py:attribute:: dataset
+      :type:  PredictDataset
+
+
+   .. py:attribute:: model
+      :type:  PredictModel
+
+
+   .. py:attribute:: output
+      :type:  str
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: PretrainPipe(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Hardware / distributed-training knobs shared by all pretraining CLIs.
+
+
+   .. py:attribute:: visible_devices
+      :type:  str | None
+      :value: None
+
+
+
+   .. py:attribute:: strategy
+      :type:  dict
+
+
+   .. py:attribute:: dataloader_num_workers
+      :type:  int
+      :value: 8
+
+
+
+   .. py:attribute:: fit_datamodule_size
+      :type:  int | None
+      :value: None
+
+
+
+   .. py:attribute:: gradient_accumulation_steps
+      :type:  int
+      :value: 1
+
+
+
+   .. py:attribute:: gradient_clip_val
+      :type:  float
+      :value: 0.0
+
+
+
+.. py:class:: PretrainTraining(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Training-loop parameters shared by all pretraining CLIs.
+
+
+   .. py:attribute:: num_epochs
+      :type:  int
+      :value: 50
+
+
+
+   .. py:attribute:: early_stopping
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: patience
+      :type:  int
+      :value: 10
+
+
+
+   .. py:attribute:: accelerator
+      :type:  str
+      :value: 'gpu'
+
+
+
+   .. py:attribute:: devices
+      :type:  int
+      :value: 1
+
+
+
+   .. py:attribute:: seed
+      :type:  int
+      :value: 0
+
+
+
+.. py:class:: PretrainOutput(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for pretraining output with serialization path and optional MLflow logging.
+
+
+   .. py:attribute:: serialization
+      :type:  str
+
+
+   .. py:attribute:: mlflow
+      :type:  Optional[MLFlow]
+      :value: None
+
+
+
+.. py:class:: MultitaskPretrainDataset(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Dataset config for multitask pretraining.
+
+   ``dataset_dir`` is the base directory produced by the ``prepare`` command.
+   By default, files are resolved relative to that directory using the
+   standard names (``train_molecules.parquet``, ``val_molecules.parquet``,
+   ``train_tasks.npz``, ``val_tasks.npz``, ``task_metadata.json``).
+   Each path can be overridden individually to point at a different location.
+
+
+   .. py:attribute:: dataset_dir
+      :type:  str
+
+
+   .. py:attribute:: train_smiles
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: val_smiles
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: train_tasks
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: val_tasks
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: task_metadata
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: Loss(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for a single loss term in multitask pretraining with weighting schedule.
+
+
+   .. py:attribute:: dataset
+      :type:  str
+
+
+   .. py:attribute:: loss_fn
+      :type:  str
+
+
+   .. py:attribute:: loss_args
+      :type:  dict
+
+
+   .. py:attribute:: init_w
+      :type:  float
+
+
+   .. py:attribute:: final_w
+      :type:  float
+
+
+   .. py:attribute:: T
+      :type:  float
+
+
+   .. py:attribute:: warmup
+      :type:  float
+
+
+.. py:class:: PretrainMultitaskModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Model config for multitask pretraining.
+
+   Mirrors :class:`EncoderPretrainModel` so that neural-network params,
+   datamodule params and training params live in separate config keys
+   instead of a single flat ``params`` dict.
+
+
+   .. py:attribute:: architecture
+      :type:  str
+
+
+   .. py:attribute:: params
+      :type:  dict
+
+
+   .. py:attribute:: datamodule
+      :type:  Optional[dict]
+      :value: None
+
+
+
+   .. py:attribute:: training
+      :type:  Optional[PretrainTraining]
+
+
+.. py:class:: CLIPretrainMultitaskInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``pretrain_multitask`` CLI command.
+
+
+   .. py:attribute:: dataset
+      :type:  MultitaskPretrainDataset
+
+
+   .. py:attribute:: model
+      :type:  PretrainMultitaskModel
+
+
+   .. py:attribute:: loss
+      :type:  list[Loss]
+
+
+   .. py:attribute:: pipe
+      :type:  PretrainPipe
+
+
+   .. py:attribute:: output
+      :type:  PretrainOutput
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: EncoderPretrainDataset(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Dataset config for encoder pretraining.
+
+   Supports two modes:
+   - **MLM**: only ``train_smiles`` and ``val_smiles`` parquet paths are needed.
+   - **Graph pretraining**: additionally requires ``train_y_graph``, ``val_y_graph``
+     (npz with key ``descriptors``), ``train_y_node``, ``val_y_node``
+     (npz files for node-level targets), and ``task_type`` = ``"graph"``.
+
+   Node-level target files (``train_y_node``, ``val_y_node``) use a packed
+   flat + offsets layout::
+
+       np.savez_compressed("node_y.npz",
+                           flat=np.concatenate(list_of_arrays),
+                           offsets=np.cumsum([0] + [len(a) for a in list_of_arrays]))
+
+
+   .. py:attribute:: task_type
+      :type:  str
+
+
+   .. py:attribute:: train_smiles
+      :type:  str
+
+
+   .. py:attribute:: val_smiles
+      :type:  str
+
+
+   .. py:attribute:: train_y_graph
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: val_y_graph
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: train_y_node
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: val_y_node
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: EncoderPretrainGraphDatamodule(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Datamodule parameters for **graph** encoder pretraining.
+
+   Keys like ``laplacian_k``, ``rwse_k``, etc. are also forwarded to the
+   model constructor (as ``enc_laplacian_k``, …) because graph encoders
+   need them to size their positional-encoding layers.
+
+
+   .. py:attribute:: laplacian_k
+      :type:  int
+      :value: 10
+
+
+
+   .. py:attribute:: rwse_k
+      :type:  int
+      :value: 20
+
+
+
+   .. py:attribute:: elstatic_k
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: distmat_k
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: rrwp_k
+      :type:  int
+      :value: 20
+
+
+
+   .. py:attribute:: compute_distances
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: num_virtual_nodes
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: init_virtual_nodes
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: batch_size
+      :type:  int
+      :value: 256
+
+
+
+   .. py:attribute:: num_workers
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: augment_resonance
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: scale_y_graph
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: scale_y_node
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: EncoderPretrainMLMDatamodule(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Datamodule parameters for **MLM** encoder pretraining.
+
+
+   .. py:attribute:: mask_rate
+      :type:  float
+      :value: 0.15
+
+
+
+   .. py:attribute:: max_length
+      :type:  int
+      :value: 128
+
+
+
+   .. py:attribute:: num_augmentations
+      :type:  int
+      :value: 2
+
+
+
+   .. py:attribute:: num_test_augmentations
+      :type:  int
+      :value: 4
+
+
+
+   .. py:attribute:: include_canonical
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: batch_size
+      :type:  int
+      :value: 256
+
+
+
+   .. py:attribute:: num_workers
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: augment_resonance
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: EncoderPretrainModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for encoder pretraining model configuration with architecture and datamodule.
+
+
+   .. py:attribute:: architecture
+      :type:  str
+
+
+   .. py:attribute:: params
+      :type:  dict
+
+
+   .. py:attribute:: datamodule
+      :type:  Optional[dict]
+      :value: None
+
+
+
+   .. py:attribute:: training
+      :type:  Optional[PretrainTraining]
+
+
+.. py:class:: CLIEncoderPretrainInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level input schema for the ``pretrain_encoder`` CLI command.
+
+
+   .. py:attribute:: dataset
+      :type:  EncoderPretrainDataset
+
+
+   .. py:attribute:: model
+      :type:  EncoderPretrainModel
+
+
+   .. py:attribute:: pipe
+      :type:  PretrainPipe
+
+
+   .. py:attribute:: output
+      :type:  PretrainOutput
+
+
+   .. py:attribute:: magic
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:data:: Pipe
+
+.. py:data:: EncoderPretrainPipe
+
+.. py:data:: EncoderPretrainTraining
+
+.. py:data:: PretrainMultitaskOutput
+

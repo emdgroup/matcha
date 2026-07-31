@@ -1,0 +1,168 @@
+matcha.torch.encoders.attentivefp
+=================================
+
+.. py:module:: matcha.torch.encoders.attentivefp
+
+.. autoapi-nested-parse::
+
+   AttentiveFP graph encoder with gated attention mechanism.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.attentivefp.GATEConv
+   matcha.torch.encoders.attentivefp.AttentiveFP
+
+
+Module Contents
+---------------
+
+.. py:class:: GATEConv(in_channels: int, out_channels: int, edge_dim: int, dropout: float = 0.0)
+
+   Bases: :py:obj:`torch_geometric.nn.MessagePassing`
+
+
+   Graph Attention Edge Convolution layer for incorporating edge features into
+   node representations using attention mechanism.
+
+   This layer is adapted from the PyTorch Geometric AttentiveFP implementation.
+   Reference: https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.models.AttentiveFP.html
+
+   This class is not meant to be used directly, but acts as a building block for
+   :class:`AttentiveFP`.
+
+   :param int in_channels: Input node feature dimension.
+   :param int out_channels: Output node feature dimension.
+   :param int edge_dim: Edge feature dimension.
+   :param float dropout: Dropout rate for attention weights.
+
+
+   .. py:attribute:: dropout
+      :value: 0.0
+
+
+
+   .. py:attribute:: att_l
+
+
+   .. py:attribute:: att_r
+
+
+   .. py:attribute:: lin1
+
+
+   .. py:attribute:: lin2
+
+
+   .. py:attribute:: bias
+
+
+   .. py:method:: reset_parameters()
+
+      Resets all learnable parameters of the module.
+
+
+
+   .. py:method:: forward(x: torch.Tensor, edge_index: torch_geometric.typing.Adj, edge_attr: torch.Tensor) -> torch.Tensor
+
+      Forward pass computing attention-weighted message passing.
+
+      :param Tensor x: Node features [num_nodes, in_channels].
+      :param Adj edge_index: Edge indices [2, num_edges].
+      :param Tensor edge_attr: Edge features [num_edges, edge_dim].
+      :returns: Updated node features [num_nodes, out_channels].
+      :rtype: Tensor
+
+
+
+   .. py:method:: edge_update(x_j: torch.Tensor, x_i: torch.Tensor, edge_attr: torch.Tensor, index: torch.Tensor, ptr: torch_geometric.typing.OptTensor, size_i: Optional[int]) -> torch.Tensor
+
+      Computes or updates features for each edge in the graph.
+      This function can take any argument as input which was initially passed
+      to :meth:`edge_updater`.
+      Furthermore, tensors passed to :meth:`edge_updater` can be mapped to
+      the respective nodes :math:`i` and :math:`j` by appending :obj:`_i` or
+      :obj:`_j` to the variable name, *.e.g.* :obj:`x_i` and :obj:`x_j`.
+
+
+
+   .. py:method:: message(x_j: torch.Tensor, alpha: torch.Tensor) -> torch.Tensor
+
+      Constructs messages from node :math:`j` to node :math:`i`
+      in analogy to :math:`\phi_{\mathbf{\Theta}}` for each edge in
+      :obj:`edge_index`.
+      This function can take any argument as input which was initially
+      passed to :meth:`propagate`.
+      Furthermore, tensors passed to :meth:`propagate` can be mapped to the
+      respective nodes :math:`i` and :math:`j` by appending :obj:`_i` or
+      :obj:`_j` to the variable name, *.e.g.* :obj:`x_i` and :obj:`x_j`.
+
+
+
+.. py:class:: AttentiveFP(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, dropout: float, readout: str, jk: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Attention-based graph encoder as described in 'Pushing the Boundaries of Molecular
+   Representation for Drug Discovery with the Graph Attention Mechanism'
+   This class performs message passing, updates the atom representations and
+   returns a molecular embedding which can then be used for molecular property
+   prediction.
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+   References:
+   - https://www.ncbi.nlm.nih.gov/pubmed/31408336
+   - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.models.AttentiveFP.html
+   - https://arxiv.org/abs/1806.03536
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.AttentiveFPModel` for further details.
+
+   :param int num_layers: number of message passing layers
+
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+
+   :param int atom_hidden_dim: number of hidden atom features in message passing layers
+
+   :param float dropout: dropout noise level
+
+   :param str readout: readout function to aggregate all atom representations
+
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+
+
+   .. py:attribute:: dropout
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: gate_conv
+
+
+   .. py:attribute:: gru
+
+
+   .. py:attribute:: layers
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
+      processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+

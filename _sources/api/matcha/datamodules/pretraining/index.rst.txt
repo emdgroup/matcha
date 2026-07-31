@@ -1,0 +1,739 @@
+matcha.datamodules.pretraining
+==============================
+
+.. py:module:: matcha.datamodules.pretraining
+
+.. autoapi-nested-parse::
+
+   Pretraining datamodules for self-supervised learning.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/datamodules/pretraining/clm_mlm_datamodule/index
+   /api/matcha/datamodules/pretraining/graph_pretraining_datamodule/index
+   /api/matcha/datamodules/pretraining/on_the_fly_datamodule/index
+   /api/matcha/datamodules/pretraining/on_the_fly_graph_pretraining_datamodule/index
+   /api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.pretraining.CLMMLMDataModule
+   matcha.datamodules.pretraining.OnTheFlyDataModule
+   matcha.datamodules.pretraining.OnTheFlyDataset
+   matcha.datamodules.pretraining.OnTheFlyMLMDataModule
+   matcha.datamodules.pretraining.OnTheFlyMLMDataset
+   matcha.datamodules.pretraining.GraphPretrainingDataModule
+   matcha.datamodules.pretraining.OnTheFlyGraphPretrainingDataModule
+   matcha.datamodules.pretraining.OnTheFlyGraphPretrainingDataset
+
+
+Package Contents
+----------------
+
+.. py:class:: CLMMLMDataModule(mask_rate: float = 0.15, **kwargs)
+
+   Bases: :py:obj:`matcha.datamodules.classic.clm_datamodule.CLMDataModule`
+
+
+   CLM DataModule variant for Masked Language Modeling (MLM) pretraining.
+
+   This datamodule extends CLMDataModule to produce training data suitable for
+   self-supervised masked language modeling. Instead of returning labels (y),
+   it returns:
+   - `token_ids`: The masked input sequence (with some tokens replaced by mask token)
+   - `y`: The original token sequence (targets for MLM prediction)
+   - `mask`: Boolean mask indicating which positions were masked
+
+   Masking is applied AFTER augmentation to ensure consistency. Special tokens
+   (pad, unk, cls, mask) are never masked.
+
+   :param float mask_rate: Fraction of tokens to mask for MLM training, defaults to 0.15
+
+   All other parameters are inherited from CLMDataModule.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: export_to_classic() -> matcha.datamodules.classic.clm_datamodule.CLMDataModule
+
+      Return a :class:`CLMDataModule` that mirrors the current state.
+
+      The exported instance inherits the dictionary, max_length, and all
+      other CLM-specific settings so that it can be used directly for
+      downstream (non-MLM) training or inference.
+
+      :return CLMDataModule: a classic CLM datamodule with the same state
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, augment: bool = True, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate tokenized features with MLM masking applied.
+
+      Extends the parent to apply masking after tokenization and augmentation.
+      The *y* parameter is ignored; original tokens become the targets.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised); a dummy array is used
+      :param bound_mask: ignored for MLM
+      :param augment: whether to apply SMILES augmentation
+      :param is_training: whether to update the dictionary
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with keys ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, augment: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate a dataset ready for MLM pretraining.
+
+      Optionally applies resonance augmentation, then delegates to
+      :meth:`generate_features` for tokenization and masking. Commits
+      the dictionary on the first training call.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised)
+      :param bound_mask: ignored for MLM
+      :param is_training: whether to commit the dictionary after featurization
+      :param augment: whether to apply SMILES augmentation
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with keys ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: fit(dataset: torch.utils.data.StackDataset) -> None
+
+      Commit the cached dictionary. No Y scaling for MLM.
+
+      :param dataset: the featurized StackDataset (unused beyond triggering commit)
+
+
+
+   .. py:method:: transform(dataset: torch.utils.data.StackDataset) -> torch.utils.data.StackDataset
+
+      No-op for MLM since we don't scale Y.
+
+      :param dataset: featurized StackDataset
+      :return: the dataset unchanged
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, params, and dictionary
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Create a dummy instance with default parameters.
+
+      :return: a new :class:`CLMMLMDataModule` with default settings
+
+
+
+.. py:class:: OnTheFlyDataModule(base: matcha.datamodules.base_datamodule.BaseDataModule, num_workers: int = 0, **kwargs)
+
+   Bases: :py:obj:`lightning.LightningDataModule`
+
+
+   DataModule that delays feature generation until batch iteration time.
+
+   This wrapper takes any base datamodule and modifies its behavior to generate
+   features on-the-fly during batch collation instead of upfront during setup.
+   This can be useful for saving memory or when features need to be computed
+   dynamically.
+
+
+   .. py:attribute:: base
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: collate_fn_map
+
+
+   .. py:attribute:: num_workers
+      :value: 0
+
+
+
+   .. py:method:: train_dataloader()
+
+      Return the training dataloader.
+
+
+
+   .. py:method:: val_dataloader()
+
+      Return the validation dataloader, or an empty one if not set.
+
+
+
+   .. py:method:: test_dataloader()
+
+      Return the test dataloader.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Return the prediction dataloader.
+
+
+
+   .. py:method:: set_data(train_smiles: list[str] = None, train_y: numpy.ndarray = None, val_smiles: list[str] = None, val_y: numpy.ndarray = None, test_smiles: list[str] = None, test_y: numpy.ndarray = None, predict_smiles: list[str] = None, predict_y: numpy.ndarray = None)
+
+      Set the raw data for each split.
+
+      :param train_smiles: training SMILES
+      :param train_y: training labels (sparse matrix)
+      :param val_smiles: validation SMILES
+      :param val_y: validation labels (sparse matrix)
+      :param test_smiles: test SMILES
+      :param test_y: test labels (sparse matrix)
+      :param predict_smiles: prediction SMILES
+      :param predict_y: prediction labels (optional, defaults to zeros)
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Generate features on-the-fly from batch SMILES and collate.
+
+      Converts SMILES to molecules, applies label encoding (sparse to dense,
+      replacing 0 with NaN and -1 with 0), then delegates to the base
+      datamodule's feature generation and collation.
+
+      :param batch: list of dicts with ``smiles`` and ``y`` keys
+      :return: collated batch dict from the base datamodule
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Delegate to base datamodule's featurize method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: label array
+      :param bound_mask: optional bound mask for censored labels
+      :param is_training: whether to fit scalers
+      :param n_jobs: number of parallel workers
+      :return: featurized StackDataset
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Delegate to base datamodule's generate_features method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: label array
+      :param bound_mask: optional bound mask for censored labels
+      :param n_jobs: number of parallel workers
+      :return: StackDataset of unscaled features
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Setup dataloaders using raw data instead of pre-computed features.
+
+      :param stage: one of ``"fit"``, ``"test"``, or ``"predict"``
+
+
+
+.. py:class:: OnTheFlyDataset(smiles: list[str], y: numpy.ndarray)
+
+   Dataset that stores raw SMILES and labels for on-the-fly featurization.
+
+   Used by :class:`OnTheFlyDataModule` to defer feature computation
+   to collation time rather than computing all features upfront.
+
+   :param smiles: list of SMILES strings
+   :param y: label array, typically a sparse matrix of shape ``(N, T)``
+
+
+   .. py:attribute:: smiles
+
+
+   .. py:attribute:: y
+
+
+.. py:class:: OnTheFlyMLMDataModule(base: matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule, num_workers: int = 0, **kwargs)
+
+   Bases: :py:obj:`lightning.LightningDataModule`
+
+
+   DataModule that delays MLM feature generation until batch iteration time.
+
+   This wrapper takes a CLMMLMDataModule and modifies its behavior to generate
+   features on-the-fly during batch collation instead of upfront during setup.
+   This is useful for large-scale pretraining where memory is constrained.
+
+   The collate function converts SMILES to molecules, generates tokenized
+   features, and applies masking on-the-fly.
+
+   :param CLMMLMDataModule base: The base MLM datamodule to use for featurization
+   :param int num_workers: Number of dataloader workers, defaults to 0
+
+
+   .. py:attribute:: base
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: collate_fn_map
+
+
+   .. py:attribute:: num_workers
+      :value: 0
+
+
+
+   .. py:method:: train_dataloader()
+
+      Return the training dataloader.
+
+
+
+   .. py:method:: val_dataloader()
+
+      Return the validation dataloader, or an empty one if not set.
+
+
+
+   .. py:method:: test_dataloader()
+
+      Return the test dataloader.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Return the prediction dataloader.
+
+
+
+   .. py:method:: set_data(train_smiles: list[str] = None, val_smiles: list[str] = None, test_smiles: list[str] = None, predict_smiles: list[str] = None)
+
+      Set the raw SMILES data for each split.
+
+      For MLM, we only need SMILES - no labels required.
+
+      :param train_smiles: Training SMILES
+      :param val_smiles: Validation SMILES
+      :param test_smiles: Test SMILES
+      :param predict_smiles: Prediction SMILES
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Collate function that generates MLM features on-the-fly from batch SMILES.
+
+      Converts SMILES to molecules, generates tokenized features with masking,
+      and returns a batch ready for the MLM model.
+
+      :param batch: List of dicts with 'smiles' key
+      :return: Dict with 'token_ids', 'y', and 'mask' tensors
+
+
+
+   .. py:method:: featurize(mol_list, y=None, bound_mask=None, is_training: bool = True, n_jobs: int | None = None)
+
+      Delegate to base datamodule's featurize method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised)
+      :param bound_mask: ignored for MLM
+      :param is_training: whether to commit the dictionary
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: generate_features(mol_list, y=None, bound_mask=None, augment: bool = True, is_training: bool = True, n_jobs: int | None = None)
+
+      Delegate to base datamodule's generate_features method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised)
+      :param bound_mask: ignored for MLM
+      :param augment: whether to apply SMILES augmentation
+      :param is_training: whether to update the dictionary
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: fit_dictionary(smiles_list: list[str], n_jobs: int = 4)
+
+      Pre-fit the dictionary on a set of SMILES before using on-the-fly loading.
+
+      This is important for on-the-fly usage where we need a consistent
+      dictionary across all batches.
+
+      :param smiles_list: List of SMILES to fit dictionary on
+      :param n_jobs: Number of parallel jobs
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Setup dataloaders using raw data instead of pre-computed features.
+
+      :param stage: one of ``"fit"``, ``"test"``, or ``"predict"``
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, base state, and num_workers
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+
+.. py:class:: OnTheFlyMLMDataset(smiles: list[str])
+
+   Dataset that stores raw SMILES for on-the-fly MLM featurization.
+
+   Unlike OnTheFlyDataset, this does not require labels or descriptors
+   since MLM is self-supervised.
+
+
+   .. py:attribute:: smiles
+
+
+.. py:class:: GraphPretrainingDataModule(scale_y_graph: bool = False, scale_y_node: bool = False, laplacian_k: int = 10, rwse_k: int = 20, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, compute_distances: bool = True, num_virtual_nodes: int = 0, init_virtual_nodes: bool = False, batch_size: int = 256, num_workers: int = 0, augment_resonance: bool = False)
+
+   Bases: :py:obj:`matcha.datamodules.classic.graph_datamodule.GraphDataModule`
+
+
+   Graph DataModule for multi-task pretraining with atom-level and molecule-level labels.
+
+   Extends :class:`GraphDataModule` to accept user-provided per-atom labels
+   alongside molecule-level labels. This enables supervised pretraining of graph
+   neural networks (e.g. :class:`GINPretraining`) that jointly predict atom-level
+   targets (such as partial charges, SASA, electronegativity, etc.) and
+   molecule-level targets (such as logP, molecular weight, etc.).
+
+   The atom-level labels are **not** derived from the graph's own atom features —
+   they are externally computed properties supplied by the user.
+
+   Example usage:
+
+   .. code-block:: python
+
+       dm = GraphPretrainingDataModule()
+
+       # y_node is a list of arrays, one per molecule, each of shape (num_atoms, T)
+       # y_graph is a numpy array of shape (N, G)
+       dataset = dm.featurize(
+           mol_list=mols,
+           y_graph=y_graph,
+           y_node=y_node,
+       )
+
+   :param bool scale_y_graph: whether to fit a scaler on the molecule-level
+       targets during training, defaults to False
+
+   All other parameters are inherited from :class:`GraphDataModule`.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: export_to_classic() -> matcha.datamodules.classic.graph_datamodule.GraphDataModule
+
+      Return a :class:`GraphDataModule` that mirrors the current state.
+
+      The exported instance inherits all graph-specific settings
+      (positional encoding dimensions, virtual nodes, etc.) so that it can
+      be used directly for downstream (non-pretraining) training or
+      inference.
+
+      :return GraphDataModule: a classic graph datamodule with the same state
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y_graph: numpy.ndarray | None = None, y_node: list[numpy.ndarray] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate unscaled graph features with atom-level and molecule-level labels.
+
+      :param mol_list: list of N RDKit molecules
+      :param y_graph: array ``(N, G)`` of molecule-level targets, or None
+      :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets,
+          or None
+      :param n_jobs: number of parallel workers (None = auto)
+      :return: ``StackDataset`` with keys ``graph`` and ``y_graph``
+          (atom-level labels are stored on each ``Data.y_node``)
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y_graph: numpy.ndarray | None = None, y_node: list[numpy.ndarray] | None = None, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate a dataset ready for graph pretraining.
+
+      Processes molecules alongside their molecule-level and atom-level
+      labels into a ``StackDataset`` that can be consumed by
+      :class:`BaseGraphPretrainingModel`.
+
+      :param mol_list: list of N RDKit molecules
+      :param y_graph: array ``(N, G)`` of molecule-level targets
+      :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets
+      :param is_training: whether to fit the Y scaler (only affects
+          ``y_graph`` scaling when ``scale_y_graph=True``)
+      :param n_jobs: number of parallel workers (None = auto)
+      :return: ``StackDataset`` with keys ``graph`` and ``y_graph``
+
+
+
+   .. py:method:: fit(dataset: torch.utils.data.StackDataset) -> None
+
+      Fit scalers on labels if scaling is enabled.
+
+      :param dataset: StackDataset produced by :meth:`generate_features`
+
+
+
+   .. py:method:: transform(dataset: torch.utils.data.StackDataset) -> torch.utils.data.StackDataset
+
+      Scale labels if scaling is enabled.
+
+      :param dataset: StackDataset to transform in-place
+      :return: the same dataset with scaled labels
+
+
+
+   .. py:method:: collate_fn(data: list[dict]) -> dict
+
+      Collate a list of samples into a pretraining batch.
+
+      Produces the batch format expected by
+      :class:`BaseGraphPretrainingModel`:
+
+      - ``graph``: batched PyG graph (``y_node`` is auto-concatenated
+        by ``Batch.from_data_list`` as a node-level attribute)
+      - ``y_node``: ``[total_nodes_in_batch, T]``
+      - ``y_graph``: ``[batch_size, G]``
+
+      :param data: list of dicts from the ``StackDataset``
+      :return: dict with keys ``graph``, ``y_node``, ``y_graph``
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, params, and fitted scalers
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Create a dummy instance with default parameters.
+
+      :return: a new :class:`GraphPretrainingDataModule` with default settings
+
+
+
+.. py:class:: OnTheFlyGraphPretrainingDataModule(base: matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule, num_workers: int = 0, **kwargs)
+
+   Bases: :py:obj:`lightning.LightningDataModule`
+
+
+   DataModule that delays graph pretraining feature generation until batch time.
+
+   Wraps a :class:`GraphPretrainingDataModule` and stores raw SMILES,
+   molecule-level labels, and atom-level labels.  Graph construction and
+   featurization are performed inside the collate function when each batch
+   is assembled, keeping memory usage low for large-scale pretraining.
+
+   :param GraphPretrainingDataModule base: base datamodule used for
+       featurization
+   :param int num_workers: number of dataloader workers, defaults to 0
+
+
+   .. py:attribute:: base
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: num_workers
+      :value: 0
+
+
+
+   .. py:method:: train_dataloader()
+
+      Return the training dataloader.
+
+
+
+   .. py:method:: val_dataloader()
+
+      Return the validation dataloader, or an empty one if not set.
+
+
+
+   .. py:method:: test_dataloader()
+
+      Return the test dataloader.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Return the prediction dataloader.
+
+
+
+   .. py:method:: set_data(train_smiles: list[str] | None = None, train_y_graph: numpy.ndarray | None = None, train_y_node: list[numpy.ndarray] | None = None, val_smiles: list[str] | None = None, val_y_graph: numpy.ndarray | None = None, val_y_node: list[numpy.ndarray] | None = None, test_smiles: list[str] | None = None, test_y_graph: numpy.ndarray | None = None, test_y_node: list[numpy.ndarray] | None = None, predict_smiles: list[str] | None = None, predict_y_graph: numpy.ndarray | None = None, predict_y_node: list[numpy.ndarray] | None = None)
+
+      Set raw data for each split.
+
+      :param train_smiles: training SMILES
+      :param train_y_graph: training molecule-level labels ``(N, G)``
+      :param train_y_node: training atom-level labels, list of ``(A_i, T)``
+      :param val_smiles: validation SMILES
+      :param val_y_graph: validation molecule-level labels
+      :param val_y_node: validation atom-level labels
+      :param test_smiles: test SMILES
+      :param test_y_graph: test molecule-level labels
+      :param test_y_node: test atom-level labels
+      :param predict_smiles: prediction SMILES
+      :param predict_y_graph: prediction molecule-level labels
+      :param predict_y_node: prediction atom-level labels
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Generate graph pretraining features on-the-fly from SMILES.
+
+      Converts SMILES to molecules, delegates to the base datamodule's
+      :meth:`generate_features`, then reshapes into the dict format
+      expected by :class:`BaseGraphPretrainingModel`.
+
+      :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``
+      :return: dict with ``graph``, ``y_node``, ``y_graph``
+
+
+
+   .. py:method:: featurize(mol_list, y_graph=None, y_node=None, is_training=True, n_jobs=None)
+
+      Delegate to base datamodule's featurize method.
+
+      :param mol_list: list of RDKit molecules
+      :param y_graph: molecule-level labels
+      :param y_node: atom-level labels
+      :param is_training: whether to fit scalers
+      :param n_jobs: number of parallel workers
+      :return: featurized StackDataset
+
+
+
+   .. py:method:: generate_features(mol_list, y_graph=None, y_node=None, n_jobs=None)
+
+      Delegate to base datamodule's generate_features method.
+
+      :param mol_list: list of RDKit molecules
+      :param y_graph: molecule-level labels
+      :param y_node: atom-level labels
+      :param n_jobs: number of parallel workers
+      :return: StackDataset of unscaled features
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Setup dataloaders from raw data.
+
+      :param stage: one of ``"fit"``, ``"test"``, or ``"predict"``
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, base state, and num_workers
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+
+.. py:class:: OnTheFlyGraphPretrainingDataset(smiles: list[str], y_graph: numpy.ndarray, y_node: list[numpy.ndarray])
+
+   Dataset that stores raw SMILES with molecule-level and atom-level labels.
+
+   Used by :class:`OnTheFlyGraphPretrainingDataModule` to defer featurization
+   to collation time.
+
+   :param smiles: list of SMILES strings
+   :param y_graph: array ``(N, G)`` of molecule-level targets
+   :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets
+
+
+   .. py:attribute:: smiles
+
+
+   .. py:attribute:: y_graph
+
+
+   .. py:attribute:: y_node
+
+

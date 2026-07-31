@@ -1,0 +1,811 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.statistical_tests &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../cli.html">matcha.cli</a></li>
+      <li class="breadcrumb-item active">matcha.cli.statistical_tests</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.cli.statistical_tests</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Statistical comparison of model performance across paired data splits.</span>
+
+<span class="sd">The ``summarize`` CLI compares several models that were all evaluated on the</span>
+<span class="sd">*same* set of data splits (CV folds, time windows, clusters, or external</span>
+<span class="sd">files). Because every model sees the same splits, the observations are</span>
+<span class="sd">**paired** (a within-subject / repeated-measures design): the split-to-split</span>
+<span class="sd">variance is shared across models and must be partitioned out rather than</span>
+<span class="sd">pooled into the error term.</span>
+
+<span class="sd">This module provides two comparison strategies that both respect the paired</span>
+<span class="sd">design:</span>
+
+<span class="sd">* :class:`ParametricComparison` -- one-way **repeated-measures ANOVA** as the</span>
+<span class="sd">  omnibus test, followed by **Tukey HSD computed against the RM-ANOVA error</span>
+<span class="sd">  term** for the pairwise comparisons. Both are implemented directly on top of</span>
+<span class="sd">  numpy + scipy (no extra runtime dependency). Bonferroni correction is</span>
+<span class="sd">  applied across the endpoint-metric combinations at the omnibus level; the</span>
+<span class="sd">  studentized-range Tukey controls the family-wise error rate of the pairwise</span>
+<span class="sd">  tests intrinsically, so no further pairwise correction is applied.</span>
+<span class="sd">* :class:`NonParametricComparison` -- Friedman chi-squared omnibus test</span>
+<span class="sd">  followed by pairwise Wilcoxon signed-rank tests with Benjamini-Hochberg</span>
+<span class="sd">  correction. This path is unchanged in behaviour from the previous inline</span>
+<span class="sd">  implementation in ``summarize.py``.</span>
+
+<span class="sd">The parametric methodology (RM-ANOVA + Tukey against the ANOVA error term)</span>
+<span class="sd">follows the Polaris model-comparison example:</span>
+<span class="sd">https://github.com/polaris-hub/polaris-method-comparison/blob/main/ADME_example/model_comparison.py</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">combinations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy</span><span class="w"> </span><span class="kn">import</span> <span class="n">stats</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">false_discovery_control</span><span class="p">,</span> <span class="n">friedmanchisquare</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_rm_anova</span><span class="p">(</span><span class="n">matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One-way repeated-measures ANOVA.</span>
+
+<span class="sd">    Partitions the total sum of squares into a between-conditions term, a</span>
+<span class="sd">    between-subjects term, and the residual error term. The F statistic tests</span>
+<span class="sd">    the between-conditions effect against the residual, with the subject</span>
+<span class="sd">    (split) variance removed -- the key difference from a one-way ANOVA, which</span>
+<span class="sd">    would wrongly pool the subject variance into the error.</span>
+
+<span class="sd">    :param matrix: 2-D array shaped ``(n_subjects, k_conditions)``. Here rows</span>
+<span class="sd">        are data splits (the within-subject factor) and columns are models</span>
+<span class="sd">        (the grouping factor).</span>
+<span class="sd">    :returns: Tuple ``(f_stat, p_value, ms_error, df_error)``. ``ms_error``</span>
+<span class="sd">        and ``df_error`` are returned so the pairwise Tukey HSD can reuse the</span>
+<span class="sd">        same residual term.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">n_subjects</span><span class="p">,</span> <span class="n">k_conditions</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">shape</span>
+
+    <span class="n">grand_mean</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">condition_means</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># one mean per model</span>
+    <span class="n">subject_means</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># one mean per split</span>
+
+    <span class="n">ss_conditions</span> <span class="o">=</span> <span class="n">n_subjects</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">condition_means</span> <span class="o">-</span> <span class="n">grand_mean</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">ss_subjects</span> <span class="o">=</span> <span class="n">k_conditions</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">subject_means</span> <span class="o">-</span> <span class="n">grand_mean</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">ss_total</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="n">matrix</span> <span class="o">-</span> <span class="n">grand_mean</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+    <span class="n">ss_error</span> <span class="o">=</span> <span class="n">ss_total</span> <span class="o">-</span> <span class="n">ss_conditions</span> <span class="o">-</span> <span class="n">ss_subjects</span>
+
+    <span class="n">df_conditions</span> <span class="o">=</span> <span class="n">k_conditions</span> <span class="o">-</span> <span class="mi">1</span>
+    <span class="n">df_error</span> <span class="o">=</span> <span class="n">df_conditions</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_subjects</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">ms_conditions</span> <span class="o">=</span> <span class="n">ss_conditions</span> <span class="o">/</span> <span class="n">df_conditions</span>
+    <span class="n">ms_error</span> <span class="o">=</span> <span class="n">ss_error</span> <span class="o">/</span> <span class="n">df_error</span>
+
+    <span class="c1"># Perfect agreement between models leaves no residual variance; report an</span>
+    <span class="c1"># infinite F (p == 0) rather than dividing by zero.</span>
+    <span class="k">if</span> <span class="n">ms_error</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">f_stat</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="n">p_value</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">f_stat</span> <span class="o">=</span> <span class="n">ms_conditions</span> <span class="o">/</span> <span class="n">ms_error</span>
+        <span class="n">p_value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">f</span><span class="o">.</span><span class="n">sf</span><span class="p">(</span><span class="n">f_stat</span><span class="p">,</span> <span class="n">df_conditions</span><span class="p">,</span> <span class="n">df_error</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">f_stat</span><span class="p">),</span> <span class="n">p_value</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">ms_error</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">df_error</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_tukey_hsd_rm</span><span class="p">(</span>
+    <span class="n">condition_means</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">ms_error</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="n">df_error</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">n_subjects</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">k_conditions</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Tukey HSD pairwise p-values using the RM-ANOVA error term.</span>
+
+<span class="sd">    Computes the studentized range statistic</span>
+<span class="sd">    ``q = |mean_i - mean_j| / sqrt(MS_error / n_subjects)`` for every pair of</span>
+<span class="sd">    conditions and evaluates it against the studentized range distribution</span>
+<span class="sd">    with ``k_conditions`` groups and ``df_error`` degrees of freedom. The</span>
+<span class="sd">    studentized range controls the family-wise error rate across all pairwise</span>
+<span class="sd">    comparisons intrinsically, so no additional correction is applied.</span>
+
+<span class="sd">    :param condition_means: Mean metric value per condition (model).</span>
+<span class="sd">    :param ms_error: Residual mean square from :func:`_rm_anova`.</span>
+<span class="sd">    :param df_error: Residual degrees of freedom from :func:`_rm_anova`.</span>
+<span class="sd">    :param n_subjects: Number of data splits (within-subject observations).</span>
+<span class="sd">    :param k_conditions: Number of models being compared.</span>
+<span class="sd">    :returns: Dict mapping ``(i, j)`` condition index pairs to</span>
+<span class="sd">        ``(q_stat, p_value)``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">se</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">ms_error</span> <span class="o">/</span> <span class="n">n_subjects</span><span class="p">)</span> <span class="k">if</span> <span class="n">ms_error</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="n">results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">k_conditions</span><span class="p">),</span> <span class="mi">2</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">se</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">inf</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">q</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">condition_means</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">condition_means</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">/</span> <span class="n">se</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">stats</span><span class="o">.</span><span class="n">studentized_range</span><span class="o">.</span><span class="n">sf</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">k_conditions</span><span class="p">,</span> <span class="n">df_error</span><span class="p">))</span>
+        <span class="n">results</span><span class="p">[(</span><span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">)]</span> <span class="o">=</span> <span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">q</span><span class="p">),</span> <span class="n">p</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">results</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_holm_bonferroni</span><span class="p">(</span><span class="n">p_values</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Holm-Bonferroni step-down correction.</span>
+
+<span class="sd">    Sorts p-values ascending; for the i-th rank (0-indexed), the adjusted</span>
+<span class="sd">    p-value is ``min(p * (m - i), 1.0)``. Monotone non-decrease is enforced</span>
+<span class="sd">    via a running maximum so the output ordering is preserved.</span>
+
+<span class="sd">    :param p_values: Uncorrected p-values in original input order.</span>
+<span class="sd">    :returns: Corrected p-values in the same original order.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">m</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">p_values</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">m</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="n">indexed</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">enumerate</span><span class="p">(</span><span class="n">p_values</span><span class="p">),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+    <span class="n">corrected</span> <span class="o">=</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">]</span> <span class="o">*</span> <span class="n">m</span>
+    <span class="n">running_max</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="k">for</span> <span class="n">rank</span><span class="p">,</span> <span class="p">(</span><span class="n">original_idx</span><span class="p">,</span> <span class="n">p</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">indexed</span><span class="p">):</span>
+        <span class="n">adjusted</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">p</span> <span class="o">*</span> <span class="p">(</span><span class="n">m</span> <span class="o">-</span> <span class="n">rank</span><span class="p">),</span> <span class="mf">1.0</span><span class="p">)</span>
+        <span class="n">running_max</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">running_max</span><span class="p">,</span> <span class="n">adjusted</span><span class="p">)</span>
+        <span class="n">corrected</span><span class="p">[</span><span class="n">original_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">running_max</span>
+    <span class="k">return</span> <span class="n">corrected</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_PairedComparison</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shared logic for paired model comparisons across splits.</span>
+
+<span class="sd">    Both subclasses operate on the ``organized_data`` structure produced by</span>
+<span class="sd">    ``MLflowExperimentSummarizer.extract_split_metrics``:</span>
+<span class="sd">    ``{split_id: {endpoint: {metric: [value_per_run]}}}``, where the per-run</span>
+<span class="sd">    list is ordered to match ``run_id_order``.</span>
+
+<span class="sd">    Subclasses provide the omnibus statistic (:meth:`_omnibus`), the pairwise</span>
+<span class="sd">    comparison (:meth:`run_pairwise`), the pairwise correction</span>
+<span class="sd">    (:meth:`correct_pairwise`), and the descriptive method-name attributes</span>
+<span class="sd">    used in the summary report.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1">#: Per-result label stored under the ``&quot;test&quot;`` key of each omnibus dict.</span>
+    <span class="n">omnibus_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="c1">#: Method names recorded in the summary metadata.</span>
+    <span class="n">omnibus_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">pairwise_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">correction_method</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">logger</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_endpoint_metrics</span><span class="p">(</span><span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collect every ``(endpoint, metric)`` combination present in the data.&quot;&quot;&quot;</span>
+        <span class="n">combos</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">split_data</span> <span class="ow">in</span> <span class="n">organized_data</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">endpoint_data</span> <span class="ow">in</span> <span class="n">split_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="n">endpoint_data</span><span class="p">:</span>
+                    <span class="n">combos</span><span class="o">.</span><span class="n">add</span><span class="p">((</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">combos</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_matrix</span><span class="p">(</span>
+        <span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build per-run metric arrays across splits for one endpoint-metric.</span>
+
+<span class="sd">        :returns: Tuple ``(valid_arrays, valid_indices, split_ids)`` where</span>
+<span class="sd">            *valid_arrays* holds one array per run that has a value in every</span>
+<span class="sd">            split (each array indexed by split), *valid_indices* are the</span>
+<span class="sd">            corresponding run positions in ``run_id_order``, and *split_ids*</span>
+<span class="sd">            are the sorted split identifiers contributing data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">split_ids</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+            <span class="n">s</span>
+            <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">organized_data</span>
+            <span class="k">if</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="n">organized_data</span><span class="p">[</span><span class="n">s</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="p">{})</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">split_ids</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[],</span> <span class="p">[],</span> <span class="p">[]</span>
+
+        <span class="n">n_runs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">organized_data</span><span class="p">[</span><span class="n">split_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]][</span><span class="n">endpoint</span><span class="p">][</span><span class="n">metric_name</span><span class="p">])</span>
+        <span class="n">run_values</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[[]</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_runs</span><span class="p">)]</span>
+        <span class="k">for</span> <span class="n">split_id</span> <span class="ow">in</span> <span class="n">split_ids</span><span class="p">:</span>
+            <span class="n">metric_vals</span> <span class="o">=</span> <span class="n">organized_data</span><span class="p">[</span><span class="n">split_id</span><span class="p">][</span><span class="n">endpoint</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">metric_name</span><span class="p">,</span> <span class="p">[])</span>
+            <span class="k">for</span> <span class="n">run_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">n_runs</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">metric_vals</span><span class="p">))):</span>
+                <span class="n">run_values</span><span class="p">[</span><span class="n">run_idx</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metric_vals</span><span class="p">[</span><span class="n">run_idx</span><span class="p">])</span>
+
+        <span class="n">valid_indices</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">i</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_runs</span><span class="p">)</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">run_values</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="n">valid_arrays</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">run_values</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">valid_indices</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">valid_arrays</span><span class="p">,</span> <span class="n">valid_indices</span><span class="p">,</span> <span class="n">split_ids</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_omnibus</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the omnibus test for each endpoint-metric, Bonferroni-corrected.</span>
+
+<span class="sd">        Assesses overall group differences across runs for every</span>
+<span class="sd">        endpoint-metric combination, then applies a Bonferroni correction</span>
+<span class="sd">        across the number of combinations tested.</span>
+
+<span class="sd">        :param organized_data: Metrics organized by split/endpoint/metric.</span>
+<span class="sd">        :returns: Dict mapping ``(endpoint, metric)`` tuples to result dicts</span>
+<span class="sd">            with ``statistic``, ``p_value``, ``p_value_corrected``, ``test``,</span>
+<span class="sd">            and related keys.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">omnibus_results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">combos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_endpoint_metrics</span><span class="p">(</span><span class="n">organized_data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Running omnibus tests (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">omnibus_name</span><span class="si">}</span><span class="s2">) for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">combos</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="s2">&quot;endpoint-metric combinations&quot;</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="n">combos</span><span class="p">:</span>
+            <span class="n">valid_arrays</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">split_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_matrix</span><span class="p">(</span>
+                <span class="n">organized_data</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="s2">&quot;Not enough runs with complete data for omnibus test on &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric_name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Omnibus test requires at least 2 splits, got </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;for </span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric_name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_omnibus</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Failed </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">omnibus_name</span><span class="si">}</span><span class="s2"> omnibus test for &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="n">result</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">omnibus_name</span><span class="p">,</span>
+                    <span class="s2">&quot;n_runs&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">),</span>
+                    <span class="s2">&quot;n_splits&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">),</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+            <span class="n">omnibus_results</span><span class="p">[(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span><span class="p">)]</span> <span class="o">=</span> <span class="n">result</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_apply_bonferroni</span><span class="p">(</span><span class="n">omnibus_results</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">omnibus_results</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_apply_bonferroni</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">omnibus_results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Bonferroni-correct omnibus p-values in place across all metrics.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">omnibus_results</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">n_tests</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">omnibus_results</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">omnibus_results</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="n">corrected_p</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;p_value&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="n">n_tests</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;p_value_corrected&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">corrected_p</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;bonferroni_n_tests&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">n_tests</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;significant_05&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">corrected_p</span> <span class="o">&lt;</span> <span class="mf">0.05</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;significant_01&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">corrected_p</span> <span class="o">&lt;</span> <span class="mf">0.01</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Applied Bonferroni correction (n=</span><span class="si">{</span><span class="n">n_tests</span><span class="si">}</span><span class="s2">) to omnibus test p-values&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_omnibus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">valid_arrays</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the omnibus statistic for one endpoint-metric.</span>
+
+<span class="sd">        :param valid_arrays: One array per run, each indexed by split.</span>
+<span class="sd">        :returns: Dict with at least ``statistic`` and ``p_value``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_pairwise</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">run_id_order</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">run_id_to_name</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run pairwise comparisons for each endpoint-metric combination.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_pairwise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comparison_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply any multiple-testing correction to the pairwise results.&quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+
+
+<div class="viewcode-block" id="ParametricComparison">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.ParametricComparison">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ParametricComparison</span><span class="p">(</span><span class="n">_PairedComparison</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Repeated-measures ANOVA omnibus + Tukey-on-residuals pairwise tests.&quot;&quot;&quot;</span>
+
+    <span class="n">omnibus_name</span> <span class="o">=</span> <span class="s2">&quot;rm_anova&quot;</span>
+    <span class="n">omnibus_method</span> <span class="o">=</span> <span class="s2">&quot;rm_anova&quot;</span>
+    <span class="n">pairwise_method</span> <span class="o">=</span> <span class="s2">&quot;tukey_hsd&quot;</span>
+    <span class="n">correction_method</span> <span class="o">=</span> <span class="s2">&quot;bonferroni (omnibus) + tukey_hsd studentized-range (pairwise)&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_omnibus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">valid_arrays</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="c1"># Rows = splits (subjects), columns = models (conditions).</span>
+        <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">)</span>
+        <span class="n">f_stat</span><span class="p">,</span> <span class="n">p_value</span><span class="p">,</span> <span class="n">ms_error</span><span class="p">,</span> <span class="n">df_error</span> <span class="o">=</span> <span class="n">_rm_anova</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;statistic&quot;</span><span class="p">:</span> <span class="n">f_stat</span><span class="p">,</span>
+            <span class="s2">&quot;p_value&quot;</span><span class="p">:</span> <span class="n">p_value</span><span class="p">,</span>
+            <span class="s2">&quot;ms_error&quot;</span><span class="p">:</span> <span class="n">ms_error</span><span class="p">,</span>
+            <span class="s2">&quot;df_error&quot;</span><span class="p">:</span> <span class="n">df_error</span><span class="p">,</span>
+        <span class="p">}</span>
+
+<div class="viewcode-block" id="ParametricComparison.run_pairwise">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.ParametricComparison.run_pairwise">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_pairwise</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">run_id_order</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">run_id_to_name</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Tukey HSD pairwise comparisons against the RM-ANOVA error term.</span>
+
+<span class="sd">        Tukey&#39;s studentized range controls the family-wise error rate within</span>
+<span class="sd">        each endpoint-metric combination, so no additional correction is</span>
+<span class="sd">        applied downstream.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">comparison_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_endpoint_metrics</span><span class="p">(</span><span class="n">organized_data</span><span class="p">):</span>
+            <span class="n">valid_arrays</span><span class="p">,</span> <span class="n">valid_indices</span><span class="p">,</span> <span class="n">split_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_matrix</span><span class="p">(</span>
+                <span class="n">organized_data</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">)</span>
+                <span class="n">_</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">ms_error</span><span class="p">,</span> <span class="n">df_error</span> <span class="o">=</span> <span class="n">_rm_anova</span><span class="p">(</span><span class="n">matrix</span><span class="p">)</span>
+                <span class="n">condition_means</span> <span class="o">=</span> <span class="n">matrix</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">pair_stats</span> <span class="o">=</span> <span class="n">_tukey_hsd_rm</span><span class="p">(</span>
+                    <span class="n">condition_means</span><span class="p">,</span>
+                    <span class="n">ms_error</span><span class="p">,</span>
+                    <span class="n">df_error</span><span class="p">,</span>
+                    <span class="n">n_subjects</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">),</span>
+                    <span class="n">k_conditions</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Failed Tukey HSD for </span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">for</span> <span class="p">(</span><span class="n">idx_i</span><span class="p">,</span> <span class="n">idx_j</span><span class="p">),</span> <span class="p">(</span><span class="n">q_stat</span><span class="p">,</span> <span class="n">p_value</span><span class="p">)</span> <span class="ow">in</span> <span class="n">pair_stats</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">run_i_id</span> <span class="o">=</span> <span class="n">run_id_order</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">[</span><span class="n">idx_i</span><span class="p">]]</span>
+                <span class="n">run_j_id</span> <span class="o">=</span> <span class="n">run_id_order</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">[</span><span class="n">idx_j</span><span class="p">]]</span>
+                <span class="n">run_i_name</span> <span class="o">=</span> <span class="n">run_id_to_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">run_i_id</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;run_</span><span class="si">{</span><span class="n">run_i_id</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">run_j_name</span> <span class="o">=</span> <span class="n">run_id_to_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">run_j_id</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;run_</span><span class="si">{</span><span class="n">run_j_id</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="n">comparison_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;endpoint&quot;</span><span class="p">:</span> <span class="n">endpoint</span><span class="p">,</span>
+                        <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="n">metric_name</span><span class="p">,</span>
+                        <span class="s2">&quot;run_pair&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">run_i_name</span><span class="si">}</span><span class="s2">_vs_</span><span class="si">{</span><span class="n">run_j_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;run_i_name&quot;</span><span class="p">:</span> <span class="n">run_i_name</span><span class="p">,</span>
+                        <span class="s2">&quot;run_j_name&quot;</span><span class="p">:</span> <span class="n">run_j_name</span><span class="p">,</span>
+                        <span class="s2">&quot;run_i_id&quot;</span><span class="p">:</span> <span class="n">run_i_id</span><span class="p">,</span>
+                        <span class="s2">&quot;run_j_id&quot;</span><span class="p">:</span> <span class="n">run_j_id</span><span class="p">,</span>
+                        <span class="s2">&quot;statistic&quot;</span><span class="p">:</span> <span class="n">q_stat</span><span class="p">,</span>
+                        <span class="s2">&quot;p_value&quot;</span><span class="p">:</span> <span class="n">p_value</span><span class="p">,</span>
+                        <span class="s2">&quot;p_value_corrected&quot;</span><span class="p">:</span> <span class="n">p_value</span><span class="p">,</span>  <span class="c1"># studentized range self-corrects</span>
+                        <span class="s2">&quot;significant_05&quot;</span><span class="p">:</span> <span class="n">p_value</span> <span class="o">&lt;</span> <span class="mf">0.05</span><span class="p">,</span>
+                        <span class="s2">&quot;significant_01&quot;</span><span class="p">:</span> <span class="n">p_value</span> <span class="o">&lt;</span> <span class="mf">0.01</span><span class="p">,</span>
+                        <span class="s2">&quot;n_observations&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">),</span>
+                        <span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairwise_method</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Completed </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">comparison_results</span><span class="p">)</span><span class="si">}</span><span class="s2"> Tukey HSD pairwise comparisons&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">comparison_results</span></div>
+
+
+<div class="viewcode-block" id="ParametricComparison.correct_pairwise">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.ParametricComparison.correct_pairwise">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_pairwise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comparison_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;No-op: Tukey&#39;s studentized range already controls family-wise error.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">comparison_results</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="NonParametricComparison">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.NonParametricComparison">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">NonParametricComparison</span><span class="p">(</span><span class="n">_PairedComparison</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Friedman omnibus + Wilcoxon signed-rank pairwise with BH correction.&quot;&quot;&quot;</span>
+
+    <span class="n">omnibus_name</span> <span class="o">=</span> <span class="s2">&quot;Friedman&quot;</span>
+    <span class="n">omnibus_method</span> <span class="o">=</span> <span class="s2">&quot;friedman_chi_squared&quot;</span>
+    <span class="n">pairwise_method</span> <span class="o">=</span> <span class="s2">&quot;wilcoxon_signed_rank&quot;</span>
+    <span class="n">correction_method</span> <span class="o">=</span> <span class="s2">&quot;bonferroni (omnibus) + benjamini_hochberg (pairwise)&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_omnibus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">valid_arrays</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="c1"># Friedman treats each array as one model&#39;s scores across the paired</span>
+        <span class="c1"># splits; it requires at least two splits (enforced by run_omnibus).</span>
+        <span class="n">statistic</span><span class="p">,</span> <span class="n">p_value</span> <span class="o">=</span> <span class="n">friedmanchisquare</span><span class="p">(</span><span class="o">*</span><span class="n">valid_arrays</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;statistic&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">statistic</span><span class="p">),</span> <span class="s2">&quot;p_value&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">p_value</span><span class="p">)}</span>
+
+<div class="viewcode-block" id="NonParametricComparison.run_pairwise">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.NonParametricComparison.run_pairwise">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_pairwise</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">run_id_order</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">run_id_to_name</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pairwise Wilcoxon signed-rank tests across paired splits.&quot;&quot;&quot;</span>
+        <span class="n">comparison_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Get all unique run pairs</span>
+        <span class="n">first_split</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">organized_data</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">first_endpoint</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">organized_data</span><span class="p">[</span><span class="n">first_split</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">first_metric</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">organized_data</span><span class="p">[</span><span class="n">first_split</span><span class="p">][</span><span class="n">first_endpoint</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">n_runs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">organized_data</span><span class="p">[</span><span class="n">first_split</span><span class="p">][</span><span class="n">first_endpoint</span><span class="p">][</span><span class="n">first_metric</span><span class="p">])</span>
+
+        <span class="n">run_pairs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">combinations</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="n">n_runs</span><span class="p">),</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running pairwise comparisons for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">run_pairs</span><span class="p">)</span><span class="si">}</span><span class="s2"> run pairs&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">split_id</span><span class="p">,</span> <span class="n">split_data</span> <span class="ow">in</span> <span class="n">organized_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">endpoint_data</span> <span class="ow">in</span> <span class="n">split_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">for</span> <span class="n">metric_name</span><span class="p">,</span> <span class="n">metric_values</span> <span class="ow">in</span> <span class="n">endpoint_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">run_pairs</span><span class="p">:</span>
+                        <span class="c1"># Extract paired values across all splits for this metric-endpoint combination</span>
+                        <span class="n">values_run_i</span> <span class="o">=</span> <span class="p">[]</span>
+                        <span class="n">values_run_j</span> <span class="o">=</span> <span class="p">[]</span>
+
+                        <span class="c1"># Collect values for this metric-endpoint pair across all splits</span>
+                        <span class="k">for</span> <span class="n">other_split_id</span><span class="p">,</span> <span class="n">other_split_data</span> <span class="ow">in</span> <span class="n">organized_data</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                            <span class="k">if</span> <span class="n">other_split_id</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">]:</span>
+                                <span class="k">continue</span>
+                            <span class="k">if</span> <span class="p">(</span>
+                                <span class="n">endpoint</span> <span class="ow">in</span> <span class="n">other_split_data</span>
+                                <span class="ow">and</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="n">other_split_data</span><span class="p">[</span><span class="n">endpoint</span><span class="p">]</span>
+                            <span class="p">):</span>
+                                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">other_split_data</span><span class="p">[</span><span class="n">endpoint</span><span class="p">][</span><span class="n">metric_name</span><span class="p">])</span> <span class="o">&gt;</span> <span class="nb">max</span><span class="p">(</span>
+                                    <span class="n">i</span><span class="p">,</span> <span class="n">j</span>
+                                <span class="p">):</span>
+                                    <span class="n">values_run_i</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                                        <span class="n">other_split_data</span><span class="p">[</span><span class="n">endpoint</span><span class="p">][</span><span class="n">metric_name</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+                                    <span class="p">)</span>
+                                    <span class="n">values_run_j</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                                        <span class="n">other_split_data</span><span class="p">[</span><span class="n">endpoint</span><span class="p">][</span><span class="n">metric_name</span><span class="p">][</span><span class="n">j</span><span class="p">]</span>
+                                    <span class="p">)</span>
+
+                        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values_run_i</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>  <span class="c1"># Need at least 2 paired observations</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="c1"># Wilcoxon signed-rank test for paired samples</span>
+                                <span class="n">statistic</span><span class="p">,</span> <span class="n">p_value</span> <span class="o">=</span> <span class="n">stats</span><span class="o">.</span><span class="n">wilcoxon</span><span class="p">(</span>
+                                    <span class="n">values_run_i</span><span class="p">,</span>
+                                    <span class="n">values_run_j</span><span class="p">,</span>
+                                    <span class="n">alternative</span><span class="o">=</span><span class="s2">&quot;two-sided&quot;</span><span class="p">,</span>
+                                    <span class="n">zero_method</span><span class="o">=</span><span class="s2">&quot;wilcox&quot;</span><span class="p">,</span>
+                                <span class="p">)</span>
+
+                                <span class="c1"># Get run names from indices</span>
+                                <span class="n">run_i_id</span> <span class="o">=</span> <span class="n">run_id_order</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                                <span class="n">run_j_id</span> <span class="o">=</span> <span class="n">run_id_order</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                                <span class="n">run_i_name</span> <span class="o">=</span> <span class="n">run_id_to_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                                    <span class="n">run_i_id</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;run_</span><span class="si">{</span><span class="n">run_i_id</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+                                <span class="p">)</span>
+                                <span class="n">run_j_name</span> <span class="o">=</span> <span class="n">run_id_to_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                                    <span class="n">run_j_id</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;run_</span><span class="si">{</span><span class="n">run_j_id</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+                                <span class="p">)</span>
+
+                                <span class="n">comparison_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                                    <span class="p">{</span>
+                                        <span class="s2">&quot;split_id&quot;</span><span class="p">:</span> <span class="n">split_id</span><span class="p">,</span>
+                                        <span class="s2">&quot;endpoint&quot;</span><span class="p">:</span> <span class="n">endpoint</span><span class="p">,</span>
+                                        <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="n">metric_name</span><span class="p">,</span>
+                                        <span class="s2">&quot;run_pair&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">run_i_name</span><span class="si">}</span><span class="s2">_vs_</span><span class="si">{</span><span class="n">run_j_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                                        <span class="s2">&quot;run_i_name&quot;</span><span class="p">:</span> <span class="n">run_i_name</span><span class="p">,</span>
+                                        <span class="s2">&quot;run_j_name&quot;</span><span class="p">:</span> <span class="n">run_j_name</span><span class="p">,</span>
+                                        <span class="s2">&quot;run_i_id&quot;</span><span class="p">:</span> <span class="n">run_i_id</span><span class="p">,</span>
+                                        <span class="s2">&quot;run_j_id&quot;</span><span class="p">:</span> <span class="n">run_j_id</span><span class="p">,</span>
+                                        <span class="s2">&quot;statistic&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">statistic</span><span class="p">),</span>
+                                        <span class="s2">&quot;p_value&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">p_value</span><span class="p">),</span>
+                                        <span class="s2">&quot;n_observations&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">values_run_i</span><span class="p">),</span>
+                                    <span class="p">}</span>
+                                <span class="p">)</span>
+
+                            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                                    <span class="sa">f</span><span class="s2">&quot;Failed Wilcoxon test for </span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric_name</span><span class="si">}</span><span class="s2"> &quot;</span>
+                                    <span class="sa">f</span><span class="s2">&quot;runs </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> vs </span><span class="si">{</span><span class="n">j</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                                <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Completed </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">comparison_results</span><span class="p">)</span><span class="si">}</span><span class="s2"> pairwise comparisons&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">comparison_results</span></div>
+
+
+<div class="viewcode-block" id="NonParametricComparison.correct_pairwise">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.NonParametricComparison.correct_pairwise">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_pairwise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comparison_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Benjamini-Hochberg correction, grouped by endpoint-metric combination.&quot;&quot;&quot;</span>
+        <span class="c1"># Group results by endpoint and metric</span>
+        <span class="n">grouped_results</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">comparison_results</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;endpoint&quot;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;metric&quot;</span><span class="p">])</span>
+            <span class="n">grouped_results</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="n">corrected_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">total_corrections</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Apply BH correction separately for each endpoint-metric combination</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">metric</span><span class="p">),</span> <span class="n">group_results</span> <span class="ow">in</span> <span class="n">grouped_results</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="c1"># Extract p-values for this group</span>
+            <span class="n">p_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;p_value&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">group_results</span><span class="p">]</span>
+
+            <span class="c1"># Apply Benjamini-Hochberg correction</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">corrected_p_values</span> <span class="o">=</span> <span class="n">false_discovery_control</span><span class="p">(</span><span class="n">p_values</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s2">&quot;bh&quot;</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Failed BH correction for </span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+                <span class="n">corrected_p_values</span> <span class="o">=</span> <span class="n">p_values</span>
+
+            <span class="c1"># Add corrected p-values to results</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">result</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">group_results</span><span class="p">):</span>
+                <span class="n">result</span><span class="p">[</span><span class="s2">&quot;p_value_corrected&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">corrected_p_values</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+                <span class="n">result</span><span class="p">[</span><span class="s2">&quot;significant_05&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">corrected_p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.05</span><span class="p">)</span>
+                <span class="n">result</span><span class="p">[</span><span class="s2">&quot;significant_01&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">corrected_p_values</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mf">0.01</span><span class="p">)</span>
+
+            <span class="n">corrected_results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">group_results</span><span class="p">)</span>
+            <span class="n">total_corrections</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Applied BH correction for </span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">p_values</span><span class="p">)</span><span class="si">}</span><span class="s2"> comparisons&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Applied Benjamini-Hochberg correction to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">corrected_results</span><span class="p">)</span><span class="si">}</span><span class="s2"> p-values &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;across </span><span class="si">{</span><span class="n">total_corrections</span><span class="si">}</span><span class="s2"> endpoint-metric combinations&quot;</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">corrected_results</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BootstrapComparison">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.BootstrapComparison">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BootstrapComparison</span><span class="p">(</span><span class="n">_PairedComparison</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Bootstrap percentile CIs + Holm-Bonferroni pairwise comparisons.</span>
+
+<span class="sd">    Uses the ``&quot;{split_idx}_{bootstrap_idx}&quot;`` keys written by ``evaluate``</span>
+<span class="sd">    when ``split.n_bootstrap &gt; 1``. Each bootstrap sample is paired across</span>
+<span class="sd">    runs because all models were evaluated with the same fixed seed, so</span>
+<span class="sd">    element-wise differences form a valid paired distribution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">omnibus_name</span> <span class="o">=</span> <span class="s2">&quot;bootstrap_skipped&quot;</span>
+    <span class="n">omnibus_method</span> <span class="o">=</span> <span class="s2">&quot;none&quot;</span>
+    <span class="n">pairwise_method</span> <span class="o">=</span> <span class="s2">&quot;bootstrap_percentile&quot;</span>
+    <span class="n">correction_method</span> <span class="o">=</span> <span class="s2">&quot;holm_bonferroni (pairwise, per endpoint-metric)&quot;</span>
+
+<div class="viewcode-block" id="BootstrapComparison.run_omnibus">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.BootstrapComparison.run_omnibus">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_omnibus</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Bootstrap has no omnibus test; logs a warning and returns empty.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Bootstrap comparison has no omnibus test; skipping omnibus step.&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">{}</span></div>
+
+
+<div class="viewcode-block" id="BootstrapComparison.run_pairwise">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.BootstrapComparison.run_pairwise">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_pairwise</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">organized_data</span><span class="p">:</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">run_id_order</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">run_id_to_name</span><span class="p">:</span> <span class="n">Dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pairwise bootstrap percentile CIs and empirical p-values.&quot;&quot;&quot;</span>
+        <span class="n">bootstrap_data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">organized_data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">re</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;^\d+_\d+$&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">k</span><span class="p">))</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">bootstrap_data</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No bootstrap keys found in organized_data. &quot;</span>
+                <span class="s2">&quot;Set split.n_bootstrap &gt; 1 in the evaluate config.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">comparison_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_endpoint_metrics</span><span class="p">(</span><span class="n">organized_data</span><span class="p">):</span>
+            <span class="n">valid_arrays</span><span class="p">,</span> <span class="n">valid_indices</span><span class="p">,</span> <span class="n">split_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_matrix</span><span class="p">(</span>
+                <span class="n">bootstrap_data</span><span class="p">,</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">metric_name</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="n">n_bs</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">split_ids</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">idx_i</span><span class="p">,</span> <span class="n">idx_j</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">valid_arrays</span><span class="p">)),</span> <span class="mi">2</span><span class="p">):</span>
+                <span class="n">deltas</span> <span class="o">=</span> <span class="n">valid_arrays</span><span class="p">[</span><span class="n">idx_i</span><span class="p">]</span> <span class="o">-</span> <span class="n">valid_arrays</span><span class="p">[</span><span class="n">idx_j</span><span class="p">]</span>
+                <span class="n">statistic</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">deltas</span><span class="p">))</span>
+                <span class="n">ci_low</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">deltas</span><span class="p">,</span> <span class="mf">2.5</span><span class="p">))</span>
+                <span class="n">ci_high</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">deltas</span><span class="p">,</span> <span class="mf">97.5</span><span class="p">))</span>
+                <span class="n">frac_pos</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">deltas</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">))</span> <span class="o">/</span> <span class="n">n_bs</span>
+                <span class="n">frac_neg</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">deltas</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">))</span> <span class="o">/</span> <span class="n">n_bs</span>
+                <span class="n">p_value</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">*</span> <span class="nb">min</span><span class="p">(</span><span class="n">frac_pos</span><span class="p">,</span> <span class="n">frac_neg</span><span class="p">)</span>
+
+                <span class="n">run_i_id</span> <span class="o">=</span> <span class="n">run_id_order</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">[</span><span class="n">idx_i</span><span class="p">]]</span>
+                <span class="n">run_j_id</span> <span class="o">=</span> <span class="n">run_id_order</span><span class="p">[</span><span class="n">valid_indices</span><span class="p">[</span><span class="n">idx_j</span><span class="p">]]</span>
+                <span class="n">run_i_name</span> <span class="o">=</span> <span class="n">run_id_to_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">run_i_id</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;run_</span><span class="si">{</span><span class="n">run_i_id</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">run_j_name</span> <span class="o">=</span> <span class="n">run_id_to_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">run_j_id</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;run_</span><span class="si">{</span><span class="n">run_j_id</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="n">comparison_results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;endpoint&quot;</span><span class="p">:</span> <span class="n">endpoint</span><span class="p">,</span>
+                        <span class="s2">&quot;metric&quot;</span><span class="p">:</span> <span class="n">metric_name</span><span class="p">,</span>
+                        <span class="s2">&quot;run_pair&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">run_i_name</span><span class="si">}</span><span class="s2">_vs_</span><span class="si">{</span><span class="n">run_j_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="s2">&quot;run_i_name&quot;</span><span class="p">:</span> <span class="n">run_i_name</span><span class="p">,</span>
+                        <span class="s2">&quot;run_j_name&quot;</span><span class="p">:</span> <span class="n">run_j_name</span><span class="p">,</span>
+                        <span class="s2">&quot;run_i_id&quot;</span><span class="p">:</span> <span class="n">run_i_id</span><span class="p">,</span>
+                        <span class="s2">&quot;run_j_id&quot;</span><span class="p">:</span> <span class="n">run_j_id</span><span class="p">,</span>
+                        <span class="s2">&quot;statistic&quot;</span><span class="p">:</span> <span class="n">statistic</span><span class="p">,</span>
+                        <span class="s2">&quot;ci_low&quot;</span><span class="p">:</span> <span class="n">ci_low</span><span class="p">,</span>
+                        <span class="s2">&quot;ci_high&quot;</span><span class="p">:</span> <span class="n">ci_high</span><span class="p">,</span>
+                        <span class="s2">&quot;p_value&quot;</span><span class="p">:</span> <span class="n">p_value</span><span class="p">,</span>
+                        <span class="s2">&quot;n_observations&quot;</span><span class="p">:</span> <span class="n">n_bs</span><span class="p">,</span>
+                        <span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pairwise_method</span><span class="p">,</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Completed </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">comparison_results</span><span class="p">)</span><span class="si">}</span><span class="s2"> bootstrap pairwise comparisons&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">comparison_results</span></div>
+
+
+<div class="viewcode-block" id="BootstrapComparison.correct_pairwise">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.BootstrapComparison.correct_pairwise">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">correct_pairwise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">comparison_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Holm-Bonferroni correction grouped by endpoint-metric combination.&quot;&quot;&quot;</span>
+        <span class="n">grouped</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">comparison_results</span><span class="p">:</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;endpoint&quot;</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;metric&quot;</span><span class="p">])</span>
+            <span class="n">grouped</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="n">corrected_results</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">endpoint</span><span class="p">,</span> <span class="n">metric</span><span class="p">),</span> <span class="n">group</span> <span class="ow">in</span> <span class="n">grouped</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">p_values</span> <span class="o">=</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;p_value&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">group</span><span class="p">]</span>
+            <span class="n">corrected</span> <span class="o">=</span> <span class="n">_holm_bonferroni</span><span class="p">(</span><span class="n">p_values</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span><span class="p">,</span> <span class="n">p_corr</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">group</span><span class="p">,</span> <span class="n">corrected</span><span class="p">):</span>
+                <span class="n">r</span><span class="p">[</span><span class="s2">&quot;p_value_corrected&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p_corr</span>
+                <span class="n">r</span><span class="p">[</span><span class="s2">&quot;significant_05&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p_corr</span> <span class="o">&lt;</span> <span class="mf">0.05</span>
+                <span class="n">r</span><span class="p">[</span><span class="s2">&quot;significant_01&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">p_corr</span> <span class="o">&lt;</span> <span class="mf">0.01</span>
+            <span class="n">corrected_results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">group</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Applied Holm-Bonferroni correction for </span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s2">: &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">p_values</span><span class="p">)</span><span class="si">}</span><span class="s2"> comparisons&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Applied Holm-Bonferroni correction to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">corrected_results</span><span class="p">)</span><span class="si">}</span><span class="s2"> p-values&quot;</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">corrected_results</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="build_comparison">
+<a class="viewcode-back" href="../../../api/matcha/cli/statistical_tests/index.html#matcha.cli.statistical_tests.build_comparison">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">build_comparison</span><span class="p">(</span><span class="n">statistical_test</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_PairedComparison</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Construct the comparison strategy for the requested testing mode.</span>
+
+<span class="sd">    :param statistical_test: ``&quot;parametric&quot;`` or ``&quot;non-parametric&quot;``.</span>
+<span class="sd">    :param logger: Logger passed through to the comparison instance.</span>
+<span class="sd">    :returns: A :class:`ParametricComparison` or</span>
+<span class="sd">        :class:`NonParametricComparison`.</span>
+<span class="sd">    :raises ValueError: If *statistical_test* is not a supported mode.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">statistical_test</span> <span class="o">==</span> <span class="s2">&quot;parametric&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ParametricComparison</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">statistical_test</span> <span class="o">==</span> <span class="s2">&quot;non-parametric&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">NonParametricComparison</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">statistical_test</span> <span class="o">==</span> <span class="s2">&quot;bootstrap&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">BootstrapComparison</span><span class="p">(</span><span class="n">logger</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;statistical_test must be &#39;parametric&#39;, &#39;non-parametric&#39;, or &#39;bootstrap&#39;, &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;got &#39;</span><span class="si">{</span><span class="n">statistical_test</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

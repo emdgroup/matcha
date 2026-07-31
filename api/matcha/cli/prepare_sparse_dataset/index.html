@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.prepare_sparse_dataset &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.cli.prepare_sparse_dataset</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/cli/prepare_sparse_dataset/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.cli.prepare_sparse_dataset">
+<span id="matcha-cli-prepare-sparse-dataset"></span><h1>matcha.cli.prepare_sparse_dataset<a class="headerlink" href="#module-matcha.cli.prepare_sparse_dataset" title="Link to this heading"></a></h1>
+<p>CLI command for preparing sparse multi-task datasets for pretraining.</p>
+<p>Merges multiple parquet files into a single sparse matrix (compounds x tasks),
+creates train/validation splits, applies standard scaling to regression tasks,
+and saves the result in an efficient npz + parquet format consumed by the
+<code class="docutils literal notranslate"><span class="pre">pretrain_multitask</span></code> command.</p>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.prepare_sparse_dataset.compute_sparse_scaling_stats" title="matcha.cli.prepare_sparse_dataset.compute_sparse_scaling_stats"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_sparse_scaling_stats</span></code></a>(→ Dict[int, Dict[str, float]])</p></td>
+<td><p>Compute mean and std for specified task columns in sparse matrix without densifying.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.cli.prepare_sparse_dataset.apply_sparse_scaling" title="matcha.cli.prepare_sparse_dataset.apply_sparse_scaling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">apply_sparse_scaling</span></code></a>(→ scipy.sparse.csr_matrix)</p></td>
+<td><p>Apply scaling to sparse matrix columns without densifying the entire matrix.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.prepare_sparse_dataset.merge_datasets_streaming_sparse" title="matcha.cli.prepare_sparse_dataset.merge_datasets_streaming_sparse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">merge_datasets_streaming_sparse</span></code></a>(...)</p></td>
+<td><p>Build sparse matrix sequentially without loading all datasets into memory.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.cli.prepare_sparse_dataset.create_validation_set_sparse" title="matcha.cli.prepare_sparse_dataset.create_validation_set_sparse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_validation_set_sparse</span></code></a>(→ Tuple[pandas.DataFrame, ...)</p></td>
+<td><p>Create validation split for sparse data.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.prepare_sparse_dataset.generate_datacard_sparse" title="matcha.cli.prepare_sparse_dataset.generate_datacard_sparse"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_datacard_sparse</span></code></a>(→ Dict[str, Any])</p></td>
+<td><p>Generate datacard for sparse format data.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.cli.prepare_sparse_dataset.main" title="matcha.cli.prepare_sparse_dataset.main"><code class="xref py py-obj docutils literal notranslate"><span class="pre">main</span></code></a>(→ None)</p></td>
+<td><p>Main function to process datasets according to config.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.prepare_sparse_dataset.compute_sparse_scaling_stats">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.prepare_sparse_dataset.</span></span><span class="sig-name descname"><span class="pre">compute_sparse_scaling_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sparse_matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">scipy.sparse.csr_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_indices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/prepare_sparse_dataset.html#compute_sparse_scaling_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.prepare_sparse_dataset.compute_sparse_scaling_stats" title="Link to this definition"></a></dt>
+<dd><p>Compute mean and std for specified task columns in sparse matrix without densifying.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sparse_matrix</strong> – CSR sparse matrix.</p></li>
+<li><p><strong>task_indices</strong> – List of column indices to compute stats for.</p></li>
+<li><p><strong>logger</strong> – Logger instance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dictionary mapping task index to
+<code class="docutils literal notranslate"><span class="pre">{&quot;mean&quot;:</span> <span class="pre">float,</span> <span class="pre">&quot;std&quot;:</span> <span class="pre">float}</span></code>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.prepare_sparse_dataset.apply_sparse_scaling">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.prepare_sparse_dataset.</span></span><span class="sig-name descname"><span class="pre">apply_sparse_scaling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sparse_matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">scipy.sparse.csr_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scaling_stats</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">scipy.sparse.csr_matrix</span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/prepare_sparse_dataset.html#apply_sparse_scaling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.prepare_sparse_dataset.apply_sparse_scaling" title="Link to this definition"></a></dt>
+<dd><p>Apply scaling to sparse matrix columns without densifying the entire matrix.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sparse_matrix</strong> – Input sparse matrix.</p></li>
+<li><p><strong>scaling_stats</strong> – Dictionary with scaling statistics per column
+(from <a class="reference internal" href="#matcha.cli.prepare_sparse_dataset.compute_sparse_scaling_stats" title="matcha.cli.prepare_sparse_dataset.compute_sparse_scaling_stats"><code class="xref py py-func docutils literal notranslate"><span class="pre">compute_sparse_scaling_stats()</span></code></a>).</p></li>
+<li><p><strong>logger</strong> – Logger instance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Scaled sparse matrix.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.prepare_sparse_dataset.merge_datasets_streaming_sparse">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.prepare_sparse_dataset.</span></span><span class="sig-name descname"><span class="pre">merge_datasets_streaming_sparse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">merge_col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_types</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag_to_add</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">scipy.sparse.csr_matrix</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/prepare_sparse_dataset.html#merge_datasets_streaming_sparse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.prepare_sparse_dataset.merge_datasets_streaming_sparse" title="Link to this definition"></a></dt>
+<dd><p>Build sparse matrix sequentially without loading all datasets into memory.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.prepare_sparse_dataset.create_validation_set_sparse">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.prepare_sparse_dataset.</span></span><span class="sig-name descname"><span class="pre">create_validation_set_sparse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sparse_matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">scipy.sparse.csr_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_compounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">scipy.sparse.csr_matrix</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">scipy.sparse.csr_matrix</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/prepare_sparse_dataset.html#create_validation_set_sparse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.prepare_sparse_dataset.create_validation_set_sparse" title="Link to this definition"></a></dt>
+<dd><p>Create validation split for sparse data.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.prepare_sparse_dataset.generate_datacard_sparse">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.prepare_sparse_dataset.</span></span><span class="sig-name descname"><span class="pre">generate_datacard_sparse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_mol_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_mol_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">train_sparse</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">scipy.sparse.csr_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_sparse</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">scipy.sparse.csr_matrix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column_to_task_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">files</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_to_tasks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/prepare_sparse_dataset.html#generate_datacard_sparse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.prepare_sparse_dataset.generate_datacard_sparse" title="Link to this definition"></a></dt>
+<dd><p>Generate datacard for sparse format data.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.prepare_sparse_dataset.main">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.prepare_sparse_dataset.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/prepare_sparse_dataset.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.prepare_sparse_dataset.main" title="Link to this definition"></a></dt>
+<dd><p>Main function to process datasets according to config.</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

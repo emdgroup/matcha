@@ -1,0 +1,68 @@
+matcha.torch.models.finetuning.pretrained_encoder_wrapper
+=========================================================
+
+.. py:module:: matcha.torch.models.finetuning.pretrained_encoder_wrapper
+
+.. autoapi-nested-parse::
+
+   Adapter that gives a pretraining encoder the classic-model interface.
+
+   The :class:`Finetuner` expects its ``self.pretrain`` object to expose:
+
+   * ``encoder``                     — the encoder module
+   * ``predictor.prediction_head``   — (set to ``None`` during init)
+   * ``encode(batch) -> Tensor``     — returns a flat ``[B, D]`` embedding
+   * ``latent_dim``                  — output dimensionality of the encoder
+   * ``_label_names``                — label name list (empty for pretrained)
+
+   Pretraining models (:class:`BaseGraphPretrainingModel`, :class:`RoFormerMLM`)
+   do not naturally satisfy this contract.  This thin wrapper bridges the gap
+   so that the ``Finetuner`` code does not need to know whether the upstream
+   model was trained via classic or pretraining.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.finetuning.pretrained_encoder_wrapper.PretrainedEncoderWrapper
+
+
+Module Contents
+---------------
+
+.. py:class:: PretrainedEncoderWrapper(encoder: torch.nn.Module, encoder_type: str)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Wraps a pretraining encoder to present the classic-model interface.
+
+   :param nn.Module encoder: the encoder from a pretraining model
+   :param str encoder_type: one of ``"graph"`` or ``"mlm"``
+
+
+   .. py:attribute:: encoder
+
+
+   .. py:attribute:: predictor
+
+
+   .. py:property:: latent_dim
+      :type: int
+
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> torch.Tensor
+
+      Return a flat ``[B, D]`` embedding, regardless of encoder family.
+
+      * **Graph encoders** already aggregate via readout, returning
+        ``[B, D]`` from their ``forward(graph)`` call.
+      * **MLM encoders** return per-token embeddings ``[B, S, D]``;
+        we CLS-pool (take index 0) to get ``[B, D]``.
+
+
+

@@ -1,0 +1,291 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.multitask &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.nn.multitask</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/nn/multitask/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.nn.multitask">
+<span id="matcha-nn-multitask"></span><h1>matcha.nn.multitask<a class="headerlink" href="#module-matcha.nn.multitask" title="Link to this heading"></a></h1>
+<p>Multitask utilities: task affinity computation (TAG) and dataset stitching.</p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.multitask.TaskAffinityResult" title="matcha.nn.multitask.TaskAffinityResult"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TaskAffinityResult</span></code></a></p></td>
+<td><p>Container for Task Affinity Grouping (TAG) results.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.multitask.compute_task_affinity" title="matcha.nn.multitask.compute_task_affinity"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_task_affinity</span></code></a>(→ TaskAffinityResult)</p></td>
+<td><p>Compute task affinity matrix using the Task Affinity Grouping (TAG) algorithm.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.multitask.stitch_datasets" title="matcha.nn.multitask.stitch_datasets"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stitch_datasets</span></code></a>(→ pandas.DataFrame)</p></td>
+<td><p>Stitch multiple single-endpoint DataFrames into one multitask DataFrame.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.multitask.TaskAffinityResult">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.multitask.</span></span><span class="sig-name descname"><span class="pre">TaskAffinityResult</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/multitask.html#TaskAffinityResult"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.multitask.TaskAffinityResult" title="Link to this definition"></a></dt>
+<dd><p>Container for Task Affinity Grouping (TAG) results.</p>
+<p>Based on: <a class="reference external" href="https://arxiv.org/pdf/2109.04617">https://arxiv.org/pdf/2109.04617</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>affinity_matrix</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>numpy.ndarray</em></a>) – <code class="docutils literal notranslate"><span class="pre">(num_tasks,</span> <span class="pre">num_tasks)</span></code> matrix where entry <code class="docutils literal notranslate"><span class="pre">[i,</span> <span class="pre">j]</span></code>
+represents the affinity of task <em>i</em> to task <em>j</em>.</p></li>
+<li><p><strong>task_names</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Task names corresponding to matrix indices.</p></li>
+<li><p><strong>num_epochs</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of epochs used to compute the affinity.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.multitask.TaskAffinityResult.affinity_matrix">
+<span class="sig-name descname"><span class="pre">affinity_matrix</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></em><a class="headerlink" href="#matcha.nn.multitask.TaskAffinityResult.affinity_matrix" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.multitask.TaskAffinityResult.task_names">
+<span class="sig-name descname"><span class="pre">task_names</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.nn.multitask.TaskAffinityResult.task_names" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.multitask.TaskAffinityResult.num_epochs">
+<span class="sig-name descname"><span class="pre">num_epochs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.nn.multitask.TaskAffinityResult.num_epochs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.multitask.TaskAffinityResult.plot_affinity_matrix">
+<span class="sig-name descname"><span class="pre">plot_affinity_matrix</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">title</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'Task</span> <span class="pre">Affinity</span> <span class="pre">Matrix'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">700</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">600</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/multitask.html#TaskAffinityResult.plot_affinity_matrix"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.multitask.TaskAffinityResult.plot_affinity_matrix" title="Link to this definition"></a></dt>
+<dd><p>Create an interactive heatmap of the task affinity matrix using Plotly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>title</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Title of the plot.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Width of the figure in pixels.</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Height of the figure in pixels.</p></li>
+<li><p><strong>show_values</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to annotate cells with affinity values.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Interactive heatmap figure.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>plotly.graph_objects.Figure</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.multitask.TaskAffinityResult.get_top_k">
+<span class="sig-name descname"><span class="pre">get_top_k</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source_task</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_self</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/multitask.html#TaskAffinityResult.get_top_k"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.multitask.TaskAffinityResult.get_top_k" title="Link to this definition"></a></dt>
+<dd><p>Get the top-k most affine tasks for a given source task.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source_task</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Index of the source task.</p></li>
+<li><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of top affine tasks to return.</p></li>
+<li><p><strong>include_self</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to include the source task in results.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Task indices sorted by affinity (highest first).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a>]</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">source_task</span></code> is out of bounds or <code class="docutils literal notranslate"><span class="pre">k</span></code> is invalid.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.nn.multitask.compute_task_affinity">
+<span class="sig-prename descclassname"><span class="pre">matcha.nn.multitask.</span></span><span class="sig-name descname"><span class="pre">compute_task_affinity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sklearn_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../../sklearn/base_sklearn_model/index.html#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel" title="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel"><span class="pre">matcha.sklearn.base_sklearn_model.BaseScikitLearnModel</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">molecules</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">affinity_every_n_steps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">device</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#matcha.nn.multitask.TaskAffinityResult" title="matcha.nn.multitask.TaskAffinityResult"><span class="pre">TaskAffinityResult</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/multitask.html#compute_task_affinity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.multitask.compute_task_affinity" title="Link to this definition"></a></dt>
+<dd><p>Compute task affinity matrix using the Task Affinity Grouping (TAG) algorithm.</p>
+<p>Trains a single multitask model, periodically measuring how each task’s
+gradient step affects all other tasks’ losses. The collected affinity
+snapshots are averaged to produce the final matrix.</p>
+<p>The affinity <code class="docutils literal notranslate"><span class="pre">Z[i,</span> <span class="pre">j]</span></code> measures how much a gradient update on task <em>i</em>
+affects task <em>j</em>’s loss. A positive affinity indicates that training on
+task <em>i</em> reduces the loss of task <em>j</em>.</p>
+<p>Based on: <a class="reference external" href="https://arxiv.org/pdf/2109.04617">https://arxiv.org/pdf/2109.04617</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sklearn_model</strong> (<a class="reference internal" href="../../sklearn/base_sklearn_model/index.html#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel" title="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel"><em>matcha.sklearn.base_sklearn_model.BaseScikitLearnModel</em></a>) – A fitted MATCHA sklearn model instance.</p></li>
+<li><p><strong>molecules</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – Training molecules (RDKit Mol objects or SMILES strings).</p></li>
+<li><p><strong>labels</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><em>numpy.ndarray</em></a>) – Training labels of shape <code class="docutils literal notranslate"><span class="pre">(n_samples,</span> <span class="pre">n_tasks)</span></code>.</p></li>
+<li><p><strong>affinity_every_n_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Collect affinity every N training steps.</p></li>
+<li><p><strong>device</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Device for computation (<code class="docutils literal notranslate"><span class="pre">'cuda'</span></code>, <code class="docutils literal notranslate"><span class="pre">'cpu'</span></code>, or <code class="docutils literal notranslate"><span class="pre">None</span></code> for auto).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Object containing the affinity matrix and helper methods.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#matcha.nn.multitask.TaskAffinityResult" title="matcha.nn.multitask.TaskAffinityResult">TaskAffinityResult</a></p>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.graph</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphRegressor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.multitask</span><span class="w"> </span><span class="kn">import</span> <span class="n">compute_task_affinity</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">GraphRegressor</span><span class="p">(</span><span class="n">num_endpoints</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_mols</span><span class="p">,</span> <span class="n">train_labels</span><span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">compute_task_affinity</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">train_mols</span><span class="p">,</span> <span class="n">train_labels</span><span class="p">)</span>
+<span class="n">fig</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">plot_affinity_matrix</span><span class="p">()</span>
+<span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+
+<span class="c1"># Get top 2 most affine tasks for task 0</span>
+<span class="n">top_tasks</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get_top_k</span><span class="p">(</span><span class="n">source_task</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.nn.multitask.stitch_datasets">
+<span class="sig-prename descclassname"><span class="pre">matcha.nn.multitask.</span></span><span class="sig-name descname"><span class="pre">stitch_datasets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">property_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">smiles_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'SMILES'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bound_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'OPERATOR'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'endpoint'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/multitask.html#stitch_datasets"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.multitask.stitch_datasets" title="Link to this definition"></a></dt>
+<dd><p>Stitch multiple single-endpoint DataFrames into one multitask DataFrame.</p>
+<p>Pivots each DataFrame’s property column into a wide-format table keyed by
+SMILES, with NaN for missing task labels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>df_list</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>pd.DataFrame</em><em>]</em>) – DataFrames to stitch.</p></li>
+<li><p><strong>property_list</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – Property column name for each DataFrame.</p></li>
+<li><p><strong>smiles_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Column name for SMILES identifiers.</p></li>
+<li><p><strong>bound_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Column name for bound/operator information, or <code class="docutils literal notranslate"><span class="pre">None</span></code>.</p></li>
+<li><p><strong>index_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Optional column to preserve as a shared index.</p></li>
+<li><p><strong>tag</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Suffix appended to property column names in the output.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Wide-format DataFrame with one row per unique SMILES.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pandas.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

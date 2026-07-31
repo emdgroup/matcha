@@ -1,0 +1,301 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.classic.chemprop_model &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.classic.chemprop_model</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.models.classic.chemprop_model</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Chemprop (Directed Message Passing Neural Network) classic model.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.models.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">MPNN</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">BondMessagePassing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.predictors</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">RegressionFFN</span><span class="p">,</span>
+    <span class="n">BinaryClassificationFFN</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.agg</span><span class="w"> </span><span class="kn">import</span> <span class="n">AggregationRegistry</span> <span class="k">as</span> <span class="n">ChempropAggRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.agg</span><span class="w"> </span><span class="kn">import</span> <span class="n">AttentiveAggregation</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">LossFunctionRegistry</span> <span class="k">as</span> <span class="n">ChempropLossRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassicModelRegistry</span>
+
+
+<div class="viewcode-block" id="ChempropModel">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel">[docs]</a>
+<span class="nd">@ClassicModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropModel</span><span class="p">(</span><span class="n">MPNN</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Chemprop Directed Message Passing Neural Network (D-MPNN) for molecular</span>
+<span class="sd">    property prediction.</span>
+
+<span class="sd">    Wraps the Chemprop MPNN implementation with matcha&#39;s registry and</span>
+<span class="sd">    hyperparameter management. Unlike other classic models, this class inherits</span>
+<span class="sd">    directly from :class:`chemprop.models.model.MPNN` and uses Chemprop&#39;s</span>
+<span class="sd">    built-in scheduler and optimizer by default.</span>
+
+<span class="sd">    Reference: Yang et al., *Analyzing Learned Molecular Representations for</span>
+<span class="sd">    Property Prediction* (https://arxiv.org/abs/1904.01561)</span>
+
+<span class="sd">    Example usage:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        model = ChempropModel(num_endpoints=1)</span>
+<span class="sd">        trainer = L.Trainer(max_epochs=50)</span>
+<span class="sd">        trainer.fit(model=model, train_dataloaders=train_dataloader)</span>
+
+<span class="sd">    :param int enc_atom_hidden_dim: hidden dimensionality of bond message passing,</span>
+<span class="sd">        defaults to 300</span>
+<span class="sd">    :param int enc_num_layers: depth of message passing, defaults to 3</span>
+<span class="sd">    :param float enc_dropout: dropout in message-passing layers, defaults to 0.2</span>
+<span class="sd">    :param str enc_activation: activation function in the encoder, defaults to &#39;relu&#39;</span>
+<span class="sd">    :param str enc_readout: aggregation strategy (&#39;norm&#39;, &#39;mean&#39;, &#39;sum&#39;, &#39;attentive&#39;),</span>
+<span class="sd">        defaults to &#39;norm&#39;</span>
+<span class="sd">    :param int additional_mol_features_dim: dimensionality of extra molecular</span>
+<span class="sd">        features concatenated to the learned fingerprint, defaults to 0</span>
+<span class="sd">    :param int pred_hidden_dim: hidden size of feed-forward predictor layers,</span>
+<span class="sd">        defaults to 300</span>
+<span class="sd">    :param int pred_num_layers: number of feed-forward predictor layers, defaults to 2</span>
+<span class="sd">    :param float pred_dropout: dropout in predictor layers, defaults to 0.2</span>
+<span class="sd">    :param str pred_activation: activation in predictor layers, defaults to &#39;relu&#39;</span>
+<span class="sd">    :param int num_endpoints: number of prediction targets, defaults to 1</span>
+<span class="sd">    :param str loss_fn: loss function name (&#39;mse&#39;, &#39;bce&#39;, &#39;ce&#39;),</span>
+<span class="sd">        defaults to &#39;mse&#39;</span>
+<span class="sd">    :param str optimizer: optimizer name, defaults to &#39;chemprop&#39;</span>
+<span class="sd">    :param dict optimizer_args: optimizer arguments, defaults to {&#39;lr&#39;: 1e-3}</span>
+<span class="sd">    :param str scheduler: scheduler name, defaults to &#39;chemprop&#39;</span>
+<span class="sd">    :param dict scheduler_args: scheduler arguments,</span>
+<span class="sd">        defaults to {&#39;warmup_epochs&#39;: 5, &#39;max_lr&#39;: 1e-2, &#39;final_lr&#39;: 1e-5}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">enc_atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">enc_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">enc_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+        <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;norm&quot;</span><span class="p">,</span>
+        <span class="n">additional_mol_features_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">pred_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">pred_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+        <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">},</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span> <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">},</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">ChempropInputModel</span><span class="p">(</span>
+            <span class="n">enc_atom_hidden_dim</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">,</span>
+            <span class="n">enc_num_layers</span><span class="o">=</span><span class="n">enc_num_layers</span><span class="p">,</span>
+            <span class="n">enc_dropout</span><span class="o">=</span><span class="n">enc_dropout</span><span class="p">,</span>
+            <span class="n">enc_activation</span><span class="o">=</span><span class="n">enc_activation</span><span class="p">,</span>
+            <span class="n">enc_readout</span><span class="o">=</span><span class="n">enc_readout</span><span class="p">,</span>
+            <span class="n">additional_mol_features_dim</span><span class="o">=</span><span class="n">additional_mol_features_dim</span><span class="p">,</span>
+            <span class="n">pred_hidden_dim</span><span class="o">=</span><span class="n">pred_hidden_dim</span><span class="p">,</span>
+            <span class="n">pred_num_layers</span><span class="o">=</span><span class="n">pred_num_layers</span><span class="p">,</span>
+            <span class="n">pred_dropout</span><span class="o">=</span><span class="n">pred_dropout</span><span class="p">,</span>
+            <span class="n">pred_activation</span><span class="o">=</span><span class="n">pred_activation</span><span class="p">,</span>
+            <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+            <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span>
+            <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
+            <span class="n">scheduler</span><span class="o">=</span><span class="n">scheduler</span><span class="p">,</span>
+            <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">mp</span> <span class="o">=</span> <span class="n">BondMessagePassing</span><span class="p">(</span>
+            <span class="n">d_h</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">,</span>
+            <span class="n">depth</span><span class="o">=</span><span class="n">enc_num_layers</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="n">enc_dropout</span><span class="p">,</span>
+            <span class="n">activation</span><span class="o">=</span><span class="n">enc_activation</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">enc_readout</span> <span class="ow">in</span> <span class="n">ChempropAggRegistry</span><span class="p">:</span>
+            <span class="n">agg</span> <span class="o">=</span> <span class="n">ChempropAggRegistry</span><span class="p">[</span><span class="n">enc_readout</span><span class="p">]()</span>
+        <span class="k">elif</span> <span class="n">enc_readout</span> <span class="o">==</span> <span class="s2">&quot;attentive&quot;</span><span class="p">:</span>
+            <span class="n">agg</span> <span class="o">=</span> <span class="n">AttentiveAggregation</span><span class="p">(</span><span class="n">output_size</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">loss_fn</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;bce&quot;</span><span class="p">,</span> <span class="s2">&quot;ce&quot;</span><span class="p">):</span>
+            <span class="n">MLP</span> <span class="o">=</span> <span class="n">BinaryClassificationFFN</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">MLP</span> <span class="o">=</span> <span class="n">RegressionFFN</span>
+
+        <span class="n">mlp</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+            <span class="n">input_dim</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span> <span class="o">+</span> <span class="n">additional_mol_features_dim</span><span class="p">,</span>
+            <span class="n">hidden_dim</span><span class="o">=</span><span class="n">pred_hidden_dim</span><span class="p">,</span>
+            <span class="n">n_layers</span><span class="o">=</span><span class="n">pred_num_layers</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="n">pred_dropout</span><span class="p">,</span>
+            <span class="n">activation</span><span class="o">=</span><span class="n">pred_activation</span><span class="p">,</span>
+            <span class="n">n_tasks</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+            <span class="n">criterion</span><span class="o">=</span><span class="n">ChempropLossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](),</span>
+        <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">mp</span><span class="p">,</span>
+            <span class="n">agg</span><span class="p">,</span>
+            <span class="n">mlp</span><span class="p">,</span>
+            <span class="n">batch_norm</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">warmup_epochs</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">],</span>
+            <span class="n">init_lr</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">],</span>
+            <span class="n">max_lr</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;max_lr&quot;</span><span class="p">],</span>
+            <span class="n">final_lr</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;final_lr&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="ChempropModel.compute_learned_embedding">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel.compute_learned_embedding">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">compute_learned_embedding</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataloader</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract learned fingerprints for all batches in a dataloader.</span>
+
+<span class="sd">        :param dataloader: dataloader yielding Chemprop batch objects</span>
+<span class="sd">        :returns: list of fingerprint tensors, one per batch</span>
+<span class="sd">        :rtype: list[torch.Tensor]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="n">fingerprints</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">bmg</span><span class="p">,</span> <span class="n">batch</span><span class="o">.</span><span class="n">V_d</span><span class="p">,</span> <span class="n">batch</span><span class="o">.</span><span class="n">X_d</span><span class="p">,</span> <span class="n">i</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">dataloader</span>
+            <span class="p">]</span>
+        <span class="k">return</span> <span class="n">fingerprints</span></div>
+
+
+<div class="viewcode-block" id="ChempropModel.encode">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode a single batch into learned molecular fingerprints.</span>
+
+<span class="sd">        :param batch: Chemprop batch object</span>
+<span class="sd">        :returns: molecular fingerprint tensor</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoding</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">batch</span><span class="o">.</span><span class="n">V_d</span><span class="p">,</span> <span class="n">batch</span><span class="o">.</span><span class="n">X_d</span><span class="p">,</span> <span class="n">i</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ChempropModel.switch_mc_dropout">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel.switch_mc_dropout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">switch_mc_dropout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Not supported for Chemprop models.</span>
+
+<span class="sd">        :raises ValueError: always, as Chemprop does not support MC Dropout</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Chemprop does not support MC Dropout&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="ChempropModel.set_label_names">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel.set_label_names">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_label_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set endpoint label names for logging and metric tracking.</span>
+
+<span class="sd">        :param list[str] label_names: names of the prediction endpoints</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span> <span class="o">=</span> <span class="n">label_names</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

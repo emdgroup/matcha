@@ -1,0 +1,142 @@
+matcha.torch.models.classic.base_classic_model
+==============================================
+
+.. py:module:: matcha.torch.models.classic.base_classic_model
+
+.. autoapi-nested-parse::
+
+   Base class for classic (encoder + predictor) model architectures.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.torch.models.classic.base_classic_model.ClassicModelRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.classic.base_classic_model.BaseClassicModel
+
+
+Module Contents
+---------------
+
+.. py:class:: BaseClassicModel(additional_mol_features_dim: int = 0)
+
+   Bases: :py:obj:`matcha.torch.models.mixin.ModelMixin`, :py:obj:`abc.ABC`
+
+
+   Base class for all classic models. It is not meant to be instantiated directly,
+   but rather to be used as a parent class for each classic model. It should encompass
+   all basic routines needed for training and inference, therefore child classes only
+   need to define what are the encoder and predictor attributes.
+
+
+   .. py:attribute:: encoder
+      :value: None
+
+
+
+   .. py:attribute:: predictor
+      :value: None
+
+
+
+   .. py:property:: additional_mol_features_dim
+      :type: int
+
+
+      Dimensionality of extra molecular features appended to the encoder output.
+
+
+   .. py:property:: latent_dim
+      :type: int
+
+
+      Dimensionality of the learned representation, i.e. the output of the
+      hidden layers right before the prediction head.
+
+
+   .. py:method:: forward(batch: dict[str, Any]) -> torch.Tensor
+
+      Simple forward function for the training and prediction step. Depending
+      on the architecture, the input can be in different formats.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :return torch.Tensor: batched predictions
+
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> torch.Tensor
+
+      Simple encoding function for getting the latent space of a batch. Depending
+      on the architecture, the input can be in different formats.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :return torch.Tensor: latent space
+
+
+
+   .. py:method:: training_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Training step logic for classic models.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :param int batch_idx: leftover from lightning tutorial which I am too scared
+          to remove (TODO)
+
+      :return torch.Tensor: batch loss
+
+
+
+   .. py:method:: validation_step(batch, batch_idx) -> dict
+
+      Validation step logic for classic models. Analogous as the training step.
+
+      :param dict[str, Any] batch: batch of inputs to process
+      :param int batch_idx: leftover from lightning tutorial which I am too scared
+          to remove (TODO)
+      :return torch.Tensor: batch loss
+
+
+
+   .. py:method:: compute_learned_embedding(x: torch.utils.data.DataLoader) -> torch.Tensor
+
+      Extracts learned embeddings for a given batch from a dataloader.
+
+      :param object x: dataloader object containing the batched dataset to compute
+          embeddings of
+
+      :return torch.Tensor: learned embeddings for the dataset
+
+
+
+   .. py:method:: predict_step(batch: dict[str, Any]) -> torch.Tensor
+
+      Prediction step logic for classic models.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :return torch.Tensor: predictions for the batch
+
+
+
+   .. py:method:: configure_optimizers()
+
+      Configuration utility function to comply with the Lightning Trainer
+      API
+
+
+
+.. py:data:: ClassicModelRegistry
+

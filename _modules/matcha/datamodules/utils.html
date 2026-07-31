@@ -1,0 +1,348 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.utils &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Utility classes and collation functions for datamodules.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">cat</span><span class="p">,</span> <span class="n">stack</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dataset</span><span class="p">,</span> <span class="n">StackDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span><span class="p">,</span> <span class="n">Batch</span>
+
+
+<div class="viewcode-block" id="collate_fn_pyg_graph">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/utils/index.html#matcha.datamodules.collate_fn_pyg_graph">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">collate_fn_pyg_graph</span><span class="p">(</span><span class="n">graphs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Data</span><span class="p">],</span> <span class="n">collate_fn_map</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Collate function for PyTorch Geometric graphs.</span>
+
+<span class="sd">    Batches a list of PyG Data objects into a single batched Data object.</span>
+<span class="sd">    Handles shortest path distances (spd) and virtual node initialization.</span>
+
+<span class="sd">    :param graphs: list of PyG Data objects</span>
+<span class="sd">    :param collate_fn_map: unused, for compatibility</span>
+<span class="sd">    :return: batched PyG Data object</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Collect attributes that need special handling and should be excluded from auto-batching</span>
+    <span class="n">exclude_keys</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;spd&quot;</span><span class="p">,</span> <span class="s2">&quot;vnode_init&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Use PyG&#39;s Batch.from_data_list for batching</span>
+    <span class="n">batched_graph</span> <span class="o">=</span> <span class="n">Batch</span><span class="o">.</span><span class="n">from_data_list</span><span class="p">(</span><span class="n">graphs</span><span class="p">,</span> <span class="n">exclude_keys</span><span class="o">=</span><span class="n">exclude_keys</span><span class="p">)</span>
+
+    <span class="c1"># Handle shortest path distances if present</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">graphs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;spd&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">graphs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">spd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">spd_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">spd</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">graphs</span><span class="p">]</span>
+        <span class="n">batched_graph</span><span class="o">.</span><span class="n">spd</span> <span class="o">=</span> <span class="n">_pad_list</span><span class="p">(</span><span class="n">spd_list</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">batched_graph</span><span class="o">.</span><span class="n">spd</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Handle virtual node initialization if present</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">graphs</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="s2">&quot;vnode_init&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">graphs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">vnode_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">vnode_init</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">vnode_init</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">graphs</span><span class="p">]</span>
+        <span class="n">batched_graph</span><span class="o">.</span><span class="n">vnode_init</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">vnode_init</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">batched_graph</span><span class="o">.</span><span class="n">vnode_init</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Apply random sign flipping to Laplacian PE (for sign ambiguity invariance)</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">batched_graph</span><span class="p">,</span> <span class="s2">&quot;laplacian_k&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">batched_graph</span><span class="o">.</span><span class="n">laplacian_k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">random_signs</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">2</span><span class="p">,</span>
+                <span class="n">batched_graph</span><span class="o">.</span><span class="n">laplacian_k</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                <span class="n">device</span><span class="o">=</span><span class="n">batched_graph</span><span class="o">.</span><span class="n">laplacian_k</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+            <span class="o">*</span> <span class="mi">2</span>
+            <span class="o">-</span> <span class="mi">1</span>
+        <span class="p">)</span>
+        <span class="n">batched_graph</span><span class="o">.</span><span class="n">laplacian_k</span> <span class="o">=</span> <span class="n">batched_graph</span><span class="o">.</span><span class="n">laplacian_k</span> <span class="o">*</span> <span class="n">random_signs</span>
+
+    <span class="k">return</span> <span class="n">batched_graph</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_pad_list</span><span class="p">(</span><span class="n">tensor_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pad each tensor in a list to the maximum size using -1 as padding value.</span>
+
+<span class="sd">    :param list[torch.Tensor] tensor_list: list of tensors to pad</span>
+<span class="sd">    :returns: padded tensors stacked into a single tensor of shape</span>
+<span class="sd">        (batch_size, max_nodes, max_nodes)</span>
+<span class="sd">    :rtype: torch.Tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">max_nodes</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tensor_list</span><span class="p">)</span>
+    <span class="n">padded_tensor_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">tensor_list</span><span class="p">:</span>
+        <span class="n">N</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">pad</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_nodes</span> <span class="o">-</span> <span class="n">N</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="n">max_nodes</span> <span class="o">-</span> <span class="n">N</span><span class="p">)</span>
+        <span class="n">padded_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">t</span><span class="p">,</span> <span class="n">pad</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">padded_tensor_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">padded_tensor</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">padded_tensor_list</span><span class="p">)</span>
+
+
+<span class="n">collate_fns</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;mol_features&quot;</span><span class="p">:</span> <span class="n">stack</span><span class="p">,</span>
+    <span class="s2">&quot;graph&quot;</span><span class="p">:</span> <span class="n">collate_fn_pyg_graph</span><span class="p">,</span>
+    <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">stack</span><span class="p">,</span>
+    <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="n">cat</span><span class="p">,</span>
+    <span class="s2">&quot;token_ids&quot;</span><span class="p">:</span> <span class="n">stack</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="HandleMissing">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/utils/index.html#matcha.datamodules.HandleMissing">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">HandleMissing</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enum class to handle missing values in the data.&quot;&quot;&quot;</span>
+
+    <span class="n">RAISE</span> <span class="o">=</span> <span class="s2">&quot;raise&quot;</span>
+    <span class="n">FILL</span> <span class="o">=</span> <span class="s2">&quot;fill&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="concat_tensors_merge_fn">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/utils/index.html#matcha.datamodules.concat_tensors_merge_fn">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">concat_tensors_merge_fn</span><span class="p">(</span><span class="n">values</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Merge a list of tensors by concatenating them.</span>
+
+<span class="sd">    :param values: a list of tensors to concatenate</span>
+<span class="sd">    :param dim: the dimension along which to concatenate the tensors</span>
+
+<span class="sd">    :return: the concatenated tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">cat</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="n">dim</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="CombinedStackDataset">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/utils/index.html#matcha.datamodules.CombinedStackDataset">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CombinedStackDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A Dataset that can combine multiple `StackDataset`s.</span>
+
+<span class="sd">    This class is useful when you have multiple datasets that you want to combine into a single</span>
+<span class="sd">    dataset.</span>
+
+<span class="sd">    If a key appears in multiple datasets, the values get merged according to merge_fn.</span>
+
+<span class="sd">    :param datasets: a list of datasets to combine</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">datasets</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">StackDataset</span><span class="p">],</span> <span class="n">merge_fn</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a combined dataset from multiple StackDatasets.</span>
+
+<span class="sd">        :param list[StackDataset] datasets: list of StackDatasets to combine</span>
+<span class="sd">        :param dict[str, Callable] | None merge_fn: mapping from key name to</span>
+<span class="sd">            a callable that merges values when a key appears in multiple datasets</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span> <span class="o">=</span> <span class="n">datasets</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">merge_fn</span> <span class="o">=</span> <span class="n">merge_fn</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate_keys</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_handle_augmentation</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_keys_to_dataset_idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_keys_to_dataset_idx</span><span class="p">()</span>
+
+        <span class="c1"># (DB) this is not elegant, but I need to know which dataset is which</span>
+        <span class="c1"># when dealing with this class in an ensemble. the logic is not</span>
+        <span class="c1"># robust and assumes that only one datamodule of a specific type</span>
+        <span class="c1"># was used, but for now it will do</span>
+        <span class="c1"># TODO: find a better way to do this</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">datasets</span><span class="p">):</span>
+            <span class="k">if</span> <span class="s2">&quot;mol_features&quot;</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span><span class="p">[</span><span class="s2">&quot;tabular&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">if</span> <span class="s2">&quot;token_ids&quot;</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span><span class="p">[</span><span class="s2">&quot;clm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">if</span> <span class="s2">&quot;graph&quot;</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="k">if</span> <span class="s2">&quot;conformer&quot;</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_mapping</span><span class="p">[</span><span class="s2">&quot;graph3d&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that all keys that are present in multiple datasets have a merge function.&quot;&quot;&quot;</span>
+        <span class="n">keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">merge_fn</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Key </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2"> is present in multiple datasets, but no merge function was provided.&quot;</span>
+                        <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">keys</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_handle_augmentation</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check that all datasets have the same length.&quot;&quot;&quot;</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">set</span><span class="p">([</span><span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span> <span class="k">for</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">]))</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">aug_factor</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">max</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span> <span class="o">/</span> <span class="nb">min</span><span class="p">(</span><span class="n">lengths</span><span class="p">))</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Multiple augmentation factors are not supported. Please ensure that all datasets that were augmented, had the same augmentation factor.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">)):</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="o">==</span> <span class="nb">min</span><span class="p">(</span><span class="n">lengths</span><span class="p">):</span>
+                    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+                    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+                        <span class="n">num_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span>
+                        <span class="n">repeat_pattern</span> <span class="o">=</span> <span class="p">[</span><span class="n">aug_factor</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="n">num_dims</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="o">*</span><span class="n">repeat_pattern</span><span class="p">)</span>
+                        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_keys_to_dataset_idx</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get a mapping from key to dataset index.&quot;&quot;&quot;</span>
+        <span class="n">keys_to_dataset_idx</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">list</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+                <span class="n">keys_to_dataset_idx</span><span class="p">[</span><span class="n">key</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">i</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">keys_to_dataset_idx</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the item at the given index.</span>
+
+<span class="sd">        :param idx: the index of the item to get</span>
+
+<span class="sd">        :return: the item at the given index</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">dataset_idxs</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_keys_to_dataset_idx</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">values</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">dataset_idx</span> <span class="ow">in</span> <span class="n">dataset_idxs</span><span class="p">:</span>
+                <span class="n">values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">dataset_idx</span><span class="p">][</span><span class="n">idx</span><span class="p">][</span><span class="n">key</span><span class="p">])</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">item</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">merge_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">merge_fn</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+                <span class="n">item</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">merge_fn</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">item</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">__getitems__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx_iterable</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return all items in the loader as a list</span>
+
+<span class="sd">        :return list[dict[str, Any]]: list with all featurized samples</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="fm">__getitem__</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">idx_iterable</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the length of the dataset.</span>
+
+<span class="sd">        :return: the length of the dataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

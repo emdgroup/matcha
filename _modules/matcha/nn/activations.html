@@ -1,0 +1,256 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.activations &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.nn.activations</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.nn.activations</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Activation functions registered in the :data:`ActivationRegistry`.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassRegistry</span>
+
+<span class="n">ActivationRegistry</span> <span class="o">=</span> <span class="n">ClassRegistry</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="GEGLU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.GEGLU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;geglu&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GEGLU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;GEGLU activation function.</span>
+
+<span class="sd">    Splits the input along the last dimension into a value half and a gate half,</span>
+<span class="sd">    then returns ``value * GELU(gate)``.</span>
+
+<span class="sd">    Reference: https://arxiv.org/abs/2002.05202v1</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="GEGLU.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.GEGLU.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor x: Input tensor whose last dimension is split in two.</span>
+<span class="sd">        :returns: Gated output with half the last-dimension size.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">gates</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">F</span><span class="o">.</span><span class="n">gelu</span><span class="p">(</span><span class="n">gates</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="ReLU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.ReLU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;relu&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ReLU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Rectified Linear Unit (wraps :class:`torch.nn.ReLU`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="LeakyReLU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.LeakyReLU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;leaky_relu&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LeakyReLU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">LeakyReLU</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Leaky ReLU (wraps :class:`torch.nn.LeakyReLU`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="PReLU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.PReLU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;prelu&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">PReLU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">PReLU</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parametric ReLU (wraps :class:`torch.nn.PReLU`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="SELU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.SELU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;selu&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SELU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">SELU</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Scaled Exponential Linear Unit (wraps :class:`torch.nn.SELU`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="SILU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.SILU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;swish&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SILU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;SiLU / Swish activation (wraps :class:`torch.nn.SiLU`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Tanh">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.Tanh">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;tanh&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Tanh</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Tanh</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Hyperbolic tangent (wraps :class:`torch.nn.Tanh`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="ELU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.ELU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;elu&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ELU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">ELU</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Exponential Linear Unit (wraps :class:`torch.nn.ELU`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Mish">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.Mish">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;mish&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Mish</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Mish</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mish activation (wraps :class:`torch.nn.Mish`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="GELU">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.GELU">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;gelu&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GELU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">GELU</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gaussian Error Linear Unit (wraps :class:`torch.nn.GELU`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Sigmoid">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.Sigmoid">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;sigmoid&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Sigmoid</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Sigmoid activation (wraps :class:`torch.nn.Sigmoid`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="Softmax">
+<a class="viewcode-back" href="../../../api/matcha/nn/activations/index.html#matcha.nn.activations.Softmax">[docs]</a>
+<span class="nd">@ActivationRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;softmax&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Softmax</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Softmax</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Softmax activation (wraps :class:`torch.nn.Softmax`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

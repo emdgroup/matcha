@@ -1,0 +1,49 @@
+matcha.sklearn.managers.hpo_manager
+===================================
+
+.. py:module:: matcha.sklearn.managers.hpo_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.hpo_manager.HPOManager
+
+
+Module Contents
+---------------
+
+.. py:class:: HPOManager
+
+   Manages hyperparameter optimization via Optuna.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.sklearn_api.TuningInputModel | None
+
+
+      The tuning parameters, populated after tune() is called.
+
+
+   .. py:method:: tune(model_instance, train_set: list[torch.utils.data.StackDataset] | torch.utils.data.StackDataset, val_set: list[torch.utils.data.StackDataset] | torch.utils.data.StackDataset, architecture_search_budget: int = 30, architecture_grid: dict | None = None, optimizer_search_budget: int = 30, optimizer_grid: dict | None = None, scheduler_grid: dict | None = None) -> tuple
+
+      Hyperparameter tuning routine, adapted from:
+      https://github.com/google-research/tuning_playbook
+
+      :param model_instance: the sklearn model instance
+      :param StackDataset train_set: dataset to use for training
+      :param StackDataset val_set: target to tune parameters against
+      :param int architecture_search_budget: iterations for architecture search
+      :param dict | None architecture_grid: architecture parameters to tune
+      :param int optimizer_search_budget: iterations for optimizer search
+      :param dict | None optimizer_grid: optimizer parameters to tune
+      :param dict | None scheduler_grid: scheduler parameters to tune
+      :return tuple: study objects from Optuna for architecture and optimizer
+
+
+

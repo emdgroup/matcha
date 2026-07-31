@@ -1,0 +1,354 @@
+matcha.nn.readouts
+==================
+
+.. py:module:: matcha.nn.readouts
+
+.. autoapi-nested-parse::
+
+   Graph readout (pooling) layers registered in the :data:`ReadoutRegistry`.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.nn.readouts.ReadoutRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.nn.readouts.PyGAggregationWrapper
+   matcha.nn.readouts.SumPooling
+   matcha.nn.readouts.MeanPooling
+   matcha.nn.readouts.MaxPooling
+   matcha.nn.readouts.MinPooling
+   matcha.nn.readouts.MulPooling
+   matcha.nn.readouts.VarPooling
+   matcha.nn.readouts.StdPooling
+   matcha.nn.readouts.MedianPooling
+   matcha.nn.readouts.VariancePreservingPooling
+   matcha.nn.readouts.QuantilePooling
+   matcha.nn.readouts.SoftmaxPooling
+   matcha.nn.readouts.PowerMeanPooling
+   matcha.nn.readouts.LSTMPooling
+   matcha.nn.readouts.GRUPooling
+   matcha.nn.readouts.Set2SetPooling
+   matcha.nn.readouts.SortPooling
+   matcha.nn.readouts.AttentivePooling
+   matcha.nn.readouts.GraphMultisetTransformerPooling
+   matcha.nn.readouts.MLPPooling
+   matcha.nn.readouts.DeepSetsPooling
+   matcha.nn.readouts.SetTransformerPooling
+   matcha.nn.readouts.LCMPooling
+   matcha.nn.readouts.MultiPooling
+   matcha.nn.readouts.DegreeScalerPooling
+   matcha.nn.readouts.VirtualNodePooling
+
+
+Module Contents
+---------------
+
+.. py:data:: ReadoutRegistry
+
+.. py:class:: PyGAggregationWrapper(aggregation: torch_geometric.nn.aggr.Aggregation)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Wrapper to adapt PyG aggregation classes to the matcha readout interface.
+
+   PyG aggregations expect (x, index) while matcha readouts expect (graph, x).
+   This wrapper handles the conversion.
+
+
+   .. py:attribute:: aggregation
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch, x: torch.Tensor) -> torch.Tensor
+
+      :param graph: PyG batch containing the ``batch`` assignment vector.
+      :type graph: torch_geometric.data.Batch
+      :param torch.Tensor x: Node features of shape ``(total_nodes, feat_dim)``.
+      :returns: Graph-level features of shape ``(num_graphs, feat_dim)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: SumPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Sum aggregation over node features.
+
+
+.. py:class:: MeanPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Mean aggregation over node features.
+
+
+.. py:class:: MaxPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Max aggregation over node features.
+
+
+.. py:class:: MinPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Min aggregation over node features.
+
+
+.. py:class:: MulPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Multiplicative aggregation over node features.
+
+
+.. py:class:: VarPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Variance aggregation over node features.
+
+
+.. py:class:: StdPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Standard deviation aggregation over node features.
+
+
+.. py:class:: MedianPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Median aggregation over node features.
+
+
+.. py:class:: VariancePreservingPooling
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Variance-preserving aggregation over node features.
+
+
+.. py:class:: QuantilePooling(q: float = 0.5)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Quantile aggregation over node features.
+
+   :param float q: The quantile to compute (between 0 and 1).
+
+
+.. py:class:: SoftmaxPooling(learn: bool = True, t: float = 1.0, semi_grad: bool = False)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Softmax aggregation based on a temperature term.
+
+   :param bool learn: Whether to learn the temperature parameter.
+   :param float t: Initial temperature value.
+   :param bool semi_grad: If True, does not compute gradients for temperature.
+
+
+.. py:class:: PowerMeanPooling(learn: bool = True, p: float = 1.0)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Power mean aggregation based on a power term.
+
+   :param bool learn: Whether to learn the power parameter.
+   :param float p: Initial power value.
+
+
+.. py:class:: LSTMPooling(in_channels: int, out_channels: int)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   LSTM-style aggregation treating nodes as a sequence.
+
+   :param int in_channels: Size of each input sample.
+   :param int out_channels: Size of each output sample.
+
+
+.. py:class:: GRUPooling(in_channels: int, out_channels: int)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   GRU aggregation treating nodes as a sequence.
+
+   :param int in_channels: Size of each input sample.
+   :param int out_channels: Size of each output sample.
+
+
+.. py:class:: Set2SetPooling(in_channels: int, processing_steps: int = 3, num_layers: int = 1)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Set2Set aggregation based on iterative content-based attention.
+
+   :param int in_channels: Size of each input sample.
+   :param int processing_steps: Number of processing steps.
+   :param int num_layers: Number of recurrent layers.
+
+
+.. py:class:: SortPooling(k: int)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Sort aggregation where node features are sorted in descending order.
+
+   :param int k: The number of nodes to hold for each graph.
+
+
+.. py:class:: AttentivePooling(gate_nn_channels: int, nn_channels: int | None = None)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Soft attention aggregation from Graph Matching Networks.
+
+   :param int gate_nn_channels: Hidden channels for the gate network.
+   :param int nn_channels: Hidden channels for the feature network (optional).
+
+
+.. py:class:: GraphMultisetTransformerPooling(in_channels: int, hidden_channels: int, out_channels: int, num_heads: int = 4, pool_sequences: str | list[str] = ['GMPool_G', 'SelfAtt', 'GMPool_I'])
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Graph Multiset Transformer pooling.
+
+   :param int in_channels: Size of each input sample.
+   :param int hidden_channels: Size of hidden layer.
+   :param int out_channels: Size of each output sample.
+   :param int num_heads: Number of attention heads.
+   :param int pool_sequences: Pool sequences parameter.
+
+
+.. py:class:: MLPPooling(in_channels: int, out_channels: int, max_num_elements: int, hidden_channels: int | None = None, num_layers: int = 1)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   MLP aggregation where elements are flattened and processed by an MLP.
+
+   :param int in_channels: Size of each input sample.
+   :param int out_channels: Size of each output sample.
+   :param int max_num_elements: Maximum number of elements to aggregate.
+   :param int hidden_channels: Hidden layer size (optional).
+   :param int num_layers: Number of MLP layers.
+
+
+.. py:class:: DeepSetsPooling(in_channels: int, out_channels: int, hidden_channels: int | None = None, num_layers: int = 1)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Deep Sets aggregation with element-wise MLP, sum, and final MLP.
+
+   :param int in_channels: Size of each input sample.
+   :param int out_channels: Size of each output sample.
+   :param int hidden_channels: Hidden layer size (optional).
+   :param int num_layers: Number of MLP layers in each network.
+
+
+.. py:class:: SetTransformerPooling(in_channels: int, out_channels: int, hidden_channels: int | None = None, num_heads: int = 4, num_seed_points: int = 1, num_encoder_blocks: int = 1, num_decoder_blocks: int = 1)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Set Transformer aggregation with multi-head attention blocks.
+
+   :param int in_channels: Size of each input sample.
+   :param int out_channels: Size of each output sample.
+   :param int hidden_channels: Size of hidden layer (optional).
+   :param int num_heads: Number of attention heads.
+   :param int num_seed_points: Number of seed vectors.
+   :param int num_encoder_blocks: Number of encoder blocks.
+   :param int num_decoder_blocks: Number of decoder blocks.
+
+
+.. py:class:: LCMPooling(in_channels: int, out_channels: int, project: bool = True)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Learnable Commutative Monoid aggregation using binary tree reduction.
+
+   :param int in_channels: Size of each input sample.
+   :param int out_channels: Size of each output sample.
+   :param int project: Whether to project inputs/outputs.
+
+
+.. py:class:: MultiPooling(aggrs: list[str], mode: str = 'attn', mode_kwargs: dict | None = None)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Combines multiple aggregations.
+
+   :param list[str] aggrs: List of aggregation names to combine.
+   :param str mode: Combination mode ('cat', 'proj', 'attn', 'sum', 'mean', 'max', 'min', 'logsumexp', 'std', 'var').
+   :param dict mode_kwargs: Additional kwargs for the combination mode.
+
+
+.. py:class:: DegreeScalerPooling(aggrs: list[str], scalers: list[str], deg: torch.Tensor)
+
+   Bases: :py:obj:`PyGAggregationWrapper`
+
+
+   Combines aggregators with degree-based scalers (PNA-style).
+
+   :param list[str] aggrs: List of aggregation names to combine.
+   :param list[str] scalers: List of scaler names ('identity', 'amplification', 'attenuation', 'linear', 'inverse_linear').
+   :param float deg: Degree tensor or average degree.
+
+
+.. py:class:: VirtualNodePooling
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Extracts the virtual node representation as the graph embedding.
+
+   Assumes virtual nodes are added at the end of each graph.
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch, feat: torch.Tensor) -> torch.Tensor
+
+      :param graph: PyG batch with a ``ptr`` attribute.
+      :type graph: torch_geometric.data.Batch
+      :param torch.Tensor feat: Node features of shape ``(total_nodes, feat_dim)``.
+      :returns: Virtual-node features of shape ``(num_graphs, feat_dim)``.
+      :rtype: torch.Tensor
+
+
+

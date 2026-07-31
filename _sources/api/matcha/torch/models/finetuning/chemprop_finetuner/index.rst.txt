@@ -1,0 +1,86 @@
+matcha.torch.models.finetuning.chemprop_finetuner
+=================================================
+
+.. py:module:: matcha.torch.models.finetuning.chemprop_finetuner
+
+.. autoapi-nested-parse::
+
+   Chemprop-specific finetuner for transfer learning from pretrained D-MPNN models.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.finetuning.chemprop_finetuner.ChempropFinetuner
+
+
+Module Contents
+---------------
+
+.. py:class:: ChempropFinetuner(path_to_pretrained: str, pred_hidden_dim: int | None = 300, pred_num_layers: int = 2, pred_dropout: float = 0.2, pred_activation: str = 'relu', num_endpoints: int = 1, loss_fn: str = 'mse', optimizer: str = 'chemprop', optimizer_args: dict = {'lr': 1e-05}, scheduler_args: dict = {'warmup_epochs': 5, 'max_lr': 0.0001, 'final_lr': 1e-05}, _pretrain_config: dict | None = None)
+
+   Bases: :py:obj:`matcha.torch.models.classic.ChempropModel`
+
+
+   Finetuner for Chemprop D-MPNN pretrained models.
+
+   Loads a pretrained :class:`ChempropModel` checkpoint and configures the
+   prediction head (FFN) based on the loaded predictor state and the requested
+   ``pred_hidden_dim``. Normalization layers are frozen after loading. Supports
+   loading both full-model checkpoints and raw ``BondMessagePassing``
+   (encoder-only) checkpoints.
+
+   Predictor configuration follows four cases:
+
+   - **No predictor loaded, pred_hidden_dim is None**: Creates a linear head
+     (single linear layer from encoder output to ``num_endpoints``) using the
+     appropriate chemprop FFN class with ``n_layers=0``.
+   - **No predictor loaded, pred_hidden_dim is set**: Creates a new FFN with the
+     specified hidden dimensions and number of layers.
+   - **Predictor loaded, pred_hidden_dim is None**: Keeps the pretrained FFN
+     weights but resizes the output layer to ``num_endpoints``. Handles FFN
+     type mismatch (regression vs classification) by replacing with the correct
+     type and transferring compatible weights.
+   - **Predictor loaded, pred_hidden_dim is set**: Replaces the predictor
+     entirely with a new FFN of the specified dimensions.
+
+   :param str path_to_pretrained: Path to the pretrained Chemprop artifact directory
+   :param int | None pred_hidden_dim: Hidden dimension for the FFN. When None,
+       creates a linear head (encoder-only) or keeps pretrained weights (full
+       checkpoint). Defaults to 300.
+   :param int pred_num_layers: Number of FFN layers, defaults to 2
+   :param float pred_dropout: Dropout rate for the FFN, defaults to 0.2
+   :param str pred_activation: Activation function for the FFN, defaults to 'relu'
+   :param int num_endpoints: Number of prediction targets, defaults to 1
+   :param str loss_fn: Loss function name, defaults to 'mse'
+   :param str optimizer: Optimizer name, defaults to 'chemprop'
+   :param dict optimizer_args: Optimizer arguments, defaults to {"lr": 1e-5}
+   :param dict scheduler_args: Scheduler arguments with warmup configuration
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: init_lr
+      :value: 1e-05
+
+
+
+   .. py:attribute:: max_lr
+      :value: 0.0001
+
+
+
+   .. py:attribute:: final_lr
+      :value: 1e-05
+
+
+
+   .. py:attribute:: warmup_epochs
+      :value: 5
+
+
+

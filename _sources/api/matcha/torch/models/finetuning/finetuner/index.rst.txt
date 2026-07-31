@@ -1,0 +1,161 @@
+matcha.torch.models.finetuning.finetuner
+========================================
+
+.. py:module:: matcha.torch.models.finetuning.finetuner
+
+.. autoapi-nested-parse::
+
+   Finetuner model for transfer learning from pretrained encoders.
+
+   Supports full fine-tuning with layer-wise learning rate decay and
+   LoRA (Low-Rank Adaptation) as finetuning strategies.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.finetuning.finetuner.Finetuner
+
+
+Module Contents
+---------------
+
+.. py:class:: Finetuner(architecture: str, path_to_pretrained: str, pred_hidden_dims: list[int] = [256, 256], task_head_dims: list[int] | None = None, activation: str = 'relu', dropout: float = 0.1, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.0001}, pretrain_lr: float = 1e-06, pretrain_decay: float = 0.5, scheduler: str = 'cosine_annealing', scheduler_args: dict = {}, finetuning_strategy: str = 'full', lora_rank: int = 4, lora_alpha: float = 8.0, lora_min_dim: int = 32, _pretrain_config: dict | None = None)
+
+   Bases: :py:obj:`matcha.torch.models.mixin.ModelMixin`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Finetuner model that adapts a pretrained encoder for downstream tasks.
+
+   Loads a pretrained model (classic, pretraining, or nested finetuner) and
+   attaches a fresh MLP prediction head. Supports two finetuning strategies:
+
+   - ``"full"``: All encoder parameters are trainable with layer-wise learning
+     rate decay (deeper layers get smaller LRs). Uses two optimizers — one for
+     the new prediction head and one for the pretrained backbone.
+   - ``"lora"``: Freezes the pretrained encoder and injects LoRA adapters into
+     qualifying linear layers. Uses a single optimizer for the adapters and
+     prediction head.
+
+   Normalization layers (BatchNorm, LayerNorm, Embedding, AdaRMSN, GraphNorm)
+   are always frozen regardless of strategy.
+
+   :param str architecture: Name of the pretrained model architecture in the
+       ClassicModelRegistry (e.g., ``"ginmodel"``, ``"gpsmodel"``)
+   :param str path_to_pretrained: Path to the pretrained model artifact directory
+   :param list[int] pred_hidden_dims: Hidden dimensions for the new prediction
+       head MLP, defaults to [256, 256]
+   :param list[int] | None task_head_dims: Per-task head dimensions, defaults to None
+   :param str activation: Activation function for prediction head, defaults to 'relu'
+   :param float dropout: Dropout rate for prediction head, defaults to 0.1
+   :param int num_endpoints: Number of prediction targets, defaults to 1
+   :param str loss_fn: Loss function name, defaults to 'mse'
+   :param dict loss_args: Additional loss function arguments
+   :param str optimizer: Optimizer name, defaults to 'adam'
+   :param dict optimizer_args: Optimizer arguments, defaults to {"lr": 1e-4}
+   :param float pretrain_lr: Learning rate for pretrained encoder (full strategy),
+       defaults to 1e-6
+   :param float pretrain_decay: Layer-wise LR decay factor (full strategy),
+       defaults to 0.5
+   :param str scheduler: Learning rate scheduler name, defaults to 'cosine_annealing'
+   :param dict scheduler_args: Scheduler arguments
+   :param str finetuning_strategy: Either ``"full"`` or ``"lora"``, defaults to 'full'
+   :param int lora_rank: LoRA decomposition rank, defaults to 4
+   :param float lora_alpha: LoRA scaling numerator, defaults to 8.0
+   :param int lora_min_dim: Minimum layer dimension for LoRA injection, defaults to 32
+   :param dict | None _pretrain_config: Internal config for checkpoint reconstruction
+       (not a user-facing parameter)
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: automatic_optimization
+      :value: False
+
+
+      If set to ``False`` you are responsible for calling ``.backward()``, ``.step()``, ``.zero_grad()``.
+
+
+   .. py:attribute:: pretrain_output_dim
+
+
+   .. py:attribute:: predictor
+
+
+   .. py:method:: forward(batch: dict[str, Any]) -> torch.Tensor
+
+      Simple forward function for the training and prediction step. Depending
+      on the architecture, the input can be in different formats.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :return torch.Tensor: batched predictions
+
+
+
+   .. py:property:: latent_dim
+      :type: int
+
+
+      Dimensionality of the learned representation, i.e. the output of the
+      hidden layers right before the prediction head.
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> torch.Tensor
+
+      Simple encoding function for getting the latent space of a batch. Depending
+      on the architecture, the input can be in different formats.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :return torch.Tensor: latent space
+
+
+
+   .. py:method:: compute_learned_embedding(x) -> torch.Tensor
+
+      Extracts learned embeddings for a given batch from a dataloader.
+
+      :param object x: dataloader object containing the batched dataset to compute
+          embeddings of
+
+      :return torch.Tensor: learned embeddings for the dataset
+
+
+
+   .. py:method:: training_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Training step logic for finetuning.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :param int batch_idx: leftover from lightning tutorial which I am too scared
+          to remove (TODO)
+
+      :return torch.Tensor: batch loss
+
+
+
+   .. py:method:: predict_step(batch: dict[str, Any]) -> torch.Tensor
+
+      Prediction step logic for classic models.
+
+      :param dict[str, Any] batch: batch of inputs to process
+
+      :return torch.Tensor: predictions for the batch
+
+
+
+   .. py:method:: configure_optimizers()
+
+      Configure optimizers and schedulers for Lightning Trainer.
+
+      Returns two optimizers for full fine-tuning (manual optimization) or
+      a single optimizer with scheduler for LoRA (automatic optimization).
+
+
+

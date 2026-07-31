@@ -1,0 +1,668 @@
+matcha.utils.schemas.generic_models
+===================================
+
+.. py:module:: matcha.utils.schemas.generic_models
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.generic_models.ClassicMatchaModel
+   matcha.utils.schemas.generic_models.GraphMixin
+   matcha.utils.schemas.generic_models.GINMixin
+   matcha.utils.schemas.generic_models.AttentiveFPMixin
+   matcha.utils.schemas.generic_models.MPNNMixin
+   matcha.utils.schemas.generic_models.GatedGCNMixin
+   matcha.utils.schemas.generic_models.E3GNNMixin
+   matcha.utils.schemas.generic_models.GPSMixin
+   matcha.utils.schemas.generic_models.GPS3DMixin
+   matcha.utils.schemas.generic_models.GTMixin
+   matcha.utils.schemas.generic_models.GT3DMixin
+   matcha.utils.schemas.generic_models.CLMMixin
+   matcha.utils.schemas.generic_models.CNNMixin
+   matcha.utils.schemas.generic_models.RNNMixin
+   matcha.utils.schemas.generic_models.RoFormerMixin
+   matcha.utils.schemas.generic_models.TabularMixin
+   matcha.utils.schemas.generic_models.MLPMixin
+   matcha.utils.schemas.generic_models.SNNMixin
+   matcha.utils.schemas.generic_models.FinetunerMixin
+   matcha.utils.schemas.generic_models.ChempropFinetunerMixin
+
+
+Module Contents
+---------------
+
+.. py:class:: ClassicMatchaModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base schema for all standard matcha models defining shared training parameters.
+
+
+   .. py:attribute:: additional_mol_features_dim
+      :type:  int
+
+
+   .. py:attribute:: num_endpoints
+      :type:  int
+
+
+   .. py:attribute:: loss_fn
+      :type:  str
+
+
+   .. py:attribute:: loss_args
+      :type:  dict
+
+
+   .. py:attribute:: optimizer
+      :type:  str
+
+
+   .. py:attribute:: optimizer_args
+      :type:  dict[str, Any]
+
+
+   .. py:attribute:: scheduler
+      :type:  str
+
+
+   .. py:attribute:: scheduler_args
+      :type:  dict[str, Any]
+
+
+.. py:class:: GraphMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for shared graph neural network encoder parameters.
+
+
+   .. py:attribute:: enc_num_layers
+      :type:  int
+
+
+   .. py:attribute:: enc_readout
+      :type:  str
+
+
+   .. py:attribute:: pred_hidden_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: enc_atom_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_atom_hidden_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_activation
+      :type:  str
+
+
+   .. py:attribute:: enc_dropout
+      :type:  float
+
+
+   .. py:attribute:: enc_laplacian_k
+      :type:  int
+
+
+   .. py:attribute:: enc_rwse_k
+      :type:  int
+
+
+   .. py:attribute:: enc_distmat_k
+      :type:  int
+
+
+   .. py:attribute:: enc_elstatic_k
+      :type:  int
+
+
+   .. py:attribute:: pred_activation
+      :type:  str
+
+
+   .. py:attribute:: pred_dropout
+      :type:  float
+
+
+   .. py:attribute:: pred_task_head_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: enc_rrwp_k
+      :type:  int
+
+
+.. py:class:: GINMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for GIN-specific parameters such as aggregation and jumping knowledge.
+
+
+   .. py:attribute:: enc_aggregation
+      :type:  str
+
+
+   .. py:attribute:: enc_norm
+      :type:  str | None
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: AttentiveFPMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for AttentiveFP-specific parameters.
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: MPNNMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for MPNN-specific parameters including bond dimensions and aggregation.
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_bond_hidden_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_aggregation
+      :type:  str
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: GatedGCNMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for GatedGCN-specific parameters.
+
+
+   .. py:attribute:: enc_norm
+      :type:  str | None
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: E3GNNMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for E(3)-equivariant GNN parameters including coordinate updates.
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_m_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_fourier_features
+      :type:  int
+
+
+   .. py:attribute:: enc_soft_edge
+      :type:  bool
+
+
+   .. py:attribute:: enc_norm_feats
+      :type:  bool
+
+
+   .. py:attribute:: enc_norm_coors
+      :type:  bool
+
+
+   .. py:attribute:: enc_update_coors
+      :type:  bool
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: GPSMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for GPS (General Powerful Scalable) graph transformer parameters.
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_num_heads
+      :type:  int
+
+
+   .. py:attribute:: enc_expansion_k
+      :type:  int
+
+
+   .. py:attribute:: enc_distance_k
+      :type:  int | None
+
+
+   .. py:attribute:: enc_norm
+      :type:  str | None
+
+
+.. py:class:: GPS3DMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for 3D-aware GPS graph transformer parameters.
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_num_heads
+      :type:  int
+
+
+   .. py:attribute:: enc_expansion_k
+      :type:  int
+
+
+   .. py:attribute:: enc_num_kernels
+      :type:  int
+
+
+   .. py:attribute:: enc_norm
+      :type:  str | None
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: GTMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for Graph Transformer encoder parameters.
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_num_heads
+      :type:  int
+
+
+   .. py:attribute:: enc_expansion_k
+      :type:  int
+
+
+   .. py:attribute:: enc_distance_k
+      :type:  int | None
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: GT3DMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for 3D-aware Graph Transformer encoder parameters.
+
+
+   .. py:attribute:: enc_bond_input_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_num_heads
+      :type:  int
+
+
+   .. py:attribute:: enc_expansion_k
+      :type:  int
+
+
+   .. py:attribute:: enc_num_kernels
+      :type:  int
+
+
+   .. py:attribute:: enc_jk
+      :type:  str
+
+
+.. py:class:: CLMMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for character-level model (CLM) shared parameters.
+
+
+   .. py:attribute:: enc_num_characters
+      :type:  int
+
+
+   .. py:attribute:: pred_hidden_dims
+      :type:  list[int] | None
+
+
+.. py:class:: CNNMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for CNN encoder parameters including kernel dimensions.
+
+
+   .. py:attribute:: enc_hidden_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_kernel_dims
+      :type:  list[int]
+
+
+   .. py:attribute:: enc_num_heads
+      :type:  int
+
+
+.. py:class:: RNNMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for RNN encoder parameters including type and bidirectionality.
+
+
+   .. py:attribute:: enc_rnn_type
+      :type:  str
+
+
+   .. py:attribute:: enc_hidden_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_bidirectional
+      :type:  bool
+
+
+   .. py:attribute:: enc_num_layers
+      :type:  int
+
+
+   .. py:attribute:: enc_embedding_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_num_heads
+      :type:  int
+
+
+.. py:class:: RoFormerMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for RoFormer encoder parameters with rotary position embeddings.
+
+
+   .. py:attribute:: enc_hidden_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_expansion_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_num_heads
+      :type:  int
+
+
+   .. py:attribute:: enc_num_layers
+      :type:  int
+
+
+   .. py:attribute:: enc_attention_dropout
+      :type:  float
+
+
+   .. py:attribute:: enc_hidden_dropout
+      :type:  float
+
+
+.. py:class:: TabularMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for tabular (deep lasso) model parameters.
+
+
+   .. py:attribute:: deep_lasso_weight
+      :type:  float
+
+
+   .. py:attribute:: dropout
+      :type:  float
+
+
+.. py:class:: MLPMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for MLP predictor parameters including hidden dimensions.
+
+
+   .. py:attribute:: hidden_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: activation
+      :type:  str
+
+
+   .. py:attribute:: task_head_dims
+      :type:  list[int] | None
+
+
+.. py:class:: SNNMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for Self-Normalizing Network parameters.
+
+
+   .. py:attribute:: hidden_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: num_parallel
+      :type:  int
+
+
+.. py:class:: FinetunerMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for finetuning a pretrained encoder with LoRA or full strategy.
+
+
+   .. py:attribute:: architecture
+      :type:  str
+
+
+   .. py:attribute:: path_to_pretrained
+      :type:  str
+
+
+   .. py:attribute:: pred_hidden_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: activation
+      :type:  str
+
+
+   .. py:attribute:: dropout
+      :type:  float
+
+
+   .. py:attribute:: num_endpoints
+      :type:  int
+
+
+   .. py:attribute:: loss_fn
+      :type:  str
+
+
+   .. py:attribute:: loss_args
+      :type:  dict
+
+
+   .. py:attribute:: optimizer
+      :type:  str
+
+
+   .. py:attribute:: optimizer_args
+      :type:  dict
+
+
+   .. py:attribute:: pretrain_lr
+      :type:  float
+
+
+   .. py:attribute:: pretrain_decay
+      :type:  float
+
+
+   .. py:attribute:: scheduler
+      :type:  str
+
+
+   .. py:attribute:: scheduler_args
+      :type:  dict
+
+
+   .. py:attribute:: finetuning_strategy
+      :type:  str
+      :value: 'full'
+
+
+
+   .. py:attribute:: lora_rank
+      :type:  int
+      :value: 4
+
+
+
+   .. py:attribute:: lora_alpha
+      :type:  float
+      :value: 8.0
+
+
+
+   .. py:attribute:: lora_min_dim
+      :type:  int
+      :value: 32
+
+
+
+.. py:class:: ChempropFinetunerMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for finetuning a Chemprop pretrained model.
+
+
+   .. py:attribute:: path_to_pretrained
+      :type:  str
+
+
+   .. py:attribute:: num_endpoints
+      :type:  int
+
+
+   .. py:attribute:: loss_fn
+      :type:  str
+
+
+   .. py:attribute:: optimizer
+      :type:  str
+
+
+   .. py:attribute:: optimizer_args
+      :type:  dict
+
+
+   .. py:attribute:: scheduler_args
+      :type:  dict
+
+
+   .. py:attribute:: pred_hidden_dim
+      :type:  int | None
+
+
+   .. py:attribute:: pred_num_layers
+      :type:  int
+
+
+   .. py:attribute:: pred_dropout
+      :type:  float
+
+
+   .. py:attribute:: pred_activation
+      :type:  str
+
+

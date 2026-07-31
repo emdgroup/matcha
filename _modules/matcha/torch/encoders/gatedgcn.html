@@ -1,0 +1,416 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.gatedgcn &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.gatedgcn</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.encoders.gatedgcn</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Gated Graph Convolution Network (GatedGCN) encoder.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModuleList</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Batch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">MessagePassing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">scatter</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">EncoderRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.activations</span><span class="w"> </span><span class="kn">import</span> <span class="n">ActivationRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LayerRegistry</span>
+
+
+<div class="viewcode-block" id="GatedGCNConv">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gatedgcn/index.html#matcha.torch.encoders.gatedgcn.GatedGCNConv">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GatedGCNConv</span><span class="p">(</span><span class="n">MessagePassing</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reimplementation of Residual Gated Graph Convolution, based on</span>
+<span class="sd">    Graphium&#39;s implementation (https://github.com/datamol-io/graphium/blob/f1c1809387184114a06ac2077bb57501bf09f495/graphium/nn/pyg_layers/gated_gcn_pyg.py#L28).</span>
+
+<span class="sd">    Original publication is &#39;Residual Gated Graph ConvNets&#39; (Bresson and Laurent, ICLR 2018).</span>
+<span class="sd">    Reference: https://arxiv.org/pdf/1711.07553v2.pdf</span>
+
+<span class="sd">    :param int in_channels: Input feature dimensions of nodes</span>
+<span class="sd">    :param int out_channels: Output feature dimensions of nodes</span>
+<span class="sd">    :param int edge_dim: Input edge-feature dimensions</span>
+<span class="sd">    :param int out_edge_dim: Output edge-feature dimensions (defaults to edge_dim)</span>
+<span class="sd">    :param str activation: Activation function name</span>
+<span class="sd">    :param float dropout: Dropout ratio</span>
+<span class="sd">    :param str | None norm: Normalization type (&#39;batch&#39;, &#39;layer&#39;, &#39;graph&#39;, or None)</span>
+<span class="sd">    :param float eps: Epsilon for numerical stability in gate normalization</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">edge_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">out_edge_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">aggr</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span> <span class="n">flow</span><span class="o">=</span><span class="s2">&quot;source_to_target&quot;</span><span class="p">,</span> <span class="n">node_dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">out_edge_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">out_edge_dim</span> <span class="o">=</span> <span class="n">edge_dim</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm_type</span> <span class="o">=</span> <span class="n">norm</span>
+
+        <span class="c1"># Linear layers for gating mechanism</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">B</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">C</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">edge_dim</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">D</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">E</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Edge output projection</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edge_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">out_edge_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># Activation and dropout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">ActivationRegistry</span><span class="p">[</span><span class="n">activation</span><span class="p">]()</span> <span class="k">if</span> <span class="n">activation</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span>
+
+        <span class="c1"># Normalization (handle &quot;graph&quot; separately since it needs batch index)</span>
+        <span class="k">if</span> <span class="n">norm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">norm</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">LayerRegistry</span><span class="p">[</span><span class="n">norm</span><span class="p">](</span><span class="n">out_channels</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="GatedGCNConv.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gatedgcn/index.html#matcha.torch.encoders.gatedgcn.GatedGCNConv.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_attr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">batch</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass for the gated graph convolution layer.</span>
+
+<span class="sd">        :param torch.Tensor x: Node features with shape [num_nodes, in_channels]</span>
+<span class="sd">        :param torch.Tensor edge_index: Edge indices with shape [2, num_edges]</span>
+<span class="sd">        :param torch.Tensor edge_attr: Edge features with shape [num_edges, edge_dim]</span>
+<span class="sd">        :param torch.Tensor | None batch: Batch assignment for nodes (required for GraphNorm)</span>
+<span class="sd">        :return tuple[torch.Tensor, torch.Tensor]: Updated node and edge features</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Apply linear transformations</span>
+        <span class="n">Ax</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">Bx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">B</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">Ce</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">C</span><span class="p">(</span><span class="n">edge_attr</span><span class="p">)</span>
+        <span class="n">Dx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">D</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">Ex</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">E</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="c1"># Propagate messages</span>
+        <span class="n">x_out</span><span class="p">,</span> <span class="n">e_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate</span><span class="p">(</span>
+            <span class="n">edge_index</span><span class="p">,</span> <span class="n">Bx</span><span class="o">=</span><span class="n">Bx</span><span class="p">,</span> <span class="n">Dx</span><span class="o">=</span><span class="n">Dx</span><span class="p">,</span> <span class="n">Ex</span><span class="o">=</span><span class="n">Ex</span><span class="p">,</span> <span class="n">Ce</span><span class="o">=</span><span class="n">Ce</span><span class="p">,</span> <span class="n">e</span><span class="o">=</span><span class="n">edge_attr</span><span class="p">,</span> <span class="n">Ax</span><span class="o">=</span><span class="n">Ax</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Apply normalization, activation, and dropout</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_type</span> <span class="o">==</span> <span class="s2">&quot;graph&quot;</span><span class="p">:</span>
+                <span class="n">x_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x_out</span><span class="p">,</span> <span class="n">batch</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">x_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x_out</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">x_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">x_out</span><span class="p">)</span>
+
+        <span class="n">x_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">x_out</span><span class="p">)</span>
+
+        <span class="c1"># Project edge features</span>
+        <span class="n">e_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_out</span><span class="p">(</span><span class="n">e_out</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x_out</span><span class="p">,</span> <span class="n">e_out</span></div>
+
+
+<div class="viewcode-block" id="GatedGCNConv.message">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gatedgcn/index.html#matcha.torch.encoders.gatedgcn.GatedGCNConv.message">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">message</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">Dx_i</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Ex_j</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Ce</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute gated messages.</span>
+
+<span class="sd">        :param torch.Tensor Dx_i: Transformed features of target nodes [num_edges, out_channels]</span>
+<span class="sd">        :param torch.Tensor Ex_j: Transformed features of source nodes [num_edges, out_channels]</span>
+<span class="sd">        :param torch.Tensor Ce: Transformed edge features [num_edges, out_channels]</span>
+<span class="sd">        :return torch.Tensor: Gated message weights (sigmoid of sum)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">e_ij</span> <span class="o">=</span> <span class="n">Dx_i</span> <span class="o">+</span> <span class="n">Ex_j</span> <span class="o">+</span> <span class="n">Ce</span>
+        <span class="n">sigma_ij</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">e_ij</span><span class="p">)</span>
+        <span class="c1"># Store edge features for update step</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_e</span> <span class="o">=</span> <span class="n">e_ij</span>
+        <span class="k">return</span> <span class="n">sigma_ij</span></div>
+
+
+<div class="viewcode-block" id="GatedGCNConv.aggregate">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gatedgcn/index.html#matcha.torch.encoders.gatedgcn.GatedGCNConv.aggregate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">aggregate</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">sigma_ij</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">Bx_j</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">Bx</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Aggregate gated messages with normalization.</span>
+
+<span class="sd">        :param torch.Tensor sigma_ij: Gate weights [num_edges, out_channels]</span>
+<span class="sd">        :param torch.Tensor index: Target node indices [num_edges]</span>
+<span class="sd">        :param torch.Tensor Bx_j: Transformed source node features [num_edges, out_channels]</span>
+<span class="sd">        :param torch.Tensor Bx: Transformed node features [num_nodes, out_channels]</span>
+<span class="sd">        :return torch.Tensor: Aggregated messages [num_nodes, out_channels]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dim_size</span> <span class="o">=</span> <span class="n">Bx</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="c1"># Weighted sum of messages and sum of gates</span>
+        <span class="n">numerator</span> <span class="o">=</span> <span class="n">scatter</span><span class="p">(</span>
+            <span class="n">sigma_ij</span> <span class="o">*</span> <span class="n">Bx_j</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dim_size</span><span class="o">=</span><span class="n">dim_size</span><span class="p">,</span> <span class="n">reduce</span><span class="o">=</span><span class="s2">&quot;sum&quot;</span>
+        <span class="p">)</span>
+        <span class="n">denominator</span> <span class="o">=</span> <span class="n">scatter</span><span class="p">(</span><span class="n">sigma_ij</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dim_size</span><span class="o">=</span><span class="n">dim_size</span><span class="p">,</span> <span class="n">reduce</span><span class="o">=</span><span class="s2">&quot;sum&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Handle float16 precision</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">denominator</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="k">if</span> <span class="n">dtype</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">:</span>
+            <span class="n">numerator</span> <span class="o">=</span> <span class="n">numerator</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">denominator</span> <span class="o">=</span> <span class="n">denominator</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Normalize by sum of gates</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">numerator</span> <span class="o">/</span> <span class="p">(</span><span class="n">denominator</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">dtype</span> <span class="o">==</span> <span class="n">torch</span><span class="o">.</span><span class="n">float16</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="GatedGCNConv.update">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gatedgcn/index.html#matcha.torch.encoders.gatedgcn.GatedGCNConv.update">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">aggr_out</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Ax</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update node features with residual connection.</span>
+
+<span class="sd">        :param torch.Tensor aggr_out: Aggregated messages [num_nodes, out_channels]</span>
+<span class="sd">        :param torch.Tensor Ax: Transformed node features [num_nodes, out_channels]</span>
+<span class="sd">        :return tuple[torch.Tensor, torch.Tensor]: Updated node and edge features</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">Ax</span> <span class="o">+</span> <span class="n">aggr_out</span>
+        <span class="n">e_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_e</span>
+        <span class="k">del</span> <span class="bp">self</span><span class="o">.</span><span class="n">_e</span>
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">e_out</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="GatedGCN">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.gatedgcn.GatedGCN">[docs]</a>
+<span class="nd">@EncoderRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GatedGCN</span><span class="p">(</span><span class="n">BaseGraphEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gated Graph Convolution Network (GatedGCN) encoder as described in &#39;Benchmarking</span>
+<span class="sd">    Graph Neural Networks&#39;. This class performs message passing via atom convolutions,</span>
+<span class="sd">    residual connections and edge convolutions, updates the atom representations</span>
+<span class="sd">    and returns a molecular embedding which can then be used for molecular</span>
+<span class="sd">    property prediction.</span>
+
+<span class="sd">    It inherits from :class:`BaseGraphEncoder` for common graph encoding routines</span>
+<span class="sd">    (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`</span>
+<span class="sd">    for saving its hyperparameters.</span>
+
+<span class="sd">    References:</span>
+<span class="sd">    - https://arxiv.org/abs/2003.00982</span>
+<span class="sd">    - https://pytorch-geometric.readthedocs.io/en/latest/</span>
+
+<span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
+<span class="sd">    Check the docs of :class:`matcha.torch.models.classic.GatedGCNModel` for further details.</span>
+
+<span class="sd">    :param int num_layers: number of message passing layers</span>
+
+<span class="sd">    :param int atom_input_dim: number of input atom features from GraphFeaturizer</span>
+
+<span class="sd">    :param int bond_input_dim: number of input bond features from GraphFeaturizer</span>
+
+<span class="sd">    :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers</span>
+
+<span class="sd">    :param str activation: activation function to be used in all layers</span>
+
+<span class="sd">    :param float dropout: dropout noise level</span>
+
+<span class="sd">    :param str norm: which norm to use inside GatedGCN layers</span>
+
+<span class="sd">    :param str jk: jumping knowledge strategy to use when returning molecular</span>
+<span class="sd">        representations after forward pass</span>
+
+<span class="sd">    :param str readout: readout function to aggregate all atom representations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_layers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">bond_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">jk</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">readout</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">laplacian_k</span><span class="p">,</span> <span class="n">rwse_k</span><span class="p">,</span> <span class="n">elstatic_k</span><span class="p">,</span> <span class="n">distmat_k</span><span class="p">,</span> <span class="n">rrwp_k</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_jk</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_readout</span><span class="p">(</span><span class="n">readout</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">ModuleList</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm_type</span> <span class="o">=</span> <span class="n">norm</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
+            <span class="n">in_channels</span> <span class="o">=</span> <span class="n">atom_input_dim</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">atom_hidden_dim</span>
+            <span class="n">edge_dim</span> <span class="o">=</span> <span class="n">bond_input_dim</span> <span class="k">if</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">atom_hidden_dim</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">GatedGCNConv</span><span class="p">(</span>
+                    <span class="n">in_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span>
+                    <span class="n">out_channels</span><span class="o">=</span><span class="n">atom_hidden_dim</span><span class="p">,</span>
+                    <span class="n">edge_dim</span><span class="o">=</span><span class="n">edge_dim</span><span class="p">,</span>
+                    <span class="n">out_edge_dim</span><span class="o">=</span><span class="n">atom_hidden_dim</span><span class="p">,</span>
+                    <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="GatedGCN.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.gatedgcn.GatedGCN.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further</span>
+<span class="sd">        processing.</span>
+
+<span class="sd">        :param Batch graph: batched PyG graph from the dataloader</span>
+
+<span class="sd">        :return torch.Tensor: learned representation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">g</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_graph_batch</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span>
+                <span class="n">atom_feats</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">batch</span><span class="o">=</span><span class="n">g</span><span class="o">.</span><span class="n">batch</span>
+            <span class="p">)</span>
+            <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
+
+        <span class="n">final_atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_jk</span><span class="p">(</span><span class="n">all_atom_feats</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">final_atom_feats</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+matcha.datamodules.pretraining.on_the_fly_datamodule
+====================================================
+
+.. py:module:: matcha.datamodules.pretraining.on_the_fly_datamodule
+
+.. autoapi-nested-parse::
+
+   On-the-fly DataModule that defers featurization to batch collation time.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.pretraining.on_the_fly_datamodule.OnTheFlyDataset
+   matcha.datamodules.pretraining.on_the_fly_datamodule.OnTheFlyDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: OnTheFlyDataset(smiles: list[str], y: numpy.ndarray)
+
+   Dataset that stores raw SMILES and labels for on-the-fly featurization.
+
+   Used by :class:`OnTheFlyDataModule` to defer feature computation
+   to collation time rather than computing all features upfront.
+
+   :param smiles: list of SMILES strings
+   :param y: label array, typically a sparse matrix of shape ``(N, T)``
+
+
+   .. py:attribute:: smiles
+
+
+   .. py:attribute:: y
+
+
+.. py:class:: OnTheFlyDataModule(base: matcha.datamodules.base_datamodule.BaseDataModule, num_workers: int = 0, **kwargs)
+
+   Bases: :py:obj:`lightning.LightningDataModule`
+
+
+   DataModule that delays feature generation until batch iteration time.
+
+   This wrapper takes any base datamodule and modifies its behavior to generate
+   features on-the-fly during batch collation instead of upfront during setup.
+   This can be useful for saving memory or when features need to be computed
+   dynamically.
+
+
+   .. py:attribute:: base
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: collate_fn_map
+
+
+   .. py:attribute:: num_workers
+      :value: 0
+
+
+
+   .. py:method:: train_dataloader()
+
+      Return the training dataloader.
+
+
+
+   .. py:method:: val_dataloader()
+
+      Return the validation dataloader, or an empty one if not set.
+
+
+
+   .. py:method:: test_dataloader()
+
+      Return the test dataloader.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Return the prediction dataloader.
+
+
+
+   .. py:method:: set_data(train_smiles: list[str] = None, train_y: numpy.ndarray = None, val_smiles: list[str] = None, val_y: numpy.ndarray = None, test_smiles: list[str] = None, test_y: numpy.ndarray = None, predict_smiles: list[str] = None, predict_y: numpy.ndarray = None)
+
+      Set the raw data for each split.
+
+      :param train_smiles: training SMILES
+      :param train_y: training labels (sparse matrix)
+      :param val_smiles: validation SMILES
+      :param val_y: validation labels (sparse matrix)
+      :param test_smiles: test SMILES
+      :param test_y: test labels (sparse matrix)
+      :param predict_smiles: prediction SMILES
+      :param predict_y: prediction labels (optional, defaults to zeros)
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Generate features on-the-fly from batch SMILES and collate.
+
+      Converts SMILES to molecules, applies label encoding (sparse to dense,
+      replacing 0 with NaN and -1 with 0), then delegates to the base
+      datamodule's feature generation and collation.
+
+      :param batch: list of dicts with ``smiles`` and ``y`` keys
+      :return: collated batch dict from the base datamodule
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Delegate to base datamodule's featurize method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: label array
+      :param bound_mask: optional bound mask for censored labels
+      :param is_training: whether to fit scalers
+      :param n_jobs: number of parallel workers
+      :return: featurized StackDataset
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Delegate to base datamodule's generate_features method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: label array
+      :param bound_mask: optional bound mask for censored labels
+      :param n_jobs: number of parallel workers
+      :return: StackDataset of unscaled features
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Setup dataloaders using raw data instead of pre-computed features.
+
+      :param stage: one of ``"fit"``, ``"test"``, or ``"predict"``
+
+
+

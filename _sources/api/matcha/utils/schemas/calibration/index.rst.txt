@@ -1,0 +1,173 @@
+matcha.utils.schemas.calibration
+================================
+
+.. py:module:: matcha.utils.schemas.calibration
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.calibration.CalibratorModel
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.calibration.ICPBaseInputModel
+   matcha.utils.schemas.calibration.ICPRegressionInputModel
+   matcha.utils.schemas.calibration.ICPClassificationInputModel
+   matcha.utils.schemas.calibration.EMBaseInputModel
+   matcha.utils.schemas.calibration.EMRegressionInputModel
+   matcha.utils.schemas.calibration.EMClassificationInputModel
+   matcha.utils.schemas.calibration.CalibratorModels
+
+
+Module Contents
+---------------
+
+.. py:class:: ICPBaseInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base input model for Inductive Conformal Prediction calibrators.
+
+
+   .. py:attribute:: confidence_alpha
+      :type:  float
+
+
+   .. py:attribute:: quantile
+      :type:  Union[float, list, numpy.ndarray]
+      :value: 0.0
+
+
+
+.. py:class:: ICPRegressionInputModel(/, **data: Any)
+
+   Bases: :py:obj:`ICPBaseInputModel`
+
+
+   Input model for ICP Regression calibrator.
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['icp_regression']
+      :value: 'icp_regression'
+
+
+
+.. py:class:: ICPClassificationInputModel(/, **data: Any)
+
+   Bases: :py:obj:`ICPBaseInputModel`
+
+
+   Input model for ICP Classification calibrator (multitask binary).
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['icp_classification']
+      :value: 'icp_classification'
+
+
+
+.. py:class:: EMBaseInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base input model for Error Model calibrators.
+
+
+   .. py:attribute:: algorithm
+      :type:  str
+      :value: 'GradientBoostingClassifier'
+
+
+
+   .. py:attribute:: algorithm_params
+      :type:  dict
+
+
+   .. py:attribute:: use_ecfp
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: use_interaction
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: min_compounds
+      :type:  int
+      :value: 50
+
+
+
+.. py:class:: EMRegressionInputModel(/, **data: Any)
+
+   Bases: :py:obj:`EMBaseInputModel`
+
+
+   Input model for Error Model Regression calibrator.
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['error_model_regression']
+      :value: 'error_model_regression'
+
+
+
+   .. py:attribute:: fold
+      :type:  float
+      :value: 2.0
+
+
+
+   .. py:attribute:: log10
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: EMClassificationInputModel(/, **data: Any)
+
+   Bases: :py:obj:`EMBaseInputModel`
+
+
+   Input model for Error Model Classification calibrator.
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['error_model_classification']
+      :value: 'error_model_classification'
+
+
+
+   .. py:attribute:: error_threshold
+      :type:  float
+      :value: 0.5
+
+
+
+.. py:data:: CalibratorModel
+
+.. py:class:: CalibratorModels(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Container holding a sequence of calibrator input models discriminated by type.
+
+
+   .. py:attribute:: inputmodels
+      :type:  Sequence[Annotated[CalibratorModel, Field(discriminator='calibrator_type')]]
+
+

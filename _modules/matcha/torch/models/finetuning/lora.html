@@ -1,0 +1,214 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.finetuning.lora &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.finetuning.lora</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.models.finetuning.lora</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Low-Rank Adaptation (LoRA) for parameter-efficient finetuning.</span>
+
+<span class="sd">Implements the LoRA technique (Hu et al., arXiv:2106.09685) which decomposes</span>
+<span class="sd">weight updates into low-rank matrices, enabling efficient adaptation of large</span>
+<span class="sd">pretrained models while keeping most parameters frozen.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+
+
+<div class="viewcode-block" id="LoRALinear">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/lora/index.html#matcha.torch.models.finetuning.LoRALinear">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">LoRALinear</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Low-Rank Adaptation (LoRA) wrapper around a frozen ``nn.Linear`` layer.</span>
+
+<span class="sd">    Decomposes the weight update into two low-rank matrices so that the original</span>
+<span class="sd">    pretrained weights are kept frozen while only the small adapter matrices are</span>
+<span class="sd">    trained.  The effective weight becomes ``W&#39; = W + (B @ A) * scaling``.</span>
+
+<span class="sd">    References:</span>
+<span class="sd">    - https://arxiv.org/abs/2106.09685</span>
+
+<span class="sd">    :param nn.Linear original_linear: the frozen linear layer to wrap</span>
+<span class="sd">    :param int rank: rank of the low-rank decomposition</span>
+<span class="sd">    :param float alpha: scaling numerator (``scaling = alpha / rank``)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">original_linear</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">,</span>
+        <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+        <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">16.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">original_linear</span> <span class="o">=</span> <span class="n">original_linear</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rank</span> <span class="o">=</span> <span class="n">rank</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scaling</span> <span class="o">=</span> <span class="n">alpha</span> <span class="o">/</span> <span class="n">rank</span>
+
+        <span class="n">in_features</span> <span class="o">=</span> <span class="n">original_linear</span><span class="o">.</span><span class="n">in_features</span>
+        <span class="n">out_features</span> <span class="o">=</span> <span class="n">original_linear</span><span class="o">.</span><span class="n">out_features</span>
+
+        <span class="c1"># Freeze original weights</span>
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">original_linear</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+            <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="c1"># Low-rank decomposition: W&#39; = W + (B @ A) * scaling</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lora_A</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">rank</span><span class="p">,</span> <span class="n">in_features</span><span class="p">)</span> <span class="o">*</span> <span class="mf">0.01</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lora_B</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">out_features</span><span class="p">,</span> <span class="n">rank</span><span class="p">))</span>
+
+<div class="viewcode-block" id="LoRALinear.forward">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/lora/index.html#matcha.torch.models.finetuning.LoRALinear.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute the original linear output plus the low-rank adaptation.</span>
+
+<span class="sd">        :param torch.Tensor x: input tensor</span>
+<span class="sd">        :returns: ``W(x) + (B @ A)(x) * scaling``</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">base_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">original_linear</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">lora_out</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">lora_A</span><span class="o">.</span><span class="n">T</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">lora_B</span><span class="o">.</span><span class="n">T</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scaling</span>
+        <span class="k">return</span> <span class="n">base_out</span> <span class="o">+</span> <span class="n">lora_out</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="apply_lora">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/lora/index.html#matcha.torch.models.finetuning.apply_lora">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">apply_lora</span><span class="p">(</span>
+    <span class="n">module</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
+    <span class="n">alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">16.0</span><span class="p">,</span>
+    <span class="n">min_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Recursively replace ``nn.Linear`` layers inside *module* with</span>
+<span class="sd">    :class:`LoRALinear` wrappers.</span>
+
+<span class="sd">    Only targets linear layers whose *both* dimensions are ``&gt;= min_dim`` so</span>
+<span class="sd">    that tiny projection heads, edge-feature layers, etc. are left untouched.</span>
+
+<span class="sd">    :param nn.Module module: the module to modify **in-place**</span>
+<span class="sd">    :param int rank: LoRA rank</span>
+<span class="sd">    :param float alpha: LoRA scaling numerator</span>
+<span class="sd">    :param int min_dim: minimum feature dimension for a layer to be wrapped</span>
+
+<span class="sd">    :return list[nn.Parameter]: all newly-created LoRA parameters</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">lora_params</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">child</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">named_children</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">)</span>
+            <span class="ow">and</span> <span class="n">child</span><span class="o">.</span><span class="n">in_features</span> <span class="o">&gt;=</span> <span class="n">min_dim</span>
+            <span class="ow">and</span> <span class="n">child</span><span class="o">.</span><span class="n">out_features</span> <span class="o">&gt;=</span> <span class="n">min_dim</span>
+        <span class="p">):</span>
+            <span class="n">lora_layer</span> <span class="o">=</span> <span class="n">LoRALinear</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">rank</span><span class="o">=</span><span class="n">rank</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">lora_layer</span><span class="p">)</span>
+            <span class="n">lora_params</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">lora_layer</span><span class="o">.</span><span class="n">lora_A</span><span class="p">,</span> <span class="n">lora_layer</span><span class="o">.</span><span class="n">lora_B</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">lora_params</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">apply_lora</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">rank</span><span class="p">,</span> <span class="n">alpha</span><span class="p">,</span> <span class="n">min_dim</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">lora_params</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,398 @@
+matcha.nn.losses
+================
+
+.. py:module:: matcha.nn.losses
+
+.. autoapi-nested-parse::
+
+   Loss functions for regression, classification, and multitask learning.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.nn.losses.LossRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.nn.losses.BCEFocalLoss
+   matcha.nn.losses.Poly1BCELoss
+   matcha.nn.losses.MultitaskLoss
+   matcha.nn.losses.MultiLoss
+   matcha.nn.losses.BoundedLoss
+   matcha.nn.losses.MSELoss
+   matcha.nn.losses.L1Loss
+   matcha.nn.losses.HuberLoss
+   matcha.nn.losses.SmoothL1Loss
+   matcha.nn.losses.BoundedMSELoss
+   matcha.nn.losses.BoundedMAELoss
+   matcha.nn.losses.BoundedHuberLoss
+   matcha.nn.losses.BoundedSmoothL1Loss
+   matcha.nn.losses.BCELoss
+   matcha.nn.losses.CrossEntropyLoss
+   matcha.nn.losses.WeightedBCELoss
+   matcha.nn.losses.GradNormLoss
+
+
+Module Contents
+---------------
+
+.. py:data:: LossRegistry
+
+.. py:class:: BCEFocalLoss(gamma=2, alpha=None, reduction='mean')
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Focal loss implementation using binary cross entropy with logits.
+   Suitable for binary classification with class imbalance.
+   Reference: https://arxiv.org/abs/1708.02002
+
+
+   .. py:attribute:: gamma
+      :value: 2
+
+
+
+   .. py:attribute:: alpha
+      :value: None
+
+
+
+   .. py:attribute:: reduction
+      :value: 'mean'
+
+
+
+   .. py:attribute:: eps
+      :value: 1e-07
+
+
+
+   .. py:method:: forward(inputs, targets) -> torch.Tensor
+
+      :param torch.Tensor inputs: Raw logits.
+      :param torch.Tensor targets: Binary target labels.
+      :returns: Focal loss value.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: Poly1BCELoss(epsilon: float = 1.0, reduction: str = 'mean')
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Polynomial expansion of the binary cross entropy loss, which can lead to better
+   classification performance if epsilon is tuned.
+   Suitable for binary classification.
+   Reference: https://arxiv.org/abs/2204.12511
+
+
+   .. py:attribute:: epsilon
+      :value: 1.0
+
+
+
+   .. py:attribute:: reduction
+      :value: 'mean'
+
+
+
+   .. py:attribute:: eps
+      :value: 1e-07
+
+
+
+   .. py:method:: forward(inputs, targets) -> torch.Tensor
+
+      :param torch.Tensor inputs: Raw logits.
+      :param torch.Tensor targets: Binary target labels.
+      :returns: Poly1 BCE loss value.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: MultitaskLoss(loss_fn: str = 'mse', loss_args: dict = {})
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Implementation of a customizable multitask loss. The same loss is
+   used for all tasks.
+
+   loss_fn is the name of the loss to broadcast, loss_args are its arguments.
+
+
+   .. py:attribute:: loss
+
+
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.
+      :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN marks missing.
+      :returns: Scalar loss averaged across valid entries and tasks.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: MultiLoss(loss_configs: list)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Implementation of a customizable multi-loss function that supports
+   dynamic weight scheduling during training.
+
+   Each loss configuration is a dictionary with:
+   - loss_fn: name of the loss function
+   - loss_args: arguments for the loss function
+   - task_map: tuple/list indicating which columns this loss applies to (start, end)
+   - init_w: initial weight at T=0
+   - final_w: final weight at T=end
+   - T: total epochs to transition from init_w to final_w
+   - warmup: epochs to keep init_w fixed before starting transition
+
+
+   .. py:attribute:: loss_configs
+
+
+   .. py:attribute:: losses
+
+
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor, T_current: int = 0) -> torch.Tensor
+
+      Forward pass with dynamic weight scheduling.
+
+      :param torch.Tensor outputs: Model predictions.
+      :param torch.Tensor targets: Ground truth targets; NaN marks missing entries.
+      :param int T_current: Current training epoch for weight scheduling.
+      :returns: Weighted total loss (scalar during training, tuple with log during eval).
+      :rtype: torch.Tensor or tuple[torch.Tensor, dict]
+
+
+
+.. py:class:: BoundedLoss(loss_fn: str = 'mse', **kwargs)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Loss function for handling bounded regression
+
+   Allows the use of bound information on the readout (e.g. IC50 < x),
+   so that the model is not penalized when it predicts e.g. y_pred < x.
+   Implementation is based on: https://chemprop.readthedocs.io/en/latest/_modules/chemprop/nn/metrics.html#BoundedMixin
+
+
+   .. py:attribute:: loss
+
+
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor outputs: Predictions.
+      :param torch.Tensor targets: Targets with bound info in the last dimension.
+          Shape ``(batch, [num_tasks,] 2)`` where ``[..., 0]`` is the value and
+          ``[..., 1]`` encodes the bound type (``-1`` = less-than, ``1`` = greater-than).
+      :returns: Loss computed only on non-masked predictions.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: MSELoss(size_average=None, reduce=None, reduction: str = 'mean')
+
+   Bases: :py:obj:`torch.nn.MSELoss`
+
+
+   Mean squared error loss (wraps :class:`torch.nn.MSELoss`).
+
+
+.. py:class:: L1Loss(size_average=None, reduce=None, reduction: str = 'mean')
+
+   Bases: :py:obj:`torch.nn.L1Loss`
+
+
+   Mean absolute error loss (wraps :class:`torch.nn.L1Loss`).
+
+
+.. py:class:: HuberLoss(reduction: str = 'mean', delta: float = 1.0)
+
+   Bases: :py:obj:`torch.nn.HuberLoss`
+
+
+   Huber loss (wraps :class:`torch.nn.HuberLoss`).
+
+
+.. py:class:: SmoothL1Loss(size_average=None, reduce=None, reduction: str = 'mean', beta: float = 1.0)
+
+   Bases: :py:obj:`torch.nn.SmoothL1Loss`
+
+
+   Smooth L1 loss (wraps :class:`torch.nn.SmoothL1Loss`).
+
+
+.. py:class:: BoundedMSELoss(**kwargs)
+
+   Bases: :py:obj:`BoundedLoss`
+
+
+   :class:`BoundedLoss` with MSE as the inner loss.
+
+
+.. py:class:: BoundedMAELoss(**kwargs)
+
+   Bases: :py:obj:`BoundedLoss`
+
+
+   :class:`BoundedLoss` with MAE as the inner loss.
+
+
+.. py:class:: BoundedHuberLoss(**kwargs)
+
+   Bases: :py:obj:`BoundedLoss`
+
+
+   :class:`BoundedLoss` with Huber as the inner loss.
+
+
+.. py:class:: BoundedSmoothL1Loss(**kwargs)
+
+   Bases: :py:obj:`BoundedLoss`
+
+
+   :class:`BoundedLoss` with Smooth L1 as the inner loss.
+
+
+.. py:class:: BCELoss(weight: Optional[torch.Tensor] = None, size_average=None, reduce=None, reduction: str = 'mean', pos_weight: Optional[torch.Tensor] = None)
+
+   Bases: :py:obj:`torch.nn.BCEWithLogitsLoss`
+
+
+   Binary cross-entropy with logits (wraps :class:`torch.nn.BCEWithLogitsLoss`).
+
+
+.. py:class:: CrossEntropyLoss(weight: Optional[torch.Tensor] = None, size_average=None, ignore_index: int = -100, reduce=None, reduction: str = 'mean', label_smoothing: float = 0.0)
+
+   Bases: :py:obj:`torch.nn.CrossEntropyLoss`
+
+
+   Cross-entropy loss (wraps :class:`torch.nn.CrossEntropyLoss`).
+
+
+.. py:class:: WeightedBCELoss(w1: float = 0.5, reduction: str = 'mean')
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Weighted binary cross entropy loss with logits.
+
+   Applies per-class weights to handle class imbalance in binary classification.
+   The user specifies the weight for the positive (minority) class; the weight
+   for the negative class is computed so that ``w0 + w1 = 1``.
+
+   :param float w1: Weight for class 1 (positive / minority class). Must be in (0, 1).
+   :param str reduction: Reduction mode: ``'mean'``, ``'sum'``, or ``'none'``.
+
+
+   .. py:attribute:: w1
+      :value: 0.5
+
+
+
+   .. py:attribute:: w0
+      :value: 0.5
+
+
+
+   .. py:attribute:: reduction
+      :value: 'mean'
+
+
+
+   .. py:method:: forward(inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor inputs: Raw logits.
+      :param torch.Tensor targets: Binary target labels.
+      :returns: Weighted BCE loss value.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: GradNormLoss(loss_fn: str = 'mse', loss_args: dict = {}, num_endpoints: int = 1, weight_lr: float = 0.025)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Implementation of GradNorm for adaptive loss balancing in multitask learning.
+
+   GradNorm automatically balances training by dynamically tuning gradient magnitudes.
+   It adjusts task weights to ensure that all tasks train at similar rates.
+   The weight updates are handled internally — no separate optimizer needed.
+
+   Reference: https://arxiv.org/abs/1711.02257
+
+   :param str loss_fn: Name of the loss function to use for all tasks (e.g., ``"mse"``).
+   :param dict loss_args: Arguments to pass to the loss function constructor.
+   :param int num_endpoints: Number of tasks.
+   :param float weight_lr: Learning rate for updating task weights internally.
+
+   Example::
+
+       loss_fn = GradNormLoss(loss_fn="mse", num_endpoints=3)
+
+       # Training loop (no changes needed):
+       loss = loss_fn(outputs, targets, shared_layer=model.backbone[-1])
+       optimizer.zero_grad()
+       loss.backward()
+       optimizer.step()
+
+
+   .. py:attribute:: ALPHA
+      :value: 1.5
+
+
+
+   .. py:attribute:: loss
+
+
+   .. py:attribute:: num_endpoints
+      :value: 1
+
+
+
+   .. py:attribute:: weight_lr
+      :value: 0.025
+
+
+
+   .. py:attribute:: initial_losses
+      :value: None
+
+
+
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor, shared_layer: torch.nn.Module = None) -> torch.Tensor
+
+      Forward pass computing weighted multitask loss.
+
+      :param torch.Tensor outputs: Predictions of shape ``(batch_size, num_endpoints)``.
+      :param torch.Tensor targets: Targets of shape ``(batch_size, num_endpoints)``.
+      :param shared_layer: The last shared layer of the network. Required during
+          training for GradNorm weight updates.
+      :type shared_layer: torch.nn.Module or None
+      :returns: Weighted sum of task losses.
+      :rtype: torch.Tensor
+
+
+
+   .. py:method:: reset_initial_losses() -> None
+
+      Reset the initial losses for a fresh start of GradNorm tracking.
+
+
+

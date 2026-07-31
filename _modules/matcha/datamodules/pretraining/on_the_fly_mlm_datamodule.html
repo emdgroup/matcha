@@ -1,0 +1,436 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.pretraining.on_the_fly_mlm_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.pretraining.on_the_fly_mlm_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.pretraining.on_the_fly_mlm_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;On-the-fly DataModule variant for MLM pretraining.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">LightningDataModule</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.clm_mlm_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLMMLMDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleRegistry</span>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataset">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataset">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">OnTheFlyMLMDataset</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataset that stores raw SMILES for on-the-fly MLM featurization.</span>
+
+<span class="sd">    Unlike OnTheFlyDataset, this does not require labels or descriptors</span>
+<span class="sd">    since MLM is self-supervised.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise with a list of SMILES strings.</span>
+
+<span class="sd">        :param smiles: list of SMILES strings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smiles</span> <span class="o">=</span> <span class="n">smiles</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the number of samples.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">smiles</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a dict with ``smiles`` for the given index.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;smiles&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">smiles</span><span class="p">[</span><span class="n">idx</span><span class="p">]}</span></div>
+
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;on_the_fly_mlm&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OnTheFlyMLMDataModule</span><span class="p">(</span><span class="n">LightningDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;DataModule that delays MLM feature generation until batch iteration time.</span>
+
+<span class="sd">    This wrapper takes a CLMMLMDataModule and modifies its behavior to generate</span>
+<span class="sd">    features on-the-fly during batch collation instead of upfront during setup.</span>
+<span class="sd">    This is useful for large-scale pretraining where memory is constrained.</span>
+
+<span class="sd">    The collate function converts SMILES to molecules, generates tokenized</span>
+<span class="sd">    features, and applies masking on-the-fly.</span>
+
+<span class="sd">    :param CLMMLMDataModule base: The base MLM datamodule to use for featurization</span>
+<span class="sd">    :param int num_workers: Number of dataloader workers, defaults to 0</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base</span><span class="p">:</span> <span class="n">CLMMLMDataModule</span><span class="p">,</span> <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise the on-the-fly MLM wrapper.</span>
+
+<span class="sd">        :param base: base MLM datamodule used for tokenization and masking</span>
+<span class="sd">        :param num_workers: number of dataloader workers, defaults to 0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">base</span> <span class="o">=</span> <span class="n">base</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">params</span>
+
+        <span class="c1"># Copy collate function mappings from base if available</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">base</span><span class="p">,</span> <span class="s2">&quot;collate_fn_map&quot;</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Store raw data for on-the-fly processing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="n">num_workers</span>
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.train_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.train_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">train_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the training dataloader.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.val_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.val_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">val_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the validation dataloader, or an empty one if not set.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span><span class="p">,</span> <span class="n">DataLoader</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">DataLoader</span><span class="p">({})</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.test_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.test_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the test dataloader.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.predict_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.predict_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the prediction dataloader.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.set_data">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.set_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">train_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">val_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">test_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">predict_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the raw SMILES data for each split.</span>
+
+<span class="sd">        For MLM, we only need SMILES - no labels required.</span>
+
+<span class="sd">        :param train_smiles: Training SMILES</span>
+<span class="sd">        :param val_smiles: Validation SMILES</span>
+<span class="sd">        :param test_smiles: Test SMILES</span>
+<span class="sd">        :param predict_smiles: Prediction SMILES</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">train_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span> <span class="o">=</span> <span class="n">OnTheFlyMLMDataset</span><span class="p">(</span><span class="n">train_smiles</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">val_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span> <span class="o">=</span> <span class="n">OnTheFlyMLMDataset</span><span class="p">(</span><span class="n">val_smiles</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">test_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span> <span class="o">=</span> <span class="n">OnTheFlyMLMDataset</span><span class="p">(</span><span class="n">test_smiles</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">predict_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span> <span class="o">=</span> <span class="n">OnTheFlyMLMDataset</span><span class="p">(</span><span class="n">predict_smiles</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.collate_fn">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.collate_fn">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collate function that generates MLM features on-the-fly from batch SMILES.</span>
+
+<span class="sd">        Converts SMILES to molecules, generates tokenized features with masking,</span>
+<span class="sd">        and returns a batch ready for the MLM model.</span>
+
+<span class="sd">        :param batch: List of dicts with &#39;smiles&#39; key</span>
+<span class="sd">        :return: Dict with &#39;token_ids&#39;, &#39;y&#39;, and &#39;mask&#39; tensors</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract molecules from batch SMILES</span>
+        <span class="n">mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;smiles&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+
+        <span class="c1"># Filter out invalid molecules</span>
+        <span class="n">valid_mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mols</span> <span class="k">if</span> <span class="n">mol</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">valid_mols</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No valid molecules in batch&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Generate MLM features using the base datamodule</span>
+        <span class="c1"># Note: is_training=False to avoid refitting dictionary</span>
+        <span class="c1"># augment=True to still apply SMILES augmentation</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+            <span class="n">valid_mols</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">bound_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">augment</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Convert StackDataset to dict for batching</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;token_ids&quot;</span><span class="p">:</span> <span class="n">features</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;token_ids&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">features</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;mask&quot;</span><span class="p">:</span> <span class="n">features</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">],</span>
+        <span class="p">}</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_dataloader</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">OnTheFlyMLMDataset</span><span class="p">,</span> <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataLoader</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a DataLoader with on-the-fly MLM collation.</span>
+
+<span class="sd">        :param dataset: raw dataset of SMILES</span>
+<span class="sd">        :param is_training: whether to shuffle the data</span>
+<span class="sd">        :return: configured DataLoader</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">DataLoader</span><span class="p">(</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
+            <span class="n">collate_fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">collate_fn</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">,</span>
+        <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delegate to base datamodule&#39;s featurize method.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules</span>
+<span class="sd">        :param y: ignored (MLM is self-supervised)</span>
+<span class="sd">        :param bound_mask: ignored for MLM</span>
+<span class="sd">        :param is_training: whether to commit the dictionary</span>
+<span class="sd">        :param n_jobs: number of parallel workers</span>
+<span class="sd">        :return: StackDataset with ``token_ids``, ``y``, and ``mask``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">featurize</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">,</span>
+        <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delegate to base datamodule&#39;s generate_features method.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules</span>
+<span class="sd">        :param y: ignored (MLM is self-supervised)</span>
+<span class="sd">        :param bound_mask: ignored for MLM</span>
+<span class="sd">        :param augment: whether to apply SMILES augmentation</span>
+<span class="sd">        :param is_training: whether to update the dictionary</span>
+<span class="sd">        :param n_jobs: number of parallel workers</span>
+<span class="sd">        :return: StackDataset with ``token_ids``, ``y``, and ``mask``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">augment</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.fit_dictionary">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.fit_dictionary">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit_dictionary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">smiles_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pre-fit the dictionary on a set of SMILES before using on-the-fly loading.</span>
+
+<span class="sd">        This is important for on-the-fly usage where we need a consistent</span>
+<span class="sd">        dictionary across all batches.</span>
+
+<span class="sd">        :param smiles_list: List of SMILES to fit dictionary on</span>
+<span class="sd">        :param n_jobs: Number of parallel jobs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span> <span class="k">for</span> <span class="n">smi</span> <span class="ow">in</span> <span class="n">smiles_list</span><span class="p">]</span>
+        <span class="n">valid_mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">mol</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mols</span> <span class="k">if</span> <span class="n">mol</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+
+        <span class="c1"># Fit dictionary using the base datamodule</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">featurize</span><span class="p">(</span>
+            <span class="n">valid_mols</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">augment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.setup">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.setup">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Setup dataloaders using raw data instead of pre-computed features.</span>
+
+<span class="sd">        :param stage: one of ``&quot;fit&quot;``, ``&quot;test&quot;``, or ``&quot;predict&quot;``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;fit&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;test&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;predict&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Serialise state for MLFlow logging.</span>
+
+<span class="sd">        :return: dict containing ID, base state, and num_workers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;on_the_fly_mlm&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;base_state_dict&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span>
+            <span class="s2">&quot;num_workers&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyMLMDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyMLMDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Restore state from a previously serialised dict.</span>
+
+<span class="sd">        :param state_dict: dict produced by :meth:`state_dict`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;base_state_dict&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_workers&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">params</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

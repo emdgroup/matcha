@@ -1,0 +1,397 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.mixin &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.mixin</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.models.mixin</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Shared Lightning module mixin providing loss parsing, validation, and MC-dropout.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torchmetrics</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">L</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">LossRegistry</span><span class="p">,</span> <span class="n">MultiLoss</span><span class="p">,</span> <span class="n">MultitaskLoss</span><span class="p">,</span> <span class="n">GradNormLoss</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.schedulers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchedulerRegistry</span>
+
+<span class="c1"># Schedulers that require total_steps to instantiate. A placeholder of 1 is</span>
+<span class="c1"># injected at __init__ time; the real value is set by</span>
+<span class="c1"># TrainingManager._maybe_inject_total_steps before training begins.</span>
+<span class="n">_SCHEDULERS_WITH_TOTAL_STEPS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span>
+    <span class="p">{</span>
+        <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;cosine_annealing_cyclic&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;warmup_cosine_annealing&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;warmup_linear_decay&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;one_cycle&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;linear&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;constant&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;sequential&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="ModelMixin">
+<a class="viewcode-back" href="../../../../api/matcha/torch/models/mixin/index.html#matcha.torch.models.mixin.ModelMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ModelMixin</span><span class="p">(</span><span class="n">L</span><span class="o">.</span><span class="n">LightningModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin providing common training infrastructure for all MATCHA Lightning models.</span>
+
+<span class="sd">    Includes loss function parsing, per-task validation metric tracking, and</span>
+<span class="sd">    MC-dropout toggling. Subclasses must define ``forward`` and ``training_step``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">mc_dropout_flag</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether MC-dropout is active during prediction for uncertainty estimation.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mc_dropout_flag</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_loss_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">,</span> <span class="n">loss_args</span><span class="p">,</span> <span class="n">num_endpoints</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate the appropriate loss function and assign to ``self.loss_fn``.</span>
+
+<span class="sd">        Handles single-endpoint, multitask, multiloss, and GradNorm configurations.</span>
+
+<span class="sd">        :param str loss_fn: loss function name (or ``&quot;multitask&quot;``/``&quot;multiloss&quot;``/``&quot;gradnorm&quot;``).</span>
+<span class="sd">        :param dict loss_args: keyword arguments forwarded to the loss constructor.</span>
+<span class="sd">        :param int num_endpoints: number of prediction endpoints.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">num_endpoints</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](</span><span class="o">**</span><span class="n">loss_args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">num_endpoints</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">loss_fn</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span>
+            <span class="s2">&quot;multitask&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;multiloss&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;gradnorm&quot;</span><span class="p">,</span>
+        <span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">MultitaskLoss</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">loss_args</span><span class="o">=</span><span class="n">loss_args</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">loss_fn</span> <span class="o">==</span> <span class="s2">&quot;gradnorm&quot;</span><span class="p">:</span>
+            <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">loss_args</span><span class="p">[</span><span class="s2">&quot;loss_fn&quot;</span><span class="p">]</span>
+            <span class="n">loss_args</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">loss_args</span><span class="p">[</span><span class="n">loss_args</span><span class="p">[</span><span class="s2">&quot;loss_args&quot;</span><span class="p">]]</span> <span class="k">if</span> <span class="s2">&quot;loss_args&quot;</span> <span class="ow">in</span> <span class="n">loss_args</span> <span class="k">else</span> <span class="p">{}</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">GradNormLoss</span><span class="p">(</span>
+                <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">loss_args</span><span class="o">=</span><span class="n">loss_args</span><span class="p">,</span> <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">loss_fn</span> <span class="o">==</span> <span class="s2">&quot;multitask&quot;</span><span class="p">:</span>
+            <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">loss_args</span><span class="p">[</span><span class="s2">&quot;loss_fn&quot;</span><span class="p">]</span>
+            <span class="n">loss_args</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">loss_args</span><span class="p">[</span><span class="n">loss_args</span><span class="p">[</span><span class="s2">&quot;loss_args&quot;</span><span class="p">]]</span> <span class="k">if</span> <span class="s2">&quot;loss_args&quot;</span> <span class="ow">in</span> <span class="n">loss_args</span> <span class="k">else</span> <span class="p">{}</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">MultitaskLoss</span><span class="p">(</span>
+                <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+                <span class="n">loss_args</span><span class="o">=</span><span class="n">loss_args</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">loss_fn</span> <span class="o">==</span> <span class="s2">&quot;multiloss&quot;</span><span class="p">:</span>
+            <span class="n">loss_configs</span> <span class="o">=</span> <span class="n">loss_args</span><span class="p">[</span><span class="s2">&quot;loss_configs&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">MultiLoss</span><span class="p">(</span><span class="n">loss_configs</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_make_scheduler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">scheduler_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">optimizer</span><span class="p">,</span> <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate a scheduler, injecting a placeholder ``total_steps=1`` when the</span>
+<span class="sd">        scheduler requires it but no value was provided.</span>
+
+<span class="sd">        The placeholder is replaced with the real step count by</span>
+<span class="sd">        ``TrainingManager._maybe_inject_total_steps`` before training begins.</span>
+
+<span class="sd">        :param str scheduler_name: key in :data:`SchedulerRegistry`</span>
+<span class="sd">        :param optimizer: the optimizer to attach the scheduler to</span>
+<span class="sd">        :param dict scheduler_args: keyword arguments forwarded to the scheduler</span>
+<span class="sd">        :returns: instantiated scheduler</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">scheduler_args</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">scheduler_args</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">scheduler_name</span> <span class="ow">in</span> <span class="n">_SCHEDULERS_WITH_TOTAL_STEPS</span>
+            <span class="ow">and</span> <span class="s2">&quot;total_steps&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">scheduler_args</span>
+        <span class="p">):</span>
+            <span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;total_steps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">with</span> <span class="n">warnings</span><span class="o">.</span><span class="n">catch_warnings</span><span class="p">():</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">simplefilter</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">SchedulerRegistry</span><span class="p">[</span><span class="n">scheduler_name</span><span class="p">](</span><span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">scheduler_args</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_init_metric_containers</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize per-task torchmetrics containers for validation logging.&quot;&quot;&quot;</span>
+        <span class="n">num_tasks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">num_tasks</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_task_tracking_n</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_precision</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">Precision</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_recall</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">Recall</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_mcc</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">MatthewsCorrCoef</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_auroc</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">AUROC</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="s2">&quot;binary&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_mse</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">MeanSquaredError</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_mae</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">MeanAbsoluteError</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_r2</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">R2Score</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">val_pearson</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">torchmetrics</span><span class="o">.</span><span class="n">PearsonCorrCoef</span><span class="p">()</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)]</span>
+            <span class="p">)</span>
+
+<div class="viewcode-block" id="ModelMixin.switch_mc_dropout">
+<a class="viewcode-back" href="../../../../api/matcha/torch/models/mixin/index.html#matcha.torch.models.mixin.ModelMixin.switch_mc_dropout">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">switch_mc_dropout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Enables switching of the mc_dropout flag, which defines whether dropout</span>
+<span class="sd">        is kept on or off during the prediction step for uncertainty measurement</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mc_dropout_flag</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mc_dropout_flag</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">mc_dropout_flag</span> <span class="ow">is</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mc_dropout_flag</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="ModelMixin.validation_step">
+<a class="viewcode-back" href="../../../../api/matcha/torch/models/mixin/index.html#matcha.torch.models.mixin.ModelMixin.validation_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">validation_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">batch_idx</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validation step logic for classic models. Analogous as the training step.</span>
+
+<span class="sd">        :param dict[str, Any] batch: batch of inputs to process</span>
+<span class="sd">        :param int batch_idx: leftover from lightning tutorial which I am too scared</span>
+<span class="sd">            to remove (TODO)</span>
+<span class="sd">        :return torch.Tensor: batch loss</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">MultiLoss</span><span class="p">):</span>
+            <span class="n">val_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;val_loss&quot;</span><span class="p">,</span> <span class="n">val_loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">val_loss</span><span class="p">,</span> <span class="n">loss_log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;val_loss&quot;</span><span class="p">,</span> <span class="n">val_loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">log</span> <span class="ow">in</span> <span class="n">loss_log</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;val_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_loss&quot;</span><span class="p">,</span>
+                    <span class="n">log</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">],</span>
+                    <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+
+        <span class="c1"># very hacky, but it does the job</span>
+        <span class="c1"># we will only track task-level metrics if the number of tasks is reasonable (e.g. under 100)</span>
+        <span class="c1"># can be overridden at least for very custom jobs</span>
+        <span class="k">if</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">_max_task_tracking_n</span><span class="p">:</span>
+            <span class="n">seen_tags</span><span class="p">:</span> <span class="nb">set</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span> <span class="o">!=</span> <span class="p">[]:</span>
+                    <span class="n">base</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                    <span class="n">tag</span> <span class="o">=</span> <span class="n">base</span> <span class="k">if</span> <span class="n">base</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_tags</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">base</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="n">seen_tags</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">tag</span> <span class="o">=</span> <span class="n">i</span>
+
+                <span class="k">if</span> <span class="n">y</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">&lt;=</span> <span class="mi">2</span><span class="p">:</span>
+                    <span class="n">valid_mask</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">])</span>
+                        <span class="k">if</span> <span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">is_floating_point</span>
+                        <span class="k">else</span> <span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="p">)</span>
+                    <span class="n">y_task</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">valid_mask</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">])</span>
+                        <span class="k">if</span> <span class="n">y</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">is_floating_point</span>
+                        <span class="k">else</span> <span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span> <span class="o">!=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="p">)</span>
+                    <span class="n">y_task</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+
+                <span class="n">y_pred_task</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span>
+
+                <span class="k">if</span> <span class="n">valid_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">is_classification</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">all</span><span class="p">((</span><span class="n">y_task</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y_task</span> <span class="o">==</span> <span class="mi">1</span><span class="p">))</span>
+
+                <span class="k">if</span> <span class="n">is_classification</span><span class="p">:</span>
+                    <span class="n">y_pred_probs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">y_pred_task</span><span class="p">)</span>
+                    <span class="n">y_pred_binary</span> <span class="o">=</span> <span class="p">(</span><span class="n">y_pred_probs</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;val_accuracy&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val_accuracy</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">i</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_precision</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_binary</span><span class="p">,</span> <span class="n">y_task</span><span class="o">.</span><span class="n">long</span><span class="p">())</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_recall</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_binary</span><span class="p">,</span> <span class="n">y_task</span><span class="o">.</span><span class="n">long</span><span class="p">())</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_mcc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_binary</span><span class="p">,</span> <span class="n">y_task</span><span class="o">.</span><span class="n">long</span><span class="p">())</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_auroc</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_probs</span><span class="p">,</span> <span class="n">y_task</span><span class="o">.</span><span class="n">long</span><span class="p">())</span>
+
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_precision_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_precision</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_recall_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_recall</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_mcc_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_mcc</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_auroc_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_auroc</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;val_r2&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">val_r2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">i</span><span class="p">:</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_r2</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_task</span><span class="p">,</span> <span class="n">y_task</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_mae</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_task</span><span class="p">,</span> <span class="n">y_task</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_mse</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_task</span><span class="p">,</span> <span class="n">y_task</span><span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">val_pearson</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">y_pred_task</span><span class="p">,</span> <span class="n">y_task</span><span class="p">)</span>
+
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_r2_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_r2</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_mae_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_mae</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_mse_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_mse</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;val_pearsonr_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">val_pearson</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                            <span class="n">prog_bar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">on_epoch</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;val_loss&quot;</span><span class="p">:</span> <span class="n">val_loss</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="ModelMixin.set_label_names">
+<a class="viewcode-back" href="../../../../api/matcha/torch/models/mixin/index.html#matcha.torch.models.mixin.ModelMixin.set_label_names">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_label_names</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">label_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set human-readable label names used for per-task metric logging.</span>
+
+<span class="sd">        :param label_names: list of endpoint names matching the order of prediction columns.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span> <span class="o">=</span> <span class="n">label_names</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

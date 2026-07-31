@@ -1,0 +1,257 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.cnn &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.cnn</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.encoders.cnn</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;1D Convolutional Neural Network (CNN) encoder for chemical language representations.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.activations</span><span class="w"> </span><span class="kn">import</span> <span class="n">ActivationRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseEncoder</span><span class="p">,</span> <span class="n">EncoderRegistry</span>
+
+
+<div class="viewcode-block" id="Conv1d">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/cnn/index.html#matcha.torch.encoders.cnn.Conv1d">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">Conv1d</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Single 1D convolution layer with dropout and activation.</span>
+
+<span class="sd">    :param int input_dim: Number of input channels.</span>
+<span class="sd">    :param int channel_dim: Number of output channels.</span>
+<span class="sd">    :param int kernel_dim: Kernel size for the convolution.</span>
+<span class="sd">    :param str activation: Activation function name.</span>
+<span class="sd">    :param float dropout: Dropout rate applied after convolution.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">,</span> <span class="n">channel_dim</span><span class="p">,</span> <span class="n">kernel_dim</span><span class="p">,</span> <span class="n">activation</span><span class="p">,</span> <span class="n">dropout</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Conv1d</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv1d</span><span class="p">(</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">channel_dim</span><span class="p">,</span> <span class="n">kernel_dim</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;same&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">activation</span> <span class="o">=</span> <span class="n">ActivationRegistry</span><span class="p">[</span><span class="n">activation</span><span class="p">]()</span>
+
+<div class="viewcode-block" id="Conv1d.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/cnn/index.html#matcha.torch.encoders.cnn.Conv1d.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">activation</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CNN">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.cnn.CNN">[docs]</a>
+<span class="nd">@EncoderRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CNN</span><span class="p">(</span><span class="n">BaseEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;1D convolution neural network (CNN) encoder for modelling chemical language</span>
+<span class="sd">    representations. After processing the input sequence, self attention is used</span>
+<span class="sd">    to compute a global representation of the molecule by making the [cls] token</span>
+<span class="sd">    attend to each other position in the string.</span>
+<span class="sd">    It inherits from  :class:`lightning.pytorch.core.mixins` for saving its hyperparameters,</span>
+<span class="sd">    and from :class:`BaseEncoder` to be consistent with other encoders.</span>
+<span class="sd">    References:</span>
+<span class="sd">    - https://arxiv.org/abs/2407.12152</span>
+<span class="sd">    - https://pubs.rsc.org/en/content/articlehtml/2023/dd/d2dd00099g</span>
+
+<span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
+<span class="sd">    Check the docs of :class:`matcha.torch.models.classic.CNNModel` for further details.</span>
+
+<span class="sd">    :param int num_characters: total number of unique tokens in the dataset&#39;s</span>
+<span class="sd">        dictionary</span>
+
+<span class="sd">    :param int embedding_dim: number of token embedding features</span>
+
+<span class="sd">    :param list[int] hidden_dims: number of hidden token dimensionality across each</span>
+<span class="sd">        convolutional layer</span>
+
+<span class="sd">    :param list[int] kernel_dims: kernel sizes for each convolutional layer</span>
+
+<span class="sd">    :param int num_heads: number of self attention heads, must divide hidden_dims</span>
+<span class="sd">        evenly</span>
+
+<span class="sd">    :param str activation: activation function to use throughout all layers</span>
+
+<span class="sd">    :param float dropout:  dropout noise level</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_characters</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">embedding_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">hidden_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">kernel_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="c1"># Snap num_heads to the largest divisor of hidden_dim that is &lt;= num_heads,</span>
+        <span class="c1"># so HPO can freely sample num_heads without causing a shape mismatch.</span>
+        <span class="k">while</span> <span class="n">num_heads</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">num_heads</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_characters</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">padding_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">conv_dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">embedding_dim</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="n">hidden_dim</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">kernel_dims</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kernel_dims</span><span class="p">)):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">Conv1d</span><span class="p">(</span>
+                    <span class="n">input_dim</span><span class="o">=</span><span class="n">conv_dims</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">channel_dim</span><span class="o">=</span><span class="n">conv_dims</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+                    <span class="n">kernel_dim</span><span class="o">=</span><span class="n">kernel_dims</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                    <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">attention</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MultiheadAttention</span><span class="p">(</span>
+            <span class="n">embed_dim</span><span class="o">=</span><span class="n">hidden_dim</span><span class="p">,</span>
+            <span class="n">num_heads</span><span class="o">=</span><span class="n">num_heads</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+            <span class="n">batch_first</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pre_norm</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">LayerNorm</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_norm</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">LayerNorm</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layer_weights</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">kernel_dims</span><span class="p">)))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="n">hidden_dim</span>
+
+<div class="viewcode-block" id="CNN.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.cnn.CNN.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_ids</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a nested list of integers objects into a (x, self.fp_dim) tensor for further</span>
+<span class="sd">        processing.</span>
+
+<span class="sd">        :param list[list[int]] token_ids: batched input from the dataloader</span>
+
+<span class="sd">        :return torch.Tensor: learned representation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pre_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">intermediate_reps</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">layer</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">intermediate_reps</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layer_weights</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">w</span> <span class="o">*</span> <span class="n">rep</span> <span class="k">for</span> <span class="n">w</span><span class="p">,</span> <span class="n">rep</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">weights</span><span class="p">,</span> <span class="n">intermediate_reps</span><span class="p">))</span>
+
+        <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">post_norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">key_padding_mask</span> <span class="o">=</span> <span class="n">token_ids</span> <span class="o">==</span> <span class="mi">0</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attention</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">key_padding_mask</span><span class="o">=</span><span class="n">key_padding_mask</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

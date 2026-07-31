@@ -1,0 +1,453 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.explainability.analogue_generator &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.explainability.analogue_generator</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.explainability.analogue_generator</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombineMols</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">combinations</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.Scaffolds.MurckoScaffold</span><span class="w"> </span><span class="kn">import</span> <span class="n">GetScaffoldForMol</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.BRICS</span><span class="w"> </span><span class="kn">import</span> <span class="n">BRICSDecompose</span>
+
+
+<div class="viewcode-block" id="AnalogueGenerator">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.analogue_generator.AnalogueGenerator">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AnalogueGenerator</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generator of structural analogues for molecular explainability.</span>
+
+<span class="sd">    Provides class methods that produce analogues of a query molecule using</span>
+<span class="sd">    two complementary strategies:</span>
+
+<span class="sd">    - **Positional analogue scanning:** Substitutes atoms at anchor positions.</span>
+<span class="sd">    - **Nitrogen walk:** Replaces aromatic CH with nitrogen.</span>
+
+<span class="sd">    All generated analogues are validated via RDKit sanitization and deduplicated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="AnalogueGenerator.generate_analogues">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.analogue_generator.AnalogueGenerator.generate_analogues">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_analogues</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">positional_analogue_scanning_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;substituents&quot;</span><span class="p">:</span> <span class="p">[</span>
+                <span class="s2">&quot;F&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;I&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Br&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;Cl&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;O&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;C&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;[*]C(F)(F)F&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;[*]C#N&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;[*]OC&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;[*]C1CC1&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;[*]C(=O)N&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;[*]S(=O)(=O)C&quot;</span><span class="p">,</span>
+            <span class="p">],</span>
+            <span class="s2">&quot;anchors&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;[cH]&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;num_sub&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">nitrogen_walk_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;num_sub&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate structural analogues of a molecule using scaffold-based and pairwise strategies.</span>
+
+<span class="sd">        Runs positional analogue scanning (PAS) and nitrogen walk on both the</span>
+<span class="sd">        input molecule and its Murcko scaffold, then applies a second round of</span>
+<span class="sd">        PAS and nitrogen walk to each first-pass PAS result. All results are</span>
+<span class="sd">        pooled, validated, deduplicated, and the input molecule is excluded.</span>
+
+<span class="sd">        :param Mol mol: Query RDKit molecule.</span>
+<span class="sd">        :param dict | None positional_analogue_scanning_params: Parameters for</span>
+<span class="sd">            positional analogue scanning. Set to None to skip. Keys:</span>
+<span class="sd">            ``substituents``, ``anchors``, ``num_sub``.</span>
+<span class="sd">        :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.</span>
+<span class="sd">            Set to None to skip. Keys: ``num_sub``.</span>
+
+<span class="sd">        :returns: List of unique, sanitized RDKit molecule objects (excluding</span>
+<span class="sd">            the input molecule).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">scaffold</span> <span class="o">=</span> <span class="n">GetScaffoldForMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+
+        <span class="n">pas_mol</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
+                <span class="n">mol_in</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span> <span class="o">**</span><span class="n">positional_analogue_scanning_params</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)</span>
+        <span class="n">nw_mol</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span><span class="n">mol_in</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span> <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)</span>
+        <span class="n">pas_scaffold</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
+                <span class="n">mol_in</span><span class="o">=</span><span class="n">scaffold</span><span class="p">,</span> <span class="o">**</span><span class="n">positional_analogue_scanning_params</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)</span>
+        <span class="n">nw_scaffold</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span><span class="n">mol_in</span><span class="o">=</span><span class="n">scaffold</span><span class="p">,</span> <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="p">[]</span>
+        <span class="p">)</span>
+
+        <span class="n">pas_pas</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">pas_nw</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">analogue</span> <span class="ow">in</span> <span class="n">pas_mol</span> <span class="o">+</span> <span class="n">pas_scaffold</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pas_pas</span> <span class="o">+=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
+                    <span class="n">mol_in</span><span class="o">=</span><span class="n">analogue</span><span class="p">,</span> <span class="o">**</span><span class="n">positional_analogue_scanning_params</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">pas_nw</span> <span class="o">+=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span><span class="n">mol_in</span><span class="o">=</span><span class="n">analogue</span><span class="p">,</span> <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">)</span>
+
+        <span class="n">all_analogues</span> <span class="o">=</span> <span class="n">pas_mol</span> <span class="o">+</span> <span class="n">nw_mol</span> <span class="o">+</span> <span class="n">pas_scaffold</span> <span class="o">+</span> <span class="n">nw_scaffold</span> <span class="o">+</span> <span class="n">pas_pas</span> <span class="o">+</span> <span class="n">pas_nw</span>
+
+        <span class="n">input_smi</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="n">validated_smi</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">analogue</span> <span class="ow">in</span> <span class="n">all_analogues</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">smi</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">analogue</span><span class="p">)</span>
+                <span class="n">validated_smi</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">pass</span>
+
+        <span class="n">validated_smi</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">input_smi</span><span class="p">)</span>
+        <span class="n">validated</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span> <span class="k">for</span> <span class="n">smi</span> <span class="ow">in</span> <span class="n">validated_smi</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">validated</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="AnalogueGenerator.positional_analogue_scanning">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.analogue_generator.AnalogueGenerator.positional_analogue_scanning">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">positional_analogue_scanning</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">mol_in</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">substituents</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="s2">&quot;F&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;I&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Br&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Cl&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;O&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;C&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;[*]C(F)(F)F&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;[*]C#N&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;[*]OC&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;[*]C1CC1&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;[*]C(=O)N&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;[*]S(=O)(=O)C&quot;</span><span class="p">,</span>
+        <span class="p">],</span>
+        <span class="n">anchors</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[cH]&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">],</span>
+        <span class="n">num_sub</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate analogues via Positional Analogue Scanning.</span>
+
+<span class="sd">        Adds substituents at anchor positions in the molecule. Each entry in</span>
+<span class="sd">        ``substituents`` is either an element symbol (e.g. ``&quot;F&quot;``) or a</span>
+<span class="sd">        fragment SMILES with a ``[*]`` dummy attachment point</span>
+<span class="sd">        (e.g. ``&quot;[*]C(F)(F)F&quot;``). Based on the algorithm described in</span>
+<span class="sd">        https://pubs.acs.org/doi/10.1021/acs.jmedchem.9b02092.</span>
+
+<span class="sd">        Implementation adapted from:</span>
+<span class="sd">        https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html</span>
+
+<span class="sd">        :param Mol mol_in: Input RDKit molecule.</span>
+<span class="sd">        :param list substituents: Element symbols or fragment SMILES (with</span>
+<span class="sd">            ``[*]`` attachment point) to try as substituents.</span>
+<span class="sd">        :param list anchors: SMARTS patterns identifying attachment positions.</span>
+<span class="sd">        :param int num_sub: Number of simultaneous substitutions. Defaults to 1.</span>
+<span class="sd">        :param int timeout: Maximum runtime in seconds. Defaults to 60.</span>
+
+<span class="sd">        :returns: List of unique, deduplicated analogue molecules.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">pt</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">GetPeriodicTable</span><span class="p">()</span>
+        <span class="n">out_mol_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">substituent</span> <span class="ow">in</span> <span class="n">substituents</span><span class="p">:</span>
+            <span class="n">frag</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+            <span class="n">is_fragment</span> <span class="o">=</span> <span class="n">frag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
+                <span class="n">a</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">frag</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_fragment</span><span class="p">:</span>
+                <span class="n">atomic_num</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">GetAtomicNumber</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
+                    <span class="n">atomic_num</span> <span class="o">&lt;=</span> <span class="mi">8</span>
+                    <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span>
+                        <span class="n">atm</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="n">atomic_num</span> <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span>
+                    <span class="p">)</span>
+                <span class="p">):</span>
+                    <span class="k">continue</span>
+            <span class="k">for</span> <span class="n">anchor</span> <span class="ow">in</span> <span class="n">anchors</span><span class="p">:</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmarts</span><span class="p">(</span><span class="n">anchor</span><span class="p">)</span>
+                <span class="n">match_atms</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetSubstructMatches</span><span class="p">(</span><span class="n">query</span><span class="p">)]</span>
+                <span class="n">n_combos</span> <span class="o">=</span> <span class="n">combinations</span><span class="p">(</span><span class="n">match_atms</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">combo</span> <span class="ow">in</span> <span class="n">n_combos</span><span class="p">:</span>
+                    <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol_in</span><span class="p">)</span>
+                    <span class="n">success</span> <span class="o">=</span> <span class="kc">True</span>
+                    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">combo</span><span class="p">:</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_attach_substituent</span><span class="p">(</span><span class="n">new_mol</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">substituent</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">success</span> <span class="o">=</span> <span class="kc">False</span>
+                            <span class="k">break</span>
+                        <span class="n">new_mol</span> <span class="o">=</span> <span class="n">result</span>
+                    <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
+                        <span class="n">out_mol_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span> <span class="o">&gt;</span> <span class="n">timeout</span><span class="p">:</span>
+                <span class="k">break</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span><span class="n">mol_in</span><span class="p">,</span> <span class="n">out_mol_list</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AnalogueGenerator.nitrogen_walk">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.analogue_generator.AnalogueGenerator.nitrogen_walk">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">nitrogen_walk</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">mol_in</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate analogues by replacing aromatic CH atoms with nitrogen.</span>
+
+<span class="sd">        Systematically walks aromatic carbon-hydrogen positions, replacing them</span>
+<span class="sd">        with nitrogen to produce aza-analogues.</span>
+
+<span class="sd">        Implementation adapted from:</span>
+<span class="sd">        https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html</span>
+
+<span class="sd">        :param Mol mol_in: Input RDKit molecule.</span>
+<span class="sd">        :param int num_sub: Number of simultaneous CH-to-N replacements. Defaults to 1.</span>
+<span class="sd">        :param int timeout: Maximum runtime in seconds. Defaults to 60.</span>
+
+<span class="sd">        :returns: List of unique, deduplicated analogue molecules.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">out_mol_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">aromatic_cH</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmarts</span><span class="p">(</span><span class="s2">&quot;[cH]&quot;</span><span class="p">)</span>
+        <span class="n">match_atms</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetSubstructMatches</span><span class="p">(</span><span class="n">aromatic_cH</span><span class="p">)]</span>
+        <span class="n">n_combos</span> <span class="o">=</span> <span class="n">combinations</span><span class="p">(</span><span class="n">match_atms</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">combo</span> <span class="ow">in</span> <span class="n">n_combos</span><span class="p">:</span>
+            <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol_in</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">combo</span><span class="p">:</span>
+                <span class="n">atm</span> <span class="o">=</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtomWithIdx</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+                <span class="n">atm</span><span class="o">.</span><span class="n">SetAtomicNum</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
+                <span class="n">out_mol_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span> <span class="o">&gt;</span> <span class="n">timeout</span><span class="p">:</span>
+                <span class="k">break</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span><span class="n">mol_in</span><span class="p">,</span> <span class="n">out_mol_list</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AnalogueGenerator.decompose">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.analogue_generator.AnalogueGenerator.decompose">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decompose</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">mol_in</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decompose a molecule into BRICS fragments.</span>
+
+<span class="sd">        Performs a single-pass BRICS decomposition and returns cleaned fragments</span>
+<span class="sd">        as RDKit molecules (with attachment-point labels removed).</span>
+
+<span class="sd">        :param Mol mol_in: Input RDKit molecule.</span>
+
+<span class="sd">        :returns: List of fragment molecules.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">BRICSDecompose</span><span class="p">(</span><span class="n">mol_in</span><span class="p">,</span> <span class="n">singlePass</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+        <span class="n">filtered_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">out</span> <span class="k">if</span> <span class="s2">&quot;[&quot;</span> <span class="ow">in</span> <span class="n">s</span> <span class="ow">and</span> <span class="s2">&quot;]&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span>
+        <span class="n">cleaned_list</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">s</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;[&quot;</span><span class="p">)</span> <span class="p">:</span> <span class="n">s</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;]&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">filtered_list</span>
+        <span class="p">]</span>
+        <span class="n">brics</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">cleaned_list</span><span class="p">]</span>
+        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">brics</span><span class="p">))</span></div>
+
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_attach_substituent</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">anchor_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">substituent</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mol</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Attach a substituent at a given anchor atom index.</span>
+
+<span class="sd">        Detects whether ``substituent`` is a fragment SMILES containing a</span>
+<span class="sd">        ``[*]`` dummy attachment point (e.g. ``&quot;[*]C(F)(F)F&quot;``) or a bare</span>
+<span class="sd">        element symbol (e.g. ``&quot;F&quot;``), and applies the appropriate attachment.</span>
+
+<span class="sd">        :param Mol mol: Input molecule.</span>
+<span class="sd">        :param int anchor_idx: Index of the anchor atom to attach at.</span>
+<span class="sd">        :param str substituent: Element symbol or fragment SMILES with ``[*]``.</span>
+
+<span class="sd">        :returns: Sanitized RWMol with substituent attached, or ``None`` on failure.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">frag</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+            <span class="n">is_fragment</span> <span class="o">=</span> <span class="n">frag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
+                <span class="n">a</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">frag</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">is_fragment</span><span class="p">:</span>
+                <span class="n">sidechain</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_prep_sidechain</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+                <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">CombineMols</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">sidechain</span><span class="p">))</span>
+                <span class="n">attach_atm</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetAtomMapNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">attach_atm</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span>
+                        <span class="k">break</span>
+                <span class="k">if</span> <span class="n">attach_atm</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="kc">None</span>
+                <span class="n">new_mol</span><span class="o">.</span><span class="n">AddBond</span><span class="p">(</span>
+                    <span class="n">anchor_idx</span><span class="p">,</span> <span class="n">attach_atm</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">Chem</span><span class="o">.</span><span class="n">rdchem</span><span class="o">.</span><span class="n">BondType</span><span class="o">.</span><span class="n">SINGLE</span>
+                <span class="p">)</span>
+                <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
+                    <span class="n">atm</span><span class="o">.</span><span class="n">SetAtomMapNum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pt</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">GetPeriodicTable</span><span class="p">()</span>
+                <span class="n">atomic_num</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">GetAtomicNumber</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+                <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+                <span class="n">new_idx</span> <span class="o">=</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">AddAtom</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">Atom</span><span class="p">(</span><span class="n">atomic_num</span><span class="p">))</span>
+                <span class="n">new_mol</span><span class="o">.</span><span class="n">AddBond</span><span class="p">(</span><span class="n">anchor_idx</span><span class="p">,</span> <span class="n">new_idx</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">Chem</span><span class="o">.</span><span class="n">rdchem</span><span class="o">.</span><span class="n">BondType</span><span class="o">.</span><span class="n">SINGLE</span><span class="p">)</span>
+            <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">new_mol</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_remove_duplicate</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">analogues</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+        <span class="n">smi_target</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+        <span class="n">analogues</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">analogues</span><span class="p">]</span>
+        <span class="n">unique_smiles</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">analogues</span><span class="p">)</span>
+        <span class="n">unique_smiles</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">smi_target</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span> <span class="k">for</span> <span class="n">smi</span> <span class="ow">in</span> <span class="n">unique_smiles</span><span class="p">]</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prep_sidechain</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">smi</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepare a fragment SMILES as an RDKit sidechain ready for bonding.</span>
+
+<span class="sd">        Removes the ``[*]`` dummy attachment atom and marks its neighbor with</span>
+<span class="sd">        atom-map number 1 so it can be found by :meth:`_attach_substituent`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span>
+        <span class="n">rw_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="n">remove_idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">rw_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">remove_idx</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">nbr</span> <span class="ow">in</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetNeighbors</span><span class="p">():</span>
+                    <span class="n">nbr</span><span class="o">.</span><span class="n">SetAtomMapNum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">rw_mol</span><span class="o">.</span><span class="n">RemoveAtom</span><span class="p">(</span><span class="n">remove_idx</span><span class="p">)</span>
+        <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">rw_mol</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">rw_mol</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

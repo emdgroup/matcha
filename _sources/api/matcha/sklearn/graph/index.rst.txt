@@ -1,0 +1,992 @@
+matcha.sklearn.graph
+====================
+
+.. py:module:: matcha.sklearn.graph
+
+.. autoapi-nested-parse::
+
+   Sklearn-compatible wrappers for graph neural network architectures.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/sklearn/graph/attentive_fp/index
+   /api/matcha/sklearn/graph/base_sklearn_gnn/index
+   /api/matcha/sklearn/graph/chemprop/index
+   /api/matcha/sklearn/graph/gatedgcn/index
+   /api/matcha/sklearn/graph/gin/index
+   /api/matcha/sklearn/graph/gps/index
+   /api/matcha/sklearn/graph/gt/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.graph.AttentiveFPClassifier
+   matcha.sklearn.graph.AttentiveFPRegressor
+   matcha.sklearn.graph.ChempropClassifier
+   matcha.sklearn.graph.ChempropRegressor
+   matcha.sklearn.graph.GatedGCNClassifier
+   matcha.sklearn.graph.GatedGCNRegressor
+   matcha.sklearn.graph.GINClassifier
+   matcha.sklearn.graph.GINRegressor
+   matcha.sklearn.graph.GPSClassifier
+   matcha.sklearn.graph.GPSRegressor
+   matcha.sklearn.graph.GTClassifier
+   matcha.sklearn.graph.GTRegressor
+
+
+Package Contents
+----------------
+
+.. py:class:: AttentiveFPClassifier(enc_num_layers: int = 2, enc_atom_hidden_dim: int = 256, enc_jk: str = 'last', enc_readout: str = 'virtualnode', enc_dropout: float = 0.2, pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 20, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, num_virtual_nodes: int = 1, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`
+
+
+   AttentiveFP graph attention classifier.
+
+   Uses a graph attention mechanism for molecular representation learning
+   and property prediction, as described in *Pushing the Boundaries of
+   Molecular Representation for Drug Discovery with the Graph Attention
+   Mechanism*. Compatible with classification datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Xiong et al., *Pushing the Boundaries of Molecular Representation for
+     Drug Discovery with the Graph Attention Mechanism*
+     https://doi.org/10.1021/acs.jmedchem.9b00959
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = AttentiveFPClassifier()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers for message passing,
+       defaults to 2
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'virtualnode'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param list[int] pred_hidden_dims: shape of hidden MLP layers in the predictor,
+       defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'swish'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints or classes to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'bce'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 20
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 20
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 1
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: AttentiveFPRegressor(enc_num_layers: int = 2, enc_atom_hidden_dim: int = 256, enc_jk: str = 'last', enc_readout: str = 'virtualnode', enc_dropout: float = 0.2, pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 20, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, num_virtual_nodes: int = 1, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`
+
+
+   AttentiveFP graph attention regressor.
+
+   Uses a graph attention mechanism for molecular representation learning
+   and continuous property prediction. Compatible with regression datasets
+   only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Xiong et al., *Pushing the Boundaries of Molecular Representation for
+     Drug Discovery with the Graph Attention Mechanism*
+     https://doi.org/10.1021/acs.jmedchem.9b00959
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = AttentiveFPRegressor()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers for message passing,
+       defaults to 2
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'virtualnode'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param list[int] pred_hidden_dims: shape of hidden MLP layers in the predictor,
+       defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'swish'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'mse'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 20
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 20
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 1
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param bool clip: whether to clip predictions to training label range,
+       defaults to True
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param str scaler_type: type of target scaler, defaults to 'standard'
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: ChempropClassifier(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 300, enc_readout: str = 'norm', enc_dropout: float = 0.1, enc_activation: str = 'relu', pred_hidden_dim: int = 300, pred_num_layers: int = 2, pred_activation: str = 'relu', pred_dropout: float = 0.1, num_endpoints: int = 1, loss_fn: str = 'bce', optimizer: str = 'chemprop', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'chemprop', scheduler_args: dict = {'warmup_epochs': 2, 'max_lr': 0.001, 'final_lr': 1e-05}, num_epochs: int = 20, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 10, devices: int = 1, accelerator: str = 'gpu', feature_list: list[str] | None = ['rdkit_all_descriptors'], label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.base_sklearn_model.BaseScikitLearnModel`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`, :py:obj:`ChempropMixin`
+
+
+   Chemprop (Directed Message Passing Neural Network) classifier.
+
+   Uses a directed message-passing neural network (D-MPNN) that operates on
+   molecular graphs for property prediction. Compatible with classification
+   datasets only.
+
+   Inherits from :class:`~matcha.sklearn.base_sklearn_model.BaseScikitLearnModel`
+   and :class:`ChempropMixin` for Chemprop-specific datamodule handling.
+
+   References:
+
+   - Yang et al., *Analyzing Learned Molecular Representations for Property Prediction*
+     https://arxiv.org/abs/1904.01561
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = ChempropClassifier()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of message-passing layers, defaults to 3
+   :param int enc_atom_hidden_dim: hidden dimensionality in the encoder,
+       defaults to 300
+   :param str enc_readout: encoder readout aggregation, defaults to 'norm'
+   :param float enc_dropout: dropout rate in the encoder, defaults to 0.1
+   :param str enc_activation: activation function in the encoder, defaults to 'relu'
+   :param int pred_hidden_dim: hidden dimensionality in the predictor FFN,
+       defaults to 300
+   :param int pred_num_layers: number of FFN layers in the predictor, defaults to 2
+   :param str pred_activation: activation function in the predictor, defaults to 'relu'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.1
+   :param int num_endpoints: number of endpoints or classes to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'bce'
+   :param str optimizer: optimizer to use, defaults to 'chemprop'
+   :param dict optimizer_args: optimizer arguments, defaults to {'lr': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'chemprop'
+   :param dict scheduler_args: scheduler arguments, defaults to
+       {'warmup_epochs': 2, 'max_lr': 1e-3, 'final_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 20
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 10
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to ['rdkit_all_descriptors']
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param int seed: random seed, defaults to 0
+
+
+   .. py:method:: predict_proba(x: list[rdkit.Chem.rdchem.Mol], accelerator: str | None = None, devices: int | None = None, batch_size: int | None = None) -> numpy.ndarray
+
+      Allows to return probabilities instead of class labels for classification
+      models.
+
+      :param list[Mol] x: input to compute predictions for
+
+      :param str | None accelerator: hardware to use for predictions, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None devices: how many resources to use, if None
+          it is kept as training settings, defaults to None
+
+      :param int | None batch_size: batch size to use, if None
+          it is kept as training settings, defaults to None
+
+      :return np.ndarray: class probabilities for the input
+
+
+
+.. py:class:: ChempropRegressor(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 300, enc_readout: str = 'norm', enc_dropout: float = 0.1, enc_activation: str = 'relu', pred_hidden_dim: int = 300, pred_num_layers: int = 2, pred_activation: str = 'relu', pred_dropout: float = 0.1, num_endpoints: int = 1, loss_fn: str = 'mse', optimizer: str = 'chemprop', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'chemprop', scheduler_args: dict = {'warmup_epochs': 2, 'max_lr': 0.001, 'final_lr': 1e-05}, num_epochs: int = 20, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 10, devices: int = 1, accelerator: str = 'gpu', feature_list: list[str] | None = ['rdkit_all_descriptors'], clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.base_sklearn_model.BaseScikitLearnModel`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`, :py:obj:`ChempropMixin`
+
+
+   Chemprop (Directed Message Passing Neural Network) regressor.
+
+   Uses a directed message-passing neural network (D-MPNN) that operates on
+   molecular graphs for continuous property prediction. Compatible with
+   regression datasets only.
+
+   Inherits from :class:`~matcha.sklearn.base_sklearn_model.BaseScikitLearnModel`
+   and :class:`ChempropMixin` for Chemprop-specific datamodule handling.
+
+   References:
+
+   - Yang et al., *Analyzing Learned Molecular Representations for Property Prediction*
+     https://arxiv.org/abs/1904.01561
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = ChempropRegressor()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of message-passing layers, defaults to 3
+   :param int enc_atom_hidden_dim: hidden dimensionality in the encoder,
+       defaults to 300
+   :param str enc_readout: encoder readout aggregation, defaults to 'norm'
+   :param float enc_dropout: dropout rate in the encoder, defaults to 0.1
+   :param str enc_activation: activation function in the encoder, defaults to 'relu'
+   :param int pred_hidden_dim: hidden dimensionality in the predictor FFN,
+       defaults to 300
+   :param int pred_num_layers: number of FFN layers in the predictor, defaults to 2
+   :param str pred_activation: activation function in the predictor, defaults to 'relu'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.1
+   :param int num_endpoints: number of endpoints to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'mse'
+   :param str optimizer: optimizer to use, defaults to 'chemprop'
+   :param dict optimizer_args: optimizer arguments, defaults to {'lr': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'chemprop'
+   :param dict scheduler_args: scheduler arguments, defaults to
+       {'warmup_epochs': 2, 'max_lr': 1e-3, 'final_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 20
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 10
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to ['rdkit_all_descriptors']
+   :param bool clip: whether to clip predictions to training label range,
+       defaults to True
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param str scaler_type: type of target scaler, defaults to 'standard'
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: GatedGCNClassifier(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 1, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`
+
+
+   Gated Graph Convolution Network (GatedGCN) classifier.
+
+   Uses gated edge-conditioned convolutions for molecular graph embedding and
+   property prediction. Compatible with classification datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Dwivedi et al., *Benchmarking Graph Neural Networks*
+     https://arxiv.org/abs/2003.00982
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GatedGCNClassifier()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers for message passing,
+       defaults to 3
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: normalization in GatedGCN layers, defaults to 'batch'
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'vpa'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function in the encoder, defaults to 'swish'
+   :param list[int] pred_hidden_dims: shape of hidden MLP layers in the predictor,
+       defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'swish'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints or classes to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'bce'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 0
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 0
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 1
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: GatedGCNRegressor(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 1, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`
+
+
+   Gated Graph Convolution Network (GatedGCN) regressor.
+
+   Uses gated edge-conditioned convolutions for molecular graph embedding and
+   continuous property prediction. Compatible with regression datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Dwivedi et al., *Benchmarking Graph Neural Networks*
+     https://arxiv.org/abs/2003.00982
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GatedGCNRegressor()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers for message passing,
+       defaults to 3
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: normalization in GatedGCN layers, defaults to 'batch'
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'vpa'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function in the encoder, defaults to 'swish'
+   :param list[int] pred_hidden_dims: shape of hidden MLP layers in the predictor,
+       defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'swish'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'mse'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 0
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 0
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 1
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param bool clip: whether to clip predictions to training label range,
+       defaults to True
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param str scaler_type: type of target scaler, defaults to 'standard'
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: GINClassifier(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_aggregation: str = 'VariancePreservingAggregation', enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`
+
+
+   Graph Isomorphism Network (GIN) classifier.
+
+   Learns to embed molecular graphs and predict properties in an end-to-end
+   manner using message-passing with injective aggregation. Compatible with
+   classification datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Xu et al., *How Powerful are Graph Neural Networks?*
+     https://arxiv.org/abs/1810.00826
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GINClassifier()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers for message passing,
+       defaults to 3
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_aggregation: encoder aggregation strategy for message passing,
+       defaults to 'VariancePreservingAggregation'
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: which norm to use inside GIN layers in the encoder,
+       defaults to 'batch'
+   :param str enc_readout: encoder aggregation strategy for returning molecule-level
+       embeddings, defaults to 'vpa'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function to use across the encoder,
+       defaults to 'swish'
+   :param list[int] pred_hidden_dims: shape of hidden MLP layers in the predictor,
+       defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of the MLP layers dedicated
+       to each task independently, defaults to None
+   :param str pred_activation: activation function to use across the predictor,
+       defaults to 'swish'
+   :param float pred_dropout: dropout rate across the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints (if multitasking) or classes
+       (if classification) to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'bce'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use while training, defaults to 'adamw'
+   :param dict optimizer_args: additional arguments for the optimizer, defaults
+       to {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: scheduler to change the learning rate during training,
+       defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: additional arguments for the scheduler, defaults
+       to {'min_lr': 1e-5}. If 'total_steps' is not provided, it is
+       auto-computed as num_epochs * ceil(len(train_data) / batch_size).
+   :param int num_epochs: number of epochs to train for, defaults to 100
+   :param int batch_size: batch size to use for training and prediction, defaults
+       to 64
+   :param bool stochastic_weight_averaging: whether to add a few epochs with SWA
+       on top of regular training, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: how many epochs to wait before early stopping, defaults
+       to 20
+   :param int devices: how many devices to use for training, defaults to 1
+   :param str accelerator: hardware accelerator to use for training, defaults
+       to 'gpu'
+   :param int rwse_k: number of random walk structural encoding dimensions,
+       defaults to 0
+   :param int laplacian_k: number of Laplacian positional encoding components,
+       defaults to 0
+   :param int elstatic_k: number of electrostatic encoding dimensions,
+       defaults to 0
+   :param int distmat_k: number of distance matrix encoding dimensions,
+       defaults to 0
+   :param int rrwp_k: number of relative random walk probability dimensions,
+       defaults to 0
+   :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0
+   :param list[str] | None feature_list: list of strings defining which molecular
+       feature set to compute, defaults to None
+   :param dict label_encoder_params: additional parameters for the label encoder,
+       defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed for reproducibility, defaults to 0
+
+
+.. py:class:: GINRegressor(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_aggregation: str = 'VariancePreservingAggregation', enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`
+
+
+   Graph Isomorphism Network (GIN) regressor.
+
+   Learns to embed molecular graphs and predict continuous properties in an
+   end-to-end manner using message-passing with injective aggregation.
+   Compatible with regression datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Xu et al., *How Powerful are Graph Neural Networks?*
+     https://arxiv.org/abs/1810.00826
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GINRegressor()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers for message passing,
+       defaults to 3
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_aggregation: encoder aggregation strategy for message passing,
+       defaults to 'VariancePreservingAggregation'
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: which norm to use inside GIN layers in the encoder,
+       defaults to 'batch'
+   :param str enc_readout: encoder aggregation strategy for returning molecule-level
+       embeddings, defaults to 'vpa'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function to use across the encoder,
+       defaults to 'swish'
+   :param list[int] pred_hidden_dims: shape of hidden MLP layers in the predictor,
+       defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of the MLP layers dedicated
+       to each task independently, defaults to None
+   :param str pred_activation: activation function to use across the predictor,
+       defaults to 'swish'
+   :param float pred_dropout: dropout rate across the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'mse'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use while training, defaults to 'adamw'
+   :param dict optimizer_args: additional arguments for the optimizer, defaults
+       to {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: scheduler to change the learning rate during training,
+       defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: additional arguments for the scheduler, defaults
+       to {'min_lr': 1e-5}. If 'total_steps' is not provided, it is
+       auto-computed as num_epochs * ceil(len(train_data) / batch_size).
+   :param int num_epochs: number of epochs to train for, defaults to 100
+   :param int batch_size: batch size to use for training and prediction, defaults
+       to 64
+   :param bool stochastic_weight_averaging: whether to add a few epochs with SWA
+       on top of regular training, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: how many epochs to wait before early stopping, defaults
+       to 20
+   :param int devices: how many devices to use for training, defaults to 1
+   :param str accelerator: hardware accelerator to use for training, defaults
+       to 'gpu'
+   :param int rwse_k: number of random walk structural encoding dimensions,
+       defaults to 0
+   :param int laplacian_k: number of Laplacian positional encoding components,
+       defaults to 0
+   :param int elstatic_k: number of electrostatic encoding dimensions,
+       defaults to 0
+   :param int distmat_k: number of distance matrix encoding dimensions,
+       defaults to 0
+   :param int rrwp_k: number of relative random walk probability dimensions,
+       defaults to 0
+   :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0
+   :param list[str] | None feature_list: list of strings defining which molecular
+       feature set to compute, defaults to None
+   :param bool clip: whether to clip predictions to training label range,
+       defaults to True
+   :param dict label_encoder_params: additional parameters for the label encoder,
+       defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param str scaler_type: type of target scaler to use, defaults to 'standard'
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed for reproducibility, defaults to 0
+
+
+.. py:class:: GPSClassifier(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_jk: str = 'last', enc_norm: str | None = 'layer', enc_num_heads: int = 8, enc_expansion_k: float = 2, enc_distance_k: int | None = 10, enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'gelu', pred_hidden_dims: list[int] | None = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'gelu', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 20, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`
+
+
+   General, Powerful, Scalable Graph Transformer (GPS) classifier.
+
+   Combines local message-passing with global self-attention in a hybrid
+   architecture for molecular property prediction. Compatible with
+   classification datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Rampasek et al., *Recipe for a General, Powerful, Scalable Graph Transformer*
+     https://arxiv.org/abs/2205.12454
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GPSClassifier()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers, defaults to 3
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: normalization layer type, defaults to 'layer'
+   :param int enc_num_heads: number of attention heads, defaults to 8
+   :param float enc_expansion_k: FFN expansion factor, defaults to 2
+   :param int | None enc_distance_k: shortest-path distance clipping, defaults to 10
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'vpa'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function in the encoder, defaults to 'gelu'
+   :param list[int] | None pred_hidden_dims: shape of hidden MLP layers in the
+       predictor, defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'gelu'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints or classes to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'bce'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 20
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 20
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 0
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: GPSRegressor(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_jk: str = 'last', enc_norm: str | None = 'layer', enc_num_heads: int = 8, enc_expansion_k: float = 2, enc_distance_k: int | None = 10, enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'gelu', pred_hidden_dims: list[int] | None = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'gelu', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 20, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`
+
+
+   General, Powerful, Scalable Graph Transformer (GPS) regressor.
+
+   Combines local message-passing with global self-attention in a hybrid
+   architecture for molecular property prediction. Compatible with
+   regression datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   References:
+
+   - Rampasek et al., *Recipe for a General, Powerful, Scalable Graph Transformer*
+     https://arxiv.org/abs/2205.12454
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GPSRegressor()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: number of encoder layers, defaults to 3
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: normalization layer type, defaults to 'layer'
+   :param int enc_num_heads: number of attention heads, defaults to 8
+   :param float enc_expansion_k: FFN expansion factor, defaults to 2
+   :param int | None enc_distance_k: shortest-path distance clipping, defaults to 10
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'vpa'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function in the encoder, defaults to 'gelu'
+   :param list[int] | None pred_hidden_dims: shape of hidden MLP layers in the
+       predictor, defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'gelu'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'mse'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 20
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 20
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 0
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param bool clip: whether to clip predictions to training label range,
+       defaults to True
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param str scaler_type: type of target scaler, defaults to 'standard'
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: GTClassifier(enc_atom_hidden_dim: int = 256, enc_num_layers: int = 3, enc_jk: str = 'concat', enc_num_heads: int = 8, enc_expansion_k: int = 2, enc_distance_k: int | None = 10, enc_readout: str = 'virtualnode', enc_dropout: float = 0.2, enc_activation: str = 'gelu', pred_hidden_dims: list[int] | None = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'gelu', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 20, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, num_virtual_nodes: int = 1, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`
+
+
+   Graph Transformer (GT) classifier.
+
+   A sparse graph transformer that uses multi-head self-attention over graph
+   nodes for molecular property prediction. Compatible with classification
+   datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   Loosely inspired by:
+
+   - https://github.com/pgniewko/gt-pyg
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GTClassifier()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param int enc_num_layers: number of encoder layers, defaults to 3
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'concat'
+   :param int enc_num_heads: number of attention heads, defaults to 8
+   :param int enc_expansion_k: FFN expansion factor, defaults to 2
+   :param int | None enc_distance_k: shortest-path distance clipping, defaults to 10
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'virtualnode'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function in the encoder, defaults to 'gelu'
+   :param list[int] | None pred_hidden_dims: shape of hidden MLP layers in the
+       predictor, defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'gelu'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints or classes to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'bce'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 20
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 20
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 1
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+
+.. py:class:: GTRegressor(enc_atom_hidden_dim: int = 256, enc_num_layers: int = 3, enc_jk: str = 'concat', enc_num_heads: int = 8, enc_expansion_k: int = 2, enc_distance_k: int | None = 10, enc_readout: str = 'virtualnode', enc_dropout: float = 0.2, enc_activation: str = 'gelu', pred_hidden_dims: list[int] | None = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'gelu', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 20, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, num_virtual_nodes: int = 1, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`
+
+
+   Graph Transformer (GT) regressor.
+
+   A sparse graph transformer that uses multi-head self-attention over graph
+   nodes for molecular property prediction. Compatible with regression
+   datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph.BaseScikitLearnGNN` for
+   graph-specific datamodule creation and collate-aware dataloading.
+
+   Loosely inspired by:
+
+   - https://github.com/pgniewko/gt-pyg
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GTRegressor()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_atom_hidden_dim: encoder output atom feature dimensionality,
+       defaults to 256
+   :param int enc_num_layers: number of encoder layers, defaults to 3
+   :param str enc_jk: encoder jumping knowledge strategy, defaults to 'concat'
+   :param int enc_num_heads: number of attention heads, defaults to 8
+   :param int enc_expansion_k: FFN expansion factor, defaults to 2
+   :param int | None enc_distance_k: shortest-path distance clipping, defaults to 10
+   :param str enc_readout: encoder aggregation for molecule-level embeddings,
+       defaults to 'virtualnode'
+   :param float enc_dropout: dropout rate across the encoder, defaults to 0.2
+   :param str enc_activation: activation function in the encoder, defaults to 'gelu'
+   :param list[int] | None pred_hidden_dims: shape of hidden MLP layers in the
+       predictor, defaults to [256, 256]
+   :param list[int] | None pred_task_head_dims: shape of per-task MLP layers,
+       defaults to None
+   :param str pred_activation: activation function in the predictor, defaults
+       to 'gelu'
+   :param float pred_dropout: dropout rate in the predictor, defaults to 0.2
+   :param int num_endpoints: number of endpoints to predict, defaults to 1
+   :param str loss_fn: loss function to optimize, defaults to 'mse'
+   :param dict loss_args: additional arguments for the loss function, defaults to {}
+   :param str optimizer: optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}
+   :param str scheduler: learning rate scheduler, defaults to 'warmup_linear_decay'
+   :param dict scheduler_args: scheduler arguments, defaults to {'min_lr': 1e-5}
+   :param int num_epochs: number of training epochs, defaults to 100
+   :param int batch_size: batch size for training and prediction, defaults to 64
+   :param bool stochastic_weight_averaging: whether to use SWA, defaults to False
+   :param bool early_stopping: whether to use early stopping, defaults to True
+   :param int patience: epochs to wait before early stopping, defaults to 20
+   :param int devices: number of devices for training, defaults to 1
+   :param str accelerator: hardware accelerator, defaults to 'gpu'
+   :param int rwse_k: random walk structural encoding dimensions, defaults to 20
+   :param int laplacian_k: Laplacian PE components, defaults to 0
+   :param int elstatic_k: electrostatic encoding dimensions, defaults to 0
+   :param int distmat_k: distance matrix encoding dimensions, defaults to 0
+   :param int rrwp_k: relative random walk probability dimensions, defaults to 20
+   :param int num_virtual_nodes: number of virtual nodes, defaults to 1
+   :param list[str] | None feature_list: molecular feature set to compute,
+       defaults to None
+   :param bool clip: whether to clip predictions to training label range,
+       defaults to True
+   :param dict label_encoder_params: label encoder parameters, defaults to {}
+   :param str | list[str] | dict | None label_transform_map: label transform
+       specification, defaults to None
+   :param str scaler_type: type of target scaler, defaults to 'standard'
+   :param bool augment_resonance: whether to augment with resonance structures,
+       defaults to False
+   :param int seed: random seed, defaults to 0
+
+

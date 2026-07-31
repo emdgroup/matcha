@@ -1,0 +1,509 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.tuning.routine &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.tuning.routine</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.tuning.routine</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Optuna-based hyperparameter tuning with architecture and optimizer search phases.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">logging</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_json</span><span class="p">,</span> <span class="n">silence_nuisance_warnings</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">optuna.samplers</span><span class="w"> </span><span class="kn">import</span> <span class="n">TPESampler</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">optuna.pruners</span><span class="w"> </span><span class="kn">import</span> <span class="n">NopPruner</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">optuna.integration</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLflowCallback</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">optuna</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_study</span><span class="p">,</span> <span class="n">trial</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">ClassicModelRegistry</span><span class="p">,</span>
+    <span class="n">BaseClassicModel</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.callbacks</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">EarlyStopping</span><span class="p">,</span>
+    <span class="n">StochasticWeightAveraging</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">L</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="parse_betas">
+<a class="viewcode-back" href="../../../../api/matcha/torch/tuning/routine/index.html#matcha.torch.tuning.parse_betas">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_betas</span><span class="p">(</span><span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Convert ``beta_1`` key into a ``betas`` tuple expected by PyTorch optimizers.</span>
+
+<span class="sd">    :param dictionary: parameter dictionary containing a ``beta_1`` key.</span>
+<span class="sd">    :returns: updated dictionary with ``betas`` tuple and ``beta_1`` removed.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;betas&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;beta_1&quot;</span><span class="p">],</span> <span class="mf">0.999</span><span class="p">)</span>
+    <span class="n">dictionary</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;beta_1&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">dictionary</span></div>
+
+
+
+<div class="viewcode-block" id="parse_num_heads">
+<a class="viewcode-back" href="../../../../api/matcha/torch/tuning/routine/index.html#matcha.torch.tuning.parse_num_heads">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_num_heads</span><span class="p">(</span><span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Adjust ``enc_num_heads`` so it evenly divides the hidden dimension.</span>
+
+<span class="sd">    :param dictionary: parameter dictionary potentially containing ``enc_num_heads``</span>
+<span class="sd">        and a hidden dimension key.</span>
+<span class="sd">    :returns: dictionary with ``enc_num_heads`` corrected if necessary.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;enc_num_heads&quot;</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="p">:</span>
+        <span class="c1"># Check for enc_atom_hidden_dim first, then enc_hidden_dim</span>
+        <span class="n">hidden_dim</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="s2">&quot;enc_atom_hidden_dim&quot;</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="p">:</span>
+            <span class="n">hidden_dim</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;enc_atom_hidden_dim&quot;</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="s2">&quot;enc_hidden_dim&quot;</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="p">:</span>
+            <span class="n">hidden_dim</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;enc_hidden_dim&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">hidden_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">num_heads</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;enc_num_heads&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="c1"># Walk down to the largest divisor of hidden_dim that is &lt;= num_heads.</span>
+                <span class="k">while</span> <span class="n">num_heads</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="n">num_heads</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;enc_num_heads&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">num_heads</span>
+
+    <span class="k">return</span> <span class="n">dictionary</span></div>
+
+
+
+<div class="viewcode-block" id="parse_config">
+<a class="viewcode-back" href="../../../../api/matcha/torch/tuning/routine/index.html#matcha.torch.tuning.parse_config">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">parse_config</span><span class="p">(</span><span class="n">trial</span><span class="p">:</span> <span class="n">trial</span><span class="o">.</span><span class="n">Trial</span><span class="p">,</span> <span class="n">dictionary</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper function to update the model params with the new</span>
+<span class="sd">    suggested ones from the optimizer</span>
+
+<span class="sd">    :param Trial trial: Optuna class for handling hparam process</span>
+
+<span class="sd">    :param dict dictionary: params of the model</span>
+
+<span class="sd">    :return dict: new params of the model to eval in next iteration</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">dictionary</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="n">trial_type</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">dictionary</span><span class="o">.</span><span class="n">values</span><span class="p">())]</span>
+    <span class="n">trial_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">list</span><span class="p">(</span><span class="n">dictionary</span><span class="o">.</span><span class="n">values</span><span class="p">())]</span>
+
+    <span class="n">update</span> <span class="o">=</span> <span class="p">{}</span>
+
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">keys</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">trial_type</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;float&quot;</span><span class="p">:</span>
+            <span class="n">update</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">trial</span><span class="o">.</span><span class="n">suggest_float</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">trial_params</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">trial_type</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;int&quot;</span><span class="p">:</span>
+            <span class="n">update</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">trial</span><span class="o">.</span><span class="n">suggest_int</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="o">**</span><span class="n">trial_params</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">trial_type</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;choice&quot;</span><span class="p">:</span>
+            <span class="n">trial_params</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">if</span> <span class="n">x</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span> <span class="k">else</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">trial_params</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+            <span class="n">update</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">trial</span><span class="o">.</span><span class="n">suggest_categorical</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">trial_params</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+        <span class="k">elif</span> <span class="n">trial_type</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">==</span> <span class="s2">&quot;constant&quot;</span><span class="p">:</span>
+            <span class="n">update</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">trial_params</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="s2">&quot;beta_1&quot;</span> <span class="ow">in</span> <span class="n">update</span><span class="p">:</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="n">parse_betas</span><span class="p">(</span><span class="n">update</span><span class="p">)</span>
+
+    <span class="n">update</span> <span class="o">=</span> <span class="n">parse_num_heads</span><span class="p">(</span><span class="n">update</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">update</span></div>
+
+
+
+<div class="viewcode-block" id="load_default_architecture_grid">
+<a class="viewcode-back" href="../../../../api/matcha/torch/tuning/routine/index.html#matcha.torch.tuning.load_default_architecture_grid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_default_architecture_grid</span><span class="p">(</span><span class="n">architecture</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load the default architecture search space from a bundled JSON file.</span>
+
+<span class="sd">    :param str architecture: name of the architecture to look up.</span>
+<span class="sd">    :returns: search space dictionary for the given architecture.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">load_json</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span><span class="si">}</span><span class="s2">/architecture_grid.json&quot;</span>
+    <span class="p">)[</span><span class="n">architecture</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="load_default_optimizer_grid">
+<a class="viewcode-back" href="../../../../api/matcha/torch/tuning/routine/index.html#matcha.torch.tuning.load_default_optimizer_grid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_default_optimizer_grid</span><span class="p">(</span><span class="n">optimizer</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load the default optimizer search space from a bundled JSON file.</span>
+
+<span class="sd">    :param str optimizer: name of the optimizer to look up.</span>
+<span class="sd">    :returns: search space dictionary for the given optimizer.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">load_json</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span><span class="si">}</span><span class="s2">/optimizer_grid.json&quot;</span>
+    <span class="p">)[</span><span class="n">optimizer</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="load_default_scheduler_grid">
+<a class="viewcode-back" href="../../../../api/matcha/torch/tuning/routine/index.html#matcha.torch.tuning.load_default_scheduler_grid">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_default_scheduler_grid</span><span class="p">(</span><span class="n">scheduler_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load the default scheduler search space for a given scheduler.</span>
+
+<span class="sd">    :param scheduler_name: name of the active scheduler, or None.</span>
+<span class="sd">    :returns: search space dictionary for the scheduler, or empty dict if the</span>
+<span class="sd">        scheduler has no tunable parameters.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">scheduler_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+    <span class="n">grid</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">realpath</span><span class="p">(</span><span class="vm">__file__</span><span class="p">))</span><span class="si">}</span><span class="s2">/scheduler_grid.json&quot;</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">grid</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">scheduler_name</span><span class="p">,</span> <span class="p">{})</span></div>
+
+
+
+<div class="viewcode-block" id="run_hparam_tuning">
+<a class="viewcode-back" href="../../../../api/matcha/torch/tuning/routine/index.html#matcha.torch.tuning.run_hparam_tuning">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">run_hparam_tuning</span><span class="p">(</span>
+    <span class="n">train_set</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">DataLoader</span><span class="p">]</span> <span class="o">|</span> <span class="n">DataLoader</span><span class="p">,</span>
+    <span class="n">val_set</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">DataLoader</span><span class="p">],</span>
+    <span class="n">model_architecture</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">BaseClassicModel</span><span class="p">,</span>
+    <span class="n">model_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span>
+    <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">200</span><span class="p">,</span>
+    <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="n">stochastic_weight_averaging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+    <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="n">architecture_search_budget</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">70</span><span class="p">,</span>
+    <span class="n">architecture_grid</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">optimizer_search_budget</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">30</span><span class="p">,</span>
+    <span class="n">optimizer_grid</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">scheduler_grid</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">logging_uri</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">study_name_arc</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;architecture_search&quot;</span><span class="p">,</span>
+    <span class="n">study_name_opt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;optimizer_search&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Hyperparameter optimization function for MATCHA models.</span>
+
+<span class="sd">    It first runs a QMC scan across different architecture configurations. Then,</span>
+<span class="sd">    it runs bayesian optimization via TPE on the parameters of the learning rate.</span>
+<span class="sd">    Each trial runs with early stopping to terminate underperforming runs.</span>
+
+<span class="sd">    The procedure was adapted from here:</span>
+<span class="sd">    https://github.com/google-research/tuning_playbook</span>
+
+<span class="sd">    :param tuple train_set: training set to use for hparam scan, should be the</span>
+<span class="sd">        output of the correct featurizer</span>
+
+<span class="sd">    :param tuple val_set: validation set to improve on (ideally time split),</span>
+<span class="sd">        should be the output of the correct featurizer using is_training=False</span>
+
+<span class="sd">    :param str model_architecture: name of the model to optimize, or model to</span>
+<span class="sd">        use for tuning (useful for pretrained ones)</span>
+
+<span class="sd">    :param dict model_params: custom params to keep fixed during the process,</span>
+<span class="sd">        a typical example would be in case extra features are used one has</span>
+<span class="sd">        to specify additional_mol_features_dim</span>
+
+<span class="sd">    :param str optimizer: which optimizer to use for model training and for</span>
+<span class="sd">        tuning its hparams, defaults to &quot;adam&quot;</span>
+
+<span class="sd">    :param int num_epochs: max number of epochs to use, defaults to 200</span>
+
+<span class="sd">    :param int patience: how many epochs to wait before early stopping, defaults</span>
+<span class="sd">        to 20</span>
+
+<span class="sd">    :param bool stochastic_weight_averaging: whether to use SWA</span>
+
+<span class="sd">    :param str accelerator: whether to train on cpu or gpu, defaults to &quot;gpu&quot;</span>
+
+<span class="sd">    :param int architecture_search_budget: how many QMC sampling iterations</span>
+<span class="sd">        to do for the architecture search step, defaults to 70</span>
+
+<span class="sd">    :param dict | None architecture_grid: which params to change for the</span>
+<span class="sd">        given architecture, defaults to None, meaning it will be loaded</span>
+<span class="sd">        from architecture_grid.json</span>
+
+<span class="sd">    :param int optimizer_search_budget: How many TPE steps to do when</span>
+<span class="sd">        tuning the learning rate parameters, defaults to 30</span>
+
+<span class="sd">    :param dict | None optimizer_grid: which params to tune for the</span>
+<span class="sd">        optimizer, defaults to None, meaning it will be loaded</span>
+<span class="sd">        from optimizer_grid.json</span>
+
+<span class="sd">    :param dict | None scheduler_grid: search space for scheduler parameters</span>
+<span class="sd">        to tune in Phase 2, defaults to None, meaning it will be loaded</span>
+<span class="sd">        from scheduler_grid.json based on the active scheduler</span>
+
+<span class="sd">    :param str | None logging_uri: MLflow tracking URI for logging trials.</span>
+<span class="sd">        If None, logging is disabled.</span>
+
+<span class="sd">    :param str study_name_arc: Optuna study name for the architecture search phase.</span>
+
+<span class="sd">    :param str study_name_opt: Optuna study name for the optimizer search phase.</span>
+
+<span class="sd">    :returns: dictionary with keys ``&quot;optimum&quot;`` (best params), ``&quot;architecture&quot;``</span>
+<span class="sd">        (Optuna study or ``&quot;Not executed&quot;``), and ``&quot;optimizer&quot;`` (Optuna study</span>
+<span class="sd">        or ``&quot;Not executed&quot;``).</span>
+<span class="sd">    :rtype: dict[str, Any]</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">silence_nuisance_warnings</span><span class="p">()</span>
+
+    <span class="n">params</span> <span class="o">=</span> <span class="n">model_params</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">architecture_grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">architecture_grid</span> <span class="o">=</span> <span class="n">load_default_architecture_grid</span><span class="p">(</span><span class="n">model_architecture</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">optimizer_grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">optimizer_grid</span> <span class="o">=</span> <span class="n">load_default_optimizer_grid</span><span class="p">(</span><span class="n">optimizer</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">scheduler_grid</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">scheduler_grid</span> <span class="o">=</span> <span class="n">load_default_scheduler_grid</span><span class="p">(</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scheduler&quot;</span><span class="p">))</span>
+    <span class="n">params</span><span class="p">[</span><span class="s2">&quot;optimizer&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">optimizer</span>
+    <span class="n">target_grid</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">train_set</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">train_set</span> <span class="o">=</span> <span class="p">[</span><span class="n">train_set</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">train_set</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">val_set</span><span class="p">),</span> <span class="p">(</span>
+            <span class="s2">&quot;Mismatched list size between train and val splits&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">val_set</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="n">val_set</span> <span class="o">=</span> <span class="p">[</span><span class="n">val_set</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">objective</span><span class="p">(</span><span class="n">trial</span><span class="p">):</span>
+        <span class="n">update</span> <span class="o">=</span> <span class="n">parse_config</span><span class="p">(</span><span class="n">trial</span><span class="p">,</span> <span class="n">target_grid</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;lr&quot;</span> <span class="ow">in</span> <span class="n">update</span><span class="p">:</span>
+            <span class="n">new_params</span> <span class="o">=</span> <span class="n">params</span>
+            <span class="n">new_params</span><span class="p">[</span><span class="s2">&quot;optimizer_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">update</span>
+            <span class="c1"># Suggest scheduler params alongside optimizer params in Phase 2</span>
+            <span class="k">if</span> <span class="n">scheduler_grid</span><span class="p">:</span>
+                <span class="n">sched_update</span> <span class="o">=</span> <span class="n">parse_config</span><span class="p">(</span><span class="n">trial</span><span class="p">,</span> <span class="n">scheduler_grid</span><span class="p">)</span>
+                <span class="n">new_params</span><span class="p">[</span><span class="s2">&quot;scheduler_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="o">**</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scheduler_args&quot;</span><span class="p">,</span> <span class="p">{}),</span>
+                    <span class="o">**</span><span class="n">sched_update</span><span class="p">,</span>
+                <span class="p">}</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_params</span> <span class="o">=</span> <span class="n">params</span> <span class="o">|</span> <span class="n">update</span>
+
+        <span class="n">out_loss</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_set</span><span class="p">)):</span>
+            <span class="n">callbacks</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">EarlyStopping</span><span class="p">(</span><span class="s2">&quot;val_loss&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;min&quot;</span><span class="p">,</span> <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">),</span>
+                <span class="c1"># ModelCheckpoint(save_top_k=1, monitor=&quot;val_loss&quot;, mode=&quot;min&quot;),</span>
+            <span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">stochastic_weight_averaging</span><span class="p">:</span>
+                <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="n">StochasticWeightAveraging</span><span class="p">(</span><span class="n">swa_lrs</span><span class="o">=</span><span class="mf">1e-4</span><span class="p">,</span> <span class="n">swa_epoch_start</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
+                <span class="p">)</span>
+
+            <span class="n">model</span> <span class="o">=</span> <span class="n">ClassicModelRegistry</span><span class="p">[</span><span class="n">model_architecture</span><span class="p">](</span><span class="o">**</span><span class="n">new_params</span><span class="p">)</span>
+
+            <span class="n">trainer</span> <span class="o">=</span> <span class="n">L</span><span class="o">.</span><span class="n">Trainer</span><span class="p">(</span>
+                <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">,</span>
+                <span class="n">max_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+                <span class="n">accelerator</span><span class="o">=</span><span class="n">accelerator</span><span class="p">,</span>
+                <span class="n">devices</span><span class="o">=</span><span class="n">devices</span><span class="p">,</span>
+                <span class="n">enable_checkpointing</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">logger</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">trainer</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">train_set</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">val_set</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">0</span><span class="p">])</span>
+
+            <span class="c1"># try:</span>
+            <span class="c1">#     best_model = ClassicModelRegistry[</span>
+            <span class="c1">#         model_architecture</span>
+            <span class="c1">#     ].load_from_checkpoint(callbacks[2].best_model_path)</span>
+            <span class="c1"># except Exception:</span>
+            <span class="c1">#     # this whole block is caused by using hybrid torch/huggingface models</span>
+            <span class="c1">#     # and requires a lot of obscure/unsafe stuff to work...</span>
+            <span class="c1">#     ckpt = torch.load(callbacks[2].best_model_path, weights_only=False)</span>
+            <span class="c1">#     state_dict = ckpt.get(&quot;state_dict&quot;, ckpt)</span>
+            <span class="c1">#     best_model = ClassicModelRegistry[model_architecture](**new_params)</span>
+            <span class="c1">#     best_model.load_state_dict(state_dict, strict=False)</span>
+
+            <span class="n">val</span> <span class="o">=</span> <span class="n">trainer</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="n">dataloaders</span><span class="o">=</span><span class="n">val_set</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">out_loss</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;val_loss&quot;</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">out_loss</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">architecture_search_budget</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">target_grid</span> <span class="o">=</span> <span class="n">architecture_grid</span>
+        <span class="n">callbacks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">logging_uri</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">optuna_callback</span> <span class="o">=</span> <span class="n">MLflowCallback</span><span class="p">(</span>
+                <span class="n">tracking_uri</span><span class="o">=</span><span class="n">logging_uri</span><span class="p">,</span> <span class="n">metric_name</span><span class="o">=</span><span class="s2">&quot;val_loss&quot;</span>
+            <span class="p">)</span>
+            <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">optuna_callback</span><span class="p">)</span>
+        <span class="n">study_architecture</span> <span class="o">=</span> <span class="n">create_study</span><span class="p">(</span>
+            <span class="n">direction</span><span class="o">=</span><span class="s2">&quot;minimize&quot;</span><span class="p">,</span>
+            <span class="n">pruner</span><span class="o">=</span><span class="n">NopPruner</span><span class="p">(),</span>
+            <span class="n">sampler</span><span class="o">=</span><span class="n">TPESampler</span><span class="p">(</span>
+                <span class="n">n_startup_trials</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">architecture_search_budget</span> <span class="o">*</span> <span class="mf">0.25</span><span class="p">)),</span>
+                <span class="n">multivariate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">study_name</span><span class="o">=</span><span class="n">study_name_arc</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">study_architecture</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span>
+            <span class="n">objective</span><span class="p">,</span>
+            <span class="n">n_trials</span><span class="o">=</span><span class="n">architecture_search_budget</span><span class="p">,</span>
+            <span class="n">gc_after_trial</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">params</span> <span class="o">|</span> <span class="n">study_architecture</span><span class="o">.</span><span class="n">best_params</span>
+        <span class="c1"># gotta correct the optuna output for num_heads</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">parse_num_heads</span><span class="p">(</span><span class="n">params</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">study_architecture</span> <span class="o">=</span> <span class="s2">&quot;Not executed&quot;</span>
+
+    <span class="k">if</span> <span class="n">optimizer_search_budget</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">target_grid</span> <span class="o">=</span> <span class="n">optimizer_grid</span>
+        <span class="n">callbacks</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">logging_uri</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">optuna_callback</span> <span class="o">=</span> <span class="n">MLflowCallback</span><span class="p">(</span>
+                <span class="n">tracking_uri</span><span class="o">=</span><span class="n">logging_uri</span><span class="p">,</span> <span class="n">metric_name</span><span class="o">=</span><span class="s2">&quot;val_loss&quot;</span>
+            <span class="p">)</span>
+            <span class="n">callbacks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">optuna_callback</span><span class="p">)</span>
+        <span class="n">study_optimizer</span> <span class="o">=</span> <span class="n">create_study</span><span class="p">(</span>
+            <span class="n">direction</span><span class="o">=</span><span class="s2">&quot;minimize&quot;</span><span class="p">,</span>
+            <span class="n">sampler</span><span class="o">=</span><span class="n">TPESampler</span><span class="p">(</span>
+                <span class="n">multivariate</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">n_startup_trials</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">optimizer_search_budget</span> <span class="o">*</span> <span class="mf">0.25</span><span class="p">)),</span>
+            <span class="p">),</span>
+            <span class="n">pruner</span><span class="o">=</span><span class="n">NopPruner</span><span class="p">(),</span>
+            <span class="n">study_name</span><span class="o">=</span><span class="n">study_name_opt</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">study_optimizer</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span>
+            <span class="n">objective</span><span class="p">,</span>
+            <span class="n">n_trials</span><span class="o">=</span><span class="n">optimizer_search_budget</span><span class="p">,</span>
+            <span class="n">gc_after_trial</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">callbacks</span><span class="o">=</span><span class="n">callbacks</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">optimum</span> <span class="o">=</span> <span class="n">study_optimizer</span><span class="o">.</span><span class="n">best_params</span>
+        <span class="k">if</span> <span class="s2">&quot;beta_1&quot;</span> <span class="ow">in</span> <span class="n">optimum</span><span class="p">:</span>
+            <span class="n">optimum</span> <span class="o">=</span> <span class="n">parse_betas</span><span class="p">(</span><span class="n">optimum</span><span class="p">)</span>
+        <span class="c1"># Split scheduler params from optimizer params using the grid keys</span>
+        <span class="n">scheduler_param_keys</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">scheduler_grid</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+        <span class="n">sched_params</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">optimum</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">scheduler_param_keys</span><span class="p">}</span>
+        <span class="n">opt_params</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">optimum</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">scheduler_param_keys</span><span class="p">}</span>
+        <span class="n">params</span><span class="p">[</span><span class="s2">&quot;optimizer_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">opt_params</span>
+        <span class="k">if</span> <span class="n">sched_params</span><span class="p">:</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;scheduler_args&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="o">**</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;scheduler_args&quot;</span><span class="p">,</span> <span class="p">{}),</span>
+                <span class="o">**</span><span class="n">sched_params</span><span class="p">,</span>
+            <span class="p">}</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">study_optimizer</span> <span class="o">=</span> <span class="s2">&quot;Not executed&quot;</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;optimum&quot;</span><span class="p">:</span> <span class="n">params</span><span class="p">,</span>
+        <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="n">study_architecture</span><span class="p">,</span>
+        <span class="s2">&quot;optimizer&quot;</span><span class="p">:</span> <span class="n">study_optimizer</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

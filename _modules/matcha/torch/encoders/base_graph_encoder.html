@@ -1,0 +1,381 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.base_graph_encoder &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.base_graph_encoder</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.encoders.base_graph_encoder</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Base class for graph-based molecular encoders with positional encoding support.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Batch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseEncoder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.readouts</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReadoutRegistry</span>
+
+
+<div class="viewcode-block" id="BaseGraphEncoder">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/base_graph_encoder/index.html#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BaseGraphEncoder</span><span class="p">(</span><span class="n">BaseEncoder</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all graph encoders. It is not meant to be instantiated directly,</span>
+<span class="sd">    but rather to be used as a parent class for each featurizer.</span>
+<span class="sd">    Subclasses from :class:`BaseEncoder` to ensure that a :method:`forward` method</span>
+<span class="sd">    is present in children classes.</span>
+<span class="sd">    The class is just used to automate some tedious processes related to PyTorch Geometric</span>
+<span class="sd">    (see :method:`process_graph_batch`), handle different readout functions and jumping</span>
+<span class="sd">    knowledge settings.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize graph encoder with positional encoding MLPs.</span>
+
+<span class="sd">        :param int laplacian_k: Dimension of Laplacian eigenvector positional encoding (0 to disable).</span>
+<span class="sd">        :param int rwse_k: Dimension of random walk structural encoding (0 to disable).</span>
+<span class="sd">        :param int elstatic_k: Dimension of electrostatic positional encoding (0 to disable).</span>
+<span class="sd">        :param int distmat_k: Dimension of distance matrix positional encoding (0 to disable).</span>
+<span class="sd">        :param int rrwp_k: Dimension of relative random walk probabilities edge encoding (0 to disable).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">laplacian_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">laplacian_mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm1d</span><span class="p">(</span><span class="n">laplacian_k</span><span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span>
+                    <span class="n">laplacian_k</span><span class="p">,</span>
+                    <span class="n">laplacian_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                    <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span>
+                    <span class="n">laplacian_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+                    <span class="n">laplacian_k</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                    <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">laplacian_mlp</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">rwse_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rwse_mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm1d</span><span class="p">(</span><span class="n">rwse_k</span><span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span><span class="n">rwse_k</span><span class="p">,</span> <span class="n">rwse_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;relu&quot;</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span><span class="n">rwse_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">rwse_k</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rwse_mlp</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">elstatic_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elstatic_mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm1d</span><span class="p">(</span><span class="n">elstatic_k</span><span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span>
+                    <span class="n">elstatic_k</span><span class="p">,</span>
+                    <span class="n">elstatic_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                    <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span>
+                    <span class="n">elstatic_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
+                    <span class="n">elstatic_k</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                    <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">elstatic_mlp</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">distmat_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">distmat_mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm1d</span><span class="p">(</span><span class="n">distmat_k</span><span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span>
+                    <span class="n">distmat_k</span><span class="p">,</span> <span class="n">distmat_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;relu&quot;</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">None</span>
+                <span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span>
+                    <span class="n">distmat_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">distmat_k</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">None</span>
+                <span class="p">),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">distmat_mlp</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="n">rrwp_k</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rrwp_mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm1d</span><span class="p">(</span><span class="n">rrwp_k</span><span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span><span class="n">rrwp_k</span><span class="p">,</span> <span class="n">rrwp_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="s2">&quot;relu&quot;</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">),</span>
+                <span class="n">LnBnDr</span><span class="p">(</span><span class="n">rrwp_k</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">rrwp_k</span><span class="p">,</span> <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.1</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">rrwp_mlp</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">jk</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Jumping knowledge strategy (&#39;last&#39;, &#39;concat&#39;, &#39;max&#39;, or &#39;sum&#39;).</span>
+
+<span class="sd">        :returns: The configured jumping knowledge mode.</span>
+<span class="sd">        :rtype: str</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_jk</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_graph_batch</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="n">Batch</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Batch</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract and preprocess tensors from a PyG batched graph.</span>
+
+<span class="sd">        Clones node and edge features, applies positional encoding MLPs</span>
+<span class="sd">        (Laplacian, RWSE, electrostatic, distance matrix, RRWP), and</span>
+<span class="sd">        concatenates the resulting encodings to the feature tensors.</span>
+
+<span class="sd">        :param Batch batch: A PyTorch Geometric batched graph from the dataloader.</span>
+<span class="sd">        :returns: A tuple of (batch, node_feats, edge_feats, graph_id).</span>
+<span class="sd">        :rtype: tuple[Batch, torch.Tensor, torch.Tensor, torch.Tensor]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract node and edge features (clone to avoid modifying original)</span>
+        <span class="n">node_feats</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">x</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">edge_feats</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">edge_attr</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span> <span class="k">if</span> <span class="n">batch</span><span class="o">.</span><span class="n">edge_attr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="n">graph_id</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">batch</span>  <span class="c1"># Graph assignment for each node</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="s2">&quot;spd&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">batch</span><span class="o">.</span><span class="n">spd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">batch</span><span class="o">.</span><span class="n">spd</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">spd</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">node_feats</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">node_pe</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">edge_pe</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">laplacian_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">laplacian</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">laplacian_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">laplacian</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">laplacian_mlp</span><span class="p">(</span><span class="n">laplacian</span><span class="p">)</span>
+            <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">laplacian</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rwse_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">rwse</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">rwse_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">rwse</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rwse_mlp</span><span class="p">(</span><span class="n">rwse</span><span class="p">)</span>
+            <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rwse</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elstatic_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">elstatic</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">elstatic_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">elstatic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elstatic_mlp</span><span class="p">(</span><span class="n">elstatic</span><span class="p">)</span>
+            <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">elstatic</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">distmat_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">distmat</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">distmat_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">distmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distmat_mlp</span><span class="p">(</span><span class="n">distmat</span><span class="p">)</span>
+            <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">distmat</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_pe</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">node_pe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">node_pe</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">node_feats</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">node_feats</span><span class="p">,</span> <span class="n">node_pe</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rrwp_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">rrwp</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">rrwp_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">rrwp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rrwp_mlp</span><span class="p">(</span><span class="n">rrwp</span><span class="p">)</span>
+            <span class="n">edge_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rrwp</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">edge_pe</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">edge_pe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">edge_pe</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">edge_feats</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">edge_feats</span><span class="p">,</span> <span class="n">edge_pe</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">batch</span><span class="p">,</span> <span class="n">node_feats</span><span class="p">,</span> <span class="n">edge_feats</span><span class="p">,</span> <span class="n">graph_id</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_readout</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">readout</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility function to handle readout function instantiation.</span>
+
+<span class="sd">        Readouts that require input dimensions will use self.fp_dim.</span>
+<span class="sd">        Some readouts (like set2set) modify the output dimension.</span>
+
+<span class="sd">        :param str readout: Name of the readout function.</span>
+<span class="sd">        :param kwargs: Additional keyword arguments passed to the readout.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Readouts that double output dimension</span>
+        <span class="k">if</span> <span class="n">readout</span> <span class="o">==</span> <span class="s2">&quot;set2set&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span>
+                <span class="n">in_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fp_dim</span><span class="p">,</span>
+                <span class="n">processing_steps</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;processing_steps&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                <span class="n">num_layers</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_layers&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fp_dim</span> <span class="o">*</span> <span class="mi">2</span>
+        <span class="c1"># Readouts that require input dimension</span>
+        <span class="k">elif</span> <span class="n">readout</span> <span class="o">==</span> <span class="s2">&quot;attentive&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span><span class="n">gate_nn_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fp_dim</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">readout</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;lstm&quot;</span><span class="p">,</span> <span class="s2">&quot;gru&quot;</span><span class="p">):</span>
+            <span class="n">out_channels</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;out_channels&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">fp_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span>
+                <span class="n">in_channels</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fp_dim</span><span class="p">,</span>
+                <span class="n">out_channels</span><span class="o">=</span><span class="n">out_channels</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="n">out_channels</span>
+        <span class="k">elif</span> <span class="n">readout</span> <span class="o">==</span> <span class="s2">&quot;sort&quot;</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;k&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span><span class="n">k</span><span class="o">=</span><span class="n">k</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fp_dim</span> <span class="o">*</span> <span class="n">k</span>
+        <span class="k">elif</span> <span class="n">readout</span> <span class="o">==</span> <span class="s2">&quot;softmax&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span>
+                <span class="n">learn</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;learn&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                <span class="n">t</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;t&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">readout</span> <span class="o">==</span> <span class="s2">&quot;powermean&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span>
+                <span class="n">learn</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;learn&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">),</span>
+                <span class="n">p</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;p&quot;</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">readout</span> <span class="o">==</span> <span class="s2">&quot;quantile&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span><span class="n">q</span><span class="o">=</span><span class="n">kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;q&quot;</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">))</span>
+        <span class="k">elif</span> <span class="n">readout</span> <span class="o">==</span> <span class="s2">&quot;multi&quot;</span><span class="p">:</span>
+            <span class="n">aggrs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;sum&quot;</span><span class="p">,</span> <span class="s2">&quot;var&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">](</span><span class="n">aggrs</span><span class="o">=</span><span class="n">aggrs</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;attn&quot;</span><span class="p">)</span>
+        <span class="c1"># Simple readouts that don&#39;t require parameters</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">readout</span> <span class="o">=</span> <span class="n">ReadoutRegistry</span><span class="p">[</span><span class="n">readout</span><span class="p">]()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_jk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">jk</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure jumping knowledge strategy and update :attr:`fp_dim` accordingly.</span>
+
+<span class="sd">        :param str jk: Strategy name — &#39;concat&#39; multiplies ``fp_dim`` by ``num_layers``;</span>
+<span class="sd">            &#39;last&#39;, &#39;max&#39;, and &#39;sum&#39; keep ``fp_dim`` equal to ``atom_hidden_dim``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_jk</span> <span class="o">=</span> <span class="n">jk</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">jk</span> <span class="o">==</span> <span class="s2">&quot;concat&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;atom_hidden_dim&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_layers&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;atom_hidden_dim&quot;</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_jk</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">atom_features</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Combine per-layer atom representations using the configured jumping knowledge strategy.</span>
+
+<span class="sd">        :param list[torch.Tensor] atom_features: List of node feature tensors, one per</span>
+<span class="sd">            message-passing layer, each of shape ``[num_nodes, atom_hidden_dim]``.</span>
+<span class="sd">        :returns: Combined node features with shape determined by the JK strategy.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">jk</span> <span class="o">==</span> <span class="s2">&quot;concat&quot;</span><span class="p">:</span>
+            <span class="n">final_atom_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">atom_features</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">jk</span> <span class="o">==</span> <span class="s2">&quot;last&quot;</span><span class="p">:</span>
+            <span class="n">final_atom_features</span> <span class="o">=</span> <span class="n">atom_features</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">jk</span> <span class="o">==</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span>
+            <span class="n">atom_features</span> <span class="o">=</span> <span class="p">[</span><span class="n">h</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">atom_features</span><span class="p">]</span>
+            <span class="n">final_atom_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">atom_features</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">jk</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+            <span class="n">atom_features</span> <span class="o">=</span> <span class="p">[</span><span class="n">h</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">atom_features</span><span class="p">]</span>
+            <span class="n">final_atom_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">atom_features</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">final_atom_features</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

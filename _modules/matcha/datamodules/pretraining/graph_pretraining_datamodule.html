@@ -1,0 +1,635 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.pretraining.graph_pretraining_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.pretraining.graph_pretraining_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.pretraining.graph_pretraining_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Graph pretraining DataModule for supervised multi-task learning on graphs.</span>
+
+<span class="sd">Provides a datamodule that extends GraphDataModule to handle both molecule-level</span>
+<span class="sd">and atom-level labels for pretraining graph neural networks such as GIN. The user</span>
+<span class="sd">supplies external per-atom labels (e.g. partial charges, electronegativity, or any</span>
+<span class="sd">computed atom-level property) alongside molecule-level labels. The model then</span>
+<span class="sd">learns to predict both simultaneously.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.graph_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">collate_fn_pyg_graph</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphPretrainingDataModuleInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">parallelize</span>
+
+
+<div class="viewcode-block" id="GraphPretrainingDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;graph_pretraining&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GraphPretrainingDataModule</span><span class="p">(</span><span class="n">GraphDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Graph DataModule for multi-task pretraining with atom-level and molecule-level labels.</span>
+
+<span class="sd">    Extends :class:`GraphDataModule` to accept user-provided per-atom labels</span>
+<span class="sd">    alongside molecule-level labels. This enables supervised pretraining of graph</span>
+<span class="sd">    neural networks (e.g. :class:`GINPretraining`) that jointly predict atom-level</span>
+<span class="sd">    targets (such as partial charges, SASA, electronegativity, etc.) and</span>
+<span class="sd">    molecule-level targets (such as logP, molecular weight, etc.).</span>
+
+<span class="sd">    The atom-level labels are **not** derived from the graph&#39;s own atom features —</span>
+<span class="sd">    they are externally computed properties supplied by the user.</span>
+
+<span class="sd">    Example usage:</span>
+
+<span class="sd">    .. code-block:: python</span>
+
+<span class="sd">        dm = GraphPretrainingDataModule()</span>
+
+<span class="sd">        # y_node is a list of arrays, one per molecule, each of shape (num_atoms, T)</span>
+<span class="sd">        # y_graph is a numpy array of shape (N, G)</span>
+<span class="sd">        dataset = dm.featurize(</span>
+<span class="sd">            mol_list=mols,</span>
+<span class="sd">            y_graph=y_graph,</span>
+<span class="sd">            y_node=y_node,</span>
+<span class="sd">        )</span>
+
+<span class="sd">    :param bool scale_y_graph: whether to fit a scaler on the molecule-level</span>
+<span class="sd">        targets during training, defaults to False</span>
+
+<span class="sd">    All other parameters are inherited from :class:`GraphDataModule`.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scale_y_graph</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">scale_y_node</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">compute_distances</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">num_virtual_nodes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">init_virtual_nodes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise the graph pretraining datamodule.</span>
+
+<span class="sd">        :param scale_y_graph: whether to standardise molecule-level targets</span>
+<span class="sd">        :param scale_y_node: whether to standardise atom-level targets</span>
+<span class="sd">        :param laplacian_k: number of Laplacian positional encoding dimensions</span>
+<span class="sd">        :param rwse_k: number of random-walk structural encoding dimensions</span>
+<span class="sd">        :param elstatic_k: number of electrostatic positional encoding dimensions</span>
+<span class="sd">        :param distmat_k: number of distance-matrix positional encoding dimensions</span>
+<span class="sd">        :param rrwp_k: number of relative random-walk probability dimensions</span>
+<span class="sd">        :param compute_distances: whether to compute interatomic distances</span>
+<span class="sd">        :param num_virtual_nodes: number of virtual nodes to add</span>
+<span class="sd">        :param init_virtual_nodes: whether to initialise virtual node features</span>
+<span class="sd">        :param batch_size: training batch size</span>
+<span class="sd">        :param num_workers: number of dataloader workers</span>
+<span class="sd">        :param augment_resonance: whether to apply resonance augmentation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Pretraining always uses regression-style targets, no classification</span>
+        <span class="c1"># encoding or label transforms.</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">laplacian_k</span><span class="o">=</span><span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="o">=</span><span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="o">=</span><span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="o">=</span><span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="o">=</span><span class="n">rrwp_k</span><span class="p">,</span>
+            <span class="n">compute_distances</span><span class="o">=</span><span class="n">compute_distances</span><span class="p">,</span>
+            <span class="n">num_virtual_nodes</span><span class="o">=</span><span class="n">num_virtual_nodes</span><span class="p">,</span>
+            <span class="n">init_virtual_nodes</span><span class="o">=</span><span class="n">init_virtual_nodes</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="p">{},</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y_node_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+
+        <span class="c1"># Override params with pretraining-specific schema</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">GraphPretrainingDataModuleInputModel</span><span class="p">(</span>
+            <span class="n">scale_y_graph</span><span class="o">=</span><span class="n">scale_y_graph</span><span class="p">,</span>
+            <span class="n">scale_y_node</span><span class="o">=</span><span class="n">scale_y_node</span><span class="p">,</span>
+            <span class="n">laplacian_k</span><span class="o">=</span><span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="o">=</span><span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="o">=</span><span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="o">=</span><span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="o">=</span><span class="n">rrwp_k</span><span class="p">,</span>
+            <span class="n">compute_distances</span><span class="o">=</span><span class="n">compute_distances</span><span class="p">,</span>
+            <span class="n">num_virtual_nodes</span><span class="o">=</span><span class="n">num_virtual_nodes</span><span class="p">,</span>
+            <span class="n">init_virtual_nodes</span><span class="o">=</span><span class="n">init_virtual_nodes</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Export to classic</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.export_to_classic">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.export_to_classic">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_to_classic</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">GraphDataModule</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a :class:`GraphDataModule` that mirrors the current state.</span>
+
+<span class="sd">        The exported instance inherits all graph-specific settings</span>
+<span class="sd">        (positional encoding dimensions, virtual nodes, etc.) so that it can</span>
+<span class="sd">        be used directly for downstream (non-pretraining) training or</span>
+<span class="sd">        inference.</span>
+
+<span class="sd">        :return GraphDataModule: a classic graph datamodule with the same state</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">dm</span> <span class="o">=</span> <span class="n">GraphDataModule</span><span class="p">(</span>
+            <span class="n">laplacian_k</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">rrwp_k</span><span class="p">,</span>
+            <span class="n">compute_distances</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">compute_distances</span><span class="p">,</span>
+            <span class="n">num_virtual_nodes</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span>
+            <span class="n">init_virtual_nodes</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">init_virtual_nodes</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">dm</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Validation</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_node_labels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y_node</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate that atom-level labels match the molecules.</span>
+
+<span class="sd">        Checks that:</span>
+<span class="sd">        - ``len(y_node) == len(mol_list)``</span>
+<span class="sd">        - Each ``y_node[i]`` has ``A_i`` rows where ``A_i`` is the</span>
+<span class="sd">          number of heavy atoms in molecule *i*.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules</span>
+<span class="sd">        :param y_node: list of per-atom label arrays</span>
+<span class="sd">        :raises ValueError: on shape mismatch</span>
+<span class="sd">        :return: validated ``y_node``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_node</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;y_node length (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">y_node</span><span class="p">)</span><span class="si">}</span><span class="s2">) must match &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;mol_list length (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">yn</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y_node</span><span class="p">)):</span>
+            <span class="n">yn</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">yn</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">yn</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">yn</span> <span class="o">=</span> <span class="n">yn</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+                <span class="n">y_node</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">yn</span>
+
+            <span class="c1"># Atom count is determined from canonical SMILES (same as</span>
+            <span class="c1"># _calculate_graph which re-parses the canonical SMILES).</span>
+            <span class="n">canonical_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+            <span class="n">expected_atoms</span> <span class="o">=</span> <span class="n">canonical_mol</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">yn</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">expected_atoms</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;y_node[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] has </span><span class="si">{</span><span class="n">yn</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> rows but molecule &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;has </span><span class="si">{</span><span class="n">expected_atoms</span><span class="si">}</span><span class="s2"> atoms&quot;</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">y_node</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Graph construction helper</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_graph_with_node_labels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">y_node_i</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a PyG graph and attach externally-provided atom-level labels.</span>
+
+<span class="sd">        Calls the parent :meth:`_calculate_graph` then stores the per-atom</span>
+<span class="sd">        labels as ``graph.y_node``.  If virtual nodes are enabled, the labels</span>
+<span class="sd">        are zero-padded for the virtual nodes.</span>
+
+<span class="sd">        :param mol: RDKit molecule</span>
+<span class="sd">        :param y_node_i: array of shape ``(A_i, T)`` with atom labels</span>
+<span class="sd">        :return: PyG ``Data`` object with ``y_node`` attribute</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+
+        <span class="n">y_node_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_node_i</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Pad with NaN for virtual nodes so they are masked out in loss</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="n">y_node_tensor</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span>
+                <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;nan&quot;</span><span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">y_node_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">y_node_tensor</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">graph</span><span class="o">.</span><span class="n">y_node</span> <span class="o">=</span> <span class="n">y_node_tensor</span>
+        <span class="k">return</span> <span class="n">graph</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_batch_with_node_labels</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Mol</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Data</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a batch of (molecule, node_labels) pairs into PyG graphs.</span>
+
+<span class="sd">        :param batch: list of ``(Mol, y_node_i)`` tuples</span>
+<span class="sd">        :return: list of PyG ``Data`` objects with ``y_node`` attached</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph_with_node_labels</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">yn</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">yn</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Feature generation</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y_graph</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">y_node</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate unscaled graph features with atom-level and molecule-level labels.</span>
+
+<span class="sd">        :param mol_list: list of N RDKit molecules</span>
+<span class="sd">        :param y_graph: array ``(N, G)`` of molecule-level targets, or None</span>
+<span class="sd">        :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets,</span>
+<span class="sd">            or None</span>
+<span class="sd">        :param n_jobs: number of parallel workers (None = auto)</span>
+<span class="sd">        :return: ``StackDataset`` with keys ``graph`` and ``y_graph``</span>
+<span class="sd">            (atom-level labels are stored on each ``Data.y_node``)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Use base validation for mol_list / y_graph</span>
+        <span class="n">mol_list</span><span class="p">,</span> <span class="n">y_graph</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y_graph</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">y_node</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;y_node must be provided for graph pretraining&quot;</span><span class="p">)</span>
+
+        <span class="n">y_node</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_node_labels</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y_node</span><span class="p">)</span>
+
+        <span class="c1"># Build (mol, y_node_i) pairs and parallelise</span>
+        <span class="n">mol_yn_pairs</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y_node</span><span class="p">))</span>
+
+        <span class="n">graphs</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_process_batch_with_node_labels</span><span class="p">,</span>
+            <span class="n">mol_yn_pairs</span><span class="p">,</span>
+            <span class="n">n_jobs</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="n">y_graph_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y_graph</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">graphs</span><span class="p">,</span> <span class="n">y_graph</span><span class="o">=</span><span class="n">y_graph_tensor</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Featurize (main entry-point)</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y_graph</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">y_node</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a dataset ready for graph pretraining.</span>
+
+<span class="sd">        Processes molecules alongside their molecule-level and atom-level</span>
+<span class="sd">        labels into a ``StackDataset`` that can be consumed by</span>
+<span class="sd">        :class:`BaseGraphPretrainingModel`.</span>
+
+<span class="sd">        :param mol_list: list of N RDKit molecules</span>
+<span class="sd">        :param y_graph: array ``(N, G)`` of molecule-level targets</span>
+<span class="sd">        :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets</span>
+<span class="sd">        :param is_training: whether to fit the Y scaler (only affects</span>
+<span class="sd">            ``y_graph`` scaling when ``scale_y_graph=True``)</span>
+<span class="sd">        :param n_jobs: number of parallel workers (None = auto)</span>
+<span class="sd">        :return: ``StackDataset`` with keys ``graph`` and ``y_graph``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y_graph</span><span class="p">,</span> <span class="n">y_node</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+
+        <span class="c1"># Optionally scale molecule-level labels</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_graph</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y_graph</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y_graph</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Optionally scale atom-level labels</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_node</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y_node</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y_node</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Scaling helpers</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_y_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the Y scaler on molecule-level targets.</span>
+
+<span class="sd">        :param dataset: StackDataset containing a ``y_graph`` tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y_graph&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform_y_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transform molecule-level targets using the fitted scaler.</span>
+
+<span class="sd">        :param dataset: StackDataset whose ``y_graph`` tensor is scaled in-place</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y_graph&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span> <span class="s2">&quot;n_features_in_&quot;</span><span class="p">):</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y_graph&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_y_node</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit the node scaler on atom-level targets across all graphs.</span>
+
+<span class="sd">        :param dataset: StackDataset containing graphs with ``y_node`` attributes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">graphs</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">]</span>
+        <span class="n">all_y_node</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">graphs</span><span class="p">:</span>
+            <span class="n">yn</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">y_node</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">all_y_node</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">yn</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">all_y_node</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">y</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y_node_scaler</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform_y_node</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transform atom-level targets in-place using the fitted node scaler.</span>
+
+<span class="sd">        :param dataset: StackDataset containing graphs with ``y_node`` attributes</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_node_scaler</span><span class="p">,</span> <span class="s2">&quot;n_features_in_&quot;</span><span class="p">):</span>
+            <span class="k">return</span>
+        <span class="n">graphs</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">graphs</span><span class="p">:</span>
+            <span class="n">yn</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">y_node</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">yn</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">yn</span> <span class="o">=</span> <span class="n">yn</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+            <span class="n">yn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_node_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">yn</span><span class="p">)</span>
+            <span class="n">g</span><span class="o">.</span><span class="n">y_node</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">yn</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.fit">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit scalers on labels if scaling is enabled.</span>
+
+<span class="sd">        :param dataset: StackDataset produced by :meth:`generate_features`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_graph</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y_graph</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_node</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y_node</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.transform">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Scale labels if scaling is enabled.</span>
+
+<span class="sd">        :param dataset: StackDataset to transform in-place</span>
+<span class="sd">        :return: the same dataset with scaled labels</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_graph</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y_graph</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_node</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y_node</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Collation</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.collate_fn">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.collate_fn">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collate a list of samples into a pretraining batch.</span>
+
+<span class="sd">        Produces the batch format expected by</span>
+<span class="sd">        :class:`BaseGraphPretrainingModel`:</span>
+
+<span class="sd">        - ``graph``: batched PyG graph (``y_node`` is auto-concatenated</span>
+<span class="sd">          by ``Batch.from_data_list`` as a node-level attribute)</span>
+<span class="sd">        - ``y_node``: ``[total_nodes_in_batch, T]``</span>
+<span class="sd">        - ``y_graph``: ``[batch_size, G]``</span>
+
+<span class="sd">        :param data: list of dicts from the ``StackDataset``</span>
+<span class="sd">        :return: dict with keys ``graph``, ``y_node``, ``y_graph``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dict_of_lists</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">[</span><span class="n">d</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]}</span>
+        <span class="n">graphs</span> <span class="o">=</span> <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">]</span>
+        <span class="n">y_graph_list</span> <span class="o">=</span> <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;y_graph&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Batch graphs — PyG auto-concatenates node-level attrs (including y_node)</span>
+        <span class="n">bg</span> <span class="o">=</span> <span class="n">collate_fn_pyg_graph</span><span class="p">(</span><span class="n">graphs</span><span class="p">)</span>
+
+        <span class="c1"># Extract concatenated y_node from the batched graph</span>
+        <span class="n">y_node</span> <span class="o">=</span> <span class="n">bg</span><span class="o">.</span><span class="n">y_node</span>
+        <span class="c1"># Remove from batched graph to keep the graph payload clean</span>
+        <span class="k">del</span> <span class="n">bg</span><span class="o">.</span><span class="n">y_node</span>
+
+        <span class="n">y_graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">y_graph_list</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;graph&quot;</span><span class="p">:</span> <span class="n">bg</span><span class="p">,</span> <span class="s2">&quot;y_node&quot;</span><span class="p">:</span> <span class="n">y_node</span><span class="p">,</span> <span class="s2">&quot;y_graph&quot;</span><span class="p">:</span> <span class="n">y_graph</span><span class="p">}</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Serialisation</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Serialise state for MLFlow logging.</span>
+
+<span class="sd">        :return: dict containing ID, params, and fitted scalers</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;graph_pretraining&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="s2">&quot;augment_resonance&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_graph</span><span class="p">:</span>
+            <span class="n">state</span><span class="p">[</span><span class="s2">&quot;y_scaler&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scale_y_node</span><span class="p">:</span>
+            <span class="n">state</span><span class="p">[</span><span class="s2">&quot;y_node_scaler&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_node_scaler</span>
+        <span class="k">return</span> <span class="n">state</span></div>
+
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Restore state from a previously serialised dict.</span>
+
+<span class="sd">        :param state_dict: dict produced by :meth:`state_dict`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">GraphPretrainingDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span> <span class="o">=</span> <span class="n">state_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;augment_resonance&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;y_scaler&quot;</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;y_scaler&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="s2">&quot;y_node_scaler&quot;</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_y_node_scaler</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;y_node_scaler&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="GraphPretrainingDataModule.dummy">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule.dummy">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a dummy instance with default parameters.</span>
+
+<span class="sd">        :return: a new :class:`GraphPretrainingDataModule` with default settings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

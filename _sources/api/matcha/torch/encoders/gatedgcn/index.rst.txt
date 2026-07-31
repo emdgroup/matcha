@@ -1,0 +1,182 @@
+matcha.torch.encoders.gatedgcn
+==============================
+
+.. py:module:: matcha.torch.encoders.gatedgcn
+
+.. autoapi-nested-parse::
+
+   Gated Graph Convolution Network (GatedGCN) encoder.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.gatedgcn.GatedGCNConv
+   matcha.torch.encoders.gatedgcn.GatedGCN
+
+
+Module Contents
+---------------
+
+.. py:class:: GatedGCNConv(in_channels: int, out_channels: int, edge_dim: int, out_edge_dim: int | None = None, activation: str = 'relu', dropout: float = 0.0, norm: str | None = None, eps: float = 1e-05)
+
+   Bases: :py:obj:`torch_geometric.nn.MessagePassing`
+
+
+   Reimplementation of Residual Gated Graph Convolution, based on
+   Graphium's implementation (https://github.com/datamol-io/graphium/blob/f1c1809387184114a06ac2077bb57501bf09f495/graphium/nn/pyg_layers/gated_gcn_pyg.py#L28).
+
+   Original publication is 'Residual Gated Graph ConvNets' (Bresson and Laurent, ICLR 2018).
+   Reference: https://arxiv.org/pdf/1711.07553v2.pdf
+
+   :param int in_channels: Input feature dimensions of nodes
+   :param int out_channels: Output feature dimensions of nodes
+   :param int edge_dim: Input edge-feature dimensions
+   :param int out_edge_dim: Output edge-feature dimensions (defaults to edge_dim)
+   :param str activation: Activation function name
+   :param float dropout: Dropout ratio
+   :param str | None norm: Normalization type ('batch', 'layer', 'graph', or None)
+   :param float eps: Epsilon for numerical stability in gate normalization
+
+
+   .. py:attribute:: eps
+      :value: 1e-05
+
+
+
+   .. py:attribute:: norm_type
+      :value: None
+
+
+
+   .. py:attribute:: A
+
+
+   .. py:attribute:: B
+
+
+   .. py:attribute:: C
+
+
+   .. py:attribute:: D
+
+
+   .. py:attribute:: E
+
+
+   .. py:attribute:: edge_out
+
+
+   .. py:attribute:: activation
+
+
+   .. py:attribute:: dropout
+
+
+   .. py:method:: forward(x: torch.Tensor, edge_index: torch.Tensor, edge_attr: torch.Tensor, batch: torch.Tensor | None = None) -> tuple[torch.Tensor, torch.Tensor]
+
+      Forward pass for the gated graph convolution layer.
+
+      :param torch.Tensor x: Node features with shape [num_nodes, in_channels]
+      :param torch.Tensor edge_index: Edge indices with shape [2, num_edges]
+      :param torch.Tensor edge_attr: Edge features with shape [num_edges, edge_dim]
+      :param torch.Tensor | None batch: Batch assignment for nodes (required for GraphNorm)
+      :return tuple[torch.Tensor, torch.Tensor]: Updated node and edge features
+
+
+
+   .. py:method:: message(Dx_i: torch.Tensor, Ex_j: torch.Tensor, Ce: torch.Tensor) -> torch.Tensor
+
+      Compute gated messages.
+
+      :param torch.Tensor Dx_i: Transformed features of target nodes [num_edges, out_channels]
+      :param torch.Tensor Ex_j: Transformed features of source nodes [num_edges, out_channels]
+      :param torch.Tensor Ce: Transformed edge features [num_edges, out_channels]
+      :return torch.Tensor: Gated message weights (sigmoid of sum)
+
+
+
+   .. py:method:: aggregate(sigma_ij: torch.Tensor, index: torch.Tensor, Bx_j: torch.Tensor, Bx: torch.Tensor) -> torch.Tensor
+
+      Aggregate gated messages with normalization.
+
+      :param torch.Tensor sigma_ij: Gate weights [num_edges, out_channels]
+      :param torch.Tensor index: Target node indices [num_edges]
+      :param torch.Tensor Bx_j: Transformed source node features [num_edges, out_channels]
+      :param torch.Tensor Bx: Transformed node features [num_nodes, out_channels]
+      :return torch.Tensor: Aggregated messages [num_nodes, out_channels]
+
+
+
+   .. py:method:: update(aggr_out: torch.Tensor, Ax: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]
+
+      Update node features with residual connection.
+
+      :param torch.Tensor aggr_out: Aggregated messages [num_nodes, out_channels]
+      :param torch.Tensor Ax: Transformed node features [num_nodes, out_channels]
+      :return tuple[torch.Tensor, torch.Tensor]: Updated node and edge features
+
+
+
+.. py:class:: GatedGCN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Gated Graph Convolution Network (GatedGCN) encoder as described in 'Benchmarking
+   Graph Neural Networks'. This class performs message passing via atom convolutions,
+   residual connections and edge convolutions, updates the atom representations
+   and returns a molecular embedding which can then be used for molecular
+   property prediction.
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - https://arxiv.org/abs/2003.00982
+   - https://pytorch-geometric.readthedocs.io/en/latest/
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.GatedGCNModel` for further details.
+
+   :param int num_layers: number of message passing layers
+
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+
+   :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
+
+   :param str activation: activation function to be used in all layers
+
+   :param float dropout: dropout noise level
+
+   :param str norm: which norm to use inside GatedGCN layers
+
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: norm_type
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
+      processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+

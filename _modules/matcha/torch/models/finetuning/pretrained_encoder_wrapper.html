@@ -1,0 +1,197 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.finetuning.pretrained_encoder_wrapper &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.finetuning.pretrained_encoder_wrapper</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.models.finetuning.pretrained_encoder_wrapper</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Adapter that gives a pretraining encoder the classic-model interface.</span>
+
+<span class="sd">The :class:`Finetuner` expects its ``self.pretrain`` object to expose:</span>
+
+<span class="sd">* ``encoder``                     — the encoder module</span>
+<span class="sd">* ``predictor.prediction_head``   — (set to ``None`` during init)</span>
+<span class="sd">* ``encode(batch) -&gt; Tensor``     — returns a flat ``[B, D]`` embedding</span>
+<span class="sd">* ``latent_dim``                  — output dimensionality of the encoder</span>
+<span class="sd">* ``_label_names``                — label name list (empty for pretrained)</span>
+
+<span class="sd">Pretraining models (:class:`BaseGraphPretrainingModel`, :class:`RoFormerMLM`)</span>
+<span class="sd">do not naturally satisfy this contract.  This thin wrapper bridges the gap</span>
+<span class="sd">so that the ``Finetuner`` code does not need to know whether the upstream</span>
+<span class="sd">model was trained via classic or pretraining.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+
+
+<span class="k">class</span><span class="w"> </span><span class="nc">_StubPredictor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Minimal stand-in for the classic model&#39;s predictor attribute.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">prediction_head</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<div class="viewcode-block" id="PretrainedEncoderWrapper">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/pretrained_encoder_wrapper/index.html#matcha.torch.models.finetuning.PretrainedEncoderWrapper">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PretrainedEncoderWrapper</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wraps a pretraining encoder to present the classic-model interface.</span>
+
+<span class="sd">    :param nn.Module encoder: the encoder from a pretraining model</span>
+<span class="sd">    :param str encoder_type: one of ``&quot;graph&quot;`` or ``&quot;mlm&quot;``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Recognised encoder families</span>
+    <span class="n">_GRAPH_TYPE</span> <span class="o">=</span> <span class="s2">&quot;graph&quot;</span>
+    <span class="n">_MLM_TYPE</span> <span class="o">=</span> <span class="s2">&quot;mlm&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">encoder</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">encoder_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">encoder_type</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_GRAPH_TYPE</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_MLM_TYPE</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;encoder_type must be &#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_GRAPH_TYPE</span><span class="si">}</span><span class="s2">&#39; or &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_MLM_TYPE</span><span class="si">}</span><span class="s2">&#39;, got &#39;</span><span class="si">{</span><span class="n">encoder_type</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">encoder</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_encoder_type</span> <span class="o">=</span> <span class="n">encoder_type</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">_StubPredictor</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Interface expected by Finetuner</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">latent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">fp_dim</span>
+
+<div class="viewcode-block" id="PretrainedEncoderWrapper.encode">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/pretrained_encoder_wrapper/index.html#matcha.torch.models.finetuning.PretrainedEncoderWrapper.encode">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a flat ``[B, D]`` embedding, regardless of encoder family.</span>
+
+<span class="sd">        * **Graph encoders** already aggregate via readout, returning</span>
+<span class="sd">          ``[B, D]`` from their ``forward(graph)`` call.</span>
+<span class="sd">        * **MLM encoders** return per-token embeddings ``[B, S, D]``;</span>
+<span class="sd">          we CLS-pool (take index 0) to get ``[B, D]``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encoder_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_GRAPH_TYPE</span><span class="p">:</span>
+            <span class="n">graph</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">]</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+
+        <span class="c1"># MLM path</span>
+        <span class="n">token_ids</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;token_ids&quot;</span><span class="p">]</span>
+        <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span>  <span class="c1"># [B, S, D]</span>
+        <span class="k">return</span> <span class="n">embeddings</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>  <span class="c1"># CLS pooling</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

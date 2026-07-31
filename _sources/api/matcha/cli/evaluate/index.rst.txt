@@ -1,0 +1,55 @@
+matcha.cli.evaluate
+===================
+
+.. py:module:: matcha.cli.evaluate
+
+.. autoapi-nested-parse::
+
+   CLI command for cross-validated model evaluation.
+
+   Trains a single (non-ensemble) MATCHA model on each split, computes
+   regression or classification metrics, generates plots, and logs results
+   to MLflow.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.evaluate.flatten_performance_dict
+   matcha.cli.evaluate.main
+
+
+Module Contents
+---------------
+
+.. py:function:: flatten_performance_dict(perf_dict: dict, tag: str)
+
+   Flatten a nested performance dictionary into a single-level dict for MLflow logging.
+
+   Converts the hierarchical ``{split: {endpoint: {metric: value}}}``
+   structure into flat keys of the form ``{tag}_{split}_{endpoint}_{metric}``.
+
+   :param perf_dict: Nested performance dictionary with split, endpoint,
+       and metric levels.
+   :param tag: Prefix string to prepend to flattened keys (e.g. ``"log10"``).
+   :returns: Flat dictionary mapping composite key strings to float values.
+
+
+.. py:function:: main(cfg=None)
+
+   Run cross-validated model evaluation from a YAML configuration.
+
+   For each split, trains a single model instance, computes predictions,
+   calculates regression or classification metrics (with optional
+   bootstrapping), generates plots, and aggregates results across splits.
+   Final metrics and artifacts are optionally logged to MLflow.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLIEvaluationInputModel` instance
+       or a raw dict that will be validated.
+
+

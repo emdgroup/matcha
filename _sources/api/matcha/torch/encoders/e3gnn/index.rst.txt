@@ -1,0 +1,267 @@
+matcha.torch.encoders.e3gnn
+===========================
+
+.. py:module:: matcha.torch.encoders.e3gnn
+
+.. autoapi-nested-parse::
+
+   E(n) Equivariant Graph Neural Network (E3GNN) encoder for 3D molecular conformers.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.e3gnn.SiLU
+   matcha.torch.encoders.e3gnn.CoorsNorm
+   matcha.torch.encoders.e3gnn.EGNN_Sparse
+   matcha.torch.encoders.e3gnn.E3GNN
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.e3gnn.exists
+   matcha.torch.encoders.e3gnn.fourier_encode_dist
+
+
+Module Contents
+---------------
+
+.. py:function:: exists(val)
+
+.. py:function:: fourier_encode_dist(x, num_encodings=4, include_self=True)
+
+   Fourier-encode scalar distances into multi-scale sinusoidal features.
+
+   :param torch.Tensor x: Distance values to encode.
+   :param int num_encodings: Number of frequency scales (powers of 2).
+   :param bool include_self: Whether to concatenate the original distance values.
+   :returns: Fourier-encoded features.
+   :rtype: torch.Tensor
+
+
+.. py:class:: SiLU(*args, **kwargs)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   SiLU activation function.
+
+
+   .. py:method:: forward(x)
+
+
+.. py:class:: CoorsNorm(eps=1e-08, scale_init=1.0)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Coordinate normalization layer with learnable scale.
+
+   :param float eps: Epsilon for numerical stability in norm computation.
+   :param float scale_init: Initial value for the learnable scale parameter.
+
+
+   .. py:attribute:: eps
+      :value: 1e-08
+
+
+
+   .. py:attribute:: scale
+
+
+   .. py:method:: forward(coors)
+
+
+.. py:class:: EGNN_Sparse(feats_dim: int, edge_attr_dim: int = 0, m_dim: int = 16, fourier_features: int = 0, soft_edge: bool = False, norm_feats: bool = False, norm_coors: bool = False, norm_coors_scale_init: float = 0.01, update_feats: bool = True, update_coors: bool = True, dropout: float = 0.0, coor_weights_clamp_value: float | None = None, aggr: str = 'add', **kwargs)
+
+   Bases: :py:obj:`torch_geometric.nn.MessagePassing`
+
+
+   E(n) Equivariant Graph Neural Network layer for sparse graphs.
+
+   Separates the edge assignment from the computation, allowing for great
+   reduction in time and computations when the graph is locally or sparsely connected.
+
+   Reference: https://arxiv.org/abs/2102.09844
+
+   :param int feats_dim: Dimension of node features
+   :param int edge_attr_dim: Dimension of edge attributes
+   :param int m_dim: Dimension of message hidden layer
+   :param int fourier_features: Number of Fourier features for distance encoding
+   :param bool soft_edge: Whether to use soft edge attention
+   :param bool norm_feats: Whether to normalize node features
+   :param bool norm_coors: Whether to normalize coordinates
+   :param float norm_coors_scale_init: Initial scale for coordinate normalization
+   :param bool update_feats: Whether to update node features
+   :param bool update_coors: Whether to update coordinates
+   :param float dropout: Dropout rate
+   :param float | None coor_weights_clamp_value: Clamp value for coordinate weights
+   :param str aggr: Aggregation method ('add', 'mean', 'max')
+
+
+   .. py:attribute:: fourier_features
+      :value: 0
+
+
+
+   .. py:attribute:: feats_dim
+
+
+   .. py:attribute:: m_dim
+      :value: 16
+
+
+
+   .. py:attribute:: soft_edge
+      :value: False
+
+
+
+   .. py:attribute:: norm_feats
+      :value: False
+
+
+
+   .. py:attribute:: norm_coors
+      :value: False
+
+
+
+   .. py:attribute:: update_coors
+      :value: True
+
+
+
+   .. py:attribute:: update_feats
+      :value: True
+
+
+
+   .. py:attribute:: coor_weights_clamp_value
+      :value: None
+
+
+
+   .. py:attribute:: edge_input_dim
+
+
+   .. py:attribute:: dropout_layer
+
+
+   .. py:attribute:: edge_mlp
+
+
+   .. py:attribute:: edge_weight
+
+
+   .. py:attribute:: node_norm
+
+
+   .. py:attribute:: coors_norm
+
+
+   .. py:attribute:: node_mlp
+
+
+   .. py:attribute:: coors_mlp
+
+
+   .. py:method:: forward(coors: torch.Tensor, feats: torch.Tensor, edge_index: torch_geometric.typing.Adj, edge_attr: torch_geometric.typing.OptTensor = None, batch: torch_geometric.typing.Adj = None, size: torch_geometric.typing.Size = None) -> tuple[torch.Tensor, torch.Tensor]
+
+      Forward pass.
+
+      :param Tensor coors: Node coordinates [num_nodes, pos_dim]
+      :param Tensor feats: Node features [num_nodes, feats_dim]
+      :param Adj edge_index: Edge indices [2, num_edges]
+      :param OptTensor edge_attr: Edge attributes [num_edges, edge_attr_dim]
+      :param Adj batch: Batch assignment [num_nodes]
+      :param Size size: Size for bipartite graphs
+      :return tuple[Tensor, Tensor]: Updated coordinates [num_nodes, pos_dim] and
+          features [num_nodes, feats_dim] as separate tensors.
+
+
+
+   .. py:method:: message(x_i: torch.Tensor, x_j: torch.Tensor, edge_attr: torch.Tensor) -> torch.Tensor
+
+      Create messages from neighboring nodes.
+
+
+
+   .. py:method:: propagate(edge_index: torch_geometric.typing.Adj, size: torch_geometric.typing.Size = None, **kwargs)
+
+      Propagate messages with coordinate updates.
+
+
+
+.. py:class:: E3GNN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, m_dim: int, fourier_features: int, soft_edge: bool, norm_feats: bool, norm_coors: bool, update_coors: bool, activation: str, dropout: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   E(n) Equivariant Graph Neural Network encoder.
+
+   This class performs message passing on molecular conformers using E(n) equivariant
+   convolutions, updates the atom representations according to relative atomic
+   positions and bond information, then returns a molecular embedding for property
+   prediction.
+
+   Uses the EGNN_Sparse layer for efficient message passing on sparse graphs.
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - https://arxiv.org/abs/2102.09844 (E(n) Equivariant Graph Neural Networks)
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+
+   :param int num_layers: number of message passing layers
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+   :param int hidden_features: number of hidden features in message passing layers
+   :param int m_dim: dimension of message hidden layer in EGNN
+   :param int fourier_features: number of Fourier features for distance encoding
+   :param bool soft_edge: whether to use soft edge attention
+   :param bool norm_feats: whether to normalize node features
+   :param bool norm_coors: whether to normalize coordinates
+   :param bool update_coors: whether to update coordinates during message passing
+   :param str activation: activation function to be used in projection layers
+   :param float dropout: dropout noise level for projection layers
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: dropout_layer
+
+
+   .. py:property:: fp_dim
+      :type: int
+
+
+      Return fingerprint dimension.
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch, coords: torch.Tensor) -> torch.Tensor
+
+      Converts a batched PyG graph and 3D coordinates into a learned representation.
+
+      :param Batch graph: batched PyG graph from the dataloader
+      :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader
+      :return torch.Tensor: learned molecular representation [batch_size, fp_dim]
+
+
+

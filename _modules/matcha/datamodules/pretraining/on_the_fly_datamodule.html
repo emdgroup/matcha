@@ -1,0 +1,384 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.pretraining.on_the_fly_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.pretraining.on_the_fly_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.pretraining.on_the_fly_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;On-the-fly DataModule that defers featurization to batch collation time.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">scipy.sparse</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModule</span><span class="p">,</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span><span class="p">,</span> <span class="n">DataLoader</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">LightningDataModule</span>
+
+
+<div class="viewcode-block" id="OnTheFlyDataset">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataset">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">OnTheFlyDataset</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataset that stores raw SMILES and labels for on-the-fly featurization.</span>
+
+<span class="sd">    Used by :class:`OnTheFlyDataModule` to defer feature computation</span>
+<span class="sd">    to collation time rather than computing all features upfront.</span>
+
+<span class="sd">    :param smiles: list of SMILES strings</span>
+<span class="sd">    :param y: label array, typically a sparse matrix of shape ``(N, T)``</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">smiles</span> <span class="o">=</span> <span class="n">smiles</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">y</span> <span class="o">=</span> <span class="n">y</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the number of samples.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">smiles</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a dict with ``smiles`` and ``y`` for the given index.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;smiles&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">smiles</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">y</span><span class="p">[</span><span class="n">idx</span><span class="p">]}</span></div>
+
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;on_the_fly&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">OnTheFlyDataModule</span><span class="p">(</span><span class="n">LightningDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;DataModule that delays feature generation until batch iteration time.</span>
+
+<span class="sd">    This wrapper takes any base datamodule and modifies its behavior to generate</span>
+<span class="sd">    features on-the-fly during batch collation instead of upfront during setup.</span>
+<span class="sd">    This can be useful for saving memory or when features need to be computed</span>
+<span class="sd">    dynamically.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">base</span><span class="p">:</span> <span class="n">BaseDataModule</span><span class="p">,</span> <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise the on-the-fly wrapper around a base datamodule.</span>
+
+<span class="sd">        :param base: base datamodule used for feature generation and collation</span>
+<span class="sd">        :param num_workers: number of dataloader workers, defaults to 0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">base</span> <span class="o">=</span> <span class="n">base</span>
+        <span class="c1"># Copy relevant parameters from base</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">params</span>
+
+        <span class="c1"># Copy collate function mappings</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span> <span class="o">=</span> <span class="n">base</span><span class="o">.</span><span class="n">collate_fn_map</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="c1"># Store raw data for on-the-fly processing</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span> <span class="o">=</span> <span class="n">num_workers</span>
+
+<div class="viewcode-block" id="OnTheFlyDataModule.train_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.train_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">train_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the training dataloader.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule.val_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.val_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">val_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the validation dataloader, or an empty one if not set.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span><span class="p">,</span> <span class="n">DataLoader</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">DataLoader</span><span class="p">({})</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule.test_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.test_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the test dataloader.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule.predict_dataloader">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.predict_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the prediction dataloader.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule.set_data">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.set_data">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">train_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">train_y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">val_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">val_y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">test_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">test_y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">predict_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">predict_y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the raw data for each split.</span>
+
+<span class="sd">        :param train_smiles: training SMILES</span>
+<span class="sd">        :param train_y: training labels (sparse matrix)</span>
+<span class="sd">        :param val_smiles: validation SMILES</span>
+<span class="sd">        :param val_y: validation labels (sparse matrix)</span>
+<span class="sd">        :param test_smiles: test SMILES</span>
+<span class="sd">        :param test_y: test labels (sparse matrix)</span>
+<span class="sd">        :param predict_smiles: prediction SMILES</span>
+<span class="sd">        :param predict_y: prediction labels (optional, defaults to zeros)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">train_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">train_y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span> <span class="o">=</span> <span class="n">OnTheFlyDataset</span><span class="p">(</span><span class="n">train_smiles</span><span class="p">,</span> <span class="n">train_y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">val_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">val_y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span> <span class="o">=</span> <span class="n">OnTheFlyDataset</span><span class="p">(</span><span class="n">val_smiles</span><span class="p">,</span> <span class="n">val_y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">test_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">test_y</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span> <span class="o">=</span> <span class="n">OnTheFlyDataset</span><span class="p">(</span><span class="n">test_smiles</span><span class="p">,</span> <span class="n">test_y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">predict_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># For prediction, y can be None or dummy values</span>
+            <span class="k">if</span> <span class="n">predict_y</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">predict_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">predict_smiles</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span> <span class="o">=</span> <span class="n">OnTheFlyDataset</span><span class="p">(</span><span class="n">predict_smiles</span><span class="p">,</span> <span class="n">predict_y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule.collate_fn">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.collate_fn">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate features on-the-fly from batch SMILES and collate.</span>
+
+<span class="sd">        Converts SMILES to molecules, applies label encoding (sparse to dense,</span>
+<span class="sd">        replacing 0 with NaN and -1 with 0), then delegates to the base</span>
+<span class="sd">        datamodule&#39;s feature generation and collation.</span>
+
+<span class="sd">        :param batch: list of dicts with ``smiles`` and ``y`` keys</span>
+<span class="sd">        :return: collated batch dict from the base datamodule</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract mols and labels from batch</span>
+        <span class="n">mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;smiles&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">y_batch</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">])</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+
+        <span class="n">y_batch</span><span class="p">[</span><span class="n">y_batch</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="n">y_batch</span><span class="p">[</span><span class="n">y_batch</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># Generate features using the base datamodule</span>
+        <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">y_batch</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Convert to list of dicts for collation</span>
+        <span class="n">batch_dicts</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)):</span>
+            <span class="n">item</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">dataset</span> <span class="ow">in</span> <span class="n">features</span><span class="o">.</span><span class="n">datasets</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span>
+                    <span class="n">item</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">item</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">batch_dicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+
+        <span class="c1"># Use base datamodule&#39;s collate function</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">collate_fn</span><span class="p">(</span><span class="n">batch_dicts</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_dataloader</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">OnTheFlyDataset</span><span class="p">,</span> <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataLoader</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a DataLoader with on-the-fly collation.</span>
+
+<span class="sd">        :param dataset: raw dataset of SMILES and labels</span>
+<span class="sd">        :param is_training: whether to shuffle the data</span>
+<span class="sd">        :return: configured DataLoader</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">DataLoader</span><span class="p">(</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
+            <span class="n">collate_fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">collate_fn</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Implement abstract methods from BaseDataModule</span>
+<div class="viewcode-block" id="OnTheFlyDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delegate to base datamodule&#39;s featurize method.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules</span>
+<span class="sd">        :param y: label array</span>
+<span class="sd">        :param bound_mask: optional bound mask for censored labels</span>
+<span class="sd">        :param is_training: whether to fit scalers</span>
+<span class="sd">        :param n_jobs: number of parallel workers</span>
+<span class="sd">        :return: featurized StackDataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">featurize</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Delegate to base datamodule&#39;s generate_features method.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules</span>
+<span class="sd">        :param y: label array</span>
+<span class="sd">        :param bound_mask: optional bound mask for censored labels</span>
+<span class="sd">        :param n_jobs: number of parallel workers</span>
+<span class="sd">        :return: StackDataset of unscaled features</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="OnTheFlyDataModule.setup">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/on_the_fly_datamodule/index.html#matcha.datamodules.pretraining.OnTheFlyDataModule.setup">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Setup dataloaders using raw data instead of pre-computed features.</span>
+
+<span class="sd">        :param stage: one of ``&quot;fit&quot;``, ``&quot;test&quot;``, or ``&quot;predict&quot;``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;fit&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;test&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;predict&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+matcha.sklearn.managers.ensemble_serialization_manager
+======================================================
+
+.. py:module:: matcha.sklearn.managers.ensemble_serialization_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.ensemble_serialization_manager.EnsembleSerializationManager
+
+
+Module Contents
+---------------
+
+.. py:class:: EnsembleSerializationManager
+
+   Handles saving, loading, and exporting ensemble model artifacts.
+
+   Artifact layout::
+
+       <path>/
+       ├── config/
+       │   ├── manifest.yaml          # Serialization version & class info
+       │   ├── ensemble.yaml          # Ensemble-specific params (architecture, n_models, seed, learner)
+       │   ├── metadata.yaml          # Model metadata
+       │   ├── calibration.yaml       # Calibration params (optional)
+       │   └── mlflow.yaml            # MLflow params (optional)
+       ├── state/
+       │   └── calibrator.pkl         # Fitted calibrator object (optional)
+       ├── model_0/                   # First member (saved by its own serialization)
+       │   ├── model.ckpt
+       │   ├── config/
+       │   └── state/
+       ├── model_1/
+       │   └── ...
+       └── model_N/
+           └── ...
+
+
+   .. py:attribute:: logger
+
+
+   .. py:method:: save(ensemble, path: str, quantize: bool = False) -> None
+
+      Save all members and ensemble-level artifacts to *path*.
+
+      :param ensemble: the Ensemble instance to save
+      :param str path: root folder where artifacts are stored
+      :param bool quantize: whether to quantize models before saving
+
+
+
+   .. py:method:: export_to_yaml(ensemble, path: str) -> None
+
+      Export the ensemble configuration and parameters to a YAML file.
+
+      Uses the first model's input args as the learner config and adds
+      ensemble-specific fields (architecture, metadata, n_models).
+
+      :param ensemble: the Ensemble instance
+      :param str path: file path for the YAML output
+
+
+
+   .. py:method:: load_from_config(cls, params: dict)
+      :staticmethod:
+
+
+      Reconstruct an Ensemble from a saved parameter dictionary.
+
+      Creates individual model instances using the registered architecture's
+      ``from_config``, then wraps the first one into a new Ensemble via the
+      standard ``__init__``.
+
+      :param cls: the Ensemble class
+      :param dict params: saved ensemble parameters (structured format with
+          ``ensemble``, ``metadata``, ``calibration`` keys)
+      :return: reconstructed Ensemble instance
+
+
+
+   .. py:method:: load_from_folder(cls, path: str, accelerator: str = 'cuda')
+      :staticmethod:
+
+
+      Load a saved Ensemble from a folder.
+
+      Each member is individually loaded via its architecture's
+      ``from_folder``, then assembled into an Ensemble shell.
+
+      :param cls: the Ensemble class
+      :param str path: folder containing ensemble artifacts
+      :param str accelerator: device to load models onto
+      :return: fully restored Ensemble instance
+
+
+

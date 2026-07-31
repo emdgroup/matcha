@@ -1,0 +1,73 @@
+matcha.torch.encoders.base_encoder
+==================================
+
+.. py:module:: matcha.torch.encoders.base_encoder
+
+.. autoapi-nested-parse::
+
+   Base encoder interface for all molecular representation encoders.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.base_encoder.EncoderRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.base_encoder.BaseEncoder
+
+
+Module Contents
+---------------
+
+.. py:class:: BaseEncoder
+
+   Bases: :py:obj:`lightning.LightningModule`, :py:obj:`abc.ABC`
+
+
+   Abstract base class for all encoders.
+
+   Defines the interface that all encoder subclasses must implement. Enforces
+   the presence of a :meth:`forward` method that maps featurized molecular
+   inputs to fixed-size embedding tensors.
+
+   Not meant to be instantiated directly; use a concrete subclass such as
+   :class:`GIN`, :class:`GPS`, :class:`CNN`, etc.
+
+
+   .. py:property:: fp_dim
+      :type: int
+
+
+      Output fingerprint (embedding) dimensionality.
+
+      :returns: The size of the last dimension of the tensor returned by :meth:`forward`.
+      :rtype: int
+
+
+   .. py:method:: forward(x: object) -> torch.Tensor
+      :abstractmethod:
+
+
+      This method needs to convert the batched output from one of the featurizers
+      into a torch.Tensor of shape (batch_size, K), which can then be processed by
+      a MLP-like architecture for prediction.
+
+      :param object x: The batched output from any featurizer. Depending on the featurizer,
+          it can be different things, e.g. torch.Tensor,  list, ...
+
+      :return torch.Tensor: a tensor of shape (batch_size, K), corresponding to the
+          learned embeddings for the batch_size molecules.
+
+
+
+.. py:data:: EncoderRegistry
+

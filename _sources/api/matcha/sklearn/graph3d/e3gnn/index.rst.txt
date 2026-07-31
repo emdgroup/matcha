@@ -1,0 +1,217 @@
+matcha.sklearn.graph3d.e3gnn
+============================
+
+.. py:module:: matcha.sklearn.graph3d.e3gnn
+
+.. autoapi-nested-parse::
+
+   E(3)-equivariant graph neural network models for molecular conformers.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.graph3d.e3gnn.E3GNNClassifier
+   matcha.sklearn.graph3d.e3gnn.E3GNNRegressor
+
+
+Module Contents
+---------------
+
+.. py:class:: E3GNNClassifier(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 128, enc_m_dim: int = 16, enc_fourier_features: int = 4, enc_soft_edge: bool = False, enc_norm_feats: bool = True, enc_norm_coors: bool = True, enc_update_coors: bool = True, enc_jk: str = 'last', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [128, 128], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: Dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_cosine_annealing', scheduler_args: Dict = {'min_lr': 1e-05}, num_epochs: int = 50, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 10, devices: int = 1, accelerator: str = 'gpu', num_virtual_nodes: int = 0, rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph3d.base_sklearn_gnn3d.BaseScikitLearnGNN3D`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`
+
+
+   E(3)-equivariant graph neural network classifier for molecular conformers.
+
+   Implements the EGNN architecture from Satorras et al., *E(n) Equivariant
+   Graph Neural Networks* (arXiv:2102.09844). Learns to embed molecular
+   conformers using equivariant message passing over 3D coordinates and
+   predict properties in an end-to-end manner. Compatible with classification
+   datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph3d.BaseScikitLearnGNN3D`
+   for common training and predicting routines.
+
+   .. rubric:: References
+
+   - https://arxiv.org/abs/2102.09844
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = E3GNNClassifier()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: Number of encoder layers for equivariant message
+       passing, defaults to 3.
+   :param int enc_atom_hidden_dim: Encoder atom feature dimensionality,
+       defaults to 128.
+   :param int enc_m_dim: Dimensionality of the message MLP intermediate layer,
+       defaults to 16.
+   :param int enc_fourier_features: Number of Fourier features for distance
+       encoding, defaults to 4.
+   :param bool enc_soft_edge: Whether to apply soft edge weighting,
+       defaults to False.
+   :param bool enc_norm_feats: Whether to normalise node features,
+       defaults to True.
+   :param bool enc_norm_coors: Whether to normalise coordinate updates,
+       defaults to True.
+   :param bool enc_update_coors: Whether to update coordinates during message
+       passing, defaults to True.
+   :param str enc_jk: Jumping knowledge strategy, defaults to 'last'.
+   :param str enc_readout: Aggregation strategy for molecule-level embeddings,
+       defaults to 'vpa'.
+   :param float enc_dropout: Encoder dropout rate, defaults to 0.2.
+   :param str enc_activation: Encoder activation function, defaults to 'swish'.
+   :param list[int] pred_hidden_dims: Hidden layer dimensions in the predictor
+       MLP, defaults to [128, 128].
+   :param list[int] | None pred_task_head_dims: Per-task head dimensions,
+       defaults to None.
+   :param str pred_activation: Predictor activation function, defaults to 'swish'.
+   :param float pred_dropout: Predictor dropout rate, defaults to 0.2.
+   :param int num_endpoints: Number of endpoints or classes to predict,
+       defaults to 1.
+   :param str loss_fn: Loss function, defaults to 'bce'.
+   :param Dict loss_args: Additional loss function arguments, defaults to {}.
+   :param str optimizer: Optimizer, defaults to 'adamw'.
+   :param dict optimizer_args: Optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}.
+   :param str scheduler: Learning rate scheduler, defaults to
+       'warmup_cosine_annealing'.
+   :param Dict scheduler_args: Scheduler arguments, defaults to
+       {'min_lr': 1e-5}. If 'total_steps' is not provided, it is
+       auto-computed as num_epochs * ceil(len(train_data) / batch_size).
+   :param int num_epochs: Number of training epochs, defaults to 50.
+   :param int batch_size: Batch size for training and prediction, defaults to 64.
+   :param bool stochastic_weight_averaging: Whether to apply SWA after regular
+       training, defaults to False.
+   :param bool early_stopping: Whether to enable early stopping, defaults to True.
+   :param int patience: Early stopping patience in epochs, defaults to 10.
+   :param int devices: Number of devices for training, defaults to 1.
+   :param str accelerator: Accelerator type ('cpu', 'gpu', 'tpu', 'hpu'),
+       defaults to 'gpu'.
+   :param int num_virtual_nodes: Number of virtual nodes to add, defaults to 0.
+   :param int rwse_k: Random walk structural encoding steps, defaults to 0.
+   :param int laplacian_k: Laplacian positional encoding components,
+       defaults to 0.
+   :param int elstatic_k: Electrostatic positional encoding components,
+       defaults to 0.
+   :param int distmat_k: Distance matrix positional encoding components,
+       defaults to 0.
+   :param int rrwp_k: Relative random walk positional encoding steps,
+       defaults to 0.
+   :param list[str] | None feature_list: Tabular features to combine with
+       graph features, defaults to None.
+   :param dict label_encoder_params: Label encoder parameters, defaults to {}.
+   :param str | list[str] | dict | None label_transform_map: Label transform
+       configuration, defaults to None.
+   :param bool augment_resonance: Whether to augment with resonance structures,
+       defaults to False.
+   :param int seed: Random seed, defaults to 0.
+
+
+.. py:class:: E3GNNRegressor(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 128, enc_m_dim: int = 16, enc_fourier_features: int = 4, enc_soft_edge: bool = False, enc_norm_feats: bool = True, enc_norm_coors: bool = True, enc_update_coors: bool = True, enc_jk: str = 'last', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [128, 128], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_cosine_annealing', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 50, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 10, devices: int = 1, accelerator: str = 'gpu', num_virtual_nodes: int = 0, rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
+
+   Bases: :py:obj:`matcha.sklearn.graph3d.base_sklearn_gnn3d.BaseScikitLearnGNN3D`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`
+
+
+   E(3)-equivariant graph neural network regressor for molecular conformers.
+
+   Implements the EGNN architecture from Satorras et al., *E(n) Equivariant
+   Graph Neural Networks* (arXiv:2102.09844). Learns to embed molecular
+   conformers using equivariant message passing over 3D coordinates and
+   predict continuous properties in an end-to-end manner. Compatible with
+   regression datasets only.
+
+   Inherits from :class:`~matcha.sklearn.graph3d.BaseScikitLearnGNN3D`
+   for common training and predicting routines.
+
+   .. rubric:: References
+
+   - https://arxiv.org/abs/2102.09844
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = E3GNNRegressor()
+       model.fit(train_mols, train_y)
+       predictions = model.predict(test_mols)
+
+   :param int enc_num_layers: Number of encoder layers for equivariant message
+       passing, defaults to 3.
+   :param int enc_atom_hidden_dim: Encoder atom feature dimensionality,
+       defaults to 128.
+   :param int enc_m_dim: Dimensionality of the message MLP intermediate layer,
+       defaults to 16.
+   :param int enc_fourier_features: Number of Fourier features for distance
+       encoding, defaults to 4.
+   :param bool enc_soft_edge: Whether to apply soft edge weighting,
+       defaults to False.
+   :param bool enc_norm_feats: Whether to normalise node features,
+       defaults to True.
+   :param bool enc_norm_coors: Whether to normalise coordinate updates,
+       defaults to True.
+   :param bool enc_update_coors: Whether to update coordinates during message
+       passing, defaults to True.
+   :param str enc_jk: Jumping knowledge strategy, defaults to 'last'.
+   :param str enc_readout: Aggregation strategy for molecule-level embeddings,
+       defaults to 'vpa'.
+   :param float enc_dropout: Encoder dropout rate, defaults to 0.2.
+   :param str enc_activation: Encoder activation function, defaults to 'swish'.
+   :param list[int] pred_hidden_dims: Hidden layer dimensions in the predictor
+       MLP, defaults to [128, 128].
+   :param list[int] | None pred_task_head_dims: Per-task head dimensions,
+       defaults to None.
+   :param str pred_activation: Predictor activation function, defaults to 'swish'.
+   :param float pred_dropout: Predictor dropout rate, defaults to 0.2.
+   :param int num_endpoints: Number of endpoints to predict, defaults to 1.
+   :param str loss_fn: Loss function, defaults to 'mse'.
+   :param dict loss_args: Additional loss function arguments, defaults to {}.
+   :param str optimizer: Optimizer, defaults to 'adamw'.
+   :param dict optimizer_args: Optimizer arguments, defaults to
+       {'lr': 1e-4, 'weight_decay': 1e-4}.
+   :param str scheduler: Learning rate scheduler, defaults to
+       'warmup_cosine_annealing'.
+   :param dict scheduler_args: Scheduler arguments, defaults to
+       {'min_lr': 1e-5}. If 'total_steps' is not provided, it is
+       auto-computed as num_epochs * ceil(len(train_data) / batch_size).
+   :param int num_epochs: Number of training epochs, defaults to 50.
+   :param int batch_size: Batch size for training and prediction, defaults to 64.
+   :param bool stochastic_weight_averaging: Whether to apply SWA after regular
+       training, defaults to False.
+   :param bool early_stopping: Whether to enable early stopping, defaults to True.
+   :param int patience: Early stopping patience in epochs, defaults to 10.
+   :param int devices: Number of devices for training, defaults to 1.
+   :param str accelerator: Accelerator type ('cpu', 'gpu', 'tpu', 'hpu'),
+       defaults to 'gpu'.
+   :param int num_virtual_nodes: Number of virtual nodes to add, defaults to 0.
+   :param int rwse_k: Random walk structural encoding steps, defaults to 0.
+   :param int laplacian_k: Laplacian positional encoding components,
+       defaults to 0.
+   :param int elstatic_k: Electrostatic positional encoding components,
+       defaults to 0.
+   :param int distmat_k: Distance matrix positional encoding components,
+       defaults to 0.
+   :param int rrwp_k: Relative random walk positional encoding steps,
+       defaults to 0.
+   :param list[str] | None feature_list: Tabular features to combine with
+       graph features, defaults to None.
+   :param bool clip: Whether to clip predictions to the training label range,
+       defaults to True.
+   :param dict label_encoder_params: Label encoder parameters, defaults to {}.
+   :param str | list[str] | dict | None label_transform_map: Label transform
+       configuration, defaults to None.
+   :param str scaler_type: Type of target scaler, defaults to 'standard'.
+   :param bool augment_resonance: Whether to augment with resonance structures,
+       defaults to False.
+   :param int seed: Random seed, defaults to 0.
+
+

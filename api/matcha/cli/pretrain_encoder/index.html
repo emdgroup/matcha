@@ -1,0 +1,168 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.pretrain_encoder &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.cli.pretrain_encoder</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/cli/pretrain_encoder/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.cli.pretrain_encoder">
+<span id="matcha-cli-pretrain-encoder"></span><h1>matcha.cli.pretrain_encoder<a class="headerlink" href="#module-matcha.cli.pretrain_encoder" title="Link to this heading"></a></h1>
+<p>CLI entrypoint for encoder-only pretraining (MLM or graph multi-task).</p>
+<p>Produces an artifact directory that the <code class="xref py py-class docutils literal notranslate"><span class="pre">Finetuner</span></code> can consume
+directly via <code class="docutils literal notranslate"><span class="pre">origin_type:</span> <span class="pre">&quot;pretraining&quot;</span></code> in the manifest.</p>
+<p>Artifact layout:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>&lt;output&gt;/
+├── model.ckpt               # full Lightning checkpoint (for resumption)
+├── encoder.ckpt             # encoder-only state_dict (for finetuning)
+├── config/
+│   ├── manifest.yaml        # origin_type: &quot;pretraining&quot;, source_class, …
+│   ├── model.yaml           # pretraining model hparams
+│   ├── training.yaml        # training hparams
+│   ├── datamodule.yaml      # datamodule params
+│   └── metadata.yaml        # metadata
+├── state/
+│   └── datamodule_state.pkl # fitted scalers / encoders / dictionary
+└── cfg.yaml                 # copy of the input config
+</pre></div>
+</div>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.pretrain_encoder.main" title="matcha.cli.pretrain_encoder.main"><code class="xref py py-obj docutils literal notranslate"><span class="pre">main</span></code></a>(→ None)</p></td>
+<td><p>Run encoder pretraining (MLM or graph multi-task) from a YAML configuration.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.pretrain_encoder.main">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.pretrain_encoder.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/pretrain_encoder.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.pretrain_encoder.main" title="Link to this definition"></a></dt>
+<dd><p>Run encoder pretraining (MLM or graph multi-task) from a YAML configuration.</p>
+<p>Supports two pretraining modes controlled by <code class="docutils literal notranslate"><span class="pre">dataset.task_type</span></code>:</p>
+<ul class="simple">
+<li><p><strong>mlm</strong>: Masked language modelling over SMILES strings.</p></li>
+<li><p><strong>graph</strong>: Supervised node-level and graph-level multi-task objectives.</p></li>
+</ul>
+<p>Trains the encoder with Lightning, optionally using DDP for multi-GPU
+training, and saves artifacts (encoder checkpoint, configs, manifest)
+compatible with downstream finetuning via the <code class="docutils literal notranslate"><span class="pre">Finetuner</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>cfg</strong> – Pre-parsed configuration object or <code class="docutils literal notranslate"><span class="pre">None</span></code> to parse from
+CLI <code class="docutils literal notranslate"><span class="pre">--config</span></code> argument. Accepts a
+<a class="reference internal" href="../../utils/schemas/cli/index.html#matcha.utils.schemas.cli.CLIEncoderPretrainInputModel" title="matcha.utils.schemas.cli.CLIEncoderPretrainInputModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">CLIEncoderPretrainInputModel</span></code></a>
+instance or a raw dict that will be validated.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

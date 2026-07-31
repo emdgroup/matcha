@@ -1,0 +1,180 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Installation &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="_static/thebelab.css" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Getting started" href="getting-started.html" />
+    <link rel="prev" title="MATCHA — Modelling and AI Toolkit for Chemistry in Healthcare Applications" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#base-install">Base install</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#optional-extras">Optional extras</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#custom-gpu-install">Custom GPU install</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Installation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/installation.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="installation">
+<h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
+<p>MATCHA is published to PyPI as <code class="docutils literal notranslate"><span class="pre">emd-matcha</span></code> and requires <strong>Python 3.12</strong> or
+newer (<code class="docutils literal notranslate"><span class="pre">&gt;=3.12,&lt;3.14</span></code>).</p>
+<section id="base-install">
+<h2>Base install<a class="headerlink" href="#base-install" title="Link to this heading"></a></h2>
+<p>The installation is available either for GPUs or CPUs, depending on
+what you have available on your machine. Keep in mind, the default
+GPU installation requires CUDA 12.9.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># CPU-only (portable, works on any machine)</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;emd-matcha[cpu]&quot;</span>
+
+<span class="c1"># CUDA 12.9 GPU installation</span>
+pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;emd-matcha[gpu]&quot;</span>
+</pre></div>
+</div>
+<p>You can also install via <a class="reference external" href="https://docs.astral.sh/uv/"><code class="docutils literal notranslate"><span class="pre">uv</span></code></a>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;emd-matcha[cpu]&quot;</span>
+<span class="c1"># or</span>
+uv<span class="w"> </span>add<span class="w"> </span><span class="s2">&quot;emd-matcha[gpu]&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="optional-extras">
+<h2>Optional extras<a class="headerlink" href="#optional-extras" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">cli</span></code> — full MLflow client plus fastparquet, required for the <code class="docutils literal notranslate"><span class="pre">matcha</span></code> CLI
+and foundation-model training workflows.</p></li>
+</ul>
+<p>Extras can be combined with the CPU or GPU extras, for example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;emd-matcha[cpu,cli]&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="custom-gpu-install">
+<h2>Custom GPU install<a class="headerlink" href="#custom-gpu-install" title="Link to this heading"></a></h2>
+<p>The install without either CPU or GPU is useful if you need to install
+the GPU dependencies with different CUDA versions. In that case, the best
+way is to install <code class="docutils literal notranslate"><span class="pre">emd-matcha</span></code> without any extra, then add to the environment
+the other packages with the desired CUDA version.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>emd-matcha
+
+<span class="c1"># add pytorch with a different CUDA</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch<span class="w"> </span>--index-url<span class="w"> </span>https://download.pytorch.org/whl/cu132
+
+<span class="c1"># install the other GPU dependencies, for example</span>
+pip<span class="w"> </span>install<span class="w"> </span>torch-geometric
+pip<span class="w"> </span>install<span class="w"> </span>torch-geometric
+pip<span class="w"> </span>install<span class="w"> </span>lightning
+pip<span class="w"> </span>install<span class="w"> </span>optuna
+pip<span class="w"> </span>install<span class="w"> </span>optuna-integration
+pip<span class="w"> </span>install<span class="w"> </span>einops
+pip<span class="w"> </span>install<span class="w"> </span>transformers
+pip<span class="w"> </span>install<span class="w"> </span>chemprop
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="MATCHA — Modelling and AI Toolkit for Chemistry in Healthcare Applications" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="getting-started.html" class="btn btn-neutral float-right" title="Getting started" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

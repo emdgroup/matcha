@@ -1,0 +1,775 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.multitask &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.nn.multitask</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.nn.multitask</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Multitask utilities: task affinity computation (TAG) and dataset stitching.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">math</span><span class="w"> </span><span class="kn">import</span> <span class="n">ceil</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseScikitLearnModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.optimizers</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizerRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.schedulers</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchedulerRegistry</span>
+
+
+<div class="viewcode-block" id="TaskAffinityResult">
+<a class="viewcode-back" href="../../../api/matcha/nn/multitask/index.html#matcha.nn.multitask.TaskAffinityResult">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">TaskAffinityResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Container for Task Affinity Grouping (TAG) results.</span>
+
+<span class="sd">    Based on: https://arxiv.org/pdf/2109.04617</span>
+
+<span class="sd">    :param affinity_matrix: ``(num_tasks, num_tasks)`` matrix where entry ``[i, j]``</span>
+<span class="sd">        represents the affinity of task *i* to task *j*.</span>
+<span class="sd">    :type affinity_matrix: numpy.ndarray</span>
+<span class="sd">    :param task_names: Task names corresponding to matrix indices.</span>
+<span class="sd">    :type task_names: list[str]</span>
+<span class="sd">    :param int num_epochs: Number of epochs used to compute the affinity.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">affinity_matrix</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span>
+    <span class="n">task_names</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span>
+
+<div class="viewcode-block" id="TaskAffinityResult.plot_affinity_matrix">
+<a class="viewcode-back" href="../../../api/matcha/nn/multitask/index.html#matcha.nn.multitask.TaskAffinityResult.plot_affinity_matrix">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_affinity_matrix</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Task Affinity Matrix&quot;</span><span class="p">,</span>
+        <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">700</span><span class="p">,</span>
+        <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">600</span><span class="p">,</span>
+        <span class="n">show_values</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create an interactive heatmap of the task affinity matrix using Plotly.</span>
+
+<span class="sd">        :param str title: Title of the plot.</span>
+<span class="sd">        :param int width: Width of the figure in pixels.</span>
+<span class="sd">        :param int height: Height of the figure in pixels.</span>
+<span class="sd">        :param bool show_values: Whether to annotate cells with affinity values.</span>
+<span class="sd">        :returns: Interactive heatmap figure.</span>
+<span class="sd">        :rtype: plotly.graph_objects.Figure</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+
+        <span class="c1"># Create text annotations if requested</span>
+        <span class="n">text</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">show_values</span><span class="p">:</span>
+            <span class="n">text</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">affinity_matrix</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span>
+
+        <span class="c1"># Custom colorscale: low affinity (#2dbecd) to high affinity (#149b5f)</span>
+        <span class="n">colorscale</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="s2">&quot;#2dbecd&quot;</span><span class="p">],</span>  <span class="c1"># Low affinity - cyan/teal</span>
+            <span class="p">[</span><span class="mf">0.5</span><span class="p">,</span> <span class="s2">&quot;#FFFFFF&quot;</span><span class="p">],</span>  <span class="c1"># Neutral - white</span>
+            <span class="p">[</span><span class="mf">1.0</span><span class="p">,</span> <span class="s2">&quot;#149b5f&quot;</span><span class="p">],</span>  <span class="c1"># High affinity - green</span>
+        <span class="p">]</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="n">go</span><span class="o">.</span><span class="n">Heatmap</span><span class="p">(</span>
+                <span class="n">z</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">affinity_matrix</span><span class="p">,</span>
+                <span class="n">x</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_names</span><span class="p">,</span>
+                <span class="n">y</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">task_names</span><span class="p">,</span>
+                <span class="n">colorscale</span><span class="o">=</span><span class="n">colorscale</span><span class="p">,</span>
+                <span class="n">zmid</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">text</span><span class="o">=</span><span class="n">text</span><span class="p">,</span>
+                <span class="n">texttemplate</span><span class="o">=</span><span class="s2">&quot;%</span><span class="si">{text}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">show_values</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">textfont</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;size&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">},</span>
+                <span class="n">hovertemplate</span><span class="o">=</span><span class="p">(</span>
+                    <span class="s2">&quot;Source Task: %</span><span class="si">{y}</span><span class="s2">&lt;br&gt;&quot;</span>
+                    <span class="s2">&quot;Target Task: %</span><span class="si">{x}</span><span class="s2">&lt;br&gt;&quot;</span>
+                    <span class="s2">&quot;Affinity: %</span><span class="si">{z:.4f}</span><span class="s2">&lt;extra&gt;&lt;/extra&gt;&quot;</span>
+                <span class="p">),</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+            <span class="n">title</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">title</span><span class="p">,</span>
+                <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+                <span class="s2">&quot;xanchor&quot;</span><span class="p">:</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">xaxis_title</span><span class="o">=</span><span class="s2">&quot;Target Task&quot;</span><span class="p">,</span>
+            <span class="n">yaxis_title</span><span class="o">=</span><span class="s2">&quot;Source Task&quot;</span><span class="p">,</span>
+            <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span>
+            <span class="n">yaxis</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">autorange</span><span class="o">=</span><span class="s2">&quot;reversed&quot;</span><span class="p">),</span>  <span class="c1"># To match matrix convention</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span></div>
+
+
+<div class="viewcode-block" id="TaskAffinityResult.get_top_k">
+<a class="viewcode-back" href="../../../api/matcha/nn/multitask/index.html#matcha.nn.multitask.TaskAffinityResult.get_top_k">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_top_k</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">source_task</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">include_self</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the top-k most affine tasks for a given source task.</span>
+
+<span class="sd">        :param int source_task: Index of the source task.</span>
+<span class="sd">        :param int k: Number of top affine tasks to return.</span>
+<span class="sd">        :param bool include_self: Whether to include the source task in results.</span>
+<span class="sd">        :returns: Task indices sorted by affinity (highest first).</span>
+<span class="sd">        :rtype: list[int]</span>
+<span class="sd">        :raises ValueError: If ``source_task`` is out of bounds or ``k`` is invalid.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_tasks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">affinity_matrix</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">source_task</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">source_task</span> <span class="o">&gt;=</span> <span class="n">num_tasks</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;source_task must be between 0 and </span><span class="si">{</span><span class="n">num_tasks</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">source_task</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">max_k</span> <span class="o">=</span> <span class="n">num_tasks</span> <span class="k">if</span> <span class="n">include_self</span> <span class="k">else</span> <span class="n">num_tasks</span> <span class="o">-</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="o">&lt;</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">k</span> <span class="o">&gt;</span> <span class="n">max_k</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;k must be between 1 and </span><span class="si">{</span><span class="n">max_k</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Get affinity scores for the source task</span>
+        <span class="n">affinities</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">affinity_matrix</span><span class="p">[</span><span class="n">source_task</span><span class="p">,</span> <span class="p">:]</span>
+
+        <span class="c1"># Sort indices by affinity (descending)</span>
+        <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">affinities</span><span class="p">)[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="c1"># Filter out self if requested</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">include_self</span><span class="p">:</span>
+            <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">sorted_indices</span><span class="p">[</span><span class="n">sorted_indices</span> <span class="o">!=</span> <span class="n">source_task</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">sorted_indices</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="compute_task_affinity">
+<a class="viewcode-back" href="../../../api/matcha/nn/multitask/index.html#matcha.nn.multitask.compute_task_affinity">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">compute_task_affinity</span><span class="p">(</span>
+    <span class="n">sklearn_model</span><span class="p">:</span> <span class="n">BaseScikitLearnModel</span><span class="p">,</span>
+    <span class="n">molecules</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">affinity_every_n_steps</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="n">device</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TaskAffinityResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute task affinity matrix using the Task Affinity Grouping (TAG) algorithm.</span>
+
+<span class="sd">    Trains a single multitask model, periodically measuring how each task&#39;s</span>
+<span class="sd">    gradient step affects all other tasks&#39; losses. The collected affinity</span>
+<span class="sd">    snapshots are averaged to produce the final matrix.</span>
+
+<span class="sd">    The affinity ``Z[i, j]`` measures how much a gradient update on task *i*</span>
+<span class="sd">    affects task *j*&#39;s loss. A positive affinity indicates that training on</span>
+<span class="sd">    task *i* reduces the loss of task *j*.</span>
+
+<span class="sd">    Based on: https://arxiv.org/pdf/2109.04617</span>
+
+<span class="sd">    :param sklearn_model: A fitted MATCHA sklearn model instance.</span>
+<span class="sd">    :type sklearn_model: matcha.sklearn.base_sklearn_model.BaseScikitLearnModel</span>
+<span class="sd">    :param list molecules: Training molecules (RDKit Mol objects or SMILES strings).</span>
+<span class="sd">    :param numpy.ndarray labels: Training labels of shape ``(n_samples, n_tasks)``.</span>
+<span class="sd">    :param int affinity_every_n_steps: Collect affinity every N training steps.</span>
+<span class="sd">    :param device: Device for computation (``&#39;cuda&#39;``, ``&#39;cpu&#39;``, or ``None`` for auto).</span>
+<span class="sd">    :type device: str or None</span>
+<span class="sd">    :returns: Object containing the affinity matrix and helper methods.</span>
+<span class="sd">    :rtype: TaskAffinityResult</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        from matcha.sklearn.graph import GraphRegressor</span>
+<span class="sd">        from matcha.nn.multitask import compute_task_affinity</span>
+
+<span class="sd">        model = GraphRegressor(num_endpoints=4)</span>
+<span class="sd">        model.fit(train_mols, train_labels)</span>
+
+<span class="sd">        result = compute_task_affinity(model, train_mols, train_labels)</span>
+<span class="sd">        fig = result.plot_affinity_matrix()</span>
+<span class="sd">        fig.show()</span>
+
+<span class="sd">        # Get top 2 most affine tasks for task 0</span>
+<span class="sd">        top_tasks = result.get_top_k(source_task=0, k=2)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Extract information from the sklearn model</span>
+    <span class="n">datamodule</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">datamodule</span>
+    <span class="n">pytorch_model</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">model</span>
+    <span class="n">batch_size</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">training</span><span class="o">.</span><span class="n">batch_size</span>
+    <span class="n">num_epochs</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">training</span><span class="o">.</span><span class="n">num_epochs</span>
+    <span class="n">is_classification</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">is_classification</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">logger</span>
+
+    <span class="c1"># Get task names from the label encoder</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">datamodule</span><span class="p">,</span> <span class="s2">&quot;_label_encoder&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span>
+        <span class="n">datamodule</span><span class="o">.</span><span class="n">_label_encoder</span><span class="p">,</span> <span class="s2">&quot;label_names&quot;</span>
+    <span class="p">):</span>
+        <span class="n">task_names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">datamodule</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">label_names</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">task_names</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;Task_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
+
+    <span class="n">num_tasks</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+    <span class="c1"># Determine device</span>
+    <span class="k">if</span> <span class="n">device</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">device</span> <span class="o">=</span> <span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span>
+
+    <span class="c1"># Create loss function based on task type</span>
+    <span class="k">if</span> <span class="n">is_classification</span><span class="p">:</span>
+        <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">BCEWithLogitsLoss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Transform molecules to dataset format</span>
+    <span class="n">train_dataset</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">molecules</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Create train dataloader</span>
+    <span class="n">datamodule</span><span class="o">.</span><span class="n">dataset_train</span> <span class="o">=</span> <span class="n">train_dataset</span>
+    <span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">batch_size</span>
+    <span class="n">datamodule</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="n">stage</span><span class="o">=</span><span class="s2">&quot;fit&quot;</span><span class="p">)</span>
+    <span class="n">train_dataloader</span> <span class="o">=</span> <span class="n">datamodule</span><span class="o">.</span><span class="n">train_dataloader</span><span class="p">()</span>
+
+    <span class="c1"># Clone the model for multitask training</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">pytorch_model</span><span class="p">)</span>
+    <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+    <span class="c1"># Use the same optimizer and settings as the original model</span>
+    <span class="n">optimizer_name</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">optimizer</span>
+    <span class="n">optimizer_args</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">optimizer_args</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">optimizer_cls</span> <span class="o">=</span> <span class="n">OptimizerRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">optimizer_name</span><span class="p">)</span>
+    <span class="n">optimizer</span> <span class="o">=</span> <span class="n">optimizer_cls</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="o">**</span><span class="n">optimizer_args</span><span class="p">)</span>
+
+    <span class="c1"># Check if the model has a scheduler configured (Finetuner does not have one)</span>
+    <span class="c1"># The scheduler field is present in standard models (GIN, SNN, etc.) but not in Finetuner</span>
+    <span class="n">model_params</span> <span class="o">=</span> <span class="n">sklearn_model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model</span>
+    <span class="n">has_scheduler</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">hasattr</span><span class="p">(</span><span class="n">model_params</span><span class="p">,</span> <span class="s2">&quot;scheduler&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">model_params</span><span class="o">.</span><span class="n">scheduler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">scheduler</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Schedulers that do not accept total_steps (must match training_manager.py blocklist)</span>
+    <span class="n">_SCHEDULERS_WITHOUT_TOTAL_STEPS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;chemprop&quot;</span><span class="p">})</span>
+
+    <span class="k">if</span> <span class="n">has_scheduler</span><span class="p">:</span>
+        <span class="n">scheduler_name</span> <span class="o">=</span> <span class="n">model_params</span><span class="o">.</span><span class="n">scheduler</span>
+        <span class="n">scheduler_args</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">model_params</span><span class="o">.</span><span class="n">scheduler_args</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">model_params</span><span class="p">,</span> <span class="s2">&quot;scheduler_args&quot;</span><span class="p">)</span>
+            <span class="k">else</span> <span class="p">{}</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Auto-compute total_steps as num_epochs * batches_per_epoch when not explicitly set,</span>
+        <span class="c1"># consistent with the sklearn TrainingManager behavior. The scheduler is stepped per</span>
+        <span class="c1"># batch (per optimizer step), matching the classic Lightning model interval: &quot;step&quot;.</span>
+        <span class="k">if</span> <span class="n">scheduler_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_SCHEDULERS_WITHOUT_TOTAL_STEPS</span><span class="p">:</span>
+            <span class="k">if</span> <span class="s2">&quot;total_steps&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">scheduler_args</span><span class="p">:</span>
+                <span class="n">num_batches_per_epoch</span> <span class="o">=</span> <span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_dataset</span><span class="p">)</span> <span class="o">/</span> <span class="n">batch_size</span><span class="p">)</span>
+                <span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;total_steps&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">num_epochs</span> <span class="o">*</span> <span class="n">num_batches_per_epoch</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;TAG: Auto-computed total_steps=</span><span class="si">{</span><span class="n">scheduler_args</span><span class="p">[</span><span class="s1">&#39;total_steps&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2"> &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">num_epochs</span><span class="si">}</span><span class="s2"> epochs * </span><span class="si">{</span><span class="n">num_batches_per_epoch</span><span class="si">}</span><span class="s2"> batches/epoch)&quot;</span>
+                <span class="p">)</span>
+
+        <span class="n">scheduler_cls</span> <span class="o">=</span> <span class="n">SchedulerRegistry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">scheduler_name</span><span class="p">)</span>
+        <span class="n">scheduler</span> <span class="o">=</span> <span class="n">scheduler_cls</span><span class="p">(</span><span class="n">optimizer</span><span class="p">,</span> <span class="o">**</span><span class="n">scheduler_args</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;TAG: Using scheduler &#39;</span><span class="si">{</span><span class="n">scheduler_name</span><span class="si">}</span><span class="s2">&#39; with total_steps=</span><span class="si">{</span><span class="n">scheduler_args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;total_steps&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;N/A&#39;</span><span class="p">)</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(stepping per batch)&quot;</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;TAG: No scheduler configured, using constant learning rate&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Accumulator for affinity matrices collected during training</span>
+    <span class="n">affinity_matrices_accumulated</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TAG: Starting task affinity computation with </span><span class="si">{</span><span class="n">num_epochs</span><span class="si">}</span><span class="s2"> epochs&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;TAG: Collecting affinities every </span><span class="si">{</span><span class="n">affinity_every_n_steps</span><span class="si">}</span><span class="s2"> steps&quot;</span><span class="p">)</span>
+
+    <span class="n">global_step</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="c1"># Train the multitask model for num_epochs</span>
+    <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_epochs</span><span class="p">):</span>
+        <span class="n">epoch_loss</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">num_batches</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">train_dataloader</span><span class="p">:</span>
+            <span class="c1"># Get current learning rate (from scheduler if available, otherwise from optimizer)</span>
+            <span class="k">if</span> <span class="n">scheduler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">current_lr</span> <span class="o">=</span> <span class="n">scheduler</span><span class="o">.</span><span class="n">get_last_lr</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">current_lr</span> <span class="o">=</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">param_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;lr&quot;</span><span class="p">]</span>
+
+            <span class="c1"># Move batch to device and keep an unmodified copy for affinity computation</span>
+            <span class="c1"># (model.forward() may mutate the batch by adding/modifying &#39;mol_features&#39;)</span>
+            <span class="n">batch</span> <span class="o">=</span> <span class="n">_move_batch_to_device</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">device</span><span class="p">)</span>
+            <span class="n">original_batch</span> <span class="o">=</span> <span class="n">_copy_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>  <span class="c1"># Save before forward modifies it</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
+
+            <span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+
+            <span class="c1"># Forward pass (this may modify batch[&quot;mol_features&quot;])</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+
+            <span class="c1"># Compute multitask loss (over all tasks with valid labels)</span>
+            <span class="n">total_loss</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">task_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">):</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">task_idx</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">task_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">task_idx</span><span class="p">]</span>
+                <span class="n">task_target</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">task_idx</span><span class="p">]</span>
+                <span class="n">task_loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">task_pred</span><span class="p">,</span> <span class="n">task_target</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+                <span class="n">total_loss</span> <span class="o">=</span> <span class="n">total_loss</span> <span class="o">+</span> <span class="n">task_loss</span>
+
+            <span class="n">total_loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+            <span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+            <span class="c1"># Step the scheduler per batch (per optimizer step), consistent with</span>
+            <span class="c1"># the classic Lightning model behavior (interval: &quot;step&quot;)</span>
+            <span class="k">if</span> <span class="n">scheduler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+
+            <span class="n">epoch_loss</span> <span class="o">+=</span> <span class="n">total_loss</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+            <span class="n">num_batches</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="n">global_step</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="c1"># Collect affinity every N steps using the ORIGINAL (unmodified) batch</span>
+            <span class="c1"># This follows TAG paper: use single minibatch gradient, not full-pass</span>
+            <span class="c1"># Use the current learning rate from the scheduler for affinity computation</span>
+            <span class="k">if</span> <span class="n">global_step</span> <span class="o">%</span> <span class="n">affinity_every_n_steps</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">affinity_matrix</span> <span class="o">=</span> <span class="n">_compute_affinity_matrix_single_step</span><span class="p">(</span>
+                    <span class="n">model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span>
+                    <span class="n">train_batch</span><span class="o">=</span><span class="n">original_batch</span><span class="p">,</span>
+                    <span class="n">num_tasks</span><span class="o">=</span><span class="n">num_tasks</span><span class="p">,</span>
+                    <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+                    <span class="n">lr</span><span class="o">=</span><span class="n">current_lr</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">affinity_matrices_accumulated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">affinity_matrix</span><span class="p">)</span>
+
+        <span class="n">avg_epoch_loss</span> <span class="o">=</span> <span class="n">epoch_loss</span> <span class="o">/</span> <span class="nb">max</span><span class="p">(</span><span class="n">num_batches</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">current_lr</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">scheduler</span><span class="o">.</span><span class="n">get_last_lr</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">scheduler</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="n">optimizer</span><span class="o">.</span><span class="n">param_groups</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;lr&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;TAG: Epoch </span><span class="si">{</span><span class="n">epoch</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">num_epochs</span><span class="si">}</span><span class="s2"> completed - Avg Loss: </span><span class="si">{</span><span class="n">avg_epoch_loss</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> - LR: </span><span class="si">{</span><span class="n">current_lr</span><span class="si">:</span><span class="s2">.2e</span><span class="si">}</span><span class="s2"> - Affinities collected: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">affinity_matrices_accumulated</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Mean all collected affinity matrices</span>
+    <span class="n">final_affinity_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">affinity_matrices_accumulated</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+    <span class="c1"># Normalize each row by its diagonal element (self-affinity)</span>
+    <span class="c1"># This makes each task&#39;s influence relative to its self-influence</span>
+    <span class="n">diagonal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">final_affinity_matrix</span><span class="p">)</span>
+    <span class="n">safe_diagonal</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">diagonal</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-8</span><span class="p">,</span> <span class="n">diagonal</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">)</span>
+    <span class="n">final_affinity_matrix</span> <span class="o">=</span> <span class="n">final_affinity_matrix</span> <span class="o">/</span> <span class="n">safe_diagonal</span><span class="p">[:,</span> <span class="n">np</span><span class="o">.</span><span class="n">newaxis</span><span class="p">]</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;TAG: Computation complete - Mean </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">affinity_matrices_accumulated</span><span class="p">)</span><span class="si">}</span><span class="s2"> affinity measurements (row-normalized by diagonal)&quot;</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">TaskAffinityResult</span><span class="p">(</span>
+        <span class="n">affinity_matrix</span><span class="o">=</span><span class="n">final_affinity_matrix</span><span class="p">,</span>
+        <span class="n">task_names</span><span class="o">=</span><span class="n">task_names</span><span class="p">,</span>
+        <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+    <span class="p">)</span></div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_compute_affinity_matrix_single_step</span><span class="p">(</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">train_batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="n">num_tasks</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">loss_fn</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="n">lr</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute the task affinity matrix at the current training state.</span>
+
+<span class="sd">    For each source task, simulates a single SGD gradient step using only that</span>
+<span class="sd">    task&#39;s loss, then measures the effect on all tasks&#39; losses on the same batch.</span>
+
+<span class="sd">    Follows the TAG formulation:</span>
+<span class="sd">    ``Z[i,j] = (L_j(θ) - L_j(θ - η∇L_i(θ))) / L_j(θ)``</span>
+
+<span class="sd">    :param torch.nn.Module model: Current model (parameters are restored after).</span>
+<span class="sd">    :param dict train_batch: Single batch already on device.</span>
+<span class="sd">    :param int num_tasks: Number of tasks.</span>
+<span class="sd">    :param torch.nn.Module loss_fn: Loss function with ``reduction=&#39;none&#39;``.</span>
+<span class="sd">    :param float lr: Learning rate for the simulated gradient step.</span>
+<span class="sd">    :returns: Affinity matrix of shape ``(num_tasks, num_tasks)``.</span>
+<span class="sd">    :rtype: numpy.ndarray</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">affinity_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_tasks</span><span class="p">,</span> <span class="n">num_tasks</span><span class="p">))</span>
+
+    <span class="c1"># Store original parameter values FIRST (stays on same device as model)</span>
+    <span class="n">original_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">()]</span>
+
+    <span class="c1"># Get labels tensor</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">train_batch</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Compute baseline losses L_j(θ) at current parameter point</span>
+    <span class="c1"># Use eval mode to disable dropout and use running stats for BatchNorm</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="n">baseline_losses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)</span>
+    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+        <span class="n">batch_for_baseline</span> <span class="o">=</span> <span class="n">_copy_batch</span><span class="p">(</span><span class="n">train_batch</span><span class="p">)</span>
+        <span class="n">y_pred_baseline</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch_for_baseline</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">task_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">):</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">task_idx</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">task_pred</span> <span class="o">=</span> <span class="n">y_pred_baseline</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">task_idx</span><span class="p">]</span>
+            <span class="n">task_target</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">task_idx</span><span class="p">]</span>
+            <span class="n">baseline_losses</span><span class="p">[</span><span class="n">task_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">task_pred</span><span class="p">,</span> <span class="n">task_target</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+
+    <span class="c1"># For each source task, compute affinity to all target tasks</span>
+    <span class="k">for</span> <span class="n">source_task</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">):</span>
+        <span class="n">mask_source</span> <span class="o">=</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">source_task</span><span class="p">])</span>
+        <span class="k">if</span> <span class="n">mask_source</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">continue</span>
+
+        <span class="c1"># Restore original parameters before computing gradients</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">p_orig</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">original_params</span><span class="p">):</span>
+                <span class="n">p</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">p_orig</span><span class="p">)</span>
+
+        <span class="n">model</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+
+        <span class="c1"># CRITICAL: Use eval mode for gradient computation too, to ensure consistency</span>
+        <span class="c1"># with how baseline and post-step losses are computed. This prevents BatchNorm</span>
+        <span class="c1"># and Dropout from causing inconsistent behavior between forward passes.</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+
+        <span class="c1"># Enable gradients for the forward pass (eval mode doesn&#39;t disable gradients)</span>
+        <span class="c1"># We need torch.enable_grad() since we&#39;re inside no_grad context from earlier</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">enable_grad</span><span class="p">():</span>
+            <span class="c1"># Forward pass to compute gradient for source task</span>
+            <span class="n">batch_copy</span> <span class="o">=</span> <span class="n">_copy_batch</span><span class="p">(</span><span class="n">train_batch</span><span class="p">)</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch_copy</span><span class="p">)</span>
+            <span class="n">task_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="n">mask_source</span><span class="p">,</span> <span class="n">source_task</span><span class="p">]</span>
+            <span class="n">task_target</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">mask_source</span><span class="p">,</span> <span class="n">source_task</span><span class="p">]</span>
+
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">task_pred</span><span class="p">,</span> <span class="n">task_target</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+            <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+
+        <span class="c1"># Manual SGD step: θ&#39; = θ - η∇L_i(θ)</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">grad</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">param</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">sub_</span><span class="p">(</span><span class="n">lr</span> <span class="o">*</span> <span class="n">param</span><span class="o">.</span><span class="n">grad</span><span class="p">)</span>
+
+        <span class="c1"># Compute losses after simulated step: L_j(θ&#39;) for all j</span>
+        <span class="c1"># Model is already in eval mode from gradient computation</span>
+        <span class="n">post_step_losses</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="n">batch_for_eval</span> <span class="o">=</span> <span class="n">_copy_batch</span><span class="p">(</span><span class="n">train_batch</span><span class="p">)</span>
+            <span class="n">y_pred_post</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch_for_eval</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">task_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">):</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">task_idx</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">task_pred</span> <span class="o">=</span> <span class="n">y_pred_post</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">task_idx</span><span class="p">]</span>
+                <span class="n">task_target</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">task_idx</span><span class="p">]</span>
+                <span class="n">post_step_losses</span><span class="p">[</span><span class="n">task_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">loss_fn</span><span class="p">(</span><span class="n">task_pred</span><span class="p">,</span> <span class="n">task_target</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Compute affinity using TAG formula:</span>
+        <span class="c1"># Z[i,j] = (L_j(θ) - L_j(θ&#39;)) / L_j(θ)</span>
+        <span class="k">for</span> <span class="n">target_task</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_tasks</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">baseline_losses</span><span class="p">[</span><span class="n">target_task</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">1e-8</span><span class="p">:</span>
+                <span class="n">affinity</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">baseline_losses</span><span class="p">[</span><span class="n">target_task</span><span class="p">]</span> <span class="o">-</span> <span class="n">post_step_losses</span><span class="p">[</span><span class="n">target_task</span><span class="p">]</span>
+                <span class="p">)</span> <span class="o">/</span> <span class="n">baseline_losses</span><span class="p">[</span><span class="n">target_task</span><span class="p">]</span>
+                <span class="n">affinity_matrix</span><span class="p">[</span><span class="n">source_task</span><span class="p">,</span> <span class="n">target_task</span><span class="p">]</span> <span class="o">=</span> <span class="n">affinity</span>
+
+    <span class="c1"># Restore original parameters and model state after all tasks are done</span>
+    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+        <span class="k">for</span> <span class="n">p</span><span class="p">,</span> <span class="n">p_orig</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">original_params</span><span class="p">):</span>
+            <span class="n">p</span><span class="o">.</span><span class="n">copy_</span><span class="p">(</span><span class="n">p_orig</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">train</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">affinity_matrix</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_move_batch_to_device</span><span class="p">(</span><span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Move all tensors in a batch dictionary to the specified device.</span>
+
+<span class="sd">    Handles both plain :class:`torch.Tensor` values and objects with a ``.to()``</span>
+<span class="sd">    method (e.g., PyG Batch). Creates a shallow copy of the dictionary.</span>
+
+<span class="sd">    :param dict batch: Batch dictionary.</span>
+<span class="sd">    :param str device: Target device string.</span>
+<span class="sd">    :returns: New dictionary with values transferred to *device*.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">moved_batch</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">batch</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="n">moved_batch</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;to&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">callable</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">to</span><span class="p">):</span>
+            <span class="c1"># Handle PyTorch Geometric Data/Batch objects and similar</span>
+            <span class="n">moved_batch</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">moved_batch</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">moved_batch</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_copy_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a deep copy of a batch dictionary.</span>
+
+<span class="sd">    Needed because ``model.forward()`` may mutate the batch (e.g., adding</span>
+<span class="sd">    or modifying ``&#39;mol_features&#39;``).</span>
+
+<span class="sd">    :param dict batch: Batch dictionary to copy.</span>
+<span class="sd">    :returns: Deep-copied batch.</span>
+<span class="sd">    :rtype: dict</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">copied_batch</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">batch</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+            <span class="c1"># Clone tensors to avoid shared state between forward passes</span>
+            <span class="n">copied_batch</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;clone&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">callable</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">clone</span><span class="p">):</span>
+            <span class="c1"># Clone PyTorch Geometric Data/Batch objects</span>
+            <span class="n">copied_batch</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># For non-tensor values, use copy.deepcopy as fallback</span>
+            <span class="n">copied_batch</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">copied_batch</span>
+
+
+<div class="viewcode-block" id="stitch_datasets">
+<a class="viewcode-back" href="../../../api/matcha/nn/multitask/index.html#matcha.nn.multitask.stitch_datasets">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">stitch_datasets</span><span class="p">(</span>
+    <span class="n">df_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">],</span>
+    <span class="n">property_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">smiles_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;SMILES&quot;</span><span class="p">,</span>
+    <span class="n">bound_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s2">&quot;OPERATOR&quot;</span><span class="p">,</span>
+    <span class="n">index_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;endpoint&quot;</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stitch multiple single-endpoint DataFrames into one multitask DataFrame.</span>
+
+<span class="sd">    Pivots each DataFrame&#39;s property column into a wide-format table keyed by</span>
+<span class="sd">    SMILES, with NaN for missing task labels.</span>
+
+<span class="sd">    :param list[pd.DataFrame] df_list: DataFrames to stitch.</span>
+<span class="sd">    :param list[str] property_list: Property column name for each DataFrame.</span>
+<span class="sd">    :param str smiles_key: Column name for SMILES identifiers.</span>
+<span class="sd">    :param bound_key: Column name for bound/operator information, or ``None``.</span>
+<span class="sd">    :type bound_key: str or None</span>
+<span class="sd">    :param index_key: Optional column to preserve as a shared index.</span>
+<span class="sd">    :type index_key: str or None</span>
+<span class="sd">    :param str tag: Suffix appended to property column names in the output.</span>
+<span class="sd">    :returns: Wide-format DataFrame with one row per unique SMILES.</span>
+<span class="sd">    :rtype: pandas.DataFrame</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">df_list</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">tuple</span><span class="p">()</span>
+
+    <span class="n">prepared_dfs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">df</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">df_list</span><span class="p">):</span>
+        <span class="n">df_prep</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">df_prep</span><span class="p">[</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+        <span class="n">df_prep</span><span class="p">[</span><span class="s2">&quot;property_name&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">property_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+
+        <span class="n">essential_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">smiles_key</span><span class="p">,</span> <span class="n">property_list</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="s2">&quot;dataset_id&quot;</span><span class="p">,</span> <span class="s2">&quot;property_name&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">bound_key</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">essential_cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">bound_key</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">index_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">essential_cols</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">index_key</span><span class="p">)</span>
+
+        <span class="n">available_cols</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">essential_cols</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df_prep</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+        <span class="n">df_prep</span> <span class="o">=</span> <span class="n">df_prep</span><span class="p">[</span><span class="n">available_cols</span><span class="p">]</span>
+
+        <span class="n">prepared_dfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_prep</span><span class="p">)</span>
+
+    <span class="n">df_combined</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">(</span><span class="n">prepared_dfs</span><span class="p">,</span> <span class="n">ignore_index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">unique_properties</span> <span class="o">=</span> <span class="n">df_combined</span><span class="p">[</span><span class="s2">&quot;property_name&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span>
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">unique_properties</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">pivot_values</span> <span class="o">=</span> <span class="n">unique_properties</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">df_combined</span><span class="p">[</span><span class="s2">&quot;property_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+        <span class="k">for</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">unique_properties</span><span class="p">:</span>
+            <span class="n">mask</span> <span class="o">=</span> <span class="n">df_combined</span><span class="p">[</span><span class="s2">&quot;property_name&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">prop</span>
+            <span class="k">if</span> <span class="n">prop</span> <span class="ow">in</span> <span class="n">df_combined</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">df_combined</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="s2">&quot;property_value&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_combined</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">prop</span><span class="p">]</span>
+        <span class="n">pivot_values</span> <span class="o">=</span> <span class="s2">&quot;property_value&quot;</span>
+
+    <span class="n">df_final</span> <span class="o">=</span> <span class="n">df_combined</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
+        <span class="n">index</span><span class="o">=</span><span class="n">smiles_key</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">pivot_values</span><span class="p">,</span> <span class="n">aggfunc</span><span class="o">=</span><span class="s2">&quot;first&quot;</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">df_final</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="s2">&quot;levels&quot;</span><span class="p">):</span>
+        <span class="n">df_final</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">property_list</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="o">!=</span> <span class="s2">&quot;&quot;</span> <span class="ow">and</span> <span class="n">col</span> <span class="o">!=</span> <span class="n">smiles_key</span>
+            <span class="k">else</span> <span class="n">smiles_key</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="o">==</span> <span class="n">smiles_key</span> <span class="ow">or</span> <span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span> <span class="o">==</span> <span class="n">smiles_key</span>
+            <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df_final</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rename_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df_final</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="o">!=</span> <span class="n">smiles_key</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                <span class="n">rename_dict</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">property_list</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">df_final</span> <span class="o">=</span> <span class="n">df_final</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">rename_dict</span><span class="p">)</span>
+
+    <span class="n">bound_key_list</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="n">bound_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">bound_df</span> <span class="o">=</span> <span class="n">df_combined</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
+            <span class="n">index</span><span class="o">=</span><span class="n">smiles_key</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">bound_key</span><span class="p">,</span> <span class="n">aggfunc</span><span class="o">=</span><span class="s2">&quot;first&quot;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+
+        <span class="n">bound_rename_dict</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">bound_df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="o">!=</span> <span class="n">smiles_key</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">col</span><span class="p">)</span>
+                <span class="n">bound_rename_dict</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">bound_key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">bound_key_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">bound_key</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">bound_df</span> <span class="o">=</span> <span class="n">bound_df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">bound_rename_dict</span><span class="p">)</span>
+        <span class="n">df_final</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">df_final</span><span class="p">,</span> <span class="n">bound_df</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">smiles_key</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">index_key</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">idx_df</span> <span class="o">=</span> <span class="n">df_combined</span><span class="o">.</span><span class="n">pivot_table</span><span class="p">(</span>
+            <span class="n">index</span><span class="o">=</span><span class="n">smiles_key</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="s2">&quot;dataset_id&quot;</span><span class="p">,</span> <span class="n">values</span><span class="o">=</span><span class="n">index_key</span><span class="p">,</span> <span class="n">aggfunc</span><span class="o">=</span><span class="s2">&quot;first&quot;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span>
+        <span class="n">idx_columns</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">idx_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">col</span> <span class="o">!=</span> <span class="n">smiles_key</span> <span class="ow">and</span> <span class="nb">str</span><span class="p">(</span><span class="n">col</span><span class="p">)</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span>
+        <span class="p">]</span>
+        <span class="n">idx_df</span><span class="p">[</span><span class="n">index_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">idx_df</span><span class="p">[</span><span class="n">idx_columns</span><span class="p">]</span><span class="o">.</span><span class="n">bfill</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">idx_df</span> <span class="o">=</span> <span class="n">idx_df</span><span class="p">[[</span><span class="n">smiles_key</span><span class="p">,</span> <span class="n">index_key</span><span class="p">]]</span>
+        <span class="n">df_final</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">merge</span><span class="p">(</span><span class="n">df_final</span><span class="p">,</span> <span class="n">idx_df</span><span class="p">,</span> <span class="n">on</span><span class="o">=</span><span class="n">smiles_key</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">)</span>
+
+    <span class="n">df_final</span> <span class="o">=</span> <span class="n">df_final</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span>
+        <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df_final</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="s2">&quot;ROMol_&quot;</span> <span class="ow">in</span> <span class="n">col</span><span class="p">]</span>
+    <span class="p">)</span>
+
+    <span class="n">prop_key_list</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">property_list</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">property_list</span><span class="p">))]</span>
+
+    <span class="n">property_cols_in_df</span> <span class="o">=</span> <span class="p">[</span><span class="n">col</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">prop_key_list</span> <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df_final</span><span class="o">.</span><span class="n">columns</span><span class="p">]</span>
+    <span class="n">df_final</span> <span class="o">=</span> <span class="n">df_final</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="n">property_cols_in_df</span><span class="p">,</span> <span class="n">how</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">prop_key_list</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">df_final</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">df_final</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="n">col</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">col</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">},</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df_final</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

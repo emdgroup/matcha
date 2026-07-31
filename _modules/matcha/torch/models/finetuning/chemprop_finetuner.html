@@ -1,0 +1,386 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.finetuning.chemprop_finetuner &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.finetuning.chemprop_finetuner</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.models.finetuning.chemprop_finetuner</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Chemprop-specific finetuner for transfer learning from pretrained D-MPNN models.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.finetuning.finetuner</span><span class="w"> </span><span class="kn">import</span> <span class="n">_SELF_CONTAINED_SENTINEL</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">LossFunctionRegistry</span> <span class="k">as</span> <span class="n">ChempropLossRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropFinetunerInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.predictors</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">RegressionFFN</span><span class="p">,</span>
+    <span class="n">BinaryClassificationFFN</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">BondMessagePassing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassicModelRegistry</span>
+
+
+<div class="viewcode-block" id="ChempropFinetuner">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/index.html#matcha.torch.models.finetuning.chemprop_finetuner.ChempropFinetuner">[docs]</a>
+<span class="nd">@ClassicModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropFinetuner</span><span class="p">(</span><span class="n">ChempropModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Finetuner for Chemprop D-MPNN pretrained models.</span>
+
+<span class="sd">    Loads a pretrained :class:`ChempropModel` checkpoint and configures the</span>
+<span class="sd">    prediction head (FFN) based on the loaded predictor state and the requested</span>
+<span class="sd">    ``pred_hidden_dim``. Normalization layers are frozen after loading. Supports</span>
+<span class="sd">    loading both full-model checkpoints and raw ``BondMessagePassing``</span>
+<span class="sd">    (encoder-only) checkpoints.</span>
+
+<span class="sd">    Predictor configuration follows four cases:</span>
+
+<span class="sd">    - **No predictor loaded, pred_hidden_dim is None**: Creates a linear head</span>
+<span class="sd">      (single linear layer from encoder output to ``num_endpoints``) using the</span>
+<span class="sd">      appropriate chemprop FFN class with ``n_layers=0``.</span>
+<span class="sd">    - **No predictor loaded, pred_hidden_dim is set**: Creates a new FFN with the</span>
+<span class="sd">      specified hidden dimensions and number of layers.</span>
+<span class="sd">    - **Predictor loaded, pred_hidden_dim is None**: Keeps the pretrained FFN</span>
+<span class="sd">      weights but resizes the output layer to ``num_endpoints``. Handles FFN</span>
+<span class="sd">      type mismatch (regression vs classification) by replacing with the correct</span>
+<span class="sd">      type and transferring compatible weights.</span>
+<span class="sd">    - **Predictor loaded, pred_hidden_dim is set**: Replaces the predictor</span>
+<span class="sd">      entirely with a new FFN of the specified dimensions.</span>
+
+<span class="sd">    :param str path_to_pretrained: Path to the pretrained Chemprop artifact directory</span>
+<span class="sd">    :param int | None pred_hidden_dim: Hidden dimension for the FFN. When None,</span>
+<span class="sd">        creates a linear head (encoder-only) or keeps pretrained weights (full</span>
+<span class="sd">        checkpoint). Defaults to 300.</span>
+<span class="sd">    :param int pred_num_layers: Number of FFN layers, defaults to 2</span>
+<span class="sd">    :param float pred_dropout: Dropout rate for the FFN, defaults to 0.2</span>
+<span class="sd">    :param str pred_activation: Activation function for the FFN, defaults to &#39;relu&#39;</span>
+<span class="sd">    :param int num_endpoints: Number of prediction targets, defaults to 1</span>
+<span class="sd">    :param str loss_fn: Loss function name, defaults to &#39;mse&#39;</span>
+<span class="sd">    :param str optimizer: Optimizer name, defaults to &#39;chemprop&#39;</span>
+<span class="sd">    :param dict optimizer_args: Optimizer arguments, defaults to {&quot;lr&quot;: 1e-5}</span>
+<span class="sd">    :param dict scheduler_args: Scheduler arguments with warmup configuration</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path_to_pretrained</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pred_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">pred_num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
+        <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">},</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="mf">1e-4</span><span class="p">,</span> <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">},</span>
+        <span class="n">_pretrain_config</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Resolve pretrained model parameters — either from filesystem or config</span>
+        <span class="k">if</span> <span class="n">path_to_pretrained</span> <span class="o">==</span> <span class="n">_SELF_CONTAINED_SENTINEL</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">_pretrain_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;Cannot build skeleton: _pretrain_config is None but &quot;</span>
+                    <span class="s2">&quot;path_to_pretrained is &#39;__self_contained__&#39;.&quot;</span>
+                <span class="p">)</span>
+            <span class="n">pretrained_params</span> <span class="o">=</span> <span class="n">_pretrain_config</span><span class="p">[</span><span class="s2">&quot;pretrain_params&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">pretrained_params</span> <span class="o">=</span> <span class="n">load_yaml</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path_to_pretrained</span><span class="p">,</span> <span class="s2">&quot;config&quot;</span><span class="p">,</span> <span class="s2">&quot;model.yaml&quot;</span><span class="p">)</span>
+            <span class="p">)</span>
+            <span class="n">pretrained_params</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;torch_type&quot;</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">pretrained_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">ChempropFinetunerInputModel</span><span class="p">(</span>
+            <span class="n">path_to_pretrained</span><span class="o">=</span><span class="n">path_to_pretrained</span><span class="p">,</span>
+            <span class="n">pred_hidden_dim</span><span class="o">=</span><span class="n">pred_hidden_dim</span><span class="p">,</span>
+            <span class="n">pred_num_layers</span><span class="o">=</span><span class="n">pred_num_layers</span><span class="p">,</span>
+            <span class="n">pred_dropout</span><span class="o">=</span><span class="n">pred_dropout</span><span class="p">,</span>
+            <span class="n">pred_activation</span><span class="o">=</span><span class="n">pred_activation</span><span class="p">,</span>
+            <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+            <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span>
+            <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
+            <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pretrain_params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pretrained_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;path_to_pretrained&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">path_to_pretrained</span>
+
+        <span class="c1"># Load pretrained weights (skipped for self-contained — Lightning</span>
+        <span class="c1"># restores weights via load_state_dict after __init__)</span>
+        <span class="k">if</span> <span class="n">path_to_pretrained</span> <span class="o">!=</span> <span class="n">_SELF_CONTAINED_SENTINEL</span><span class="p">:</span>
+            <span class="n">accelerator</span> <span class="o">=</span> <span class="s2">&quot;cuda&quot;</span> <span class="k">if</span> <span class="n">torch</span><span class="o">.</span><span class="n">cuda</span><span class="o">.</span><span class="n">is_available</span><span class="p">()</span> <span class="k">else</span> <span class="s2">&quot;cpu&quot;</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">ckpt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path_to_pretrained</span><span class="si">}</span><span class="s2">/model.ckpt&quot;</span><span class="p">,</span>
+                    <span class="n">weights_only</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">map_location</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="n">accelerator</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">state_dict</span> <span class="o">=</span> <span class="n">ckpt</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;state_dict&quot;</span><span class="p">,</span> <span class="n">ckpt</span><span class="p">)</span>
+                <span class="c1"># strict=False is safe here: the model was constructed with</span>
+                <span class="c1"># pretrained_params so all shapes match. The predictor may be</span>
+                <span class="c1"># rebuilt later (Cases C/D), but at this point it still has</span>
+                <span class="c1"># the original architecture and dimensions.</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+                <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm1d</span><span class="p">))</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span>
+                        <span class="n">module</span><span class="p">,</span> <span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">LayerNorm</span><span class="p">)</span>
+                    <span class="p">):</span>
+                        <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+                        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">module</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
+                            <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="n">ckpt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path_to_pretrained</span><span class="si">}</span><span class="s2">/model.ckpt&quot;</span><span class="p">,</span>
+                    <span class="n">weights_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">map_location</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="n">accelerator</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">mp</span> <span class="o">=</span> <span class="n">BondMessagePassing</span><span class="p">(</span><span class="o">**</span><span class="n">ckpt</span><span class="p">[</span><span class="s2">&quot;hyper_parameters&quot;</span><span class="p">])</span>
+                <span class="n">mp</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">ckpt</span><span class="p">[</span><span class="s2">&quot;state_dict&quot;</span><span class="p">])</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">message_passing</span> <span class="o">=</span> <span class="n">mp</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_lr</span> <span class="o">=</span> <span class="n">optimizer_args</span><span class="p">[</span><span class="s2">&quot;lr&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_lr</span> <span class="o">=</span> <span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;max_lr&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">final_lr</span> <span class="o">=</span> <span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;final_lr&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">warmup_epochs</span> <span class="o">=</span> <span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Determine the correct FFN class for the target loss function</span>
+        <span class="k">if</span> <span class="n">loss_fn</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;bce&quot;</span><span class="p">,</span> <span class="s2">&quot;ce&quot;</span><span class="p">):</span>
+            <span class="n">TargetFFN</span> <span class="o">=</span> <span class="n">BinaryClassificationFFN</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">TargetFFN</span> <span class="o">=</span> <span class="n">RegressionFFN</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">pred_hidden_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Case A: Encoder-only checkpoint, no hidden dims specified</span>
+            <span class="c1"># → create a linear head (single linear layer: encoder_dim → num_endpoints)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">TargetFFN</span><span class="p">(</span>
+                <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">message_passing</span><span class="o">.</span><span class="n">output_dim</span><span class="p">,</span>
+                <span class="n">hidden_dim</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">n_layers</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">pred_activation</span><span class="p">,</span>
+                <span class="n">n_tasks</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">criterion</span><span class="o">=</span><span class="n">ChempropLossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">_T_default_metric</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span><span class="o">.</span><span class="n">clone</span><span class="p">()]</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">pred_hidden_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Case B: Encoder-only checkpoint, hidden dims specified</span>
+            <span class="c1"># → create a new FFN with specified architecture</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">TargetFFN</span><span class="p">(</span>
+                <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">message_passing</span><span class="o">.</span><span class="n">output_dim</span><span class="p">,</span>
+                <span class="n">hidden_dim</span><span class="o">=</span><span class="n">pred_hidden_dim</span><span class="p">,</span>
+                <span class="n">n_layers</span><span class="o">=</span><span class="n">pred_num_layers</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">pred_dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">pred_activation</span><span class="p">,</span>
+                <span class="n">n_tasks</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">criterion</span><span class="o">=</span><span class="n">ChempropLossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">_T_default_metric</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span><span class="o">.</span><span class="n">clone</span><span class="p">()]</span>
+            <span class="p">)</span>
+
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">pred_hidden_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Case C: Full checkpoint, no hidden dims specified</span>
+            <span class="c1"># → keep pretrained FFN, resize output layer to num_endpoints</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="p">,</span> <span class="n">TargetFFN</span><span class="p">):</span>
+                <span class="c1"># Same FFN type — just swap criterion and resize output layer</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">criterion</span> <span class="o">=</span> <span class="n">ChempropLossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">]()</span>
+                <span class="n">new_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span>
+                    <span class="n">pretrained_params</span><span class="p">[</span><span class="s2">&quot;pred_hidden_dim&quot;</span><span class="p">],</span> <span class="n">num_endpoints</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">ffn</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_layer</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># FFN type mismatch — instantiate correct type and transfer weights</span>
+                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Pretrained predictor is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> but &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;loss_fn=&#39;</span><span class="si">{</span><span class="n">loss_fn</span><span class="si">}</span><span class="s2">&#39; requires </span><span class="si">{</span><span class="n">TargetFFN</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">. &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;Replacing predictor with correct FFN type and transferring &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;compatible weights.&quot;</span><span class="p">,</span>
+                    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">old_state_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">ffn</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span>
+                <span class="n">new_predictor</span> <span class="o">=</span> <span class="n">TargetFFN</span><span class="p">(</span>
+                    <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">ffn</span><span class="o">.</span><span class="n">input_dim</span><span class="p">,</span>
+                    <span class="n">hidden_dim</span><span class="o">=</span><span class="n">pretrained_params</span><span class="p">[</span><span class="s2">&quot;pred_hidden_dim&quot;</span><span class="p">],</span>
+                    <span class="n">n_layers</span><span class="o">=</span><span class="n">pretrained_params</span><span class="p">[</span><span class="s2">&quot;pred_num_layers&quot;</span><span class="p">],</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="n">pretrained_params</span><span class="p">[</span><span class="s2">&quot;pred_dropout&quot;</span><span class="p">],</span>
+                    <span class="n">activation</span><span class="o">=</span><span class="n">pretrained_params</span><span class="p">[</span><span class="s2">&quot;pred_activation&quot;</span><span class="p">],</span>
+                    <span class="n">n_tasks</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                    <span class="n">criterion</span><span class="o">=</span><span class="n">ChempropLossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](),</span>
+                <span class="p">)</span>
+                <span class="c1"># Filter out final output layer keys — their shapes depend on</span>
+                <span class="c1"># n_tasks and will mismatch when num_endpoints differs from the</span>
+                <span class="c1"># pretrained model. strict=False only handles missing/unexpected</span>
+                <span class="c1"># keys, not shape mismatches.</span>
+                <span class="n">final_layer_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">new_predictor</span><span class="o">.</span><span class="n">ffn</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">.&quot;</span>
+                <span class="n">filtered_state_dict</span> <span class="o">=</span> <span class="p">{</span>
+                    <span class="n">k</span><span class="p">:</span> <span class="n">v</span>
+                    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">old_state_dict</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">final_layer_prefix</span><span class="p">)</span>
+                <span class="p">}</span>
+                <span class="c1"># Transfer compatible weights (hidden layers share shapes)</span>
+                <span class="n">incompatible</span> <span class="o">=</span> <span class="n">new_predictor</span><span class="o">.</span><span class="n">ffn</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span>
+                    <span class="n">filtered_state_dict</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+                <span class="k">if</span> <span class="n">incompatible</span><span class="o">.</span><span class="n">missing_keys</span><span class="p">:</span>
+                    <span class="c1"># Filter out final output layer keys — those are expected to</span>
+                    <span class="c1"># differ when num_endpoints changes</span>
+                    <span class="n">final_layer_prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">new_predictor</span><span class="o">.</span><span class="n">ffn</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">.&quot;</span>
+                    <span class="n">unexpected_missing</span> <span class="o">=</span> <span class="p">[</span>
+                        <span class="n">k</span>
+                        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">incompatible</span><span class="o">.</span><span class="n">missing_keys</span>
+                        <span class="k">if</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="n">final_layer_prefix</span><span class="p">)</span>
+                    <span class="p">]</span>
+                    <span class="k">if</span> <span class="n">unexpected_missing</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Failed to transfer pretrained weights. &quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;Missing keys: </span><span class="si">{</span><span class="n">unexpected_missing</span><span class="si">}</span><span class="s2">&quot;</span>
+                        <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">new_predictor</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                    <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">_T_default_metric</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span><span class="o">.</span><span class="n">clone</span><span class="p">()]</span>
+                <span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Case D: Full checkpoint, hidden dims specified</span>
+            <span class="c1"># → replace predictor entirely with new FFN of specified dimensions</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">TargetFFN</span><span class="p">(</span>
+                <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">ffn</span><span class="o">.</span><span class="n">input_dim</span><span class="p">,</span>
+                <span class="n">hidden_dim</span><span class="o">=</span><span class="n">pred_hidden_dim</span><span class="p">,</span>
+                <span class="n">n_layers</span><span class="o">=</span><span class="n">pred_num_layers</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">pred_dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">pred_activation</span><span class="p">,</span>
+                <span class="n">n_tasks</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">criterion</span><span class="o">=</span><span class="n">ChempropLossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](),</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">metrics</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">(</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">_T_default_metric</span><span class="p">(),</span> <span class="bp">self</span><span class="o">.</span><span class="n">criterion</span><span class="o">.</span><span class="n">clone</span><span class="p">()]</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_pretrain_config</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Capture metadata needed to reconstruct the module graph at load time.</span>
+
+<span class="sd">        This is called at save time to embed the config in the checkpoint.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;origin_type&quot;</span><span class="p">:</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;pretrain_params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pretrain_params&quot;</span><span class="p">],</span>
+        <span class="p">}</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

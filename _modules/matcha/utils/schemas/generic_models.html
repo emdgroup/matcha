@@ -1,0 +1,410 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.schemas.generic_models &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.utils.schemas.generic_models</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.utils.schemas.generic_models</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModel</span>
+
+
+<div class="viewcode-block" id="ClassicMatchaModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.ClassicMatchaModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ClassicMatchaModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base schema for all standard matcha models defining shared training parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">additional_mol_features_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+    <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------------------</span>
+<span class="c1">#                               GNNs</span>
+<span class="c1"># ------------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="GraphMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.GraphMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GraphMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for shared graph neural network encoder parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_num_layers</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_atom_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">enc_dropout</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">enc_laplacian_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_rwse_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_distmat_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_elstatic_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_rrwp_k</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<div class="viewcode-block" id="GINMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.GINMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GINMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for GIN-specific parameters such as aggregation and jumping knowledge.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_aggregation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">enc_norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="AttentiveFPMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.AttentiveFPMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">AttentiveFPMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for AttentiveFP-specific parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="MPNNMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.MPNNMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MPNNMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for MPNN-specific parameters including bond dimensions and aggregation.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_bond_hidden_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_aggregation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="GatedGCNMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.GatedGCNMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GatedGCNMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for GatedGCN-specific parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="E3GNNMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.E3GNNMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">E3GNNMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for E(3)-equivariant GNN parameters including coordinate updates.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_m_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_fourier_features</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_soft_edge</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">enc_norm_feats</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">enc_norm_coors</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">enc_update_coors</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="GPSMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.GPSMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GPSMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for GPS (General Powerful Scalable) graph transformer parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_expansion_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_distance_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="GPS3DMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.GPS3DMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GPS3DMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for 3D-aware GPS graph transformer parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_expansion_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_kernels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="GTMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.GTMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GTMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for Graph Transformer encoder parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_expansion_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_distance_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="GT3DMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.GT3DMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GT3DMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for 3D-aware Graph Transformer encoder parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_bond_input_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_expansion_k</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_kernels</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------------------</span>
+<span class="c1">#                              CLMs</span>
+<span class="c1"># ------------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="CLMMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.CLMMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CLMMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for character-level model (CLM) shared parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_num_characters</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="CNNMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.CNNMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CNNMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for CNN encoder parameters including kernel dimensions.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_hidden_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_kernel_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+    <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<div class="viewcode-block" id="RNNMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.RNNMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RNNMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for RNN encoder parameters including type and bidirectionality.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_rnn_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">enc_hidden_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_bidirectional</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="n">enc_num_layers</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_embedding_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<div class="viewcode-block" id="RoFormerMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.RoFormerMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RoFormerMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for RoFormer encoder parameters with rotary position embeddings.&quot;&quot;&quot;</span>
+
+    <span class="n">enc_hidden_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_expansion_dim</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_num_layers</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">enc_attention_dropout</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">enc_hidden_dropout</span><span class="p">:</span> <span class="nb">float</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------------------</span>
+<span class="c1">#                               DNNs</span>
+<span class="c1"># ------------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="TabularMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.TabularMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TabularMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for tabular (deep lasso) model parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">deep_lasso_weight</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span></div>
+
+
+
+<div class="viewcode-block" id="MLPMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.MLPMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MLPMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for MLP predictor parameters including hidden dimensions.&quot;&quot;&quot;</span>
+
+    <span class="n">hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="SNNMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.SNNMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SNNMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for Self-Normalizing Network parameters.&quot;&quot;&quot;</span>
+
+    <span class="n">hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">num_parallel</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------------------</span>
+<span class="c1">#                               Finetuner</span>
+<span class="c1"># ------------------------------------------------------------------------------</span>
+
+
+<div class="viewcode-block" id="FinetunerMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.FinetunerMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">FinetunerMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for finetuning a pretrained encoder with LoRA or full strategy.&quot;&quot;&quot;</span>
+
+    <span class="n">architecture</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">path_to_pretrained</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">pretrain_lr</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">pretrain_decay</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">finetuning_strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;full&quot;</span>
+    <span class="n">lora_rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
+    <span class="n">lora_alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span>
+    <span class="n">lora_min_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span></div>
+
+
+
+<div class="viewcode-block" id="ChempropFinetunerMixin">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.ChempropFinetunerMixin">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ChempropFinetunerMixin</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mixin schema for finetuning a Chemprop pretrained model.&quot;&quot;&quot;</span>
+
+    <span class="n">path_to_pretrained</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">pred_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">pred_num_layers</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,761 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.losses &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.nn.losses</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.nn.losses</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Loss functions for regression, classification, and multitask learning.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassRegistry</span>
+
+<span class="n">LossRegistry</span> <span class="o">=</span> <span class="n">ClassRegistry</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="BCEFocalLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BCEFocalLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;focal-bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BCEFocalLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Focal loss implementation using binary cross entropy with logits.</span>
+<span class="sd">    Suitable for binary classification with class imbalance.</span>
+<span class="sd">    Reference: https://arxiv.org/abs/1708.02002</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param float gamma: Focusing parameter that down-weights easy examples.</span>
+<span class="sd">        :param alpha: Balancing factor for the positive class, or ``None``.</span>
+<span class="sd">        :type alpha: float or None</span>
+<span class="sd">        :param str reduction: Reduction mode: ``&#39;mean&#39;``, ``&#39;sum&#39;``, or ``&#39;none&#39;``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">BCEFocalLoss</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span> <span class="o">=</span> <span class="n">gamma</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="mf">1e-7</span>
+
+<div class="viewcode-block" id="BCEFocalLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BCEFocalLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor inputs: Raw logits.</span>
+<span class="sd">        :param torch.Tensor targets: Binary target labels.</span>
+<span class="sd">        :returns: Focal loss value.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">bce_loss</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">binary_cross_entropy_with_logits</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+        <span class="n">pt</span> <span class="o">=</span> <span class="n">p</span> <span class="o">*</span> <span class="n">targets</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="n">pt</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">pt</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+        <span class="n">focal_loss</span> <span class="o">=</span> <span class="p">((</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pt</span><span class="p">)</span> <span class="o">**</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma</span><span class="p">)</span> <span class="o">*</span> <span class="n">bce_loss</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">alpha_t</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">targets</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">targets</span><span class="p">)</span>
+            <span class="n">focal_loss</span> <span class="o">=</span> <span class="n">alpha_t</span> <span class="o">*</span> <span class="n">focal_loss</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">focal_loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">focal_loss</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">focal_loss</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="Poly1BCELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.Poly1BCELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;poly1-bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Poly1BCELoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Polynomial expansion of the binary cross entropy loss, which can lead to better</span>
+<span class="sd">    classification performance if epsilon is tuned.</span>
+<span class="sd">    Suitable for binary classification.</span>
+<span class="sd">    Reference: https://arxiv.org/abs/2204.12511</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epsilon</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1.0</span><span class="p">,</span> <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param float epsilon: Polynomial coefficient controlling the additional term.</span>
+<span class="sd">        :param str reduction: Reduction mode: ``&#39;mean&#39;``, ``&#39;sum&#39;``, or ``&#39;none&#39;``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">Poly1BCELoss</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span> <span class="o">=</span> <span class="n">epsilon</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="mf">1e-7</span>
+
+<div class="viewcode-block" id="Poly1BCELoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.Poly1BCELoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor inputs: Raw logits.</span>
+<span class="sd">        :param torch.Tensor targets: Binary target labels.</span>
+<span class="sd">        :returns: Poly1 BCE loss value.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">bce_loss</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">binary_cross_entropy_with_logits</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">p</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+        <span class="n">pt</span> <span class="o">=</span> <span class="n">p</span> <span class="o">*</span> <span class="n">targets</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="n">poly1</span> <span class="o">=</span> <span class="n">bce_loss</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">epsilon</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">pt</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">poly1</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">poly1</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">poly1</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MultitaskLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.MultitaskLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;multitask&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MultitaskLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Implementation of a customizable multitask loss. The same loss is</span>
+<span class="sd">    used for all tasks.</span>
+
+<span class="sd">    loss_fn is the name of the loss to broadcast, loss_args are its arguments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{}):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param str loss_fn: Name of the loss function to broadcast across tasks.</span>
+<span class="sd">        :param dict loss_args: Additional arguments passed to the loss constructor.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">loss_args</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultitaskLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.MultitaskLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.</span>
+<span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN marks missing.</span>
+<span class="sd">        :returns: Scalar loss averaged across valid entries and tasks.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">targets</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="n">losses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">valid_mask</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">losses</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">valid_counts</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">valid_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">losses</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">valid_counts</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">valid_mask</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="n">total_loss</span> <span class="o">=</span> <span class="n">losses</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span>
+            <span class="n">valid_counts</span> <span class="o">+</span> <span class="mf">1e-8</span>
+        <span class="p">)</span>  <span class="c1"># Prevent division by zero</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_per_task_losses</span> <span class="o">=</span> <span class="n">total_loss</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">total_loss</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">total_loss</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span>  <span class="c1"># Average across tasks</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MultiLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.MultiLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;multiloss&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MultiLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Implementation of a customizable multi-loss function that supports</span>
+<span class="sd">    dynamic weight scheduling during training.</span>
+
+<span class="sd">    Each loss configuration is a dictionary with:</span>
+<span class="sd">    - loss_fn: name of the loss function</span>
+<span class="sd">    - loss_args: arguments for the loss function</span>
+<span class="sd">    - task_map: tuple/list indicating which columns this loss applies to (start, end)</span>
+<span class="sd">    - init_w: initial weight at T=0</span>
+<span class="sd">    - final_w: final weight at T=end</span>
+<span class="sd">    - T: total epochs to transition from init_w to final_w</span>
+<span class="sd">    - warmup: epochs to keep init_w fixed before starting transition</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loss_configs</span><span class="p">:</span> <span class="nb">list</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param list loss_configs: List of dicts, each with keys ``loss_fn``, ``loss_args``,</span>
+<span class="sd">            ``task_map``, ``init_w``, ``final_w``, ``T``, and ``warmup``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss_configs</span> <span class="o">=</span> <span class="n">loss_configs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">losses</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
+
+        <span class="c1"># Initialize loss functions</span>
+        <span class="k">for</span> <span class="n">config</span> <span class="ow">in</span> <span class="n">loss_configs</span><span class="p">:</span>
+            <span class="n">loss_fn</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;loss_fn&quot;</span><span class="p">]</span>
+            <span class="n">loss_args</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;loss_args&quot;</span><span class="p">,</span> <span class="p">{})</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">loss_args</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">losses</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">loss</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_weight</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">init_w</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">final_w</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">T</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">warmup</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">T_current</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate the current weight based on the scheduling parameters.</span>
+
+<span class="sd">        :param float init_w: Initial weight at T=0.</span>
+<span class="sd">        :param float final_w: Final weight at T=end.</span>
+<span class="sd">        :param int T: Total epochs for the transition.</span>
+<span class="sd">        :param int warmup: Epochs to keep ``init_w`` fixed.</span>
+<span class="sd">        :param int T_current: Current epoch.</span>
+<span class="sd">        :returns: Interpolated weight value.</span>
+<span class="sd">        :rtype: float</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">T_current</span> <span class="o">&lt;</span> <span class="n">warmup</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">init_w</span>
+        <span class="k">elif</span> <span class="n">T_current</span> <span class="o">&gt;=</span> <span class="n">warmup</span> <span class="o">+</span> <span class="n">T</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">final_w</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Linear interpolation between init_w and final_w</span>
+            <span class="n">progress</span> <span class="o">=</span> <span class="p">(</span><span class="n">T_current</span> <span class="o">-</span> <span class="n">warmup</span><span class="p">)</span> <span class="o">/</span> <span class="n">T</span>
+            <span class="k">return</span> <span class="n">init_w</span> <span class="o">+</span> <span class="n">progress</span> <span class="o">*</span> <span class="p">(</span><span class="n">final_w</span> <span class="o">-</span> <span class="n">init_w</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultiLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.MultiLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">T_current</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass with dynamic weight scheduling.</span>
+
+<span class="sd">        :param torch.Tensor outputs: Model predictions.</span>
+<span class="sd">        :param torch.Tensor targets: Ground truth targets; NaN marks missing entries.</span>
+<span class="sd">        :param int T_current: Current training epoch for weight scheduling.</span>
+<span class="sd">        :returns: Weighted total loss (scalar during training, tuple with log during eval).</span>
+<span class="sd">        :rtype: torch.Tensor or tuple[torch.Tensor, dict]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">total_loss</span> <span class="o">=</span> <span class="mf">0.0</span>
+        <span class="n">loss_log</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">config</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_configs</span><span class="p">):</span>
+            <span class="c1"># Extract task mapping</span>
+            <span class="n">task_map</span> <span class="o">=</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;task_map&quot;</span><span class="p">]</span>
+            <span class="n">task_outputs</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[:,</span> <span class="n">task_map</span><span class="p">]</span>
+            <span class="n">task_targets</span> <span class="o">=</span> <span class="n">targets</span><span class="p">[:,</span> <span class="n">task_map</span><span class="p">]</span>
+
+            <span class="c1"># Handle NaN values (similar to MultitaskLoss)</span>
+            <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">task_targets</span><span class="p">)</span>
+            <span class="n">task_targets</span> <span class="o">=</span> <span class="n">task_targets</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="n">task_targets</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+            <span class="c1"># Compute loss for this task</span>
+            <span class="n">task_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">losses</span><span class="p">[</span><span class="n">i</span><span class="p">](</span><span class="n">task_outputs</span><span class="p">,</span> <span class="n">task_targets</span><span class="p">)</span>
+
+            <span class="c1"># Mask out invalid entries (assuming 2D tensors only)</span>
+            <span class="n">task_loss</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">valid_counts</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">valid_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># Average loss for this task</span>
+            <span class="n">task_loss_avg</span> <span class="o">=</span> <span class="n">task_loss</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">valid_counts</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+            <span class="n">task_loss_final</span> <span class="o">=</span> <span class="n">task_loss_avg</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">task_loss_avg</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span>
+
+            <span class="c1"># Calculate dynamic weight</span>
+            <span class="n">current_weight</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_weight</span><span class="p">(</span>
+                <span class="n">init_w</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;init_w&quot;</span><span class="p">],</span>
+                <span class="n">final_w</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;final_w&quot;</span><span class="p">],</span>
+                <span class="n">T</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;T&quot;</span><span class="p">],</span>
+                <span class="n">warmup</span><span class="o">=</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;warmup&quot;</span><span class="p">],</span>
+                <span class="n">T_current</span><span class="o">=</span><span class="n">T_current</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Add weighted loss to total</span>
+            <span class="n">total_loss</span> <span class="o">+=</span> <span class="n">current_weight</span> <span class="o">*</span> <span class="n">task_loss_final</span>
+
+            <span class="c1"># log i-th loss</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;task_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="s2">&quot;name&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">config</span> <span class="k">else</span> <span class="n">config</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+            <span class="n">loss_log</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;loss&quot;</span><span class="p">:</span> <span class="n">task_loss_final</span><span class="o">.</span><span class="n">item</span><span class="p">(),</span> <span class="s2">&quot;weight&quot;</span><span class="p">:</span> <span class="n">current_weight</span><span class="p">}</span>
+
+        <span class="c1"># commented out as hotfix for openadmet</span>
+        <span class="c1"># return total_loss, loss_log</span>
+
+        <span class="c1"># Return different signatures based on training vs validation mode</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="c1"># During training, return only the loss tensor for backward()</span>
+            <span class="k">return</span> <span class="n">total_loss</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># During validation, return tuple for logging</span>
+            <span class="k">return</span> <span class="n">total_loss</span><span class="p">,</span> <span class="n">loss_log</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BoundedLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;bounded&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BoundedLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Loss function for handling bounded regression</span>
+
+<span class="sd">    Allows the use of bound information on the readout (e.g. IC50 &lt; x),</span>
+<span class="sd">    so that the model is not penalized when it predicts e.g. y_pred &lt; x.</span>
+<span class="sd">    Implementation is based on: https://chemprop.readthedocs.io/en/latest/_modules/chemprop/nn/metrics.html#BoundedMixin</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param str loss_fn: Name of the inner loss function.</span>
+<span class="sd">        :param kwargs: Additional arguments passed to the inner loss.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BoundedLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor outputs: Predictions.</span>
+<span class="sd">        :param torch.Tensor targets: Targets with bound info in the last dimension.</span>
+<span class="sd">            Shape ``(batch, [num_tasks,] 2)`` where ``[..., 0]`` is the value and</span>
+<span class="sd">            ``[..., 1]`` encodes the bound type (``-1`` = less-than, ``1`` = greater-than).</span>
+<span class="sd">        :returns: Loss computed only on non-masked predictions.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">outputs</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">mask_values</span> <span class="o">=</span> <span class="n">targets</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">target_values</span> <span class="o">=</span> <span class="n">targets</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mask_values</span> <span class="o">=</span> <span class="n">targets</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span>
+            <span class="n">target_values</span> <span class="o">=</span> <span class="n">targets</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">lt_mask</span> <span class="o">=</span> <span class="n">mask_values</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">gt_mask</span> <span class="o">=</span> <span class="n">mask_values</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">outputs</span> <span class="o">&lt;</span> <span class="n">target_values</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">lt_mask</span><span class="p">,</span> <span class="n">target_values</span><span class="p">,</span> <span class="n">outputs</span>
+        <span class="p">)</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">outputs</span> <span class="o">&gt;</span> <span class="n">target_values</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">gt_mask</span><span class="p">,</span> <span class="n">target_values</span><span class="p">,</span> <span class="n">outputs</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">target_values</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MSELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.MSELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;mse&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MSELoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mean squared error loss (wraps :class:`torch.nn.MSELoss`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="L1Loss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.L1Loss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;mae&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">L1Loss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">L1Loss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Mean absolute error loss (wraps :class:`torch.nn.L1Loss`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="HuberLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.HuberLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;huber&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">HuberLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">HuberLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Huber loss (wraps :class:`torch.nn.HuberLoss`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="SmoothL1Loss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.SmoothL1Loss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;smoothl1&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SmoothL1Loss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">SmoothL1Loss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Smooth L1 loss (wraps :class:`torch.nn.SmoothL1Loss`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="BoundedMSELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedMSELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;bounded-mse&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BoundedMSELoss</span><span class="p">(</span><span class="n">BoundedLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`BoundedLoss` with MSE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BoundedMAELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedMAELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;bounded-mae&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BoundedMAELoss</span><span class="p">(</span><span class="n">BoundedLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`BoundedLoss` with MAE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mae&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BoundedHuberLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedHuberLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;bounded-huber&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BoundedHuberLoss</span><span class="p">(</span><span class="n">BoundedLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`BoundedLoss` with Huber as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;huber&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BoundedSmoothL1Loss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedSmoothL1Loss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;bounded-smoothl1&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BoundedSmoothL1Loss</span><span class="p">(</span><span class="n">BoundedLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`BoundedLoss` with Smooth L1 as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;smoothl1&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="BCELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BCELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BCELoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">BCEWithLogitsLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Binary cross-entropy with logits (wraps :class:`torch.nn.BCEWithLogitsLoss`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="CrossEntropyLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.CrossEntropyLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;cross_entropy&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CrossEntropyLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">CrossEntropyLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Cross-entropy loss (wraps :class:`torch.nn.CrossEntropyLoss`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="WeightedBCELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.WeightedBCELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;weighted-bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">WeightedBCELoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Weighted binary cross entropy loss with logits.</span>
+
+<span class="sd">    Applies per-class weights to handle class imbalance in binary classification.</span>
+<span class="sd">    The user specifies the weight for the positive (minority) class; the weight</span>
+<span class="sd">    for the negative class is computed so that ``w0 + w1 = 1``.</span>
+
+<span class="sd">    :param float w1: Weight for class 1 (positive / minority class). Must be in (0, 1).</span>
+<span class="sd">    :param str reduction: Reduction mode: ``&#39;mean&#39;``, ``&#39;sum&#39;``, or ``&#39;none&#39;``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">w1</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">w1</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;w1 must be in (0, 1), got </span><span class="si">{</span><span class="n">w1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w1</span> <span class="o">=</span> <span class="n">w1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">w0</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="n">w1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
+
+<div class="viewcode-block" id="WeightedBCELoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.WeightedBCELoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor inputs: Raw logits.</span>
+<span class="sd">        :param torch.Tensor targets: Binary target labels.</span>
+<span class="sd">        :returns: Weighted BCE loss value.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">bce_loss</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">binary_cross_entropy_with_logits</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">)</span>
+        <span class="n">weights</span> <span class="o">=</span> <span class="n">targets</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">w1</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">targets</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">w0</span>
+        <span class="n">weighted_loss</span> <span class="o">=</span> <span class="n">weights</span> <span class="o">*</span> <span class="n">bce_loss</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">weighted_loss</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">weighted_loss</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">weighted_loss</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="GradNormLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.GradNormLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;gradnorm&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GradNormLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Implementation of GradNorm for adaptive loss balancing in multitask learning.</span>
+
+<span class="sd">    GradNorm automatically balances training by dynamically tuning gradient magnitudes.</span>
+<span class="sd">    It adjusts task weights to ensure that all tasks train at similar rates.</span>
+<span class="sd">    The weight updates are handled internally — no separate optimizer needed.</span>
+
+<span class="sd">    Reference: https://arxiv.org/abs/1711.02257</span>
+
+<span class="sd">    :param str loss_fn: Name of the loss function to use for all tasks (e.g., ``&quot;mse&quot;``).</span>
+<span class="sd">    :param dict loss_args: Arguments to pass to the loss function constructor.</span>
+<span class="sd">    :param int num_endpoints: Number of tasks.</span>
+<span class="sd">    :param float weight_lr: Learning rate for updating task weights internally.</span>
+
+<span class="sd">    Example::</span>
+
+<span class="sd">        loss_fn = GradNormLoss(loss_fn=&quot;mse&quot;, num_endpoints=3)</span>
+
+<span class="sd">        # Training loop (no changes needed):</span>
+<span class="sd">        loss = loss_fn(outputs, targets, shared_layer=model.backbone[-1])</span>
+<span class="sd">        optimizer.zero_grad()</span>
+<span class="sd">        loss.backward()</span>
+<span class="sd">        optimizer.step()</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ALPHA</span> <span class="o">=</span> <span class="mf">1.5</span>  <span class="c1"># Asymmetry hyperparameter (hardcoded as per paper recommendation)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">weight_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.025</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">](</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">loss_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_endpoints</span> <span class="o">=</span> <span class="n">num_endpoints</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight_lr</span> <span class="o">=</span> <span class="n">weight_lr</span>
+
+        <span class="c1"># Task weights (not nn.Parameter - updated manually via GradNorm)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;weights&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">num_endpoints</span><span class="p">))</span>
+
+        <span class="c1"># Store initial losses for computing relative inverse training rate</span>
+        <span class="c1"># Not saved in state_dict - recomputed on first forward pass after loading</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_losses</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_task_losses</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute individual task losses, handling NaN values.&quot;&quot;&quot;</span>
+        <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">targets</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="n">losses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">valid_mask</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="n">losses</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">valid_counts</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">valid_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">losses</span><span class="p">[</span><span class="n">valid_mask</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]]</span> <span class="o">=</span> <span class="mf">0.0</span>
+            <span class="n">valid_counts</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">valid_mask</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Average loss per task</span>
+        <span class="n">task_losses</span> <span class="o">=</span> <span class="n">losses</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">valid_counts</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">task_losses</span>
+
+<div class="viewcode-block" id="GradNormLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.GradNormLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">shared_layer</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass computing weighted multitask loss.</span>
+
+<span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch_size, num_endpoints)``.</span>
+<span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch_size, num_endpoints)``.</span>
+<span class="sd">        :param shared_layer: The last shared layer of the network. Required during</span>
+<span class="sd">            training for GradNorm weight updates.</span>
+<span class="sd">        :type shared_layer: torch.nn.Module or None</span>
+<span class="sd">        :returns: Weighted sum of task losses.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">task_losses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_task_losses</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_per_task_losses</span> <span class="o">=</span> <span class="n">task_losses</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+        <span class="c1"># Initialize initial losses on first forward pass</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_losses</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">initial_losses</span> <span class="o">=</span> <span class="n">task_losses</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+        <span class="c1"># Normalize weights to sum to num_endpoints</span>
+        <span class="n">normalized_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">*</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_endpoints</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+
+        <span class="c1"># Compute weighted loss</span>
+        <span class="n">weighted_losses</span> <span class="o">=</span> <span class="n">normalized_weights</span> <span class="o">*</span> <span class="n">task_losses</span>
+        <span class="n">total_loss</span> <span class="o">=</span> <span class="n">weighted_losses</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="c1"># During training with shared_layer, update weights using GradNorm</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span> <span class="ow">and</span> <span class="n">shared_layer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_update_weights</span><span class="p">(</span><span class="n">task_losses</span><span class="p">,</span> <span class="n">normalized_weights</span><span class="p">,</span> <span class="n">shared_layer</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">total_loss</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_update_weights</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_losses</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">normalized_weights</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">shared_layer</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Update task weights internally using GradNorm algorithm.&quot;&quot;&quot;</span>
+        <span class="c1"># Get the weight parameter of the shared layer</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">shared_layer</span><span class="p">,</span> <span class="s2">&quot;weight&quot;</span><span class="p">):</span>
+            <span class="n">shared_weight</span> <span class="o">=</span> <span class="n">shared_layer</span><span class="o">.</span><span class="n">weight</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">shared_weight</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="n">shared_layer</span><span class="o">.</span><span class="n">parameters</span><span class="p">())</span>
+
+        <span class="c1"># Compute gradient norms for each task</span>
+        <span class="n">grad_norms</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_endpoints</span><span class="p">):</span>
+            <span class="n">grad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">grad</span><span class="p">(</span>
+                <span class="n">task_losses</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                <span class="n">shared_weight</span><span class="p">,</span>
+                <span class="n">retain_graph</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="n">create_graph</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># No need to track higher-order gradients</span>
+            <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c1"># Weighted gradient norm: w_i * ||grad_i||</span>
+            <span class="n">grad_norm</span> <span class="o">=</span> <span class="p">(</span><span class="n">normalized_weights</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">*</span> <span class="n">grad</span><span class="p">)</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">grad_norms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">grad_norm</span><span class="p">)</span>
+
+        <span class="n">grad_norms</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">grad_norms</span><span class="p">)</span>
+
+        <span class="c1"># Compute average gradient norm (target baseline)</span>
+        <span class="n">avg_grad_norm</span> <span class="o">=</span> <span class="n">grad_norms</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+        <span class="c1"># Compute relative inverse training rate</span>
+        <span class="n">loss_ratios</span> <span class="o">=</span> <span class="n">task_losses</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_losses</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+        <span class="n">relative_inv_rates</span> <span class="o">=</span> <span class="n">loss_ratios</span> <span class="o">/</span> <span class="p">(</span><span class="n">loss_ratios</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+
+        <span class="c1"># Compute target gradient norms</span>
+        <span class="n">target_grad_norms</span> <span class="o">=</span> <span class="n">avg_grad_norm</span> <span class="o">*</span> <span class="p">(</span><span class="n">relative_inv_rates</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">ALPHA</span><span class="p">)</span>
+
+        <span class="c1"># Compute weight updates: move weights toward targets</span>
+        <span class="c1"># If grad_norm &gt; target, decrease weight; if grad_norm &lt; target, increase weight</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="c1"># Gradient of L1 loss w.r.t. weights (simplified direct update)</span>
+            <span class="c1"># weights should change to make grad_norms closer to target_grad_norms</span>
+            <span class="n">grad_norm_diff</span> <span class="o">=</span> <span class="n">grad_norms</span> <span class="o">-</span> <span class="n">target_grad_norms</span>
+
+            <span class="c1"># Update weights: decrease weight if gradient is too large, increase if too small</span>
+            <span class="c1"># Since grad_norm = w_i * ||grad_i||, we adjust w_i proportionally</span>
+            <span class="n">weight_grad</span> <span class="o">=</span> <span class="n">grad_norm_diff</span> <span class="o">/</span> <span class="p">(</span><span class="n">grad_norms</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">-=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight_lr</span> <span class="o">*</span> <span class="n">weight_grad</span>
+
+            <span class="c1"># Clamp weights to be positive</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">clamp_</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">)</span>
+
+            <span class="c1"># Renormalize weights to sum to num_endpoints</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">*=</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_endpoints</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+<div class="viewcode-block" id="GradNormLoss.reset_initial_losses">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.GradNormLoss.reset_initial_losses">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_initial_losses</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reset the initial losses for a fresh start of GradNorm tracking.&quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">initial_losses</span> <span class="o">=</span> <span class="kc">None</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

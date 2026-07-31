@@ -1,0 +1,434 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.classic.combined_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.classic.combined_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.classic.combined_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Combined data module for multi-modal molecular representation learning.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModule</span><span class="p">,</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.tabular_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">TabularDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.graph_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombinedStackDataset</span><span class="p">,</span> <span class="n">collate_fns</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">inspect</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombinedDataModuleInputModel</span>
+
+
+<div class="viewcode-block" id="default_merge">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.default_merge">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">default_merge</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Default merge function that returns the first value when a key appears in multiple datasets.</span>
+
+<span class="sd">    :param list args: list of values from each dataset for the same key</span>
+<span class="sd">    :returns: the first value</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="CombinedDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;combined&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CombinedDataModule</span><span class="p">(</span><span class="n">BaseDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A DataModule that can combine multiple datamodules.</span>
+
+<span class="sd">    This class is useful when you have multiple datamodules that you want to combine into a single</span>
+<span class="sd">    datamodules.</span>
+
+<span class="sd">    If a key appears in multiple datamodules, the values get merged according to merge_fn.</span>
+
+<span class="sd">    :param datamodules: a list of datamodules to combine</span>
+<span class="sd">    :param merge_fn: a dictionary mapping keys to merge functions</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">datamodules</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">BaseDataModule</span><span class="p">],</span>
+        <span class="n">merge_fn</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">default_merge</span><span class="p">},</span>
+        <span class="n">is_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">256</span><span class="p">,</span>
+        <span class="n">num_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">CombinedDataModuleInputModel</span><span class="p">(</span>
+            <span class="n">datamodules</span><span class="o">=</span><span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">datamodule_type</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">datamodules</span><span class="p">],</span>
+            <span class="n">merge_fn</span><span class="o">=</span><span class="n">merge_fn</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">num_workers</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span> <span class="o">=</span> <span class="n">datamodules</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">feat</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feat</span><span class="p">,</span> <span class="n">TabularDataModule</span><span class="p">):</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tabular_datamodule_idx</span> <span class="o">=</span> <span class="n">i</span>
+
+<div class="viewcode-block" id="CombinedDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CombinedStackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate unscaled features for all sub-datamodules and combine them.</span>
+<span class="sd">        Calls parent generate_features for each datamodule.</span>
+
+<span class="sd">        Uses keyword arguments so that sub-datamodules with additional parameters</span>
+<span class="sd">        (e.g. CLMDataModule&#39;s ``augment`` / ``is_training``) receive the correct</span>
+<span class="sd">        values instead of swallowing ``n_jobs`` into a wrong positional slot.</span>
+
+<span class="sd">        ``is_training`` is forwarded to sub-datamodules whose ``generate_features``</span>
+<span class="sd">        accepts it (currently only :class:`CLMDataModule`), enabling the correct</span>
+<span class="sd">        augmentation count (train vs. test) inside a :class:`CombinedDataModule`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">datasets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">datamodule</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">:</span>
+            <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">datamodule</span><span class="o">.</span><span class="n">generate_features</span><span class="p">)</span>
+            <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;is_training&quot;</span> <span class="ow">in</span> <span class="n">sig</span><span class="o">.</span><span class="n">parameters</span><span class="p">:</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;is_training&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_training</span>
+            <span class="n">datasets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">datamodule</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">))</span>
+        <span class="n">combined_dataset</span> <span class="o">=</span> <span class="n">CombinedStackDataset</span><span class="p">(</span><span class="n">datasets</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">merge_fn</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_keys_to_dataset_idx</span> <span class="o">=</span> <span class="n">combined_dataset</span><span class="o">.</span><span class="n">_keys_to_dataset_idx</span>
+        <span class="k">return</span> <span class="n">combined_dataset</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CombinedStackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Featurize molecules using all sub-datamodules and apply scaling.</span>
+
+<span class="sd">        :param list[Mol] x: list of rdkit molecules to process</span>
+<span class="sd">        :param np.ndarray | None y: labels array or None</span>
+<span class="sd">        :param list[str] | None bound_mask: bound mask or None</span>
+<span class="sd">        :param bool is_training: whether to fit scalers on the input</span>
+<span class="sd">        :param int | None n_jobs: number of parallel jobs</span>
+<span class="sd">        :returns: combined dataset with features from all sub-datamodules</span>
+<span class="sd">        :rtype: CombinedStackDataset</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
+                <span class="n">x</span><span class="p">,</span>
+                <span class="n">y</span><span class="p">,</span>
+                <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span>
+                <span class="n">use_resonance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+                <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Apply scaling based on is_training flag</span>
+        <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Handle bound mask and classification transformations (only if not regression)</span>
+        <span class="k">if</span> <span class="n">bound_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_process_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.fit">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">CombinedStackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fits scalers and other stateful transformations on the dataset.</span>
+
+<span class="sd">        For CombinedDataModule, this calls fit on all sub-datamodules with their</span>
+<span class="sd">        respective individual datasets.</span>
+
+<span class="sd">        :param CombinedStackDataset dataset: dataset to fit transformations on</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># For each sub-datamodule, call its fit method on its own dataset</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">datamodule</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">):</span>
+            <span class="n">individual_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">datamodule</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">individual_dataset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.transform">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">CombinedStackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CombinedStackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies fitted transformations to the dataset.</span>
+
+<span class="sd">        For CombinedDataModule, this calls transform on all sub-datamodules with</span>
+<span class="sd">        their respective individual datasets.</span>
+
+<span class="sd">        :param CombinedStackDataset dataset: dataset to transform</span>
+<span class="sd">        :return CombinedStackDataset: transformed dataset (modified in-place)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># For each sub-datamodule, call its transform method on its own dataset</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">datamodule</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">):</span>
+            <span class="n">individual_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">datamodule</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">individual_dataset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">,</span> <span class="n">bound_mask</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process Y for all sub-datamodules in their individual datasets.&quot;&quot;&quot;</span>
+        <span class="c1"># Pass the first datamodule&#39;s individual dataset to its _process_y method</span>
+        <span class="n">first_datamodule_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">_process_y</span><span class="p">(</span><span class="n">first_datamodule_dataset</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CombinedDataModule.collate_fn">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.collate_fn">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collate a batch of items.</span>
+
+<span class="sd">        :param batch: a list of items to collate</span>
+
+<span class="sd">        :return: the collated batch</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">collated_batch</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_keys_to_dataset_idx</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+            <span class="n">collate_fn</span> <span class="o">=</span> <span class="n">collate_fns</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="n">collated_batch</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">collate_fn</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">])</span>
+        <span class="k">return</span> <span class="n">collated_batch</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.invert_y">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.invert_y">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">invert_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="c1"># TODO (TP): For now assume that all datamodules have the same invert_y function, so just pick the first one.</span>
+        <span class="c1"># For the future think about separating out the label transforms in a separate datamodule that can be combined with molecular datamodules.</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">invert_y</span><span class="p">(</span><span class="n">y</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">CombinedStackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># See limitations above - delegate to first datamodule using its individual dataset</span>
+        <span class="n">first_datamodule_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">_transform_y</span><span class="p">(</span><span class="n">first_datamodule_dataset</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CombinedDataModule.parse_output">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.parse_output">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_output</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">output</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">convert_to_labels</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="p">):</span>
+        <span class="c1"># See limitations above</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">process</span><span class="p">(</span>
+            <span class="n">output</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">convert_to_labels</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.configure_label_encoder">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.configure_label_encoder">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">configure_label_encoder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">):</span>
+        <span class="c1"># See limitations above</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">configure_label_encoder</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.has_class_labels">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.has_class_labels">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_class_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">has_class_labels</span><span class="p">()</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_invert_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">CombinedStackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Invert X scaling for the tabular datamodule component.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;tabular_datamodule_idx&quot;</span><span class="p">):</span>
+            <span class="n">tabular_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tabular_datamodule_idx</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tabular_datamodule_idx</span><span class="p">]</span><span class="o">.</span><span class="n">_invert_x</span><span class="p">(</span><span class="n">tabular_dataset</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">CombinedStackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit X for the tabular datamodule component.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;tabular_datamodule_idx&quot;</span><span class="p">):</span>
+            <span class="n">tabular_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tabular_datamodule_idx</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tabular_datamodule_idx</span><span class="p">]</span><span class="o">.</span><span class="n">_fit_x</span><span class="p">(</span><span class="n">tabular_dataset</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform_x</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">CombinedStackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Transform X for the tabular datamodule component.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;tabular_datamodule_idx&quot;</span><span class="p">):</span>
+            <span class="n">tabular_dataset</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tabular_datamodule_idx</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tabular_datamodule_idx</span><span class="p">]</span><span class="o">.</span><span class="n">_transform_x</span><span class="p">(</span><span class="n">tabular_dataset</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CombinedDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+
+        <span class="n">key_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">]</span>
+        <span class="n">dict_list</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">state_dict</span><span class="p">()</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span><span class="p">]</span>
+        <span class="n">out_dict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">key_list</span><span class="p">,</span> <span class="n">dict_list</span><span class="p">))</span>
+        <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;combined&quot;</span>
+        <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+        <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;keys_collate&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_keys_to_dataset_idx</span>
+        <span class="k">return</span> <span class="n">out_dict</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility for MLFlow logging&quot;&quot;&quot;</span>
+
+        <span class="n">datamodules</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">key</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">state_dict</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+            <span class="k">if</span> <span class="n">key</span> <span class="o">!=</span> <span class="s2">&quot;ID&quot;</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">!=</span> <span class="s2">&quot;keys_collate&quot;</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">!=</span> <span class="s2">&quot;params&quot;</span><span class="p">:</span>
+                <span class="n">dm</span> <span class="o">=</span> <span class="n">DataModuleRegistry</span><span class="p">[</span><span class="n">state_dict</span><span class="p">[</span><span class="n">key</span><span class="p">][</span><span class="s2">&quot;ID&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">dummy</span><span class="p">()</span>
+                <span class="n">dm</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+                <span class="n">datamodules</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dm</span><span class="p">)</span>
+
+        <span class="c1"># Extract parameters and include the reconstructed datamodules</span>
+        <span class="n">params_dict</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">params_dict</span><span class="p">[</span><span class="s2">&quot;datamodules&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">datamodule_type</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">datamodules</span><span class="p">]</span>
+
+        <span class="c1"># Create InputModel with all parameters including datamodules</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">CombinedDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">params_dict</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">datamodules</span> <span class="o">=</span> <span class="n">datamodules</span>
+        <span class="c1"># Set the keys_to_dataset_idx mapping</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_keys_to_dataset_idx</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;keys_collate&quot;</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="CombinedDataModule.dummy">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/combined_datamodule/index.html#matcha.datamodules.classic.combined_datamodule.CombinedDataModule.dummy">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to make a dummy class with default params. Can be</span>
+<span class="sd">        combined with load_state_dict to recreate a datamodule from</span>
+<span class="sd">        a state dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tab</span> <span class="o">=</span> <span class="n">TabularDataModule</span><span class="p">([</span><span class="s2">&quot;ECFP&quot;</span><span class="p">])</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="n">GraphDataModule</span><span class="p">()</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">([</span><span class="n">tab</span><span class="p">,</span> <span class="n">graph</span><span class="p">])</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

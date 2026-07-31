@@ -1,0 +1,425 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.sklearn.managers.ensemble_serialization_manager &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.sklearn.managers.ensemble_serialization_manager</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.sklearn.managers.ensemble_serialization_manager</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">load_pickle</span><span class="p">,</span>
+    <span class="n">load_yaml</span><span class="p">,</span>
+    <span class="n">save_pickle</span><span class="p">,</span>
+    <span class="n">save_yaml</span><span class="p">,</span>
+    <span class="n">_sanitize_for_yaml</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.calibration</span><span class="w"> </span><span class="kn">import</span> <span class="n">CalibratorModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.sklearn_api</span><span class="w"> </span><span class="kn">import</span> <span class="n">MetadataInputModel</span>
+
+<span class="c1"># Canonical file names – mirrors the single-model serialization layout</span>
+<span class="n">_CONFIG_DIR</span> <span class="o">=</span> <span class="s2">&quot;config&quot;</span>
+<span class="n">_STATE_DIR</span> <span class="o">=</span> <span class="s2">&quot;state&quot;</span>
+<span class="n">_MANIFEST_YAML</span> <span class="o">=</span> <span class="s2">&quot;manifest.yaml&quot;</span>
+<span class="n">_ENSEMBLE_YAML</span> <span class="o">=</span> <span class="s2">&quot;ensemble.yaml&quot;</span>
+<span class="n">_METADATA_YAML</span> <span class="o">=</span> <span class="s2">&quot;metadata.yaml&quot;</span>
+<span class="n">_CALIBRATION_YAML</span> <span class="o">=</span> <span class="s2">&quot;calibration.yaml&quot;</span>
+<span class="n">_MLFLOW_YAML</span> <span class="o">=</span> <span class="s2">&quot;mlflow.yaml&quot;</span>
+<span class="n">_CALIBRATOR_FILE</span> <span class="o">=</span> <span class="s2">&quot;calibrator.pkl&quot;</span>
+
+
+<div class="viewcode-block" id="EnsembleSerializationManager">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/index.html#matcha.sklearn.managers.ensemble_serialization_manager.EnsembleSerializationManager">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">EnsembleSerializationManager</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Handles saving, loading, and exporting ensemble model artifacts.</span>
+
+<span class="sd">    Artifact layout::</span>
+
+<span class="sd">        &lt;path&gt;/</span>
+<span class="sd">        ├── config/</span>
+<span class="sd">        │   ├── manifest.yaml          # Serialization version &amp; class info</span>
+<span class="sd">        │   ├── ensemble.yaml          # Ensemble-specific params (architecture, n_models, seed, learner)</span>
+<span class="sd">        │   ├── metadata.yaml          # Model metadata</span>
+<span class="sd">        │   ├── calibration.yaml       # Calibration params (optional)</span>
+<span class="sd">        │   └── mlflow.yaml            # MLflow params (optional)</span>
+<span class="sd">        ├── state/</span>
+<span class="sd">        │   └── calibrator.pkl         # Fitted calibrator object (optional)</span>
+<span class="sd">        ├── model_0/                   # First member (saved by its own serialization)</span>
+<span class="sd">        │   ├── model.ckpt</span>
+<span class="sd">        │   ├── config/</span>
+<span class="sd">        │   └── state/</span>
+<span class="sd">        ├── model_1/</span>
+<span class="sd">        │   └── ...</span>
+<span class="sd">        └── model_N/</span>
+<span class="sd">            └── ...</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="s2">&quot;ENSEMBLE_SERIALIZATION&quot;</span><span class="p">)</span>
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Save</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="EnsembleSerializationManager.save">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/index.html#matcha.sklearn.managers.ensemble_serialization_manager.EnsembleSerializationManager.save">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ensemble</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">quantize</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save all members and ensemble-level artifacts to *path*.</span>
+
+<span class="sd">        :param ensemble: the Ensemble instance to save</span>
+<span class="sd">        :param str path: root folder where artifacts are stored</span>
+<span class="sd">        :param bool quantize: whether to quantize models before saving</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving ensemble to </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">ensemble</span><span class="o">.</span><span class="n">_sync_params</span><span class="p">()</span>
+
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_CONFIG_DIR</span><span class="p">)</span>
+        <span class="n">state_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_STATE_DIR</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="c1"># --- Save individual members --------------------------------------</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">model</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ensemble</span><span class="o">.</span><span class="n">_model_box</span><span class="p">):</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">/model_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">quantize</span><span class="p">)</span>
+
+        <span class="c1"># --- Config YAMLs ------------------------------------------------</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">params</span>
+
+        <span class="c1"># Manifest for quick identification (mirrors single-model pattern)</span>
+        <span class="n">save_yaml</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_MANIFEST_YAML</span><span class="p">),</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;matcha_version&quot;</span><span class="p">:</span> <span class="n">__version__</span><span class="p">,</span>
+                <span class="s2">&quot;serialization_version&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="s2">&quot;class_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Ensemble&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;task_type&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">task_type</span><span class="p">,</span>
+                <span class="s2">&quot;saved_at&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Ensemble-specific params</span>
+        <span class="n">save_yaml</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_ENSEMBLE_YAML</span><span class="p">),</span>
+            <span class="p">{</span>
+                <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">architecture</span><span class="p">,</span>
+                <span class="s2">&quot;n_models&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">n_models</span><span class="p">,</span>
+                <span class="s2">&quot;seed&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span>
+                <span class="s2">&quot;learner&quot;</span><span class="p">:</span> <span class="n">params</span><span class="o">.</span><span class="n">learner</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span> <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">learner</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Metadata</span>
+        <span class="n">save_yaml</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_METADATA_YAML</span><span class="p">),</span>
+            <span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Calibration (optional)</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">calibration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_yaml</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_CALIBRATION_YAML</span><span class="p">),</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">calibration</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="p">)</span>
+
+        <span class="c1"># MLflow (optional)</span>
+        <span class="k">if</span> <span class="n">params</span><span class="o">.</span><span class="n">mlflow</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">save_yaml</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_MLFLOW_YAML</span><span class="p">),</span>
+                <span class="n">params</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="p">)</span>
+
+        <span class="c1"># --- Stateful objects (pickle) ------------------------------------</span>
+        <span class="n">save_pickle</span><span class="p">(</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="n">_CALIBRATOR_FILE</span><span class="p">),</span>
+            <span class="n">ensemble</span><span class="o">.</span><span class="n">calibrator</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Ensemble saved successfully&quot;</span><span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Export to YAML</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="EnsembleSerializationManager.export_to_yaml">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/index.html#matcha.sklearn.managers.ensemble_serialization_manager.EnsembleSerializationManager.export_to_yaml">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_to_yaml</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ensemble</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Export the ensemble configuration and parameters to a YAML file.</span>
+
+<span class="sd">        Uses the first model&#39;s input args as the learner config and adds</span>
+<span class="sd">        ensemble-specific fields (architecture, metadata, n_models).</span>
+
+<span class="sd">        :param ensemble: the Ensemble instance</span>
+<span class="sd">        :param str path: file path for the YAML output</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">learner_params</span> <span class="o">=</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">_model_box</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_input_args</span><span class="p">()</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="n">learner_params</span><span class="p">,</span>
+                <span class="s2">&quot;architecture&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">_architecture_name</span><span class="p">,</span>
+                <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;model_name&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_name</span><span class="p">,</span>
+                    <span class="s2">&quot;model_owner&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_owner</span><span class="p">,</span>
+                    <span class="s2">&quot;model_scope&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_scope</span><span class="p">,</span>
+                    <span class="s2">&quot;model_version&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_version</span><span class="p">,</span>
+                    <span class="s2">&quot;description&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+                <span class="p">},</span>
+                <span class="s2">&quot;ensemble&quot;</span><span class="p">:</span> <span class="n">ensemble</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">n_models</span><span class="p">,</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="c1"># Create directory if it doesn&#39;t exist</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saving model config as YAML at </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">_sanitize_for_yaml</span><span class="p">(</span><span class="n">output</span><span class="p">),</span> <span class="n">f</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;Please remember to fill in missing metadata info&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+            <span class="s2">&quot;Fields to fill: model_owner, model_scope, model_name, model_version&quot;</span>
+        <span class="p">)</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Load from config</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="EnsembleSerializationManager.load_from_config">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/index.html#matcha.sklearn.managers.ensemble_serialization_manager.EnsembleSerializationManager.load_from_config">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_from_config</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reconstruct an Ensemble from a saved parameter dictionary.</span>
+
+<span class="sd">        Creates individual model instances using the registered architecture&#39;s</span>
+<span class="sd">        ``from_config``, then wraps the first one into a new Ensemble via the</span>
+<span class="sd">        standard ``__init__``.</span>
+
+<span class="sd">        :param cls: the Ensemble class</span>
+<span class="sd">        :param dict params: saved ensemble parameters (structured format with</span>
+<span class="sd">            ``ensemble``, ``metadata``, ``calibration`` keys)</span>
+<span class="sd">        :return: reconstructed Ensemble instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScikitLearnModelRegistry</span>
+
+        <span class="n">ens_cfg</span> <span class="o">=</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;ensemble&quot;</span><span class="p">]</span>
+        <span class="n">architecture</span> <span class="o">=</span> <span class="n">ens_cfg</span><span class="p">[</span><span class="s2">&quot;architecture&quot;</span><span class="p">]</span>
+        <span class="n">learner</span> <span class="o">=</span> <span class="n">ens_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;learner&quot;</span><span class="p">)</span>
+        <span class="n">n_models</span> <span class="o">=</span> <span class="n">ens_cfg</span><span class="p">[</span><span class="s2">&quot;n_models&quot;</span><span class="p">]</span>
+        <span class="n">seed</span> <span class="o">=</span> <span class="n">ens_cfg</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># reconstruct the template model from the structured learner config</span>
+        <span class="n">model_cls</span> <span class="o">=</span> <span class="n">ScikitLearnModelRegistry</span><span class="p">[</span><span class="n">architecture</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">learner</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">(</span>
+            <span class="n">key</span> <span class="ow">in</span> <span class="n">learner</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;training&quot;</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">,</span> <span class="s2">&quot;datamodule&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">model_cls</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">learner</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">template</span> <span class="o">=</span> <span class="n">model_cls</span><span class="p">(</span><span class="o">**</span><span class="n">learner</span><span class="p">)</span>
+
+        <span class="n">class_instance</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">template</span><span class="p">,</span> <span class="n">n_models</span><span class="o">=</span><span class="n">n_models</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
+
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;metadata&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">metadata</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">class_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">MetadataInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">metadata</span><span class="p">)</span>
+
+        <span class="n">calibration</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;calibration&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">calibration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">class_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">calibration</span> <span class="o">=</span> <span class="n">CalibratorModel</span><span class="p">(</span><span class="o">**</span><span class="n">calibration</span><span class="p">)</span>
+            <span class="n">class_instance</span><span class="o">.</span><span class="n">_calibration_manager</span><span class="o">.</span><span class="n">create_calibrator</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">=</span><span class="n">class_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">calibration</span>
+            <span class="p">)</span>
+
+        <span class="n">class_instance</span><span class="o">.</span><span class="n">_sync_params</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">class_instance</span></div>
+
+
+    <span class="c1"># ------------------------------------------------------------------</span>
+    <span class="c1"># Load from folder</span>
+    <span class="c1"># ------------------------------------------------------------------</span>
+
+<div class="viewcode-block" id="EnsembleSerializationManager.load_from_folder">
+<a class="viewcode-back" href="../../../../api/matcha/sklearn/managers/index.html#matcha.sklearn.managers.ensemble_serialization_manager.EnsembleSerializationManager.load_from_folder">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_from_folder</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cuda&quot;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load a saved Ensemble from a folder.</span>
+
+<span class="sd">        Each member is individually loaded via its architecture&#39;s</span>
+<span class="sd">        ``from_folder``, then assembled into an Ensemble shell.</span>
+
+<span class="sd">        :param cls: the Ensemble class</span>
+<span class="sd">        :param str path: folder containing ensemble artifacts</span>
+<span class="sd">        :param str accelerator: device to load models onto</span>
+<span class="sd">        :return: fully restored Ensemble instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScikitLearnModelRegistry</span>
+
+        <span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="s2">&quot;ENSEMBLE_SERIALIZATION&quot;</span><span class="p">)</span>
+
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_CONFIG_DIR</span><span class="p">)</span>
+        <span class="n">state_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">_STATE_DIR</span><span class="p">)</span>
+
+        <span class="c1"># --- Load config YAMLs -------------------------------------------</span>
+        <span class="n">ensemble_params</span> <span class="o">=</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_ENSEMBLE_YAML</span><span class="p">))</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_METADATA_YAML</span><span class="p">))</span>
+
+        <span class="n">calibration_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="n">_CALIBRATION_YAML</span><span class="p">)</span>
+        <span class="n">calibration_params</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">load_yaml</span><span class="p">(</span><span class="n">calibration_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">calibration_path</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="c1"># --- Load stateful objects ----------------------------------------</span>
+        <span class="n">calibrator_pkl_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="n">_CALIBRATOR_FILE</span><span class="p">)</span>
+        <span class="n">calibrator</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">load_pickle</span><span class="p">(</span><span class="n">calibrator_pkl_path</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">calibrator_pkl_path</span><span class="p">)</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="n">architecture</span> <span class="o">=</span> <span class="n">ensemble_params</span><span class="p">[</span><span class="s2">&quot;architecture&quot;</span><span class="p">]</span>
+        <span class="n">n_models</span> <span class="o">=</span> <span class="n">ensemble_params</span><span class="p">[</span><span class="s2">&quot;n_models&quot;</span><span class="p">]</span>
+        <span class="n">seed</span> <span class="o">=</span> <span class="n">ensemble_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;seed&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="n">model_cls</span> <span class="o">=</span> <span class="n">ScikitLearnModelRegistry</span><span class="p">[</span><span class="n">architecture</span><span class="p">]</span>
+
+        <span class="c1"># load each member individually (they have fitted weights)</span>
+        <span class="n">model_box</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">model_cls</span><span class="o">.</span><span class="n">from_folder</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">/model_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">accelerator</span><span class="o">=</span><span class="n">accelerator</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_models</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="c1"># build the ensemble shell from the first loaded model</span>
+        <span class="n">class_instance</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
+            <span class="n">model</span><span class="o">=</span><span class="n">model_box</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="n">n_models</span><span class="o">=</span><span class="n">n_models</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># replace the model box with the individually loaded (fitted) members</span>
+        <span class="n">class_instance</span><span class="o">.</span><span class="n">_model_box</span> <span class="o">=</span> <span class="n">model_box</span>
+        <span class="n">class_instance</span><span class="o">.</span><span class="n">_calibration_manager</span><span class="o">.</span><span class="n">_calibrator</span> <span class="o">=</span> <span class="n">calibrator</span>
+
+        <span class="c1"># Restore metadata</span>
+        <span class="n">class_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span> <span class="o">=</span> <span class="n">MetadataInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">metadata</span><span class="p">)</span>
+
+        <span class="c1"># Restore calibration params</span>
+        <span class="k">if</span> <span class="n">calibration_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">class_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">calibration</span> <span class="o">=</span> <span class="n">CalibratorModel</span><span class="p">(</span><span class="o">**</span><span class="n">calibration_params</span><span class="p">)</span>
+            <span class="n">class_instance</span><span class="o">.</span><span class="n">_calibration_manager</span><span class="o">.</span><span class="n">create_calibrator</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">=</span><span class="n">class_instance</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">calibration</span>
+            <span class="p">)</span>
+
+        <span class="n">class_instance</span><span class="o">.</span><span class="n">_sync_params</span><span class="p">()</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ensemble loaded from </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">class_instance</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

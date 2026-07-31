@@ -1,0 +1,66 @@
+matcha.torch.models.mixin
+=========================
+
+.. py:module:: matcha.torch.models.mixin
+
+.. autoapi-nested-parse::
+
+   Shared Lightning module mixin providing loss parsing, validation, and MC-dropout.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.mixin.ModelMixin
+
+
+Module Contents
+---------------
+
+.. py:class:: ModelMixin(*args: Any, **kwargs: Any)
+
+   Bases: :py:obj:`lightning.LightningModule`
+
+
+   Mixin providing common training infrastructure for all MATCHA Lightning models.
+
+   Includes loss function parsing, per-task validation metric tracking, and
+   MC-dropout toggling. Subclasses must define ``forward`` and ``training_step``.
+
+
+   .. py:property:: mc_dropout_flag
+      :type: bool
+
+
+      Whether MC-dropout is active during prediction for uncertainty estimation.
+
+
+   .. py:method:: switch_mc_dropout()
+
+      Enables switching of the mc_dropout flag, which defines whether dropout
+      is kept on or off during the prediction step for uncertainty measurement
+
+
+
+   .. py:method:: validation_step(batch: dict[str, Any], batch_idx) -> dict
+
+      Validation step logic for classic models. Analogous as the training step.
+
+      :param dict[str, Any] batch: batch of inputs to process
+      :param int batch_idx: leftover from lightning tutorial which I am too scared
+          to remove (TODO)
+      :return torch.Tensor: batch loss
+
+
+
+   .. py:method:: set_label_names(label_names: list[str])
+
+      Set human-readable label names used for per-task metric logging.
+
+      :param label_names: list of endpoint names matching the order of prediction columns.
+
+
+

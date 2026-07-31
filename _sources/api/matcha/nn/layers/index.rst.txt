@@ -1,0 +1,402 @@
+matcha.nn.layers
+================
+
+.. py:module:: matcha.nn.layers
+
+.. autoapi-nested-parse::
+
+   Layer primitives for tabular and graph neural networks.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.nn.layers.LayerRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.nn.layers.AdaRMSN
+   matcha.nn.layers.BatchNorm
+   matcha.nn.layers.LayerNorm
+   matcha.nn.layers.InstanceNorm
+   matcha.nn.layers.GraphNorm
+   matcha.nn.layers.LnBnDr
+   matcha.nn.layers.MultiLn
+   matcha.nn.layers.MultiBatchNorm
+   matcha.nn.layers.MultiMLP
+   matcha.nn.layers.SpatialEncoder
+   matcha.nn.layers.SpatialEncoder3d
+   matcha.nn.layers.BiasedMultiHeadAttention
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.nn.layers.from_dense_batch
+
+
+Module Contents
+---------------
+
+.. py:data:: LayerRegistry
+
+.. py:class:: AdaRMSN(dim)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Adaptive Root Mean Square Normalization (AdaRMSN)
+
+   This normalization preserves token magnitude information while controlling
+   token magnitudes to prevent softmax saturation.
+
+
+   .. py:attribute:: dim
+
+
+   .. py:attribute:: beta
+
+
+   .. py:attribute:: alpha
+
+
+   .. py:method:: forward(x) -> torch.Tensor
+
+      :param torch.Tensor x: Input tensor of shape ``(..., dim)``.
+      :returns: Normalized tensor of the same shape.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: BatchNorm(num_features: int, eps: float = 1e-05, momentum: Optional[float] = 0.1, affine: bool = True, track_running_stats: bool = True, device=None, dtype=None)
+
+   Bases: :py:obj:`torch.nn.BatchNorm1d`
+
+
+   Batch normalization (wraps :class:`torch.nn.BatchNorm1d`).
+
+
+.. py:class:: LayerNorm(normalized_shape: _shape_t, eps: float = 1e-05, elementwise_affine: bool = True, bias: bool = True, device=None, dtype=None)
+
+   Bases: :py:obj:`torch.nn.LayerNorm`
+
+
+   Layer normalization (wraps :class:`torch.nn.LayerNorm`).
+
+
+.. py:class:: InstanceNorm(num_features: int, eps: float = 1e-05, momentum: float = 0.1, affine: bool = False, track_running_stats: bool = False, device=None, dtype=None)
+
+   Bases: :py:obj:`torch.nn.InstanceNorm1d`
+
+
+   Instance normalization (wraps :class:`torch.nn.InstanceNorm1d`).
+
+
+.. py:class:: GraphNorm(in_channels: int, eps: float = 1e-05, device: Optional[torch.device] = None)
+
+   Bases: :py:obj:`torch_geometric.nn.norm.GraphNorm`
+
+
+   Graph normalization (wraps :class:`torch_geometric.nn.norm.GraphNorm`).
+
+
+.. py:class:: LnBnDr(input_dim: int, output_dim: int, dropout: float, activation: str | None, norm: str)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Linear-Norm-Dropout-Activation layer stack to simplify using this
+   pattern across different architectures.
+   Reference: https://docs.fast.ai/layers.html#linbndrop
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: in_features
+
+
+   .. py:attribute:: out_features
+
+
+   .. py:method:: forward(x) -> torch.Tensor
+
+      :param torch.Tensor x: Input tensor of shape ``(batch, input_dim)``.
+      :returns: Output tensor of shape ``(batch, output_dim)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: MultiLn(in_dim: int, out_dim: int, num_parallel: int, bias: bool = True)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Parallel linear layer implementation, used in the task-specific MLPs
+   when training multitask models.
+   Adapted from: https://github.com/datamol-io/graphium/blob/main/graphium/nn/ensemble_layers.py
+
+
+   .. py:attribute:: weight
+
+
+   .. py:attribute:: bias
+
+
+   .. py:attribute:: init_fn
+
+
+   .. py:method:: reset_parameters()
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor x: Input tensor of shape ``(num_parallel, batch, in_dim)``.
+      :returns: Output tensor of shape ``(num_parallel, batch, out_dim)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: MultiBatchNorm(num_features: int, num_parallel: int, eps: float = 1e-05, momentum: float = 0.1)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Analogue of BatchNorm1d for working with MultiLn layers,
+   keeping separate statistics for each head.
+
+
+   .. py:attribute:: num_parallel
+
+
+   .. py:attribute:: num_features
+
+
+   .. py:attribute:: weight
+
+
+   .. py:attribute:: bias
+
+
+   .. py:attribute:: eps
+      :value: 1e-05
+
+
+
+   .. py:attribute:: momentum
+      :value: 0.1
+
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor x: Input tensor of shape ``(num_parallel, batch, num_features)``.
+      :returns: Normalized tensor of the same shape.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: MultiMLP(input_dim, dims: list[int], num_parallel: int, dropout: float, activation: str, norm: str)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Stack of MultiLn, norm (if batch, then its multibatch layers), dropout
+   and activation layers for instantiating the MLPs for each head in multitask
+   networks
+
+
+   .. py:attribute:: num_layers
+
+
+   .. py:attribute:: linear_layers
+
+
+   .. py:attribute:: norm_layers
+
+
+   .. py:attribute:: act_fn
+
+
+   .. py:attribute:: dropout
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor x: Input tensor of shape ``(num_parallel, batch, input_dim)``.
+      :returns: Output tensor of shape ``(batch, num_parallel)``.
+      :rtype: torch.Tensor
+
+
+
+.. py:function:: from_dense_batch(out, batch)
+
+   Reshape a dense-batched tensor back to sparse (variable-length) node format.
+
+   Converts from shape ``(batch_size, max_num_atoms, feat_size)`` to
+   ``(total_nodes, feat_size)`` using graph membership indices.
+
+   :param torch.Tensor out: Dense tensor of shape ``(batch_size, max_num_nodes, feat_size)``.
+   :param torch.Tensor batch: Node-to-graph assignment vector of shape ``(total_nodes,)``.
+   :returns: Reconstructed sparse tensor of shape ``(total_nodes, feat_size)``.
+   :rtype: torch.Tensor
+   :raises ValueError: If any node index exceeds the maximum number of nodes in the batch.
+
+
+.. py:class:: SpatialEncoder(max_dist: int, num_heads: int)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   PyTorch Geometric compatible Spatial Encoder.
+
+   Encodes shortest path distances between node pairs as learnable embeddings.
+   This is a replacement for dgl.nn.pytorch.SpatialEncoder.
+
+   :param int max_dist: Maximum distance to encode (distances beyond this are clamped)
+   :param int num_heads: Number of attention heads (embedding dimension)
+
+
+   .. py:attribute:: max_dist
+
+
+   .. py:attribute:: num_heads
+
+
+   .. py:attribute:: embedding
+
+
+   .. py:method:: forward(spd: torch.Tensor) -> torch.Tensor
+
+      Encode shortest path distances.
+
+      :param torch.Tensor spd: Shortest path distance matrix [batch_size, max_nodes, max_nodes]
+      :return torch.Tensor: Distance bias for attention [batch_size, max_nodes, max_nodes, num_heads]
+
+
+
+.. py:class:: SpatialEncoder3d(num_kernels: int, num_heads: int = 1, atom_feat_dim: int = 128)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   PyTorch Geometric compatible 3D Spatial Encoder.
+
+   This module encodes pair-wise relation between node pair (i,j) in
+   the 3D geometric space, according to the Gaussian Basis Kernel function.
+
+   This is a replacement for dgl.nn.pytorch.SpatialEncoder3d from the paper:
+   "One Transformer Can Understand Both 2D & 3D Molecular Data"
+   https://arxiv.org/pdf/2210.01765.pdf
+
+   The encoding is computed as:
+
+   ψ_{(i,j)}^k = (1 / (√(2π) |σ^k|)) * exp(-0.5 * ((γ_{(i,j)} * ||r_i - r_j|| + β_{(i,j)} - μ^k) / |σ^k|)^2)
+
+   where K is the number of Gaussian Basis kernels, r_i is the Cartesian coordinate
+   of node i, γ and β are learnable scaling factors and biases determined by node types,
+   and μ^k, σ^k are learnable centers and standard deviations of the kernels.
+
+   :param int num_kernels: Number of Gaussian Basis Kernels
+   :param int num_heads: Number of attention heads (default: 1)
+   :param int atom_feat_dim: Dimensionality of projected atom features (default: 128)
+
+
+   .. py:attribute:: num_kernels
+
+
+   .. py:attribute:: num_heads
+      :value: 1
+
+
+
+   .. py:attribute:: means
+
+
+   .. py:attribute:: stds
+
+
+   .. py:attribute:: linear_layer_1
+
+
+   .. py:attribute:: linear_layer_2
+
+
+   .. py:attribute:: gamma_proj
+
+
+   .. py:attribute:: beta_proj
+
+
+   .. py:method:: forward(coord: torch.Tensor, atom_feats: torch.Tensor) -> torch.Tensor
+
+      Encode 3D spatial relationships.
+
+      :param torch.Tensor coord: 3D coordinates of nodes [batch_size, max_nodes, 3]
+      :param torch.Tensor atom_feats: Projected atom features [batch_size, max_nodes, atom_feat_dim]
+      :return torch.Tensor: Attention bias from 3D spatial encoding [batch_size, max_nodes, max_nodes, num_heads]
+
+
+
+.. py:class:: BiasedMultiHeadAttention(embed_dim: int, num_heads: int, dropout: float = 0.0)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Multi-head attention with optional distance bias.
+
+   PyTorch Geometric compatible implementation of biased multi-head attention
+   for graph transformers. This is a replacement for dgl.nn.pytorch.gt.BiasedMHA.
+
+   :param int embed_dim: Embedding dimension
+   :param int num_heads: Number of attention heads
+   :param float dropout: Attention dropout ratio
+
+
+   .. py:attribute:: embed_dim
+
+
+   .. py:attribute:: num_heads
+
+
+   .. py:attribute:: head_dim
+
+
+   .. py:attribute:: scale
+
+
+   .. py:attribute:: q_proj
+
+
+   .. py:attribute:: k_proj
+
+
+   .. py:attribute:: v_proj
+
+
+   .. py:attribute:: out_proj
+
+
+   .. py:attribute:: attn_dropout
+
+
+   .. py:method:: forward(x: torch.Tensor, attn_bias: torch.Tensor | None = None, attn_mask: torch.Tensor | None = None) -> torch.Tensor
+
+      Forward pass.
+
+      :param torch.Tensor x: Input tensor [batch_size, seq_len, embed_dim]
+      :param torch.Tensor attn_bias: Optional attention bias [batch_size, seq_len, seq_len, num_heads]
+      :param torch.Tensor attn_mask: Optional attention mask [batch_size, seq_len] (True for valid positions)
+      :return torch.Tensor: Output tensor [batch_size, seq_len, embed_dim]
+
+
+

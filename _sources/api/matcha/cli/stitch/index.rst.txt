@@ -1,0 +1,41 @@
+matcha.cli.stitch
+=================
+
+.. py:module:: matcha.cli.stitch
+
+.. autoapi-nested-parse::
+
+   CLI command for stitching multiple molecular datasets into one.
+
+   Loads individual datasets (CSV/SDF), merges them on a shared SMILES
+   column into a single wide-format DataFrame with one column per endpoint,
+   and saves the result as CSV.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.stitch.main
+
+
+Module Contents
+---------------
+
+.. py:function:: main(cfg=None)
+
+   Stitch multiple molecular datasets into a single multi-task CSV.
+
+   Loads each input dataset, selects the relevant columns (SMILES, label,
+   optionally operator and index), then merges them via
+   :func:`~matcha.nn.multitask.stitch_datasets` into a wide-format
+   DataFrame with a shared SMILES column and one label column per endpoint.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLIStitcherInputModel` instance
+       or a raw dict that will be validated.
+
+

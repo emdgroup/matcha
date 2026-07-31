@@ -1,0 +1,660 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.sklearn.base_sklearn_model &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.sklearn.base_sklearn_model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/sklearn/base_sklearn_model/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.sklearn.base_sklearn_model">
+<span id="matcha-sklearn-base-sklearn-model"></span><h1>matcha.sklearn.base_sklearn_model<a class="headerlink" href="#module-matcha.sklearn.base_sklearn_model" title="Link to this heading"></a></h1>
+<p>Base classes and mixins for the scikit-learn-compatible model API.</p>
+<section id="attributes">
+<h2>Attributes<a class="headerlink" href="#attributes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.sklearn.base_sklearn_model.ScikitLearnModelRegistry" title="matcha.sklearn.base_sklearn_model.ScikitLearnModelRegistry"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ScikitLearnModelRegistry</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel" title="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BaseScikitLearnModel</span></code></a></p></td>
+<td><p>Base class for all sklearn API models. It is not meant to be instantiated directly,</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin" title="matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ScikitLearnRegressorMixin</span></code></a></p></td>
+<td><p>Mixin to add regression-specific methods to scikit-learn models</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin" title="matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ScikitLearnClassifierMixin</span></code></a></p></td>
+<td><p>Mixin to add classification-specific methods to scikit-learn models</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.sklearn.base_sklearn_model.</span></span><span class="sig-name descname"><span class="pre">BaseScikitLearnModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/abc.html#abc.ABC" title="(in Python v3.14)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">abc.ABC</span></code></a></p>
+<p>Base class for all sklearn API models. It is not meant to be instantiated directly,
+but rather to be used as a parent class for each sklearn API model.
+This class already implements all (or most) methods needed to get the API running,
+so child classes only need to parse the arguments for the desired architecture.</p>
+<p><strong>Ownership model:</strong></p>
+<ul class="simple">
+<li><p>The <code class="docutils literal notranslate"><span class="pre">BaseScikitLearnModel</span></code> directly owns the Lightning model
+(<code class="docutils literal notranslate"><span class="pre">self._model</span></code>) and the run metadata (<code class="docutils literal notranslate"><span class="pre">self._metadata</span></code>).</p></li>
+<li><p>All other cross-cutting concerns are delegated to dedicated managers:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataModuleManager</span></code>       — datamodule lifecycle, featurization, label encoding</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">TrainingManager</span></code>         — Lightning Trainer, callbacks, training loop, fit state</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MLFlowManager</span></code>           — experiment tracking and artifact logging</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SerializationManager</span></code>    — save / load / export</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">UncertaintyManager</span></code>      — MC-dropout uncertainty and calibration</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ExplainabilityManager</span></code>   — LIME-based explanations</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">HPOManager</span></code>              — hyperparameter optimization via Optuna</p></li>
+</ul>
+</li>
+</ul>
+<p>Concrete subclasses must:</p>
+<ol class="arabic simple">
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">self._architecture</span></code> to the Lightning module class <strong>before</strong>
+calling <code class="docutils literal notranslate"><span class="pre">super().__init__(params)</span></code>.</p></li>
+<li><p>Implement <code class="docutils literal notranslate"><span class="pre">_create_datamodule(datamodule_params,</span> <span class="pre">train_params)</span></code>
+to build the appropriate datamodule.</p></li>
+<li><p>Implement <code class="docutils literal notranslate"><span class="pre">_adapt_dict_for_modality(datamodule_params,</span> <span class="pre">model_params)</span></code>
+to adjust parameters for the specific modality (e.g. graph, CLM, tabular).</p></li>
+</ol>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – all the arguments required to make the neural network for
+the child class work, which are then split into datamodule_params,
+model_params and train_params</p>
+</dd>
+</dl>
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.calibrator">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">calibrator</span></span><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.calibrator" title="Link to this definition"></a></dt>
+<dd><p>The calibration object used for uncertainty calibration, or None.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.explainer">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">explainer</span></span><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.explainer" title="Link to this definition"></a></dt>
+<dd><p>The explainability object used for LIME explanations, or None.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.datamodule">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">datamodule</span></span><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.datamodule" title="Link to this definition"></a></dt>
+<dd><p>The Lightning datamodule managing featurization and batching.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.model">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">model</span></span><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.model" title="Link to this definition"></a></dt>
+<dd><p>The underlying Lightning model instance.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.is_fitted">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_fitted</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.is_fitted" title="Link to this definition"></a></dt>
+<dd><p>Whether the model has been successfully trained.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.is_classifier">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_classifier</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.is_classifier" title="Link to this definition"></a></dt>
+<dd><p>Whether this model instance is a classifier (vs regressor).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.task_type">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">task_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.task_type" title="Link to this definition"></a></dt>
+<dd><p>‘binary_classification’ or ‘regression’.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Inferred from the mixin</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.params">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">params</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="../../utils/schemas/sklearn_api/index.html#matcha.utils.schemas.sklearn_api.ScikitLearnInputModel" title="matcha.utils.schemas.sklearn_api.ScikitLearnInputModel"><span class="pre">matcha.utils.schemas.sklearn_api.ScikitLearnInputModel</span></a></em><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.params" title="Link to this definition"></a></dt>
+<dd><p>Assembled on demand from canonical sources — no drift possible.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.set_mlflow_experiment">
+<span class="sig-name descname"><span class="pre">set_mlflow_experiment</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">experiment_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'run'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'./matcha_log'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_uri</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.set_mlflow_experiment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.set_mlflow_experiment" title="Link to this definition"></a></dt>
+<dd><p>Sets the experiment name and run name for the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>experiment_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – name of the experiment to set</p></li>
+<li><p><strong>run_name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – name of the run to associate with the experiment</p></li>
+<li><p><strong>tag</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><em>None</em>) – tags to associate with the run</p></li>
+<li><p><strong>log_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – directory for logging</p></li>
+<li><p><strong>server_uri</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – MLflow server URI</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.transform">
+<span class="sig-name descname"><span class="pre">transform</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bound_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_training</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.transform"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.transform" title="Link to this definition"></a></dt>
+<dd><p>Transforms a list of molecules into the input shape required by the model
+architecture. Will infer whether to fit standardizers depending on whether
+the y vector is passed or not.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mols</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>]</em>) – list of rdkit molecules to featurize</p></li>
+<li><p><strong>y</strong> (<em>np.ndarray</em>) – property labels for each molecule (if present). If not
+present, it will switch to test set mode</p></li>
+<li><p><strong>bound_mask</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – list of str (N) defining whether the value
+is exact or is ‘less than’ / ‘more than’, will be ignored if set
+to None</p></li>
+<li><p><strong>is_training</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – whether to fit a new standard scaler or not (
+relevant for validation sets for early stopping)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return StackDataset<span class="colon">:</span></dt>
+<dd class="field-even"><p>featurized dataset ready to be batched for training
+or inference</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bound_mask</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">validation_set</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.fit" title="Link to this definition"></a></dt>
+<dd><p>Runs training with the desired model architecture with early stopping on 10%
+of the training dataset. Optionally, will add a few more epochs on top with
+SWA.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>] </em><em>| </em><em>StackDataset</em>) – either a list of molecules, or a StackDataset computed by
+the appropriate datamodule, which contains both the input and labels
+for training</p></li>
+<li><p><strong>y</strong> (<em>np.ndarray</em><em> | </em><em>None</em>) – either property labels in a numpy array or None
+if a StackDataset was passed for x, defaults to None</p></li>
+<li><p><strong>bound_mask</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – list of str (N) defining whether the value
+is exact or is ‘less than’ / ‘more than’, will be ignored if set
+to None</p></li>
+<li><p><strong>validation_set</strong> (<em>StackDataset</em><em> | </em><em>None</em>) – pre-transformed data to use for early-stopping,
+defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.calibrate_uncertainty">
+<span class="sig-name descname"><span class="pre">calibrate_uncertainty</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">calibration_mols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration_y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'inductive_conformal'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">algorithm_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.calibrate_uncertainty"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.calibrate_uncertainty" title="Link to this definition"></a></dt>
+<dd><p>Calibrate uncertainty estimates using a calibration set.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>calibration_mols</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>]</em>) – molecules for calibration</p></li>
+<li><p><strong>calibration_y</strong> (<em>np.ndarray</em>) – true labels for calibration</p></li>
+<li><p><strong>num_iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – MC dropout iterations</p></li>
+<li><p><strong>algorithm</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – calibration algorithm name</p></li>
+<li><p><strong>algorithm_args</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><em>None</em>) – arguments for the calibration algorithm</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.compute_uncertainty">
+<span class="sig-name descname"><span class="pre">compute_uncertainty</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">devices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.compute_uncertainty"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.compute_uncertainty" title="Link to this definition"></a></dt>
+<dd><p>Computes uncertainty via Monte Carlo dropout for a test set.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>] </em><em>| </em><em>StackDataset</em>) – input to compute uncertainty for</p></li>
+<li><p><strong>num_iterations</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – how many iterations of dropout to do</p></li>
+<li><p><strong>accelerator</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – hardware to use for predictions</p></li>
+<li><p><strong>devices</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – how many resources to use</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – batch size to use</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return np.ndarray<span class="colon">:</span></dt>
+<dd class="field-even"><p>array with the uncertainty for each prediction</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.compute_learned_embedding">
+<span class="sig-name descname"><span class="pre">compute_learned_embedding</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">devices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.compute_learned_embedding"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.compute_learned_embedding" title="Link to this definition"></a></dt>
+<dd><p>Returns learned fingerprints from the model. Can be either the output
+of the encoder or the representation from the last layer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>] </em><em>| </em><em>StackDataset</em>) – input (X,) to compute learned embeddings for</p></li>
+<li><p><strong>accelerator</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – hardware to use, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>devices</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – how many resources to use, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – batch size to use, if None
+it is kept as training settings, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return np.ndarray<span class="colon">:</span></dt>
+<dd class="field-even"><p>learned representation for the input, with dimensionality
+(X, fp_dim)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.annotate">
+<span class="sig-name descname"><span class="pre">annotate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dictionary</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.annotate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.annotate" title="Link to this definition"></a></dt>
+<dd><p>Stores arbitrary dictionaries in params.metadata.extra under the specified key.
+If the key already exists, a warning is logged and the value is overwritten.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – key to store the dictionary under in metadata.extra</p></li>
+<li><p><strong>dict</strong> (<em>dictionary</em>) – dictionary to store in params.metadata.extra[key]</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.quantize">
+<span class="sig-name descname"><span class="pre">quantize</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.quantize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.quantize" title="Link to this definition"></a></dt>
+<dd><p>Apply dynamic quantization to the model.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.save_model">
+<span class="sig-name descname"><span class="pre">save_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.save_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.save_model" title="Link to this definition"></a></dt>
+<dd><p>Saves all components of a sklearn model into the target folder.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – folder where to store the components</p></li>
+<li><p><strong>quantize</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – whether to quantize the model before saving</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.get_input_args">
+<span class="sig-name descname"><span class="pre">get_input_args</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.get_input_args"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.get_input_args" title="Link to this definition"></a></dt>
+<dd><p>Returns the input arguments for the model as a dictionary.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.export_to_yaml">
+<span class="sig-name descname"><span class="pre">export_to_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.export_to_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.export_to_yaml" title="Link to this definition"></a></dt>
+<dd><p>Export the model configuration YAMLs to a directory (no weights, no state).</p>
+<p>Writes the same <code class="docutils literal notranslate"><span class="pre">config/</span></code> subtree that <a class="reference internal" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.save_model" title="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.save_model"><code class="xref py py-meth docutils literal notranslate"><span class="pre">save_model()</span></code></a> produces,
+so the output can be inspected, version-controlled, or used as a template.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – directory where the config YAMLs will be written</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.from_folder">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">folder_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cuda'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><span class="pre">object</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.from_folder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.from_folder" title="Link to this definition"></a></dt>
+<dd><p>Constructor method to generate a fully restored copy of a saved sklearn model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>folder_path</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – location of folder with saved model artifacts</p></li>
+<li><p><strong>accelerator</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – accelerator to use for model loading</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return object<span class="colon">:</span></dt>
+<dd class="field-even"><p>fully restored class instance</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.from_config">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><span class="pre">object</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.from_config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.from_config" title="Link to this definition"></a></dt>
+<dd><p>Constructor method to create a new class instance “shell” from saved params.</p>
+<p>Expects a structured dict with top-level keys:
+<code class="docutils literal notranslate"><span class="pre">model</span></code>, <code class="docutils literal notranslate"><span class="pre">training</span></code>, <code class="docutils literal notranslate"><span class="pre">datamodule</span></code>, <code class="docutils literal notranslate"><span class="pre">metadata</span></code>,
+and optionally <code class="docutils literal notranslate"><span class="pre">calibration</span></code>, <code class="docutils literal notranslate"><span class="pre">tuning</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>param_dict</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – structured parameter dictionary</p>
+</dd>
+<dt class="field-even">Return object<span class="colon">:</span></dt>
+<dd class="field-even"><p>class instance with architecture but no fitted weights</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.tune">
+<span class="sig-name descname"><span class="pre">tune</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_set</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_set</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">architecture_search_budget</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">architecture_grid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_search_budget</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">30</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">optimizer_grid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scheduler_grid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.tune"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.tune" title="Link to this definition"></a></dt>
+<dd><p>Hyperparameter tuning routine.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>train_set</strong> (<em>StackDataset</em>) – dataset to use for training</p></li>
+<li><p><strong>val_set</strong> (<em>StackDataset</em>) – target to tune parameters against</p></li>
+<li><p><strong>architecture_search_budget</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – iterations for architecture search</p></li>
+<li><p><strong>architecture_grid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><em>None</em>) – architecture parameters to tune</p></li>
+<li><p><strong>optimizer_search_budget</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – iterations for optimizer search</p></li>
+<li><p><strong>optimizer_grid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><em>None</em>) – optimizer parameters to tune</p></li>
+<li><p><strong>scheduler_grid</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em> | </em><em>None</em>) – scheduler parameters to tune</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return tuple<span class="colon">:</span></dt>
+<dd class="field-even"><p>study objects from Optuna for architecture and optimizer</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.explain_prediction">
+<span class="sig-name descname"><span class="pre">explain_prediction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rdkit.Chem.rdchem.Mol</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lime_bootstrap_num</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">25</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lime_descriptor_set</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_std</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.explain_prediction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.explain_prediction" title="Link to this definition"></a></dt>
+<dd><p>Generate LIME explanations for a molecule prediction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input</strong> (<em>Mol</em>) – RDKit molecule to explain</p></li>
+<li><p><strong>task_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – index of the task to explain</p></li>
+<li><p><strong>lime_bootstrap_num</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of bootstrap iterations for LIME</p></li>
+<li><p><strong>lime_descriptor_set</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – RDKit descriptors for LIME</p></li>
+<li><p><strong>use_std</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – use uncertainty estimates for predictions</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return MatchaExplanation<span class="colon">:</span></dt>
+<dd class="field-even"><p>LIME results with plotting methods</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.configure_label_encoder">
+<span class="sig-name descname"><span class="pre">configure_label_encoder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.configure_label_encoder"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.configure_label_encoder" title="Link to this definition"></a></dt>
+<dd><p>Configure the label encoder with the given parameters.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – label encoder configuration dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.configure_label_encoder_task">
+<span class="sig-name descname"><span class="pre">configure_label_encoder_task</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_idx</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_label</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_thresholds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">class_labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.configure_label_encoder_task"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.configure_label_encoder_task" title="Link to this definition"></a></dt>
+<dd><p>Configure a single task in the label encoder.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>task_idx</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – index of the task to configure</p></li>
+<li><p><strong>task_label</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – human-readable label for the task</p></li>
+<li><p><strong>class_thresholds</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>] </em><em>| </em><em>None</em>) – thresholds for binarization</p></li>
+<li><p><strong>class_labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>) – class label names</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.parse_output">
+<span class="sig-name descname"><span class="pre">parse_output</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">tag</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">convert_to_labels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.parse_output"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.parse_output" title="Link to this definition"></a></dt>
+<dd><p>Parse raw model output into a structured format with label decoding.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>output</strong> (<em>np.ndarray</em>) – raw model predictions</p></li>
+<li><p><strong>tag</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – column name prefix for the output DataFrame</p></li>
+<li><p><strong>convert_to_labels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – whether to convert to class labels</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>parsed output as a DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.has_class_labels">
+<span class="sig-name descname"><span class="pre">has_class_labels</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#BaseScikitLearnModel.has_class_labels"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.has_class_labels" title="Link to this definition"></a></dt>
+<dd><p>Whether the label encoder has been configured with class labels.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>True if class labels are available</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)">bool</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.sklearn.base_sklearn_model.</span></span><span class="sig-name descname"><span class="pre">ScikitLearnRegressorMixin</span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#ScikitLearnRegressorMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin" title="Link to this definition"></a></dt>
+<dd><p>Mixin to add regression-specific methods to scikit-learn models</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">devices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#ScikitLearnRegressorMixin.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin.predict" title="Link to this definition"></a></dt>
+<dd><p>Wraps self._inner_predict to account for regression
+scenarios, mimicking the functioning of the original sklearn method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>] </em><em>| </em><em>StackDataset</em>) – input to compute predictions for</p></li>
+<li><p><strong>accelerator</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – hardware to use for predictions, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>devices</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – how many resources to use, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – batch size to use, if None
+it is kept as training settings, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return np.ndarray<span class="colon">:</span></dt>
+<dd class="field-even"><p>predictions for the input, modulated depending whether
+the model is a classifier or regressor</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.sklearn.base_sklearn_model.</span></span><span class="sig-name descname"><span class="pre">ScikitLearnClassifierMixin</span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#ScikitLearnClassifierMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin" title="Link to this definition"></a></dt>
+<dd><p>Mixin to add classification-specific methods to scikit-learn models</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin.predict_proba">
+<span class="sig-name descname"><span class="pre">predict_proba</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">devices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#ScikitLearnClassifierMixin.predict_proba"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin.predict_proba" title="Link to this definition"></a></dt>
+<dd><p>Allows to return probabilities instead of class labels for classification
+models.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>] </em><em>| </em><em>StackDataset</em>) – input to compute predictions for</p></li>
+<li><p><strong>accelerator</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – hardware to use for predictions, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>devices</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – how many resources to use, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – batch size to use, if None
+it is kept as training settings, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return np.ndarray<span class="colon">:</span></dt>
+<dd class="field-even"><p>class probabilities for the input</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><span class="pre">rdkit.Chem.rdchem.Mol</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/data.html#torch.utils.data.StackDataset" title="(in PyTorch v2.13)"><span class="pre">torch.utils.data.StackDataset</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">devices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#ScikitLearnClassifierMixin.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin.predict" title="Link to this definition"></a></dt>
+<dd><p>Wraps self._inner_predict to account for classification
+scenarios, mimicking the functioning of the original sklearn method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><em>Mol</em><em>] </em><em>| </em><em>StackDataset</em>) – input to compute predictions for</p></li>
+<li><p><strong>accelerator</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>) – hardware to use for predictions, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>devices</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – how many resources to use, if None
+it is kept as training settings, defaults to None</p></li>
+<li><p><strong>batch_size</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>) – batch size to use, if None
+it is kept as training settings, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return np.ndarray<span class="colon">:</span></dt>
+<dd class="field-even"><p>predictions for the input, modulated depending whether
+the model is a classifier or regressor</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin.encode_y">
+<span class="sig-name descname"><span class="pre">encode_y</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/sklearn/base_sklearn_model.html#ScikitLearnClassifierMixin.encode_y"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin.encode_y" title="Link to this definition"></a></dt>
+<dd><p>Convert raw, continuous values into a one-hot encoded matrix
+for classification.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>y</strong> (<em>np.ndarray</em>) – continuous target values</p>
+</dd>
+<dt class="field-even">Return np.ndarray<span class="colon">:</span></dt>
+<dd class="field-even"><p>one-hot encoded matrix</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="matcha.sklearn.base_sklearn_model.ScikitLearnModelRegistry">
+<span class="sig-prename descclassname"><span class="pre">matcha.sklearn.base_sklearn_model.</span></span><span class="sig-name descname"><span class="pre">ScikitLearnModelRegistry</span></span><a class="headerlink" href="#matcha.sklearn.base_sklearn_model.ScikitLearnModelRegistry" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

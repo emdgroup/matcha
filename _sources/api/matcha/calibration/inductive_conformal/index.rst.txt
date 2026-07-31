@@ -1,0 +1,181 @@
+matcha.calibration.inductive_conformal
+======================================
+
+.. py:module:: matcha.calibration.inductive_conformal
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.calibration.inductive_conformal.ICPCalibration
+   matcha.calibration.inductive_conformal.ICPRegressionCalibration
+   matcha.calibration.inductive_conformal.ICPClassificationCalibration
+
+
+Module Contents
+---------------
+
+.. py:class:: ICPCalibration
+
+   Bases: :py:obj:`matcha.calibration.base_calibration.BaseCalibration`
+
+
+   Abstract base class for Inductive Conformal Prediction (ICP) calibration.
+
+   This class provides the general framework for ICP, including methods to fit
+   the calibration model using nonconformity scores and compute calibrated
+   uncertainty estimates. Subclasses must implement the specific nonconformity
+   score computation for regression or classification tasks.
+
+   Supports multitask learning where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   The quantile calculation includes finite-sample correction to guarantee
+   valid coverage: q = ceil((n+1)(1-α)) / n
+
+
+   .. py:method:: fit(y_true: numpy.ndarray, y_pred: numpy.ndarray, y_error: numpy.ndarray | None = None) -> None
+
+      Fits the ICP calibration model using true and predicted values.
+
+      :param np.ndarray y_true: The true target values, shape (n_samples,) or (n_samples, n_tasks).
+      :param np.ndarray y_pred: The predicted target values.
+      :param np.ndarray | None y_error: Optional un-calibrated uncertainties to scale.
+
+
+
+   .. py:method:: compute_uncertainty(input: numpy.ndarray) -> numpy.ndarray
+      :abstractmethod:
+
+
+      Computes calibrated uncertainty based on the input data.
+
+      :param np.ndarray input: The input data for which to compute uncertainty.
+
+      :return: An array of calibrated uncertainty estimates.
+
+
+
+.. py:class:: ICPRegressionCalibration(confidence_alpha: float = 0.2)
+
+   Bases: :py:obj:`ICPCalibration`
+
+
+   Inductive Conformal Prediction calibration for regression tasks.
+
+   Computes calibrated prediction intervals using normalized absolute residuals
+   as nonconformity scores. Uses heteroscedastic calibration where residuals
+   are normalized by model uncertainty estimates.
+
+   Supports multitask regression where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = ICPRegressionCalibration(confidence_alpha=0.1)
+   >>> calibrator.fit(y_true_cal, y_pred_cal, y_error_cal)
+   >>> uncertainty = calibrator.compute_uncertainty(y_error_test)
+   >>> # Prediction interval: [y_pred - uncertainty, y_pred + uncertainty]
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: compute_uncertainty(input: numpy.ndarray) -> numpy.ndarray
+
+      Computes calibrated uncertainty estimates.
+
+      Scales input uncertainties by the calibration quantile (per-task).
+
+      :param np.ndarray input: Uncalibrated uncertainty estimates,
+          shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: An array of calibrated uncertainty estimates.
+
+
+
+.. py:class:: ICPClassificationCalibration(confidence_alpha: float = 0.2)
+
+   Bases: :py:obj:`ICPCalibration`
+
+
+   Inductive Conformal Prediction calibration for multitask binary classification.
+
+   Each task is treated as an independent binary classification problem
+   (sigmoid activation, not softmax). Computes calibrated prediction sets
+   using 1 - probability of true class as nonconformity scores.
+
+   Supports multitask classification where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = ICPClassificationCalibration(confidence_alpha=0.1)
+   >>> calibrator.fit(y_true_cal, y_pred_proba_cal)  # y_pred_proba: P(class=1) for each task
+   >>> p_values = calibrator.compute_uncertainty(y_pred_proba_test)
+   >>> # Prediction set for task i: include class 1 if p_values[:, i] > alpha
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: fit(y_true: numpy.ndarray, y_pred: numpy.ndarray, y_error: numpy.ndarray | None = None) -> None
+
+      Fits the ICP classification calibration model for multitask binary classification.
+
+      Stores the calibration nonconformity scores per task for computing p-values.
+
+      :param np.ndarray y_true: True binary labels, shape (n_samples,) or (n_samples, n_tasks).
+      :param np.ndarray y_pred: Predicted probabilities for class 1.
+      :param np.ndarray | None y_error: Unused for classification.
+
+
+
+   .. py:method:: compute_uncertainty(input: numpy.ndarray) -> numpy.ndarray
+
+      Computes p-values for each task based on predicted probabilities.
+
+      For each sample and each task, computes p-values for both class 0 and class 1.
+      The p-value is the proportion of calibration scores >= test nonconformity score.
+
+      :param np.ndarray input: Predicted probabilities for class 1,
+          shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: Array of p-values for class 1, shape (n_samples, n_tasks).
+          To get p-values for class 0, use the complementary probability.
+
+
+
+   .. py:method:: compute_p_values_both_classes(input: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]
+
+      Computes p-values for both classes (0 and 1) for each task.
+
+      :param np.ndarray input: Predicted probabilities for class 1,
+          shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: Tuple of (p_values_class_0, p_values_class_1), each shape (n_samples, n_tasks).
+
+
+
+   .. py:method:: predict_sets(input: numpy.ndarray, alpha: float | None = None) -> numpy.ndarray
+
+      Generates prediction confidence indicators at the specified significance level.
+
+      For each sample and each task, returns an integer indicating the
+      prediction status:
+
+      *  ``1``  — **confident**: exactly one class is in the prediction set.
+      *  ``0``  — **uncertain**: both classes are in the prediction set.
+      * ``-1``  — **unusual**: neither class is in the prediction set
+        (signals possible distribution shift).
+
+      :param np.ndarray input: Predicted probabilities for class 1,
+          shape (n_samples,) or (n_samples, n_tasks).
+      :param float | None alpha: Significance level. If None, uses confidence_alpha.
+
+      :return: Integer array of shape (n_samples, n_tasks) with values in {-1, 0, 1}.
+
+
+

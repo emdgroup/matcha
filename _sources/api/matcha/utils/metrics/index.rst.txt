@@ -1,0 +1,49 @@
+matcha.utils.metrics
+====================
+
+.. py:module:: matcha.utils.metrics
+
+.. autoapi-nested-parse::
+
+   Metrics computation for regression and classification model evaluation.
+
+   Provides functions for calculating standard performance metrics, handling
+   censored data, and computing enrichment factors for ranking tasks.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.utils.metrics.process_censor
+   matcha.utils.metrics.process_regression
+   matcha.utils.metrics.enrichment_factor_score
+   matcha.utils.metrics.process_classification
+
+
+Module Contents
+---------------
+
+.. py:function:: process_censor(labels: numpy.ndarray, predictions: numpy.ndarray, censor: list[str]) -> numpy.ndarray
+
+   Apply censoring constraints to predictions based on label bounds and censor indicators.
+
+
+.. py:function:: process_regression(labels: numpy.ndarray, predictions: numpy.ndarray, log10: bool = False) -> numpy.ndarray
+
+   Calculate regression metrics including R2, RMSE, MAE, Spearman correlation, and fold accuracy.
+
+
+.. py:function:: enrichment_factor_score(y_true: numpy.ndarray, y_prob: numpy.ndarray) -> float
+
+   Function to compute Enrichment Factor using precomputed binary labels
+   according to the threshold set in process_ranking
+
+
+.. py:function:: process_classification(labels: numpy.ndarray, predictions: numpy.ndarray, probabilities: numpy.ndarray, model: matcha.sklearn.base_sklearn_model.BaseScikitLearnModel | None = None) -> numpy.ndarray
+
+   Calculate classification metrics including accuracy, F1, precision, recall, ROC-AUC, and PR-AUC.
+
+

@@ -1,0 +1,579 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.readouts &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.nn.readouts</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/nn/readouts/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.nn.readouts">
+<span id="matcha-nn-readouts"></span><h1>matcha.nn.readouts<a class="headerlink" href="#module-matcha.nn.readouts" title="Link to this heading"></a></h1>
+<p>Graph readout (pooling) layers registered in the <a class="reference internal" href="#matcha.nn.readouts.ReadoutRegistry" title="matcha.nn.readouts.ReadoutRegistry"><code class="xref py py-data docutils literal notranslate"><span class="pre">ReadoutRegistry</span></code></a>.</p>
+<section id="attributes">
+<h2>Attributes<a class="headerlink" href="#attributes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.ReadoutRegistry" title="matcha.nn.readouts.ReadoutRegistry"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ReadoutRegistry</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p></td>
+<td><p>Wrapper to adapt PyG aggregation classes to the matcha readout interface.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.SumPooling" title="matcha.nn.readouts.SumPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SumPooling</span></code></a></p></td>
+<td><p>Sum aggregation over node features.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.MeanPooling" title="matcha.nn.readouts.MeanPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MeanPooling</span></code></a></p></td>
+<td><p>Mean aggregation over node features.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.MaxPooling" title="matcha.nn.readouts.MaxPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MaxPooling</span></code></a></p></td>
+<td><p>Max aggregation over node features.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.MinPooling" title="matcha.nn.readouts.MinPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MinPooling</span></code></a></p></td>
+<td><p>Min aggregation over node features.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.MulPooling" title="matcha.nn.readouts.MulPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MulPooling</span></code></a></p></td>
+<td><p>Multiplicative aggregation over node features.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.VarPooling" title="matcha.nn.readouts.VarPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VarPooling</span></code></a></p></td>
+<td><p>Variance aggregation over node features.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.StdPooling" title="matcha.nn.readouts.StdPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">StdPooling</span></code></a></p></td>
+<td><p>Standard deviation aggregation over node features.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.MedianPooling" title="matcha.nn.readouts.MedianPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MedianPooling</span></code></a></p></td>
+<td><p>Median aggregation over node features.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.VariancePreservingPooling" title="matcha.nn.readouts.VariancePreservingPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VariancePreservingPooling</span></code></a></p></td>
+<td><p>Variance-preserving aggregation over node features.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.QuantilePooling" title="matcha.nn.readouts.QuantilePooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">QuantilePooling</span></code></a></p></td>
+<td><p>Quantile aggregation over node features.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.SoftmaxPooling" title="matcha.nn.readouts.SoftmaxPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SoftmaxPooling</span></code></a></p></td>
+<td><p>Softmax aggregation based on a temperature term.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.PowerMeanPooling" title="matcha.nn.readouts.PowerMeanPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PowerMeanPooling</span></code></a></p></td>
+<td><p>Power mean aggregation based on a power term.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.LSTMPooling" title="matcha.nn.readouts.LSTMPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LSTMPooling</span></code></a></p></td>
+<td><p>LSTM-style aggregation treating nodes as a sequence.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.GRUPooling" title="matcha.nn.readouts.GRUPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GRUPooling</span></code></a></p></td>
+<td><p>GRU aggregation treating nodes as a sequence.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.Set2SetPooling" title="matcha.nn.readouts.Set2SetPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Set2SetPooling</span></code></a></p></td>
+<td><p>Set2Set aggregation based on iterative content-based attention.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.SortPooling" title="matcha.nn.readouts.SortPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SortPooling</span></code></a></p></td>
+<td><p>Sort aggregation where node features are sorted in descending order.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.AttentivePooling" title="matcha.nn.readouts.AttentivePooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AttentivePooling</span></code></a></p></td>
+<td><p>Soft attention aggregation from Graph Matching Networks.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.GraphMultisetTransformerPooling" title="matcha.nn.readouts.GraphMultisetTransformerPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GraphMultisetTransformerPooling</span></code></a></p></td>
+<td><p>Graph Multiset Transformer pooling.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.MLPPooling" title="matcha.nn.readouts.MLPPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MLPPooling</span></code></a></p></td>
+<td><p>MLP aggregation where elements are flattened and processed by an MLP.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.DeepSetsPooling" title="matcha.nn.readouts.DeepSetsPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DeepSetsPooling</span></code></a></p></td>
+<td><p>Deep Sets aggregation with element-wise MLP, sum, and final MLP.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.SetTransformerPooling" title="matcha.nn.readouts.SetTransformerPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SetTransformerPooling</span></code></a></p></td>
+<td><p>Set Transformer aggregation with multi-head attention blocks.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.LCMPooling" title="matcha.nn.readouts.LCMPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LCMPooling</span></code></a></p></td>
+<td><p>Learnable Commutative Monoid aggregation using binary tree reduction.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.MultiPooling" title="matcha.nn.readouts.MultiPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MultiPooling</span></code></a></p></td>
+<td><p>Combines multiple aggregations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.readouts.DegreeScalerPooling" title="matcha.nn.readouts.DegreeScalerPooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DegreeScalerPooling</span></code></a></p></td>
+<td><p>Combines aggregators with degree-based scalers (PNA-style).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.readouts.VirtualNodePooling" title="matcha.nn.readouts.VirtualNodePooling"><code class="xref py py-obj docutils literal notranslate"><span class="pre">VirtualNodePooling</span></code></a></p></td>
+<td><p>Extracts the virtual node representation as the graph embedding.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py data">
+<dt class="sig sig-object py" id="matcha.nn.readouts.ReadoutRegistry">
+<span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">ReadoutRegistry</span></span><a class="headerlink" href="#matcha.nn.readouts.ReadoutRegistry" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.PyGAggregationWrapper">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">PyGAggregationWrapper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aggregation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch_geometric.nn.aggr.Aggregation</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#PyGAggregationWrapper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.PyGAggregationWrapper" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Wrapper to adapt PyG aggregation classes to the matcha readout interface.</p>
+<p>PyG aggregations expect (x, index) while matcha readouts expect (graph, x).
+This wrapper handles the conversion.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.readouts.PyGAggregationWrapper.aggregation">
+<span class="sig-name descname"><span class="pre">aggregation</span></span><a class="headerlink" href="#matcha.nn.readouts.PyGAggregationWrapper.aggregation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.readouts.PyGAggregationWrapper.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch_geometric.data.Batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#PyGAggregationWrapper.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.PyGAggregationWrapper.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>graph</strong> (<em>torch_geometric.data.Batch</em>) – PyG batch containing the <code class="docutils literal notranslate"><span class="pre">batch</span></code> assignment vector.</p></li>
+<li><p><strong>x</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Node features of shape <code class="docutils literal notranslate"><span class="pre">(total_nodes,</span> <span class="pre">feat_dim)</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Graph-level features of shape <code class="docutils literal notranslate"><span class="pre">(num_graphs,</span> <span class="pre">feat_dim)</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.SumPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">SumPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#SumPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.SumPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Sum aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.MeanPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">MeanPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#MeanPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.MeanPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Mean aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.MaxPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">MaxPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#MaxPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.MaxPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Max aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.MinPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">MinPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#MinPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.MinPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Min aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.MulPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">MulPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#MulPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.MulPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Multiplicative aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.VarPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">VarPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#VarPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.VarPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Variance aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.StdPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">StdPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#StdPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.StdPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Standard deviation aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.MedianPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">MedianPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#MedianPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.MedianPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Median aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.VariancePreservingPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">VariancePreservingPooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#VariancePreservingPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.VariancePreservingPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Variance-preserving aggregation over node features.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.QuantilePooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">QuantilePooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">q</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#QuantilePooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.QuantilePooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Quantile aggregation over node features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>q</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – The quantile to compute (between 0 and 1).</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.SoftmaxPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">SoftmaxPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">learn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">semi_grad</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#SoftmaxPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.SoftmaxPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Softmax aggregation based on a temperature term.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>learn</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to learn the temperature parameter.</p></li>
+<li><p><strong>t</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Initial temperature value.</p></li>
+<li><p><strong>semi_grad</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, does not compute gradients for temperature.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.PowerMeanPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">PowerMeanPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">learn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#PowerMeanPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.PowerMeanPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Power mean aggregation based on a power term.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>learn</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to learn the power parameter.</p></li>
+<li><p><strong>p</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Initial power value.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.LSTMPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">LSTMPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#LSTMPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.LSTMPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>LSTM-style aggregation treating nodes as a sequence.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>out_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each output sample.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.GRUPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">GRUPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#GRUPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.GRUPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>GRU aggregation treating nodes as a sequence.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>out_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each output sample.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.Set2SetPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">Set2SetPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">processing_steps</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#Set2SetPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.Set2SetPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Set2Set aggregation based on iterative content-based attention.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>processing_steps</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of processing steps.</p></li>
+<li><p><strong>num_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of recurrent layers.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.SortPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">SortPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#SortPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.SortPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Sort aggregation where node features are sorted in descending order.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>k</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – The number of nodes to hold for each graph.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.AttentivePooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">AttentivePooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gate_nn_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">nn_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#AttentivePooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.AttentivePooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Soft attention aggregation from Graph Matching Networks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gate_nn_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Hidden channels for the gate network.</p></li>
+<li><p><strong>nn_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Hidden channels for the feature network (optional).</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.GraphMultisetTransformerPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">GraphMultisetTransformerPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pool_sequences</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">['GMPool_G',</span> <span class="pre">'SelfAtt',</span> <span class="pre">'GMPool_I']</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#GraphMultisetTransformerPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.GraphMultisetTransformerPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Graph Multiset Transformer pooling.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>hidden_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of hidden layer.</p></li>
+<li><p><strong>out_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each output sample.</p></li>
+<li><p><strong>num_heads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of attention heads.</p></li>
+<li><p><strong>pool_sequences</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Pool sequences parameter.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.MLPPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">MLPPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_num_elements</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#MLPPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.MLPPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>MLP aggregation where elements are flattened and processed by an MLP.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>out_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each output sample.</p></li>
+<li><p><strong>max_num_elements</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Maximum number of elements to aggregate.</p></li>
+<li><p><strong>hidden_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Hidden layer size (optional).</p></li>
+<li><p><strong>num_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of MLP layers.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.DeepSetsPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">DeepSetsPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#DeepSetsPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.DeepSetsPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Deep Sets aggregation with element-wise MLP, sum, and final MLP.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>out_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each output sample.</p></li>
+<li><p><strong>hidden_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Hidden layer size (optional).</p></li>
+<li><p><strong>num_layers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of MLP layers in each network.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.SetTransformerPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">SetTransformerPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_seed_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_encoder_blocks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_decoder_blocks</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#SetTransformerPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.SetTransformerPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Set Transformer aggregation with multi-head attention blocks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>out_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each output sample.</p></li>
+<li><p><strong>hidden_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of hidden layer (optional).</p></li>
+<li><p><strong>num_heads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of attention heads.</p></li>
+<li><p><strong>num_seed_points</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of seed vectors.</p></li>
+<li><p><strong>num_encoder_blocks</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of encoder blocks.</p></li>
+<li><p><strong>num_decoder_blocks</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of decoder blocks.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.LCMPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">LCMPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_channels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">project</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#LCMPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.LCMPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Learnable Commutative Monoid aggregation using binary tree reduction.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each input sample.</p></li>
+<li><p><strong>out_channels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Size of each output sample.</p></li>
+<li><p><strong>project</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Whether to project inputs/outputs.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.MultiPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">MultiPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aggrs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'attn'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode_kwargs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#MultiPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.MultiPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Combines multiple aggregations.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>aggrs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of aggregation names to combine.</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Combination mode (‘cat’, ‘proj’, ‘attn’, ‘sum’, ‘mean’, ‘max’, ‘min’, ‘logsumexp’, ‘std’, ‘var’).</p></li>
+<li><p><strong>mode_kwargs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Additional kwargs for the combination mode.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.DegreeScalerPooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">DegreeScalerPooling</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">aggrs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">scalers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">deg</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#DegreeScalerPooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.DegreeScalerPooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.readouts.PyGAggregationWrapper" title="matcha.nn.readouts.PyGAggregationWrapper"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PyGAggregationWrapper</span></code></a></p>
+<p>Combines aggregators with degree-based scalers (PNA-style).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>aggrs</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of aggregation names to combine.</p></li>
+<li><p><strong>scalers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>) – List of scaler names (‘identity’, ‘amplification’, ‘attenuation’, ‘linear’, ‘inverse_linear’).</p></li>
+<li><p><strong>deg</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Degree tensor or average degree.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.readouts.VirtualNodePooling">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.readouts.</span></span><span class="sig-name descname"><span class="pre">VirtualNodePooling</span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#VirtualNodePooling"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.VirtualNodePooling" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Extracts the virtual node representation as the graph embedding.</p>
+<p>Assumes virtual nodes are added at the end of each graph.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.readouts.VirtualNodePooling.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch_geometric.data.Batch</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">feat</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/readouts.html#VirtualNodePooling.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.readouts.VirtualNodePooling.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>graph</strong> (<em>torch_geometric.data.Batch</em>) – PyG batch with a <code class="docutils literal notranslate"><span class="pre">ptr</span></code> attribute.</p></li>
+<li><p><strong>feat</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Node features of shape <code class="docutils literal notranslate"><span class="pre">(total_nodes,</span> <span class="pre">feat_dim)</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Virtual-node features of shape <code class="docutils literal notranslate"><span class="pre">(num_graphs,</span> <span class="pre">feat_dim)</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

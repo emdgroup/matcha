@@ -1,0 +1,166 @@
+matcha.utils
+============
+
+.. py:module:: matcha.utils
+
+.. autoapi-nested-parse::
+
+   Utility functions and classes for the matcha framework.
+
+   Provides serialization helpers (JSON, YAML, pickle), logging, warning
+   suppression, and a generic wrapper class.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/utils/logging/index
+   /api/matcha/utils/metrics/index
+   /api/matcha/utils/plotting/index
+   /api/matcha/utils/registry/index
+   /api/matcha/utils/sanitize/index
+   /api/matcha/utils/schemas/index
+   /api/matcha/utils/serialization/index
+   /api/matcha/utils/splitting/index
+   /api/matcha/utils/warnings/index
+   /api/matcha/utils/wrapper/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.Wrapper
+   matcha.utils.MatchaLogger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.utils.load_json
+   matcha.utils.save_json
+   matcha.utils.load_yaml
+   matcha.utils.save_yaml
+   matcha.utils.load_pickle
+   matcha.utils.save_pickle
+   matcha.utils.silence_nuisance_warnings
+
+
+Package Contents
+----------------
+
+.. py:function:: load_json(path: str)
+
+   Loads the json as a dictionary
+
+
+.. py:function:: save_json(path: str, object: save_json.object)
+
+   Saves the object in the desired path as a readable json
+
+
+.. py:function:: load_yaml(path: str)
+
+   Loads a yaml dict from file
+
+
+.. py:function:: save_yaml(path: str, object: save_yaml.object)
+
+   Saves the object in the desired path as a readable yaml
+
+
+.. py:function:: load_pickle(path: str)
+
+   Reloads the object from a pickle file
+
+
+.. py:function:: save_pickle(path: str, object: save_pickle.object)
+
+   Saves the object in the desired path as a pickle
+
+
+.. py:class:: Wrapper(method_name: str, module_name: str)
+
+   Utility class to wrap a module so that it can be used in parallel via
+   joblib. This is typically necessary with some RDKIT functions.
+
+
+   .. py:attribute:: method_name
+
+
+   .. py:attribute:: module
+
+
+   .. py:property:: method
+
+      Resolve and return the wrapped callable from the imported module.
+
+      :returns: The function or method referenced by :attr:`method_name`.
+      :rtype: Callable
+
+
+.. py:function:: silence_nuisance_warnings()
+
+   Suppress known non-actionable warnings from PyTorch Lightning, Optuna,
+   atomInSmiles, Hugging Face, and RDKit.
+
+   This function should be called early in the application lifecycle to
+   prevent noisy but harmless warning messages from cluttering logs.
+
+
+.. py:class:: MatchaLogger(experiment_name=None, run_name=None, **kwargs)
+
+   Bases: :py:obj:`lightning.pytorch.loggers.MLFlowLogger`
+
+
+   Custom MLflow logger for matcha that defers hyperparameter logging
+   and prevents premature experiment finalization.
+
+
+   .. py:property:: store
+      :type: bool
+
+
+      Whether hyperparameter logging is enabled.
+
+      :returns: ``True`` if logging is active, ``False`` otherwise.
+      :rtype: bool
+
+
+   .. py:method:: finalize(status: str = 'success')
+
+      Override original finalize method to prevent closing the experiment
+      once training is finished, and logging of raw pytorch artifacts
+
+
+
+   .. py:method:: conclude_experiment()
+
+      Manually conclude the experiment.
+
+
+
+   .. py:method:: log_hyperparams(params: dict)
+
+      Simple wrapper to prevent params to be saved until the method
+      is called manually
+
+
+
+   .. py:method:: log_matcha_artifacts(folder_path: list[str])
+
+      Add default artifacts after training.
+
+      Handles both files and subdirectories. Files are logged at the
+      artifact root; subdirectories are logged with their relative path
+      preserved.
+
+
+

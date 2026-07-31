@@ -1,0 +1,690 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.sklearn.finetuner &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.sklearn.finetuner</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.sklearn.finetuner</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Finetuning wrappers for pretrained models via the scikit-learn-compatible API.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">L</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombinedDataModule</span><span class="p">,</span> <span class="n">TabularDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.finetuning</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropFinetuner</span><span class="p">,</span> <span class="n">Finetuner</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.finetuning.finetuner</span><span class="w"> </span><span class="kn">import</span> <span class="n">_SELF_CONTAINED_SENTINEL</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseScikitLearnModel</span><span class="p">,</span>
+    <span class="n">ScikitLearnClassifierMixin</span><span class="p">,</span>
+    <span class="n">ScikitLearnModelRegistry</span><span class="p">,</span>
+    <span class="n">ScikitLearnRegressorMixin</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.managers</span><span class="w"> </span><span class="kn">import</span> <span class="n">FinetunerTrainingManager</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_yaml</span><span class="p">,</span> <span class="n">load_pickle</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.sklearn_api</span><span class="w"> </span><span class="kn">import</span> <span class="n">TrainingInputModel</span><span class="p">,</span> <span class="n">MetadataInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
+
+
+<div class="viewcode-block" id="BaseFinetuner">
+<a class="viewcode-back" href="../../../api/matcha/sklearn/finetuner/index.html#matcha.sklearn.finetuner.BaseFinetuner">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BaseFinetuner</span><span class="p">(</span><span class="n">BaseScikitLearnModel</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for finetuning pretrained encoders on downstream tasks.</span>
+
+<span class="sd">    Unlike standard sklearn-API models that train from scratch, finetuners</span>
+<span class="sd">    load a pretrained encoder (classic or pretraining-origin) and attach</span>
+<span class="sd">    a new prediction head. The encoder can be frozen, fully finetuned,</span>
+<span class="sd">    or adapted via LoRA depending on ``finetuning_strategy``.</span>
+
+<span class="sd">    Subclasses :class:`FinetuningRegressor` and :class:`FinetuningClassifier`</span>
+<span class="sd">    combine this base with the appropriate task mixin.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="c1"># Reuse the canonical _start_setup() from BaseScikitLearnModel so that</span>
+        <span class="c1"># any new managers added there are automatically picked up.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_start_setup</span><span class="p">()</span>
+
+        <span class="c1"># Override the training manager with the finetuner-specific variant</span>
+        <span class="c1"># (provides custom MLflow logging behaviour).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_training_manager</span> <span class="o">=</span> <span class="n">FinetunerTrainingManager</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_make_model_instance</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Placeholder — model creation is handled by :meth:`reload_pretrained`.&quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_adapt_dict_for_modality</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">model_params</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">dict</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;No modality-specific adaptation needed for finetuners.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">datamodule_params</span><span class="p">,</span> <span class="n">model_params</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_datamodule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">datamodule_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">train_params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Not used — finetuner restores datamodule from pretrained state.&quot;&quot;&quot;</span>
+        <span class="k">pass</span>
+
+    <span class="c1"># @classmethod</span>
+    <span class="c1"># def from_config(cls, param_dict, create_empty=True):</span>
+    <span class="c1">#     params = copy.deepcopy(param_dict)</span>
+    <span class="c1">#     try:</span>
+    <span class="c1">#         class_instance = super().from_config(params)</span>
+    <span class="c1">#     except Exception as e:</span>
+    <span class="c1">#         original_path = params[&#39;model&#39;][&#39;path_to_pretrained&#39;]</span>
+    <span class="c1">#         model_name = original_path.rstrip(&#39;/&#39;).split(&#39;/&#39;)[-1]</span>
+    <span class="c1">#         params[&#39;model&#39;][&#39;path_to_pretrained&#39;] = f&#39;/models/foundation/{model_name}&#39;</span>
+    <span class="c1">#         class_instance = super().from_config(params)</span>
+    <span class="c1">#     return class_instance</span>
+
+<div class="viewcode-block" id="BaseFinetuner.reload_pretrained">
+<a class="viewcode-back" href="../../../api/matcha/sklearn/finetuner/index.html#matcha.sklearn.finetuner.BaseFinetuner.reload_pretrained">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reload_pretrained</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path_to_pretrained</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span>
+        <span class="n">task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">},</span>
+        <span class="n">pretrain_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span><span class="p">,</span>
+        <span class="n">pretrain_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">,</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">finetuning_strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;full&quot;</span><span class="p">,</span>
+        <span class="n">lora_rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">lora_alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span><span class="p">,</span>
+        <span class="n">lora_min_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="n">stochastic_weight_averaging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">early_stopping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_map</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Load a pretrained model and configure the finetuning setup.</span>
+
+<span class="sd">        Restores the encoder and datamodule from a saved model folder,</span>
+<span class="sd">        creates a new prediction head, and configures training parameters</span>
+<span class="sd">        for downstream finetuning.</span>
+
+<span class="sd">        :param str path_to_pretrained: path to the saved pretrained model folder</span>
+<span class="sd">        :param list[int] pred_hidden_dims: hidden layer dimensions for the prediction head</span>
+<span class="sd">        :param list[int] | None task_head_dims: per-task head dimensions (multitask)</span>
+<span class="sd">        :param str activation: activation function name for the prediction head</span>
+<span class="sd">        :param float dropout: dropout rate for the prediction head</span>
+<span class="sd">        :param int num_endpoints: number of output endpoints (tasks)</span>
+<span class="sd">        :param str loss_fn: loss function name</span>
+<span class="sd">        :param dict loss_args: additional arguments for the loss function</span>
+<span class="sd">        :param str optimizer: optimizer name</span>
+<span class="sd">        :param dict optimizer_args: optimizer keyword arguments</span>
+<span class="sd">        :param float pretrain_lr: learning rate for the pretrained encoder layers</span>
+<span class="sd">        :param float pretrain_decay: LR decay factor for the pretrained encoder</span>
+<span class="sd">        :param str scheduler: learning rate scheduler name</span>
+<span class="sd">        :param dict scheduler_args: scheduler keyword arguments</span>
+<span class="sd">        :param str finetuning_strategy: one of &#39;full&#39;, &#39;frozen&#39;, or &#39;lora&#39;</span>
+<span class="sd">        :param int lora_rank: rank for LoRA adaptation</span>
+<span class="sd">        :param float lora_alpha: scaling factor for LoRA</span>
+<span class="sd">        :param int lora_min_dim: minimum dimension for LoRA layers</span>
+<span class="sd">        :param int num_epochs: number of training epochs</span>
+<span class="sd">        :param int batch_size: batch size for training</span>
+<span class="sd">        :param bool stochastic_weight_averaging: whether to apply SWA</span>
+<span class="sd">        :param bool early_stopping: whether to use early stopping</span>
+<span class="sd">        :param int patience: early stopping patience (epochs)</span>
+<span class="sd">        :param int devices: number of devices to use</span>
+<span class="sd">        :param str accelerator: hardware accelerator type</span>
+<span class="sd">        :param bool clip: whether to clip predictions to training range</span>
+<span class="sd">        :param dict label_encoder_params: label encoder configuration</span>
+<span class="sd">        :param str | list[str] | dict | None label_transform_map: label transform spec</span>
+<span class="sd">        :param str scaler_type: type of y-scaler to use</span>
+<span class="sd">        :param int seed: random seed for reproducibility</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Self-contained mode: model and datamodule will be populated by</span>
+        <span class="c1"># load_from_folder via load_from_checkpoint — skip filesystem loading.</span>
+        <span class="k">if</span> <span class="n">path_to_pretrained</span> <span class="o">==</span> <span class="n">_SELF_CONTAINED_SENTINEL</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_architecture</span> <span class="o">=</span> <span class="n">Finetuner</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Load original params and datamodule state from YAML layout</span>
+        <span class="n">config_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path_to_pretrained</span><span class="p">,</span> <span class="s2">&quot;config&quot;</span><span class="p">)</span>
+        <span class="n">state_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path_to_pretrained</span><span class="p">,</span> <span class="s2">&quot;state&quot;</span><span class="p">)</span>
+
+        <span class="n">params</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;model&quot;</span><span class="p">:</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;model.yaml&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;training&quot;</span><span class="p">:</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;training.yaml&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;datamodule&quot;</span><span class="p">:</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;datamodule.yaml&quot;</span><span class="p">)),</span>
+            <span class="s2">&quot;metadata&quot;</span><span class="p">:</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;metadata.yaml&quot;</span><span class="p">)),</span>
+        <span class="p">}</span>
+        <span class="n">dm_state</span> <span class="o">=</span> <span class="n">load_pickle</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">state_dir</span><span class="p">,</span> <span class="s2">&quot;datamodule_state.pkl&quot;</span><span class="p">))</span>
+
+        <span class="c1"># ------------------------------------------------------------------</span>
+        <span class="c1"># Detect origin type from manifest</span>
+        <span class="c1"># ------------------------------------------------------------------</span>
+        <span class="n">manifest_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">config_dir</span><span class="p">,</span> <span class="s2">&quot;manifest.yaml&quot;</span><span class="p">)</span>
+        <span class="n">manifest</span> <span class="o">=</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">manifest_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">manifest_path</span><span class="p">)</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="n">origin_type</span> <span class="o">=</span> <span class="n">manifest</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;origin_type&quot;</span><span class="p">,</span> <span class="s2">&quot;classic&quot;</span><span class="p">)</span>
+
+        <span class="c1"># ------------------------------------------------------------------</span>
+        <span class="c1"># Restore datamodule — pretraining DMs get converted to classic</span>
+        <span class="c1"># ------------------------------------------------------------------</span>
+        <span class="k">if</span> <span class="n">origin_type</span> <span class="o">==</span> <span class="s2">&quot;pretraining&quot;</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.graph_pretraining_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+                <span class="n">GraphPretrainingDataModule</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.clm_mlm_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+                <span class="n">CLMMLMDataModule</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="n">raw_dm</span> <span class="o">=</span> <span class="n">DataModuleRegistry</span><span class="p">[</span><span class="n">dm_state</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">dummy</span><span class="p">()</span>
+            <span class="n">raw_dm</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">dm_state</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_dm</span><span class="p">,</span> <span class="n">GraphPretrainingDataModule</span><span class="p">):</span>
+                <span class="n">datamodule</span> <span class="o">=</span> <span class="n">raw_dm</span><span class="o">.</span><span class="n">export_to_classic</span><span class="p">()</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_dm</span><span class="p">,</span> <span class="n">CLMMLMDataModule</span><span class="p">):</span>
+                <span class="n">datamodule</span> <span class="o">=</span> <span class="n">raw_dm</span><span class="o">.</span><span class="n">export_to_classic</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Fallback: try export_to_classic if available</span>
+                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">raw_dm</span><span class="p">,</span> <span class="s2">&quot;export_to_classic&quot;</span><span class="p">):</span>
+                    <span class="n">datamodule</span> <span class="o">=</span> <span class="n">raw_dm</span><span class="o">.</span><span class="n">export_to_classic</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">datamodule</span> <span class="o">=</span> <span class="n">raw_dm</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">datamodule</span> <span class="o">=</span> <span class="n">DataModuleRegistry</span><span class="p">[</span><span class="n">dm_state</span><span class="p">[</span><span class="s2">&quot;ID&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">dummy</span><span class="p">()</span>
+            <span class="n">datamodule</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">dm_state</span><span class="p">)</span>
+
+        <span class="c1"># Overwrite objects in datamodule</span>
+        <span class="n">datamodule</span><span class="o">.</span><span class="n">_create_y_scaler</span><span class="p">(</span><span class="n">scaler_type</span><span class="p">)</span>
+        <span class="n">datamodule</span><span class="o">.</span><span class="n">_create_label_encoder</span><span class="p">(</span><span class="n">label_encoder_params</span><span class="p">)</span>
+        <span class="n">datamodule</span><span class="o">.</span><span class="n">_create_label_transform</span><span class="p">({</span><span class="s2">&quot;transform_map&quot;</span><span class="p">:</span> <span class="n">label_transform_map</span><span class="p">})</span>
+        <span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">clip</span> <span class="o">=</span> <span class="n">clip</span>
+
+        <span class="c1"># Freeze tabular datamodule(s) robustly</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datamodule</span><span class="p">,</span> <span class="n">CombinedDataModule</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">sub_dm</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">datamodule</span><span class="p">,</span> <span class="s2">&quot;_datamodules&quot;</span><span class="p">,</span> <span class="p">[]):</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sub_dm</span><span class="p">,</span> <span class="n">TabularDataModule</span><span class="p">):</span>
+                    <span class="n">sub_dm</span><span class="o">.</span><span class="n">_freeze_x_scaler</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">datamodule</span><span class="p">,</span> <span class="n">TabularDataModule</span><span class="p">):</span>
+            <span class="n">datamodule</span><span class="o">.</span><span class="n">_freeze_x_scaler</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="c1"># Save original model params for metadata</span>
+        <span class="n">original_model_params</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;model&quot;</span><span class="p">,</span> <span class="p">{})</span>
+
+        <span class="c1"># Create training info</span>
+        <span class="n">training</span> <span class="o">=</span> <span class="n">TrainingInputModel</span><span class="p">(</span>
+            <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">stochastic_weight_averaging</span><span class="o">=</span><span class="n">stochastic_weight_averaging</span><span class="p">,</span>
+            <span class="n">accelerator</span><span class="o">=</span><span class="n">accelerator</span><span class="p">,</span>
+            <span class="n">devices</span><span class="o">=</span><span class="n">devices</span><span class="p">,</span>
+            <span class="n">early_stopping</span><span class="o">=</span><span class="n">early_stopping</span><span class="p">,</span>
+            <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Set seeds before object creation</span>
+        <span class="n">L</span><span class="o">.</span><span class="n">seed_everything</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">training</span><span class="o">.</span><span class="n">seed</span><span class="p">,</span> <span class="n">workers</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Setting seed </span><span class="si">{</span><span class="n">training</span><span class="o">.</span><span class="n">seed</span><span class="si">}</span><span class="s2"> for model instance&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Create new model</span>
+        <span class="k">if</span> <span class="n">origin_type</span> <span class="o">==</span> <span class="s2">&quot;pretraining&quot;</span><span class="p">:</span>
+            <span class="c1"># For pretraining models, the Finetuner loads encoder-only</span>
+            <span class="c1"># via PretrainedEncoderWrapper.  The architecture string is</span>
+            <span class="c1"># set to &quot;finetunermodel&quot; because the Finetuner init branch</span>
+            <span class="c1"># for pretraining is triggered by the manifest, not the</span>
+            <span class="c1"># architecture string.</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">Finetuner</span><span class="p">(</span>
+                <span class="n">architecture</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;torch_type&quot;</span><span class="p">],</span>
+                <span class="n">path_to_pretrained</span><span class="o">=</span><span class="n">path_to_pretrained</span><span class="p">,</span>
+                <span class="n">pred_hidden_dims</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">,</span>
+                <span class="n">task_head_dims</span><span class="o">=</span><span class="n">task_head_dims</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+                <span class="n">loss_args</span><span class="o">=</span><span class="n">loss_args</span><span class="p">,</span>
+                <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span>
+                <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
+                <span class="n">pretrain_lr</span><span class="o">=</span><span class="n">pretrain_lr</span><span class="p">,</span>
+                <span class="n">pretrain_decay</span><span class="o">=</span><span class="n">pretrain_decay</span><span class="p">,</span>
+                <span class="n">scheduler</span><span class="o">=</span><span class="n">scheduler</span><span class="p">,</span>
+                <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+                <span class="n">finetuning_strategy</span><span class="o">=</span><span class="n">finetuning_strategy</span><span class="p">,</span>
+                <span class="n">lora_rank</span><span class="o">=</span><span class="n">lora_rank</span><span class="p">,</span>
+                <span class="n">lora_alpha</span><span class="o">=</span><span class="n">lora_alpha</span><span class="p">,</span>
+                <span class="n">lora_min_dim</span><span class="o">=</span><span class="n">lora_min_dim</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_architecture</span> <span class="o">=</span> <span class="n">Finetuner</span>
+        <span class="k">elif</span> <span class="s2">&quot;chemprop&quot;</span> <span class="ow">in</span> <span class="n">params</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;torch_type&quot;</span><span class="p">]:</span>
+            <span class="c1"># Chemprop uses its own NoamLR schedule — silently override</span>
+            <span class="c1"># any non-chemprop scheduler the caller may have left at the</span>
+            <span class="c1"># default.  Also replace scheduler_args when they don&#39;t carry</span>
+            <span class="c1"># the keys that ChempropFinetuner expects.</span>
+            <span class="n">scheduler</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span>
+            <span class="k">if</span> <span class="s2">&quot;max_lr&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">scheduler_args</span><span class="p">:</span>
+                <span class="n">scheduler_args</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="mf">1e-4</span><span class="p">,</span> <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">}</span>
+
+            <span class="n">model</span> <span class="o">=</span> <span class="n">ChempropFinetuner</span><span class="p">(</span>
+                <span class="n">path_to_pretrained</span><span class="p">,</span>
+                <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+                <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
+                <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+                <span class="n">pred_hidden_dim</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pred_hidden_dims</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+                <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="n">pred_num_layers</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">pred_hidden_dims</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pred_hidden_dims</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
+                <span class="k">else</span> <span class="mi">1</span><span class="p">,</span>
+                <span class="n">pred_dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">pred_activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_architecture</span> <span class="o">=</span> <span class="n">ChempropFinetuner</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">model</span> <span class="o">=</span> <span class="n">Finetuner</span><span class="p">(</span>
+                <span class="n">architecture</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;model&quot;</span><span class="p">][</span><span class="s2">&quot;torch_type&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;model&quot;</span><span class="p">,</span>
+                <span class="n">path_to_pretrained</span><span class="o">=</span><span class="n">path_to_pretrained</span><span class="p">,</span>
+                <span class="n">pred_hidden_dims</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">,</span>
+                <span class="n">task_head_dims</span><span class="o">=</span><span class="n">task_head_dims</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+                <span class="n">loss_args</span><span class="o">=</span><span class="n">loss_args</span><span class="p">,</span>
+                <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span>
+                <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
+                <span class="n">pretrain_lr</span><span class="o">=</span><span class="n">pretrain_lr</span><span class="p">,</span>
+                <span class="n">pretrain_decay</span><span class="o">=</span><span class="n">pretrain_decay</span><span class="p">,</span>
+                <span class="n">scheduler</span><span class="o">=</span><span class="n">scheduler</span><span class="p">,</span>
+                <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+                <span class="n">finetuning_strategy</span><span class="o">=</span><span class="n">finetuning_strategy</span><span class="p">,</span>
+                <span class="n">lora_rank</span><span class="o">=</span><span class="n">lora_rank</span><span class="p">,</span>
+                <span class="n">lora_alpha</span><span class="o">=</span><span class="n">lora_alpha</span><span class="p">,</span>
+                <span class="n">lora_min_dim</span><span class="o">=</span><span class="n">lora_min_dim</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_architecture</span> <span class="o">=</span> <span class="n">Finetuner</span>
+
+        <span class="c1"># Update datamodule and model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datamodule_manager</span><span class="o">.</span><span class="n">datamodule</span> <span class="o">=</span> <span class="n">datamodule</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span> <span class="o">=</span> <span class="n">model</span>
+
+        <span class="n">metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_init_metadata</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_metadata</span> <span class="o">=</span> <span class="n">MetadataInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">metadata</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_training_manager</span><span class="o">.</span><span class="n">configure</span><span class="p">(</span><span class="n">training</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+
+        <span class="c1"># Use parent&#39;s annotate method to store original model params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="s2">&quot;pretrained_params&quot;</span><span class="p">,</span> <span class="n">original_model_params</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_inner_predict</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]</span> <span class="o">|</span> <span class="n">StackDataset</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run inference and average over augmentations if present.</span>
+
+<span class="sd">        Extends the base ``_inner_predict`` to handle CLM-style SMILES</span>
+<span class="sd">        augmentations by averaging predictions across augmented copies.</span>
+
+<span class="sd">        :param list[Mol] | StackDataset x: input to compute predictions for</span>
+<span class="sd">        :param str | None accelerator: hardware to use for predictions</span>
+<span class="sd">        :param int | None devices: number of devices to use</span>
+<span class="sd">        :param int | None batch_size: batch size to use</span>
+<span class="sd">        :returns: model predictions as a torch tensor</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">preds</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_inner_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">preds</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">preds</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">n_originals</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">num_augmentations</span> <span class="o">=</span> <span class="p">(</span><span class="n">preds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="n">n_originals</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
+
+            <span class="c1"># Extract original predictions (first N samples)</span>
+            <span class="n">original_preds</span> <span class="o">=</span> <span class="n">preds</span><span class="p">[:</span><span class="n">n_originals</span><span class="p">]</span>
+
+            <span class="c1"># Extract and stack augmented predictions</span>
+            <span class="c1"># Each augmentation has n_originals samples</span>
+            <span class="n">augmented_preds</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">aug_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_augmentations</span><span class="p">):</span>
+                <span class="n">start_idx</span> <span class="o">=</span> <span class="n">n_originals</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">aug_idx</span><span class="p">)</span>
+                <span class="n">end_idx</span> <span class="o">=</span> <span class="n">start_idx</span> <span class="o">+</span> <span class="n">n_originals</span>
+                <span class="n">augmented_preds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">preds</span><span class="p">[</span><span class="n">start_idx</span><span class="p">:</span><span class="n">end_idx</span><span class="p">])</span>
+
+            <span class="c1"># Stack all predictions: (num_augmentations + 1, n_originals, num_outputs)</span>
+            <span class="n">all_preds</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">original_preds</span><span class="p">]</span> <span class="o">+</span> <span class="n">augmented_preds</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="c1"># Average across augmentations (dim=0)</span>
+            <span class="n">averaged_output</span> <span class="o">=</span> <span class="n">all_preds</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">averaged_output</span></div>
+
+
+
+<div class="viewcode-block" id="FinetuningRegressor">
+<a class="viewcode-back" href="../../../api/matcha/sklearn/index.html#matcha.sklearn.finetuner.FinetuningRegressor">[docs]</a>
+<span class="nd">@ScikitLearnModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FinetuningRegressor</span><span class="p">(</span><span class="n">BaseFinetuner</span><span class="p">,</span> <span class="n">ScikitLearnRegressorMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Regression finetuner that loads a pretrained encoder for downstream regression tasks.</span>
+
+<span class="sd">    Combines :class:`BaseFinetuner` with :class:`ScikitLearnRegressorMixin`</span>
+<span class="sd">    to provide a complete sklearn-compatible regression interface on top of</span>
+<span class="sd">    a pretrained model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path_to_pretrained</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span>
+        <span class="n">task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">},</span>
+        <span class="n">pretrain_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span><span class="p">,</span>
+        <span class="n">pretrain_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">,</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">finetuning_strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;full&quot;</span><span class="p">,</span>
+        <span class="n">lora_rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">lora_alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span><span class="p">,</span>
+        <span class="n">lora_min_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="n">stochastic_weight_averaging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">early_stopping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_map</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">reload_pretrained</span><span class="p">(</span>
+            <span class="n">path_to_pretrained</span><span class="o">=</span><span class="n">path_to_pretrained</span><span class="p">,</span>
+            <span class="n">pred_hidden_dims</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">,</span>
+            <span class="n">task_head_dims</span><span class="o">=</span><span class="n">task_head_dims</span><span class="p">,</span>
+            <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+            <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+            <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+            <span class="n">loss_args</span><span class="o">=</span><span class="n">loss_args</span><span class="p">,</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span>
+            <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
+            <span class="n">pretrain_lr</span><span class="o">=</span><span class="n">pretrain_lr</span><span class="p">,</span>
+            <span class="n">pretrain_decay</span><span class="o">=</span><span class="n">pretrain_decay</span><span class="p">,</span>
+            <span class="n">scheduler</span><span class="o">=</span><span class="n">scheduler</span><span class="p">,</span>
+            <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+            <span class="n">finetuning_strategy</span><span class="o">=</span><span class="n">finetuning_strategy</span><span class="p">,</span>
+            <span class="n">lora_rank</span><span class="o">=</span><span class="n">lora_rank</span><span class="p">,</span>
+            <span class="n">lora_alpha</span><span class="o">=</span><span class="n">lora_alpha</span><span class="p">,</span>
+            <span class="n">lora_min_dim</span><span class="o">=</span><span class="n">lora_min_dim</span><span class="p">,</span>
+            <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">stochastic_weight_averaging</span><span class="o">=</span><span class="n">stochastic_weight_averaging</span><span class="p">,</span>
+            <span class="n">early_stopping</span><span class="o">=</span><span class="n">early_stopping</span><span class="p">,</span>
+            <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">,</span>
+            <span class="n">devices</span><span class="o">=</span><span class="n">devices</span><span class="p">,</span>
+            <span class="n">accelerator</span><span class="o">=</span><span class="n">accelerator</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_map</span><span class="o">=</span><span class="n">label_transform_map</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">path_to_pretrained</span> <span class="o">!=</span> <span class="n">_SELF_CONTAINED_SENTINEL</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="FinetuningClassifier">
+<a class="viewcode-back" href="../../../api/matcha/sklearn/index.html#matcha.sklearn.finetuner.FinetuningClassifier">[docs]</a>
+<span class="nd">@ScikitLearnModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">FinetuningClassifier</span><span class="p">(</span><span class="n">BaseFinetuner</span><span class="p">,</span> <span class="n">ScikitLearnClassifierMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Classification finetuner that loads a pretrained encoder for downstream classification.</span>
+
+<span class="sd">    Combines :class:`BaseFinetuner` with :class:`ScikitLearnClassifierMixin`</span>
+<span class="sd">    to provide a complete sklearn-compatible classification interface on top of</span>
+<span class="sd">    a pretrained model.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">path_to_pretrained</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span>
+        <span class="n">task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;bce&quot;</span><span class="p">,</span>
+        <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span>
+        <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">0.0001</span><span class="p">},</span>
+        <span class="n">pretrain_lr</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-4</span><span class="p">,</span>
+        <span class="n">pretrain_decay</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span>
+        <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">,</span>
+        <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">finetuning_strategy</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;full&quot;</span><span class="p">,</span>
+        <span class="n">lora_rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">lora_alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span><span class="p">,</span>
+        <span class="n">lora_min_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">64</span><span class="p">,</span>
+        <span class="n">stochastic_weight_averaging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">early_stopping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gpu&quot;</span><span class="p">,</span>
+        <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_map</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># Ensure the label encoder is created as binary_classification type</span>
+        <span class="c1"># so that user-provided class_thresholds and class_labels are preserved.</span>
+        <span class="n">label_encoder_params</span> <span class="o">=</span> <span class="n">label_encoder_params</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="s2">&quot;encoder_type&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">label_encoder_params</span><span class="p">:</span>
+            <span class="n">label_encoder_params</span><span class="p">[</span><span class="s2">&quot;encoder_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;binary_classification&quot;</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">reload_pretrained</span><span class="p">(</span>
+            <span class="n">path_to_pretrained</span><span class="o">=</span><span class="n">path_to_pretrained</span><span class="p">,</span>
+            <span class="n">pred_hidden_dims</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">,</span>
+            <span class="n">task_head_dims</span><span class="o">=</span><span class="n">task_head_dims</span><span class="p">,</span>
+            <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+            <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+            <span class="n">loss_fn</span><span class="o">=</span><span class="n">loss_fn</span><span class="p">,</span>
+            <span class="n">loss_args</span><span class="o">=</span><span class="n">loss_args</span><span class="p">,</span>
+            <span class="n">optimizer</span><span class="o">=</span><span class="n">optimizer</span><span class="p">,</span>
+            <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
+            <span class="n">pretrain_lr</span><span class="o">=</span><span class="n">pretrain_lr</span><span class="p">,</span>
+            <span class="n">pretrain_decay</span><span class="o">=</span><span class="n">pretrain_decay</span><span class="p">,</span>
+            <span class="n">scheduler</span><span class="o">=</span><span class="n">scheduler</span><span class="p">,</span>
+            <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+            <span class="n">finetuning_strategy</span><span class="o">=</span><span class="n">finetuning_strategy</span><span class="p">,</span>
+            <span class="n">lora_rank</span><span class="o">=</span><span class="n">lora_rank</span><span class="p">,</span>
+            <span class="n">lora_alpha</span><span class="o">=</span><span class="n">lora_alpha</span><span class="p">,</span>
+            <span class="n">lora_min_dim</span><span class="o">=</span><span class="n">lora_min_dim</span><span class="p">,</span>
+            <span class="n">num_epochs</span><span class="o">=</span><span class="n">num_epochs</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">stochastic_weight_averaging</span><span class="o">=</span><span class="n">stochastic_weight_averaging</span><span class="p">,</span>
+            <span class="n">early_stopping</span><span class="o">=</span><span class="n">early_stopping</span><span class="p">,</span>
+            <span class="n">patience</span><span class="o">=</span><span class="n">patience</span><span class="p">,</span>
+            <span class="n">devices</span><span class="o">=</span><span class="n">devices</span><span class="p">,</span>
+            <span class="n">accelerator</span><span class="o">=</span><span class="n">accelerator</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_map</span><span class="o">=</span><span class="n">label_transform_map</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">path_to_pretrained</span> <span class="o">!=</span> <span class="n">_SELF_CONTAINED_SENTINEL</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">clip</span> <span class="o">=</span> <span class="kc">False</span>
+
+<div class="viewcode-block" id="FinetuningClassifier.predict_proba">
+<a class="viewcode-back" href="../../../api/matcha/sklearn/index.html#matcha.sklearn.finetuner.FinetuningClassifier.predict_proba">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_proba</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allows to return probabilities instead of class labels for classification</span>
+<span class="sd">        models.</span>
+
+<span class="sd">        :param list[Mol] | StackDataset x: input to compute predictions for</span>
+
+<span class="sd">        :param str | None accelerator: hardware to use for predictions, if None</span>
+<span class="sd">            it is kept as training settings, defaults to None</span>
+
+<span class="sd">        :param int | None devices: how many resources to use, if None</span>
+<span class="sd">            it is kept as training settings, defaults to None</span>
+
+<span class="sd">        :param int | None batch_size: batch size to use, if None</span>
+<span class="sd">            it is kept as training settings, defaults to None</span>
+
+<span class="sd">        :return np.ndarray: class probabilities for the input</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">preds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_inner_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+
+        <span class="c1"># NOTE: The base mixin&#39;s predict_proba checks `isinstance(self._model, ChempropModel)`.</span>
+        <span class="c1"># Finetuners wrap a different class — ChempropFinetuner — which already applies</span>
+        <span class="c1"># sigmoid internally, so we mirror the same logic but check for ChempropFinetuner.</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="n">ChempropFinetuner</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">preds</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">transform</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">()</span>
+            <span class="n">preds</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">preds</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">preds</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

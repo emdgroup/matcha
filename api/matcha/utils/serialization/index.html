@@ -1,0 +1,214 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.serialization &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.utils.serialization</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/utils/serialization/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.utils.serialization">
+<span id="matcha-utils-serialization"></span><h1>matcha.utils.serialization<a class="headerlink" href="#module-matcha.utils.serialization" title="Link to this heading"></a></h1>
+<p>Serialization utilities for loading and saving data in various formats.</p>
+<p>Supports JSON, YAML, and pickle serialization with automatic directory
+creation, as well as DataFrame parsing helpers for molecular data.</p>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.serialization.save_json" title="matcha.utils.serialization.save_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_json</span></code></a>(path, object)</p></td>
+<td><p>Saves the object in the desired path as a readable json</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.serialization.save_yaml" title="matcha.utils.serialization.save_yaml"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_yaml</span></code></a>(path, object)</p></td>
+<td><p>Saves the object in the desired path as a readable yaml</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.serialization.save_pickle" title="matcha.utils.serialization.save_pickle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_pickle</span></code></a>(path, object)</p></td>
+<td><p>Saves the object in the desired path as a pickle</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.serialization.load_json" title="matcha.utils.serialization.load_json"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_json</span></code></a>(path)</p></td>
+<td><p>Loads the json as a dictionary</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.serialization.load_pickle" title="matcha.utils.serialization.load_pickle"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_pickle</span></code></a>(path)</p></td>
+<td><p>Reloads the object from a pickle file</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.serialization.load_yaml" title="matcha.utils.serialization.load_yaml"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_yaml</span></code></a>(path)</p></td>
+<td><p>Loads a yaml dict from file</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.serialization.parse_df" title="matcha.utils.serialization.parse_df"><code class="xref py py-obj docutils literal notranslate"><span class="pre">parse_df</span></code></a>(input_df, label_key[, operator_key])</p></td>
+<td><p>Parse a DataFrame containing molecular data into components.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.utils.serialization.save_json">
+<span class="sig-prename descclassname"><span class="pre">matcha.utils.serialization.</span></span><span class="sig-name descname"><span class="pre">save_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">object</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">save_json.object</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/utils/serialization.html#save_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.serialization.save_json" title="Link to this definition"></a></dt>
+<dd><p>Saves the object in the desired path as a readable json</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.utils.serialization.save_yaml">
+<span class="sig-prename descclassname"><span class="pre">matcha.utils.serialization.</span></span><span class="sig-name descname"><span class="pre">save_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">object</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">save_yaml.object</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/utils/serialization.html#save_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.serialization.save_yaml" title="Link to this definition"></a></dt>
+<dd><p>Saves the object in the desired path as a readable yaml</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.utils.serialization.save_pickle">
+<span class="sig-prename descclassname"><span class="pre">matcha.utils.serialization.</span></span><span class="sig-name descname"><span class="pre">save_pickle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">object</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">save_pickle.object</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/utils/serialization.html#save_pickle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.serialization.save_pickle" title="Link to this definition"></a></dt>
+<dd><p>Saves the object in the desired path as a pickle</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.utils.serialization.load_json">
+<span class="sig-prename descclassname"><span class="pre">matcha.utils.serialization.</span></span><span class="sig-name descname"><span class="pre">load_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/utils/serialization.html#load_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.serialization.load_json" title="Link to this definition"></a></dt>
+<dd><p>Loads the json as a dictionary</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.utils.serialization.load_pickle">
+<span class="sig-prename descclassname"><span class="pre">matcha.utils.serialization.</span></span><span class="sig-name descname"><span class="pre">load_pickle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/utils/serialization.html#load_pickle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.serialization.load_pickle" title="Link to this definition"></a></dt>
+<dd><p>Reloads the object from a pickle file</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.utils.serialization.load_yaml">
+<span class="sig-prename descclassname"><span class="pre">matcha.utils.serialization.</span></span><span class="sig-name descname"><span class="pre">load_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/utils/serialization.html#load_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.serialization.load_yaml" title="Link to this definition"></a></dt>
+<dd><p>Loads a yaml dict from file</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.utils.serialization.parse_df">
+<span class="sig-prename descclassname"><span class="pre">matcha.utils.serialization.</span></span><span class="sig-name descname"><span class="pre">parse_df</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">operator_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/utils/serialization.html#parse_df"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.serialization.parse_df" title="Link to this definition"></a></dt>
+<dd><p>Parse a DataFrame containing molecular data into components.</p>
+<p>Extracts RDKit molecule objects, label arrays, and optional censor
+operator lists from a DataFrame that has an <code class="docutils literal notranslate"><span class="pre">ROMol</span></code> column.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_df</strong> (<em>pandas.DataFrame</em>) – Input DataFrame with an <code class="docutils literal notranslate"><span class="pre">ROMol</span></code> column
+and label/operator columns.</p></li>
+<li><p><strong>label_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a>) – Column name substring (or list of exact column names)
+used to identify label columns.</p></li>
+<li><p><strong>operator_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> or </em><em>None</em>) – Optional column name substring used to identify
+censor operator columns (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;&lt;&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;&gt;&quot;</span></code>). NaN values are
+replaced with <code class="docutils literal notranslate"><span class="pre">&quot;=&quot;</span></code>.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A tuple of (molecules, labels, operators) where molecules is a
+list of RDKit Mol objects, labels is a float numpy array, and operators
+is a list of operator strings (or <code class="docutils literal notranslate"><span class="pre">None</span></code> if <code class="docutils literal notranslate"><span class="pre">operator_key</span></code> is None).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

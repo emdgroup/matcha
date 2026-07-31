@@ -1,0 +1,79 @@
+matcha.torch.predictors.snn
+===========================
+
+.. py:module:: matcha.torch.predictors.snn
+
+.. autoapi-nested-parse::
+
+   Self-Normalizing Neural Network (SNN) predictor head with parallel MultiLn layers.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.predictors.snn.SNN
+
+
+Module Contents
+---------------
+
+.. py:class:: SNN(input_dim: int, hidden_dims: list[int] | None, num_endpoints: int, dropout: float, num_parallel: int = 8)
+
+   Bases: :py:obj:`matcha.torch.predictors.base_predictor.BasePredictor`
+
+
+   Self-Normalizing Neural Network (SNN) utility class.
+
+   SNNs use SELU activations and AlphaDropout to maintain self-normalizing properties,
+   as described in the paper "Self-Normalizing Neural Networks" (https://arxiv.org/abs/1706.02515).
+
+   This implementation uses MultiLn layers for parallel computation and averages
+   the outputs across the num_parallel dimension for ensemble-like behavior.
+
+   It inherits from :class:`.BasePredictor` for common routines (e.g. forward pass).
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+
+   :param int input_dim: input feature dimensionality
+
+   :param list[int] hidden_dims: shape of hidden layers in the predictor.
+       If None, goes directly from input to output.
+
+   :param float dropout: dropout rate between all layers (uses AlphaDropout)
+
+   :param int num_endpoints: number of endpoints (if multitasking) or classes
+       (if classification) to predict
+
+   :param int num_parallel: number of parallel heads in MultiLn layers (default: 8)
+
+
+   .. py:attribute:: num_parallel
+      :value: 8
+
+
+
+   .. py:method:: encode(mol_features: torch.Tensor) -> torch.Tensor
+
+      Extract the latent representation from all layers except the last.
+
+      Averages across the ``num_parallel`` dimension.
+
+      :param mol_features: input tensor of shape ``(batch, input_dim)``.
+      :returns: averaged latent representation of shape ``(batch, hidden_dims[-1])``.
+      :rtype: torch.Tensor
+
+
+
+   .. py:method:: forward(mol_features: torch.Tensor) -> torch.Tensor
+
+      Run the full forward pass and average across the ``num_parallel`` dimension.
+
+      :param mol_features: input tensor of shape ``(batch, input_dim)``.
+      :returns: predictions of shape ``(batch, num_endpoints)``.
+      :rtype: torch.Tensor
+
+
+

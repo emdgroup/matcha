@@ -1,0 +1,142 @@
+matcha.torch.models.pretraining.base_graph_pretraining
+======================================================
+
+.. py:module:: matcha.torch.models.pretraining.base_graph_pretraining
+
+.. autoapi-nested-parse::
+
+   Base class for graph neural network pretraining models.
+
+   Provides a framework for GNN models that jointly predict user-provided
+   atom-level and molecule-level labels through a shared encoder with separate
+   prediction heads.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel
+
+
+Module Contents
+---------------
+
+.. py:class:: BaseGraphPretrainingModel(num_node_targets: int = 1, num_graph_targets: int = 1, node_head_dims: list[int] | None = None, graph_head_dims: list[int] | None = None, node_task_head_dims: list[int] | None = None, graph_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, node_loss_weight: float = 0.5, graph_loss_weight: float = 0.5, per_task_log_every_n_steps: int = 1)
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_pretraining_model.BasePretrainingModel`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Base class for graph neural network pretraining models.
+
+   This class provides a framework for GNN models that support simultaneous
+   node-level and graph-level predictions. A single forward pass through the
+   encoder produces node embeddings, which are then:
+   - Passed to a node-level MLP for node predictions
+   - Aggregated via readout and passed to a graph-level MLP for graph predictions
+
+   Both node-level and graph-level targets are externally provided by the user
+   (e.g. computed atom properties like partial charges, SASA, or electronegativity
+   for nodes, and molecular descriptors like logP or molecular weight for graphs).
+   The model does **not** reconstruct its own input atom features.
+
+   Subclasses must implement:
+       - _build_encoder(): Build the graph encoder
+       - _get_node_embeddings(): Extract node-level embeddings from encoder
+
+   :param int num_node_targets: Number of node-level prediction targets
+   :param int num_graph_targets: Number of graph-level prediction targets
+   :param list[int] node_head_dims: Hidden dimensions for the shared node prediction
+       head MLP (applied to all node tasks jointly)
+   :param list[int] graph_head_dims: Hidden dimensions for the shared graph prediction
+       head MLP (applied to all graph tasks jointly)
+   :param list[int] node_task_head_dims: Hidden dimensions for per-task node MLPs.
+       When set, each node task gets its own independent MLP on top of the shared
+       node head layers. Uses ``MultiMLP`` with separate parameters per task.
+   :param list[int] graph_task_head_dims: Hidden dimensions for per-task graph MLPs.
+       When set, each graph task gets its own independent MLP on top of the shared
+       graph head layers. Uses ``MultiMLP`` with separate parameters per task.
+   :param str pred_activation: Activation function for prediction heads
+   :param float pred_dropout: Dropout rate for prediction heads
+   :param str loss_fn: Loss function name (used for both heads)
+   :param dict loss_args: Additional loss function arguments
+   :param str optimizer: Optimizer name
+   :param dict optimizer_args: Optimizer arguments
+   :param str scheduler: Learning rate scheduler name
+   :param dict scheduler_args: Scheduler arguments
+   :param float node_loss_weight: Constant weight for node-level loss
+   :param float graph_loss_weight: Constant weight for graph-level loss
+   :param int per_task_log_every_n_steps: How often to log per-task losses.
+       Set higher to reduce overhead with many tasks (e.g. >100).
+
+
+   .. py:property:: num_node_targets
+      :type: int
+
+
+      Number of node-level prediction targets.
+
+
+   .. py:property:: num_graph_targets
+      :type: int
+
+
+      Number of graph-level prediction targets.
+
+
+   .. py:method:: forward(batch: dict[str, Any]) -> dict[str, torch.Tensor]
+
+      Forward pass for pretraining.
+
+      Runs a single encoder forward pass and computes both node-level
+      and graph-level predictions. When ``enc_node_encoder_depth`` is set,
+      the node head receives embeddings from only the first K layers while
+      the graph head receives embeddings from all layers.
+
+      :param batch: Input batch containing graph data
+      :return: Dictionary with 'node' and 'graph' predictions
+          - 'node': [num_nodes, num_node_targets]
+          - 'graph': [batch_size, num_graph_targets]
+
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> dict[str, torch.Tensor]
+
+      Extract learned representations.
+
+      :param batch: Input batch containing graph data
+      :return: Dictionary with 'node' and 'graph' embeddings
+          - 'node': [num_nodes, hidden_dim]
+          - 'graph': [batch_size, hidden_dim]
+
+
+
+   .. py:method:: training_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Training step for graph pretraining.
+
+      Expects batch to contain:
+          - Graph data (depends on encoder)
+          - 'y_node': Node-level targets [num_nodes, num_node_targets]
+            (externally provided atom-level labels, e.g. partial charges)
+          - 'y_graph': Graph-level targets [batch_size, num_graph_targets]
+            (externally provided molecule-level labels, e.g. logP)
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Total loss value
+
+
+
+   .. py:method:: validation_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Validation step for graph pretraining.
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Total loss value
+
+
+

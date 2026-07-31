@@ -1,0 +1,91 @@
+matcha.torch.encoders.rnn
+=========================
+
+.. py:module:: matcha.torch.encoders.rnn
+
+.. autoapi-nested-parse::
+
+   Recurrent Neural Network (RNN) encoder for chemical language representations.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.rnn.RNN
+
+
+Module Contents
+---------------
+
+.. py:class:: RNN(num_layers: int, num_characters: int, embedding_dim: int, rnn_type: str, hidden_dim: int, bidirectional: str, num_heads: int, dropout: float)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_encoder.BaseEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Recurrent Neural Network (RNN) encoder for modelling chemical language
+   representations. After processing the input sequence, self attention is used
+   to compute a global representation of the molecule by making the [cls] token
+   attend to each other position in the string.
+   It inherits from  :class:`lightning.pytorch.core.mixins` to save its hyperparameters,
+   and from :class:`BaseEncoder` to be consistent with other encoders.
+   It is intended to be used inside a :class:`matcha.torch.models.classic.base_classic_model.BaseClassicModel`
+   instance.
+   References:
+   - https://arxiv.org/abs/2407.12152
+   - https://www.sciencedirect.com/science/article/pii/S2667318521000143
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.RNNModel` for further details.
+
+   :param int num_layers: number of RNN layers
+
+   :param int num_characters: total number of unique tokens in the dataset's
+       dictionary
+
+   :param int embedding_dim: number of token embedding features
+
+   :param str rnn_type: whether to use LSTM or GRU architectures
+
+   :param int hidden_dim: number of hidden token dimensionality
+
+   :param str bidirectional: whether to concatenate representation obtained
+       while running RNN in reverse on the string
+
+   :param int num_heads: number of self attention heads, must divide hidden_dims
+       evenly
+
+   :param float dropout:  dropout noise level
+
+
+   .. py:attribute:: embedding
+
+
+   .. py:attribute:: rnn
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: attention
+
+
+   .. py:attribute:: norm_in
+
+
+   .. py:attribute:: norm_out
+
+
+   .. py:method:: forward(token_ids: list[list[int]]) -> torch.Tensor
+
+      Converts a nested list of integers objects into a (x, self.fp_dim) tensor for further
+      processing.
+
+      :param list[list[int]] token_ids: batched input from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+

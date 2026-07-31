@@ -1,0 +1,332 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.pretraining.on_the_fly_mlm_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.pretraining.on_the_fly_mlm_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../_sources/api/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.datamodules.pretraining.on_the_fly_mlm_datamodule">
+<span id="matcha-datamodules-pretraining-on-the-fly-mlm-datamodule"></span><h1>matcha.datamodules.pretraining.on_the_fly_mlm_datamodule<a class="headerlink" href="#module-matcha.datamodules.pretraining.on_the_fly_mlm_datamodule" title="Link to this heading"></a></h1>
+<p>On-the-fly DataModule variant for MLM pretraining.</p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataset" title="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">OnTheFlyMLMDataset</span></code></a></p></td>
+<td><p>Dataset that stores raw SMILES for on-the-fly MLM featurization.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule" title="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule"><code class="xref py py-obj docutils literal notranslate"><span class="pre">OnTheFlyMLMDataModule</span></code></a></p></td>
+<td><p>DataModule that delays MLM feature generation until batch iteration time.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataset">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.</span></span><span class="sig-name descname"><span class="pre">OnTheFlyMLMDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataset" title="Link to this definition"></a></dt>
+<dd><p>Dataset that stores raw SMILES for on-the-fly MLM featurization.</p>
+<p>Unlike OnTheFlyDataset, this does not require labels or descriptors
+since MLM is self-supervised.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataset.smiles">
+<span class="sig-name descname"><span class="pre">smiles</span></span><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataset.smiles" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.</span></span><span class="sig-name descname"><span class="pre">OnTheFlyMLMDataModule</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="../clm_mlm_datamodule/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule" title="matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule"><span class="pre">matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_workers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">lightning.LightningDataModule</span></code></p>
+<p>DataModule that delays MLM feature generation until batch iteration time.</p>
+<p>This wrapper takes a CLMMLMDataModule and modifies its behavior to generate
+features on-the-fly during batch collation instead of upfront during setup.
+This is useful for large-scale pretraining where memory is constrained.</p>
+<p>The collate function converts SMILES to molecules, generates tokenized
+features, and applies masking on-the-fly.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>base</strong> (<a class="reference internal" href="../clm_mlm_datamodule/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule" title="matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule"><em>CLMMLMDataModule</em></a>) – The base MLM datamodule to use for featurization</p></li>
+<li><p><strong>num_workers</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of dataloader workers, defaults to 0</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.base">
+<span class="sig-name descname"><span class="pre">base</span></span><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.base" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.params">
+<span class="sig-name descname"><span class="pre">params</span></span><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.params" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.collate_fn_map">
+<span class="sig-name descname"><span class="pre">collate_fn_map</span></span><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.collate_fn_map" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.num_workers">
+<span class="sig-name descname"><span class="pre">num_workers</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.num_workers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.train_dataloader">
+<span class="sig-name descname"><span class="pre">train_dataloader</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.train_dataloader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.train_dataloader" title="Link to this definition"></a></dt>
+<dd><p>Return the training dataloader.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.val_dataloader">
+<span class="sig-name descname"><span class="pre">val_dataloader</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.val_dataloader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.val_dataloader" title="Link to this definition"></a></dt>
+<dd><p>Return the validation dataloader, or an empty one if not set.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.test_dataloader">
+<span class="sig-name descname"><span class="pre">test_dataloader</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.test_dataloader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.test_dataloader" title="Link to this definition"></a></dt>
+<dd><p>Return the test dataloader.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.predict_dataloader">
+<span class="sig-name descname"><span class="pre">predict_dataloader</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.predict_dataloader"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.predict_dataloader" title="Link to this definition"></a></dt>
+<dd><p>Return the prediction dataloader.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.set_data">
+<span class="sig-name descname"><span class="pre">set_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">train_smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">val_smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">test_smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">predict_smiles</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.set_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.set_data" title="Link to this definition"></a></dt>
+<dd><p>Set the raw SMILES data for each split.</p>
+<p>For MLM, we only need SMILES - no labels required.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>train_smiles</strong> – Training SMILES</p></li>
+<li><p><strong>val_smiles</strong> – Validation SMILES</p></li>
+<li><p><strong>test_smiles</strong> – Test SMILES</p></li>
+<li><p><strong>predict_smiles</strong> – Prediction SMILES</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.collate_fn">
+<span class="sig-name descname"><span class="pre">collate_fn</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.collate_fn"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.collate_fn" title="Link to this definition"></a></dt>
+<dd><p>Collate function that generates MLM features on-the-fly from batch SMILES.</p>
+<p>Converts SMILES to molecules, generates tokenized features with masking,
+and returns a batch ready for the MLM model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>batch</strong> – List of dicts with ‘smiles’ key</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Dict with ‘token_ids’, ‘y’, and ‘mask’ tensors</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.featurize">
+<span class="sig-name descname"><span class="pre">featurize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bound_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_training</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.featurize"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.featurize" title="Link to this definition"></a></dt>
+<dd><p>Delegate to base datamodule’s featurize method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mol_list</strong> – list of RDKit molecules</p></li>
+<li><p><strong>y</strong> – ignored (MLM is self-supervised)</p></li>
+<li><p><strong>bound_mask</strong> – ignored for MLM</p></li>
+<li><p><strong>is_training</strong> – whether to commit the dictionary</p></li>
+<li><p><strong>n_jobs</strong> – number of parallel workers</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>StackDataset with <code class="docutils literal notranslate"><span class="pre">token_ids</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, and <code class="docutils literal notranslate"><span class="pre">mask</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.generate_features">
+<span class="sig-name descname"><span class="pre">generate_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bound_mask</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">augment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_training</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.generate_features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.generate_features" title="Link to this definition"></a></dt>
+<dd><p>Delegate to base datamodule’s generate_features method.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mol_list</strong> – list of RDKit molecules</p></li>
+<li><p><strong>y</strong> – ignored (MLM is self-supervised)</p></li>
+<li><p><strong>bound_mask</strong> – ignored for MLM</p></li>
+<li><p><strong>augment</strong> – whether to apply SMILES augmentation</p></li>
+<li><p><strong>is_training</strong> – whether to update the dictionary</p></li>
+<li><p><strong>n_jobs</strong> – number of parallel workers</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>StackDataset with <code class="docutils literal notranslate"><span class="pre">token_ids</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, and <code class="docutils literal notranslate"><span class="pre">mask</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.fit_dictionary">
+<span class="sig-name descname"><span class="pre">fit_dictionary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">smiles_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_jobs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">4</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.fit_dictionary"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.fit_dictionary" title="Link to this definition"></a></dt>
+<dd><p>Pre-fit the dictionary on a set of SMILES before using on-the-fly loading.</p>
+<p>This is important for on-the-fly usage where we need a consistent
+dictionary across all batches.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>smiles_list</strong> – List of SMILES to fit dictionary on</p></li>
+<li><p><strong>n_jobs</strong> – Number of parallel jobs</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.setup">
+<span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stage</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.setup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.setup" title="Link to this definition"></a></dt>
+<dd><p>Setup dataloaders using raw data instead of pre-computed features.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>stage</strong> – one of <code class="docutils literal notranslate"><span class="pre">&quot;fit&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;test&quot;</span></code>, or <code class="docutils literal notranslate"><span class="pre">&quot;predict&quot;</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.state_dict">
+<span class="sig-name descname"><span class="pre">state_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.state_dict" title="Link to this definition"></a></dt>
+<dd><p>Serialise state for MLFlow logging.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict containing ID, base state, and num_workers</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.load_state_dict">
+<span class="sig-name descname"><span class="pre">load_state_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/datamodules/pretraining/on_the_fly_mlm_datamodule.html#OnTheFlyMLMDataModule.load_state_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.load_state_dict" title="Link to this definition"></a></dt>
+<dd><p>Restore state from a previously serialised dict.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>state_dict</strong> – dict produced by <a class="reference internal" href="#matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.state_dict" title="matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule.state_dict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">state_dict()</span></code></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

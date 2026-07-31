@@ -1,0 +1,46 @@
+matcha.torch.encoders.base_graph_encoder
+========================================
+
+.. py:module:: matcha.torch.encoders.base_graph_encoder
+
+.. autoapi-nested-parse::
+
+   Base class for graph-based molecular encoders with positional encoding support.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder
+
+
+Module Contents
+---------------
+
+.. py:class:: BaseGraphEncoder(laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_encoder.BaseEncoder`
+
+
+   Base class for all graph encoders. It is not meant to be instantiated directly,
+   but rather to be used as a parent class for each featurizer.
+   Subclasses from :class:`BaseEncoder` to ensure that a :method:`forward` method
+   is present in children classes.
+   The class is just used to automate some tedious processes related to PyTorch Geometric
+   (see :method:`process_graph_batch`), handle different readout functions and jumping
+   knowledge settings.
+
+
+   .. py:property:: jk
+      :type: str
+
+
+      Jumping knowledge strategy ('last', 'concat', 'max', or 'sum').
+
+      :returns: The configured jumping knowledge mode.
+      :rtype: str
+
+

@@ -1,0 +1,290 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.metrics &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.utils.metrics</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.utils.metrics</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Metrics computation for regression and classification model evaluation.</span>
+
+<span class="sd">Provides functions for calculating standard performance metrics, handling</span>
+<span class="sd">censored data, and computing enrichment factors for ranking tasks.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseScikitLearnModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.sanitize</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_1d_array</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">mean_absolute_error</span><span class="p">,</span>
+    <span class="n">r2_score</span><span class="p">,</span>
+    <span class="n">mean_squared_error</span><span class="p">,</span>
+    <span class="n">balanced_accuracy_score</span><span class="p">,</span>
+    <span class="n">matthews_corrcoef</span><span class="p">,</span>
+    <span class="n">f1_score</span><span class="p">,</span>
+    <span class="n">cohen_kappa_score</span><span class="p">,</span>
+    <span class="n">precision_score</span><span class="p">,</span>
+    <span class="n">recall_score</span><span class="p">,</span>
+    <span class="n">roc_auc_score</span><span class="p">,</span>
+    <span class="n">average_precision_score</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.stats</span><span class="w"> </span><span class="kn">import</span> <span class="n">spearmanr</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+
+
+<div class="viewcode-block" id="process_censor">
+<a class="viewcode-back" href="../../../api/matcha/utils/metrics/index.html#matcha.utils.metrics.process_censor">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_censor</span><span class="p">(</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">predictions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">censor</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apply censoring constraints to predictions based on label bounds and censor indicators.&quot;&quot;&quot;</span>
+    <span class="n">lt</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">censor</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;&lt;&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span>
+    <span class="n">gt</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">censor</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;&gt;&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span>
+
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+
+    <span class="n">predictions_censor</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">bool_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">censor</span><span class="p">)),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">bool_mask</span><span class="p">[</span><span class="n">lt</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">predictions_censor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">predictions</span> <span class="o">&lt;</span> <span class="n">labels</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">bool_mask</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">predictions_censor</span>
+        <span class="p">)</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">gt</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">bool_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">censor</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
+        <span class="n">bool_mask</span><span class="p">[</span><span class="n">gt</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">predictions_censor</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="p">(</span><span class="n">predictions</span> <span class="o">&gt;</span> <span class="n">labels</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">bool_mask</span><span class="p">,</span> <span class="n">labels</span><span class="p">,</span> <span class="n">predictions_censor</span>
+        <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">predictions_censor</span></div>
+
+
+
+<div class="viewcode-block" id="process_regression">
+<a class="viewcode-back" href="../../../api/matcha/utils/metrics/index.html#matcha.utils.metrics.process_regression">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_regression</span><span class="p">(</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">predictions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">log10</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate regression metrics including R2, RMSE, MAE, Spearman correlation, and fold accuracy.&quot;&quot;&quot;</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">labels</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">predictions</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Remove rows where labels is NaN</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">log10</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+
+    <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;R2&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">r2_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;RMSE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">mean_squared_error</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)),</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;MAE&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">mean_absolute_error</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">),</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;SPEARMAN_R&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">spearmanr</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="mi">3</span><span class="p">)</span>
+    <span class="n">residuals</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">labels</span> <span class="o">-</span> <span class="n">predictions</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">log10</span><span class="p">:</span>
+        <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Within2Fold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span>
+            <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">residuals</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">residuals</span><span class="p">)),</span> <span class="mi">3</span>
+        <span class="p">)</span>
+        <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Within3Fold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span>
+            <span class="p">(</span><span class="nb">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">residuals</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">residuals</span><span class="p">)),</span> <span class="mi">3</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">value2</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">predictions</span> <span class="o">/</span> <span class="n">labels</span><span class="p">)</span>
+        <span class="n">count2</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">x</span> <span class="o">&gt;</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">value2</span><span class="p">)</span>
+        <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Within2Fold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">count2</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">value3</span> <span class="o">=</span> <span class="nb">abs</span><span class="p">(</span><span class="n">predictions</span> <span class="o">/</span> <span class="n">labels</span><span class="p">)</span>
+        <span class="n">count3</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">((</span><span class="n">x</span> <span class="o">&gt;</span> <span class="mf">1.0</span> <span class="o">/</span> <span class="mi">3</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">value3</span><span class="p">)</span>
+        <span class="n">output</span><span class="p">[</span><span class="s2">&quot;Within3Fold&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="n">count3</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">output</span></div>
+
+
+
+<div class="viewcode-block" id="enrichment_factor_score">
+<a class="viewcode-back" href="../../../api/matcha/utils/metrics/index.html#matcha.utils.metrics.enrichment_factor_score">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">enrichment_factor_score</span><span class="p">(</span><span class="n">y_true</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y_prob</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Function to compute Enrichment Factor using precomputed binary labels</span>
+<span class="sd">    according to the threshold set in process_ranking</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_prob</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">y_pred</span><span class="p">[</span><span class="n">y_pred</span> <span class="o">&lt;</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">y_prob</span><span class="p">,</span> <span class="mi">90</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">y_pred</span><span class="p">[</span><span class="n">y_pred</span> <span class="o">&gt;=</span> <span class="n">np</span><span class="o">.</span><span class="n">percentile</span><span class="p">(</span><span class="n">y_prob</span><span class="p">,</span> <span class="mi">90</span><span class="p">)]</span> <span class="o">=</span> <span class="mi">1</span>
+
+    <span class="n">compounds_at_k</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span>
+    <span class="n">total_compounds</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_true</span><span class="p">)</span>
+    <span class="n">total_actives</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">y_true</span><span class="p">)</span>
+    <span class="n">tp_at_k</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y_true</span> <span class="o">+</span> <span class="n">y_pred</span> <span class="o">==</span> <span class="mi">2</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+    <span class="k">return</span> <span class="p">(</span><span class="n">tp_at_k</span> <span class="o">/</span> <span class="n">compounds_at_k</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">total_actives</span> <span class="o">/</span> <span class="n">total_compounds</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="process_classification">
+<a class="viewcode-back" href="../../../api/matcha/utils/metrics/index.html#matcha.utils.metrics.process_classification">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">process_classification</span><span class="p">(</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">predictions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">probabilities</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">BaseScikitLearnModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Calculate classification metrics including accuracy, F1, precision, recall, ROC-AUC, and PR-AUC.&quot;&quot;&quot;</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="n">probabilities</span> <span class="o">=</span> <span class="n">probabilities</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+    <span class="n">probabilities</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">probabilities</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_datamodule</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">_all_to_categorical</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">labels</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">predictions</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">probabilities</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">probabilities</span> <span class="o">=</span> <span class="n">probabilities</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span>
+
+    <span class="c1"># Remove rows where labels is NaN</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">labels</span><span class="p">)</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="n">labels</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+    <span class="n">predictions</span> <span class="o">=</span> <span class="n">predictions</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+    <span class="n">probabilities</span> <span class="o">=</span> <span class="n">probabilities</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;balanced_accuracy&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">balanced_accuracy_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;matthews_corrcoef&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">matthews_corrcoef</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;f1_score&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">f1_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;cohen_kappa&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cohen_kappa_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;precision&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">precision_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;recall&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">recall_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">predictions</span><span class="p">)</span>
+
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;roc_auc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">roc_auc_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">probabilities</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;pr_auc&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">average_precision_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">probabilities</span><span class="p">)</span>
+    <span class="n">output</span><span class="p">[</span><span class="s2">&quot;ef_10&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">enrichment_factor_score</span><span class="p">(</span><span class="n">labels</span><span class="p">,</span> <span class="n">probabilities</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">output</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

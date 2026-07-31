@@ -1,0 +1,359 @@
+matcha.calibration
+==================
+
+.. py:module:: matcha.calibration
+
+.. autoapi-nested-parse::
+
+   Calibration methods for uncertainty quantification in predictive models.
+
+   This module provides post-hoc calibration techniques that transform raw model
+   predictions into calibrated uncertainty estimates. Two main approaches are supported:
+
+   - **Inductive Conformal Prediction (ICP):** Produces prediction intervals (regression)
+     or prediction sets (classification) with finite-sample coverage guarantees.
+   - **Error Models (EM):** Train secondary classifiers to predict whether a primary
+     model's predictions fall within an acceptable error range.
+
+   All calibration methods follow the fit/predict pattern defined by
+   :class:`BaseCalibration` and are registered via :data:`CalibrationRegistry`.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/calibration/base_calibration/index
+   /api/matcha/calibration/error_model/index
+   /api/matcha/calibration/inductive_conformal/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.calibration.BaseCalibration
+   matcha.calibration.ICPRegressionCalibration
+   matcha.calibration.ICPClassificationCalibration
+   matcha.calibration.EMCalibration
+   matcha.calibration.EMRegressionCalibration
+   matcha.calibration.EMClassificationCalibration
+
+
+Package Contents
+----------------
+
+.. py:class:: BaseCalibration
+
+   Bases: :py:obj:`abc.ABC`
+
+
+   Abstract base class for calibration methods in predictive modeling.
+
+   This class provides a framework for implementing calibration techniques,
+   including methods for fitting the model, computing uncertainty, and
+   saving/loading calibration parameters.
+
+   Subclasses must implement :meth:`fit` and :meth:`compute_uncertainty`.
+   Calibration parameters are stored in ``self.params`` and can be persisted
+   via :meth:`save_calibrator` / :meth:`from_folder`.
+
+
+   .. py:property:: is_fitted
+      :type: bool
+
+
+      Whether the calibration model has been fitted.
+
+      :returns: True if :meth:`fit` has been called successfully.
+
+
+   .. py:method:: fit(y_true: numpy.ndarray, y_pred: numpy.ndarray) -> None
+      :abstractmethod:
+
+
+      Fit the calibration model to true and predicted values.
+
+      :param np.ndarray y_true: Ground-truth target values.
+      :param np.ndarray y_pred: Model predictions to calibrate against.
+
+
+
+   .. py:method:: compute_uncertainty(predictions: numpy.ndarray) -> numpy.ndarray
+      :abstractmethod:
+
+
+      Compute calibrated uncertainty estimates.
+
+      :param np.ndarray predictions: Raw model predictions or uncertainties.
+
+      :returns: Calibrated uncertainty estimates.
+
+
+
+   .. py:method:: save_calibrator(path: str)
+
+      Save calibration parameters to disk.
+
+      Creates the target directory if it does not exist and serializes
+      ``self.params`` as a pickle file.
+
+      :param str path: Directory path where ``calibrator.pkl`` will be saved.
+
+
+
+   .. py:method:: from_folder(path: str)
+      :classmethod:
+
+
+      Load a calibrator from a previously saved folder.
+
+      :param str path: Directory containing ``calibrator.pkl``.
+
+      :returns: An instance of the calibration class with loaded parameters.
+
+
+
+.. py:class:: ICPRegressionCalibration(confidence_alpha: float = 0.2)
+
+   Bases: :py:obj:`ICPCalibration`
+
+
+   Inductive Conformal Prediction calibration for regression tasks.
+
+   Computes calibrated prediction intervals using normalized absolute residuals
+   as nonconformity scores. Uses heteroscedastic calibration where residuals
+   are normalized by model uncertainty estimates.
+
+   Supports multitask regression where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = ICPRegressionCalibration(confidence_alpha=0.1)
+   >>> calibrator.fit(y_true_cal, y_pred_cal, y_error_cal)
+   >>> uncertainty = calibrator.compute_uncertainty(y_error_test)
+   >>> # Prediction interval: [y_pred - uncertainty, y_pred + uncertainty]
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: compute_uncertainty(input: numpy.ndarray) -> numpy.ndarray
+
+      Computes calibrated uncertainty estimates.
+
+      Scales input uncertainties by the calibration quantile (per-task).
+
+      :param np.ndarray input: Uncalibrated uncertainty estimates,
+          shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: An array of calibrated uncertainty estimates.
+
+
+
+.. py:class:: ICPClassificationCalibration(confidence_alpha: float = 0.2)
+
+   Bases: :py:obj:`ICPCalibration`
+
+
+   Inductive Conformal Prediction calibration for multitask binary classification.
+
+   Each task is treated as an independent binary classification problem
+   (sigmoid activation, not softmax). Computes calibrated prediction sets
+   using 1 - probability of true class as nonconformity scores.
+
+   Supports multitask classification where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = ICPClassificationCalibration(confidence_alpha=0.1)
+   >>> calibrator.fit(y_true_cal, y_pred_proba_cal)  # y_pred_proba: P(class=1) for each task
+   >>> p_values = calibrator.compute_uncertainty(y_pred_proba_test)
+   >>> # Prediction set for task i: include class 1 if p_values[:, i] > alpha
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: fit(y_true: numpy.ndarray, y_pred: numpy.ndarray, y_error: numpy.ndarray | None = None) -> None
+
+      Fits the ICP classification calibration model for multitask binary classification.
+
+      Stores the calibration nonconformity scores per task for computing p-values.
+
+      :param np.ndarray y_true: True binary labels, shape (n_samples,) or (n_samples, n_tasks).
+      :param np.ndarray y_pred: Predicted probabilities for class 1.
+      :param np.ndarray | None y_error: Unused for classification.
+
+
+
+   .. py:method:: compute_uncertainty(input: numpy.ndarray) -> numpy.ndarray
+
+      Computes p-values for each task based on predicted probabilities.
+
+      For each sample and each task, computes p-values for both class 0 and class 1.
+      The p-value is the proportion of calibration scores >= test nonconformity score.
+
+      :param np.ndarray input: Predicted probabilities for class 1,
+          shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: Array of p-values for class 1, shape (n_samples, n_tasks).
+          To get p-values for class 0, use the complementary probability.
+
+
+
+   .. py:method:: compute_p_values_both_classes(input: numpy.ndarray) -> tuple[numpy.ndarray, numpy.ndarray]
+
+      Computes p-values for both classes (0 and 1) for each task.
+
+      :param np.ndarray input: Predicted probabilities for class 1,
+          shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: Tuple of (p_values_class_0, p_values_class_1), each shape (n_samples, n_tasks).
+
+
+
+   .. py:method:: predict_sets(input: numpy.ndarray, alpha: float | None = None) -> numpy.ndarray
+
+      Generates prediction confidence indicators at the specified significance level.
+
+      For each sample and each task, returns an integer indicating the
+      prediction status:
+
+      *  ``1``  — **confident**: exactly one class is in the prediction set.
+      *  ``0``  — **uncertain**: both classes are in the prediction set.
+      * ``-1``  — **unusual**: neither class is in the prediction set
+        (signals possible distribution shift).
+
+      :param np.ndarray input: Predicted probabilities for class 1,
+          shape (n_samples,) or (n_samples, n_tasks).
+      :param float | None alpha: Significance level. If None, uses confidence_alpha.
+
+      :return: Integer array of shape (n_samples, n_tasks) with values in {-1, 0, 1}.
+
+
+
+.. py:class:: EMCalibration
+
+   Bases: :py:obj:`matcha.calibration.base_calibration.BaseCalibration`
+
+
+   Abstract base class for Error Model calibration.
+
+   This class provides the general framework for error model calibration,
+   which trains a classifier to predict whether predictions are within
+   an acceptable error threshold. Subclasses implement the specific error
+   computation for regression or classification tasks.
+
+   Supports multitask learning where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+
+   .. py:attribute:: engine
+
+
+   .. py:attribute:: scaler_box
+      :type:  list[sklearn.preprocessing.StandardScaler]
+      :value: []
+
+
+
+   .. py:attribute:: error_ratio
+      :type:  list[float]
+      :value: []
+
+
+
+   .. py:attribute:: n_compounds
+      :type:  list[int]
+      :value: []
+
+
+
+   .. py:attribute:: model_box
+      :type:  list
+      :value: []
+
+
+
+   .. py:method:: fit(mols: list[rdkit.Chem.rdchem.Mol], y_true: numpy.ndarray, y_pred: numpy.ndarray, y_error: numpy.ndarray) -> None
+
+      Fits the error model calibration using molecules, true values, predictions, and uncertainties.
+
+      :param list[Mol] mols: List of RDKit molecule objects.
+      :param np.ndarray y_true: The true target values, shape (n_samples,) or (n_samples, n_tasks).
+      :param np.ndarray y_pred: The predicted target values.
+      :param np.ndarray y_error: Uncertainty estimates for predictions.
+
+
+
+   .. py:method:: compute_uncertainty(mols: list[rdkit.Chem.rdchem.Mol], y_pred: numpy.ndarray, y_error: numpy.ndarray) -> numpy.ndarray
+
+      Computes error model predictions (probability of being within acceptable error).
+
+      :param list[Mol] mols: List of RDKit molecule objects.
+      :param np.ndarray y_pred: Predicted values, shape (n_samples,) or (n_samples, n_tasks).
+      :param np.ndarray y_error: Uncertainty estimates, shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: Array of probabilities, shape (n_samples, n_tasks).
+          Values indicate probability of prediction being within acceptable error.
+          Special values: -1 = model not trainable (all same class), -2 = insufficient data.
+
+
+
+.. py:class:: EMRegressionCalibration(algorithm: str = 'GradientBoostingClassifier', algorithm_params: dict = None, use_ecfp: bool = True, use_interaction: bool = True, min_compounds: int = 50, fold: float = 2.0, log10: bool = False)
+
+   Bases: :py:obj:`EMCalibration`
+
+
+   Error Model calibration for regression tasks.
+
+   Trains a classifier to predict whether predictions are within N-fold
+   change of the true values. This is useful for error detection in
+   regression tasks where fold-change is a meaningful measure.
+
+   Supports multitask regression where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = EMRegressionCalibration(fold=2.0)
+   >>> calibrator.fit(mols, y_true_cal, y_pred_cal, y_error_cal)
+   >>> proba = calibrator.compute_uncertainty(mols_test, y_pred_test, y_error_test)
+   >>> # proba indicates probability of prediction being within 2-fold error
+
+
+   .. py:attribute:: params
+
+
+.. py:class:: EMClassificationCalibration(algorithm: str = 'GradientBoostingClassifier', algorithm_params: dict = None, use_ecfp: bool = True, use_interaction: bool = True, min_compounds: int = 50, error_threshold: float = 0.5)
+
+   Bases: :py:obj:`EMCalibration`
+
+
+   Error Model calibration for classification tasks.
+
+   Trains a classifier to predict whether predicted probabilities are within
+   an acceptable absolute gap from the true binary labels. This is useful
+   for error detection in classification tasks.
+
+   Supports multitask classification where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = EMClassificationCalibration(error_threshold=0.5)
+   >>> calibrator.fit(mols, y_true_cal, y_pred_proba_cal, y_error_cal)
+   >>> proba = calibrator.compute_uncertainty(mols_test, y_pred_proba_test, y_error_test)
+   >>> # proba indicates probability of prediction being within 0.5 of true label
+
+
+   .. py:attribute:: params
+
+

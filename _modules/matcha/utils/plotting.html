@@ -1,0 +1,525 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.plotting &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.utils.plotting</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.utils.plotting</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Plotting utilities for regression and classification model evaluation.</span>
+
+<span class="sd">Provides interactive Plotly-based visualizations including scatter plots with</span>
+<span class="sd">trendlines and fold-error boundaries for regression, and ROC/PR curves with</span>
+<span class="sd">probability histograms for classification.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseScikitLearnModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.sanitize</span><span class="w"> </span><span class="kn">import</span> <span class="n">ensure_1d_array</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.express</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">px</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">plotly.subplots</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_subplots</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">roc_auc_score</span><span class="p">,</span>
+    <span class="n">average_precision_score</span><span class="p">,</span>
+    <span class="n">roc_curve</span><span class="p">,</span>
+    <span class="n">precision_recall_curve</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+
+<div class="viewcode-block" id="plot_regression">
+<a class="viewcode-back" href="../../../api/matcha/utils/plotting/index.html#matcha.utils.plotting.plot_regression">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_regression</span><span class="p">(</span>
+    <span class="n">true_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">pred_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">plot_title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Regression performance&quot;</span><span class="p">,</span>
+    <span class="n">labels</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">is_log10</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a scatter plot of true vs predicted values with trendline using Plotly.</span>
+
+<span class="sd">    Includes OLS trendline, perfect prediction diagonal, and 2-fold/3-fold</span>
+<span class="sd">    error boundary lines.</span>
+
+<span class="sd">    :param numpy.ndarray true_values: Array of true target values.</span>
+<span class="sd">    :param numpy.ndarray pred_values: Array of predicted target values.</span>
+<span class="sd">    :param str plot_title: Title for the plot.</span>
+<span class="sd">    :param list labels: Optional list of labels for hover data corresponding to</span>
+<span class="sd">        each data point.</span>
+<span class="sd">    :param bool is_log10: Whether the values are log10-transformed. Adjusts</span>
+<span class="sd">        fold-error boundary calculations accordingly.</span>
+<span class="sd">    :returns: A Plotly figure object, or ``None`` if no valid data points exist.</span>
+<span class="sd">    :rtype: plotly.graph_objects.Figure or None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">true_values</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">true_values</span><span class="p">)</span>
+    <span class="n">pred_values</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">pred_values</span><span class="p">)</span>
+
+    <span class="c1"># Remove NaN values</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">true_values</span><span class="p">)</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">pred_values</span><span class="p">))</span>
+    <span class="n">true_clean</span> <span class="o">=</span> <span class="n">true_values</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+    <span class="n">pred_clean</span> <span class="o">=</span> <span class="n">pred_values</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">true_clean</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: No valid data points for </span><span class="si">{</span><span class="n">plot_title</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># Create DataFrame for plotting</span>
+    <span class="n">df_plot</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;True&quot;</span><span class="p">:</span> <span class="n">true_clean</span><span class="p">,</span> <span class="s2">&quot;Predicted&quot;</span><span class="p">:</span> <span class="n">pred_clean</span><span class="p">})</span>
+
+    <span class="c1"># Add SMILES if provided</span>
+    <span class="k">if</span> <span class="n">labels</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">labels_clean</span> <span class="o">=</span> <span class="p">[</span><span class="n">labels</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">labels</span><span class="p">))</span> <span class="k">if</span> <span class="n">mask</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
+        <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;LABELS&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">labels_clean</span>
+        <span class="n">hover_data</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;LABELS&quot;</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">hover_data</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="c1"># Create scatter plot with custom colors</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+        <span class="n">df_plot</span><span class="p">,</span>
+        <span class="n">x</span><span class="o">=</span><span class="s2">&quot;True&quot;</span><span class="p">,</span>
+        <span class="n">y</span><span class="o">=</span><span class="s2">&quot;Predicted&quot;</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="n">plot_title</span><span class="p">,</span>
+        <span class="n">hover_data</span><span class="o">=</span><span class="n">hover_data</span><span class="p">,</span>
+        <span class="n">color_discrete_sequence</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;#503291&quot;</span><span class="p">],</span>  <span class="c1"># Custom dot color</span>
+        <span class="n">template</span><span class="o">=</span><span class="s2">&quot;plotly_white&quot;</span><span class="p">,</span>
+    <span class="p">)</span>  <span class="c1"># Clean white template</span>
+
+    <span class="c1"># Compute OLS trendline with numpy and add it</span>
+    <span class="n">coeffs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyfit</span><span class="p">(</span><span class="n">true_clean</span><span class="p">,</span> <span class="n">pred_clean</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">trendline_x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">true_clean</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">true_clean</span><span class="o">.</span><span class="n">max</span><span class="p">()])</span>
+    <span class="n">trendline_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">polyval</span><span class="p">(</span><span class="n">coeffs</span><span class="p">,</span> <span class="n">trendline_x</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">trendline_x</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">trendline_y</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;#eb3c96&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;OLS Trendline&quot;</span><span class="p">,</span>
+            <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Get data range for lines</span>
+    <span class="n">min_val</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">true_clean</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">pred_clean</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+    <span class="n">max_val</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">true_clean</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span> <span class="n">pred_clean</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+
+    <span class="c1"># Add perfect prediction line (diagonal)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Perfect Prediction&quot;</span><span class="p">,</span>
+            <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Add fold error boundary lines</span>
+    <span class="k">if</span> <span class="n">is_log10</span><span class="p">:</span>
+        <span class="c1"># For log10 data, use log10(2) and log10(3) as offsets</span>
+        <span class="n">log2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">log3</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="c1"># 2-fold boundaries</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span> <span class="o">+</span> <span class="n">log2</span><span class="p">,</span> <span class="n">max_val</span> <span class="o">+</span> <span class="n">log2</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;2-fold boundary&quot;</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span> <span class="o">-</span> <span class="n">log2</span><span class="p">,</span> <span class="n">max_val</span> <span class="o">-</span> <span class="n">log2</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Don&#39;t show duplicate legend entry</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># 3-fold boundaries</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span> <span class="o">+</span> <span class="n">log3</span><span class="p">,</span> <span class="n">max_val</span> <span class="o">+</span> <span class="n">log3</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;3-fold boundary&quot;</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span> <span class="o">-</span> <span class="n">log3</span><span class="p">,</span> <span class="n">max_val</span> <span class="o">-</span> <span class="n">log3</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Don&#39;t show duplicate legend entry</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="c1"># For regular data, create boundaries based on ratios</span>
+        <span class="c1"># 2-fold: y = 2*x and y = x/2</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">2</span> <span class="o">*</span> <span class="n">min_val</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;2-fold boundary&quot;</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span> <span class="n">max_val</span> <span class="o">/</span> <span class="mi">2</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;orange&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Don&#39;t show duplicate legend entry</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="c1"># 3-fold: y = 3*x and y = x/3</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">3</span> <span class="o">*</span> <span class="n">min_val</span><span class="p">,</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">name</span><span class="o">=</span><span class="s2">&quot;3-fold boundary&quot;</span><span class="p">,</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+                <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span><span class="p">,</span> <span class="n">max_val</span><span class="p">],</span>
+                <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">min_val</span> <span class="o">/</span> <span class="mi">3</span><span class="p">,</span> <span class="n">max_val</span> <span class="o">/</span> <span class="mi">3</span><span class="p">],</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+                <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;red&quot;</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dot&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span>
+                <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>  <span class="c1"># Don&#39;t show duplicate legend entry</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Update layout</span>
+    <span class="n">xlabel</span> <span class="o">=</span> <span class="s2">&quot;True Values (log10)&quot;</span> <span class="k">if</span> <span class="n">is_log10</span> <span class="k">else</span> <span class="s2">&quot;True Values&quot;</span>
+    <span class="n">ylabel</span> <span class="o">=</span> <span class="s2">&quot;Predicted Values (log10)&quot;</span> <span class="k">if</span> <span class="n">is_log10</span> <span class="k">else</span> <span class="s2">&quot;Predicted Values&quot;</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+        <span class="n">xaxis_title</span><span class="o">=</span><span class="n">xlabel</span><span class="p">,</span>
+        <span class="n">yaxis_title</span><span class="o">=</span><span class="n">ylabel</span><span class="p">,</span>
+        <span class="n">title</span><span class="o">=</span><span class="p">{</span>
+            <span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">plot_title</span><span class="p">,</span>
+            <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>  <span class="c1"># Center the title</span>
+            <span class="s2">&quot;xanchor&quot;</span><span class="p">:</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">width</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span>
+        <span class="n">height</span><span class="o">=</span><span class="mi">600</span><span class="p">,</span>
+        <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">template</span><span class="o">=</span><span class="s2">&quot;plotly_white&quot;</span><span class="p">,</span>  <span class="c1"># Clean white template</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span></div>
+
+
+
+<div class="viewcode-block" id="plot_classification">
+<a class="viewcode-back" href="../../../api/matcha/utils/plotting/index.html#matcha.utils.plotting.plot_classification">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_classification</span><span class="p">(</span>
+    <span class="n">true_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">pred_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">prob_values</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">plot_title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Classification performance&quot;</span><span class="p">,</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">BaseScikitLearnModel</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a three-panel classification plot with ROC, PR, and probability histograms.</span>
+
+<span class="sd">    Generates an interactive Plotly figure with ROC-AUC curve,</span>
+<span class="sd">    Precision-Recall curve, and predicted probability distribution histograms</span>
+<span class="sd">    for each class.</span>
+
+<span class="sd">    :param numpy.ndarray true_values: Array of true binary labels (0 or 1).</span>
+<span class="sd">    :param numpy.ndarray pred_values: Array of predicted binary labels (0 or 1).</span>
+<span class="sd">    :param numpy.ndarray prob_values: Array of predicted probabilities for the</span>
+<span class="sd">        positive class.</span>
+<span class="sd">    :param str plot_title: Title for the plot.</span>
+<span class="sd">    :param model: Optional model instance used to encode labels via its</span>
+<span class="sd">        internal label encoder.</span>
+<span class="sd">    :type model: BaseScikitLearnModel or None</span>
+<span class="sd">    :returns: A Plotly figure object, or ``None`` if no valid data points exist.</span>
+<span class="sd">    :rtype: plotly.graph_objects.Figure or None</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">true_values</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">true_values</span><span class="p">)</span>
+    <span class="n">pred_values</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">pred_values</span><span class="p">)</span>
+    <span class="n">prob_values</span> <span class="o">=</span> <span class="n">ensure_1d_array</span><span class="p">(</span><span class="n">prob_values</span><span class="p">)</span>
+
+    <span class="c1"># Remove NaN values</span>
+    <span class="n">mask</span> <span class="o">=</span> <span class="o">~</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">true_values</span><span class="p">)</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">pred_values</span><span class="p">)</span> <span class="o">|</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">prob_values</span><span class="p">))</span>
+    <span class="n">true_clean</span> <span class="o">=</span> <span class="n">true_values</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+    <span class="n">prob_clean</span> <span class="o">=</span> <span class="n">prob_values</span><span class="p">[</span><span class="n">mask</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="n">model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">true_clean</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_datamodule</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">_all_to_categorical</span><span class="p">(</span><span class="n">true_clean</span><span class="p">)[</span>
+            <span class="p">:,</span> <span class="mi">0</span>
+        <span class="p">]</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">true_clean</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: No valid data points for </span><span class="si">{</span><span class="n">plot_title</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="c1"># Create subplots: 1 row, 3 columns</span>
+    <span class="n">fig</span> <span class="o">=</span> <span class="n">make_subplots</span><span class="p">(</span>
+        <span class="n">rows</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">cols</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+        <span class="n">subplot_titles</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;ROC Curve&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Precision-Recall Curve&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;Probability Distribution&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">specs</span><span class="o">=</span><span class="p">[[{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;scatter&quot;</span><span class="p">},</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;scatter&quot;</span><span class="p">},</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;histogram&quot;</span><span class="p">}]],</span>
+    <span class="p">)</span>
+
+    <span class="c1"># 1. ROC-AUC curve</span>
+    <span class="n">fpr</span><span class="p">,</span> <span class="n">tpr</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">roc_curve</span><span class="p">(</span><span class="n">true_clean</span><span class="p">,</span> <span class="n">prob_clean</span><span class="p">)</span>
+    <span class="n">roc_auc</span> <span class="o">=</span> <span class="n">roc_auc_score</span><span class="p">(</span><span class="n">true_clean</span><span class="p">,</span> <span class="n">prob_clean</span><span class="p">)</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">fpr</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">tpr</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;ROC (AUC = </span><span class="si">{</span><span class="n">roc_auc</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;#0f69af&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+        <span class="p">),</span>
+        <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Add diagonal line for ROC</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Random Classifier&quot;</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
+            <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># 2. Precision-Recall curve</span>
+    <span class="n">precision</span><span class="p">,</span> <span class="n">recall</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">precision_recall_curve</span><span class="p">(</span><span class="n">true_clean</span><span class="p">,</span> <span class="n">prob_clean</span><span class="p">)</span>
+    <span class="n">pr_auc</span> <span class="o">=</span> <span class="n">average_precision_score</span><span class="p">(</span><span class="n">true_clean</span><span class="p">,</span> <span class="n">prob_clean</span><span class="p">)</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">recall</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">precision</span><span class="p">,</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;PR (AUC = </span><span class="si">{</span><span class="n">pr_auc</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;#0f69af&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+        <span class="p">),</span>
+        <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">col</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Add baseline for PR curve (proportion of positive class)</span>
+    <span class="n">baseline</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">true_clean</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="n">y</span><span class="o">=</span><span class="p">[</span><span class="n">baseline</span><span class="p">,</span> <span class="n">baseline</span><span class="p">],</span>
+            <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;lines&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Random Classifier&quot;</span><span class="p">,</span>
+            <span class="n">line</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="s2">&quot;gray&quot;</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dash</span><span class="o">=</span><span class="s2">&quot;dash&quot;</span><span class="p">),</span>
+            <span class="n">showlegend</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">col</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># 3. Histogram of probabilities for each class</span>
+    <span class="n">prob_class0</span> <span class="o">=</span> <span class="n">prob_clean</span><span class="p">[</span><span class="n">true_clean</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+    <span class="n">prob_class1</span> <span class="o">=</span> <span class="n">prob_clean</span><span class="p">[</span><span class="n">true_clean</span> <span class="o">==</span> <span class="mi">1</span><span class="p">]</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">prob_class0</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Class 0&quot;</span><span class="p">,</span>
+            <span class="n">marker_color</span><span class="o">=</span><span class="s2">&quot;#503291&quot;</span><span class="p">,</span>
+            <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+            <span class="n">nbinsx</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">col</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+        <span class="n">go</span><span class="o">.</span><span class="n">Histogram</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">prob_class1</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Class 1&quot;</span><span class="p">,</span>
+            <span class="n">marker_color</span><span class="o">=</span><span class="s2">&quot;#eb3c96&quot;</span><span class="p">,</span>
+            <span class="n">opacity</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+            <span class="n">nbinsx</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">col</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Update layout for each subplot</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;False Positive Rate&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;True Positive Rate&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Recall&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Precision&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Predicted Probability&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">title_text</span><span class="o">=</span><span class="s2">&quot;Count&quot;</span><span class="p">,</span> <span class="n">row</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">col</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+    <span class="c1"># Update overall layout</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+        <span class="n">title</span><span class="o">=</span><span class="p">{</span>
+            <span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="n">plot_title</span><span class="p">,</span>
+            <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">,</span>
+            <span class="s2">&quot;xanchor&quot;</span><span class="p">:</span> <span class="s2">&quot;center&quot;</span><span class="p">,</span>
+        <span class="p">},</span>
+        <span class="n">width</span><span class="o">=</span><span class="mi">1800</span><span class="p">,</span>  <span class="c1"># Wider for three subplots</span>
+        <span class="n">height</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+        <span class="n">showlegend</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">template</span><span class="o">=</span><span class="s2">&quot;plotly_white&quot;</span><span class="p">,</span>
+        <span class="n">barmode</span><span class="o">=</span><span class="s2">&quot;overlay&quot;</span><span class="p">,</span>  <span class="c1"># For overlapping histograms</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">fig</span></div>
+
+
+
+<div class="viewcode-block" id="save_plot">
+<a class="viewcode-back" href="../../../api/matcha/utils/plotting/index.html#matcha.utils.plotting.save_plot">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_plot</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">file_path</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save a Plotly figure as an HTML file.</span>
+
+<span class="sd">    Creates parent directories if they do not exist.</span>
+
+<span class="sd">    :param plotly.graph_objects.Figure fig: The Plotly figure to save.</span>
+<span class="sd">    :param str file_path: Destination file path (should end in ``.html``).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">file_path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">fig</span><span class="o">.</span><span class="n">write_html</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">include_plotlyjs</span><span class="o">=</span><span class="s2">&quot;cdn&quot;</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

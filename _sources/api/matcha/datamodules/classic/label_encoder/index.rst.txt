@@ -1,0 +1,139 @@
+matcha.datamodules.classic.label_encoder
+========================================
+
+.. py:module:: matcha.datamodules.classic.label_encoder
+
+.. autoapi-nested-parse::
+
+   Label encoders for converting model outputs to human-readable formats.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.label_encoder.LabelEncoderRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.label_encoder.BaseLabelEncoder
+   matcha.datamodules.classic.label_encoder.RegressionLabelEncoder
+   matcha.datamodules.classic.label_encoder.BinaryClassificationLabelEncoder
+
+
+Module Contents
+---------------
+
+.. py:data:: LabelEncoderRegistry
+
+.. py:class:: BaseLabelEncoder(params: dict = {})
+
+   Converts predictions into human-readable outputs.
+
+   This base class wraps output arrays from models into dataframes
+   with meaningful, user-defined column names.
+
+   Example usage:
+
+   .. code-block:: python
+       encoder = RegressionLabelEncoder({
+           0: {"task_label": "LOGS_THERMO"},
+           1: {"task_label": "LOGS"}
+               })
+       preds = np.random.rand(1000,2)
+       output = encoder.process(preds, tag="predictions")
+
+   :param dict params: ruleset to use when processing arrays, see
+       example above
+
+
+   .. py:method:: is_set() -> bool
+
+      Check whether the encoder has classification thresholds configured.
+
+      :returns: False for the base class; overridden by subclasses
+      :rtype: bool
+
+
+
+   .. py:property:: label_names
+      :type: str | list[str]
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Return the complete internal state for serialization
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Load the complete internal state from serialization
+
+
+
+   .. py:method:: create_empty()
+      :classmethod:
+
+
+      Create an empty label encoder that can be populated via load_state_dict
+
+
+
+.. py:class:: RegressionLabelEncoder(params: dict = {})
+
+   Bases: :py:obj:`BaseLabelEncoder`
+
+
+   Label encoder for regression tasks.
+
+   Wraps raw prediction arrays into labelled DataFrames with user-defined
+   column names.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: process(input: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Converts the prediction array into a labelled dataframe,
+      dropping any dummy columns.
+
+
+
+.. py:class:: BinaryClassificationLabelEncoder(params: dict = {})
+
+   Bases: :py:obj:`BaseLabelEncoder`
+
+
+   Label encoder for binary classification tasks.
+
+   Converts continuous predictions into categorical labels using
+   user-defined thresholds.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: is_set() -> bool
+
+      Check whether the encoder has classification thresholds configured.
+
+      :returns: False for the base class; overridden by subclasses
+      :rtype: bool
+
+
+
+   .. py:method:: process(input: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Executes the pipeline end-to-end
+
+
+

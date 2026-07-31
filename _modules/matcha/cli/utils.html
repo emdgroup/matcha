@@ -1,0 +1,428 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.utils &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../cli.html">matcha.cli</a></li>
+      <li class="breadcrumb-item active">matcha.cli.utils</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.cli.utils</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Shared utilities for MATCHA CLI commands.</span>
+
+<span class="sd">Provides dataset loading, train/test splitting, score aggregation, bootstrap</span>
+<span class="sd">metric computation, performance-dict writing, and configuration serialization</span>
+<span class="sd">helpers used across multiple CLI subcommands.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">PandasTools</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">KFold</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.splitting</span><span class="w"> </span><span class="kn">import</span> <span class="n">cluster_split</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span>
+
+
+<div class="viewcode-block" id="load_dataset">
+<a class="viewcode-back" href="../../../api/matcha/cli/utils/index.html#matcha.cli.utils.load_dataset">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">load_dataset</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a molecular dataset from CSV or SDF and return a DataFrame with ROMol column.</span>
+
+<span class="sd">    Reads the file specified in *cfg*, ensures a SMILES column exists, converts</span>
+<span class="sd">    SMILES to RDKit ``Mol`` objects, and drops rows with invalid molecules.</span>
+
+<span class="sd">    :param cfg: Dataset configuration object with ``path``, ``smiles_key``,</span>
+<span class="sd">        and optionally other column-key attributes.</span>
+<span class="sd">    :returns: DataFrame containing at least a ``ROMol`` column and the</span>
+<span class="sd">        original SMILES column.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="s2">&quot;.csv&quot;</span> <span class="ow">in</span> <span class="n">cfg</span><span class="o">.</span><span class="n">path</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="n">df</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">])</span>
+        <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ROMol&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">PandasTools</span><span class="o">.</span><span class="n">LoadSDF</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">df</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;ROMol&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">)</span>
+            <span class="n">df</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">]</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">smiles_key</span><span class="p">])</span>
+    <span class="k">return</span> <span class="n">df</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">subset</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;ROMol&quot;</span><span class="p">])</span></div>
+
+
+
+<div class="viewcode-block" id="get_splits">
+<a class="viewcode-back" href="../../../api/matcha/cli/utils/index.html#matcha.cli.utils.get_splits">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_splits</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+    <span class="n">split_cfg</span><span class="p">,</span>
+    <span class="n">return_val_splits</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">dataset_cfg</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Generate train/test (or train/val/test) splits from a DataFrame.</span>
+
+<span class="sd">    Supports multiple splitting strategies: cross-validation (``cv``),</span>
+<span class="sd">    temporal (``time``), cluster-based (``cluster``), and file-based</span>
+<span class="sd">    (``file``). Every method produces ``n_subset`` splits (or, for the</span>
+<span class="sd">    ``file`` method, one split per supplied test-set path).</span>
+
+<span class="sd">    Bootstrapping (``n_bootstrap`` / ``frac_bootstrap``) is applied</span>
+<span class="sd">    downstream of this function on each split&#39;s test predictions and is</span>
+<span class="sd">    therefore independent of the split method chosen here.</span>
+
+<span class="sd">    :param df: Input DataFrame containing molecular data.</span>
+<span class="sd">    :param split_cfg: Split configuration object with ``method``,</span>
+<span class="sd">        ``n_subset``, and ``method_params``.</span>
+<span class="sd">    :param return_val_splits: If ``True``, return validation and test sets</span>
+<span class="sd">        separately as a list of ``[df_val, df_test]`` pairs instead of</span>
+<span class="sd">        concatenating them.</span>
+<span class="sd">    :param dataset_cfg: Optional dataset configuration used by file-based</span>
+<span class="sd">        splitting to load external test sets.</span>
+<span class="sd">    :returns: Tuple of ``(train_splits, val_splits)`` where each is a list</span>
+<span class="sd">        of DataFrames (one per split).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">train_splits</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">val_splits</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">if</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;file&quot;</span><span class="p">:</span>
+        <span class="n">test_paths</span> <span class="o">=</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;path&quot;</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">test_path</span> <span class="ow">in</span> <span class="n">test_paths</span><span class="p">:</span>
+            <span class="n">train_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+            <span class="n">dataset_ith_cfg</span> <span class="o">=</span> <span class="n">dataset_cfg</span><span class="o">.</span><span class="n">model_copy</span><span class="p">()</span>
+            <span class="n">dataset_ith_cfg</span><span class="o">.</span><span class="n">path</span> <span class="o">=</span> <span class="n">test_path</span>
+            <span class="n">df_test</span> <span class="o">=</span> <span class="n">load_dataset</span><span class="p">(</span><span class="n">dataset_ith_cfg</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">return_val_splits</span><span class="p">:</span>
+                <span class="n">mid_point</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df_test</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">df_test</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">mid_point</span><span class="p">],</span> <span class="n">df_test</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">mid_point</span><span class="p">:]])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_test</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;cv&quot;</span><span class="p">:</span>
+        <span class="n">splitter</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">split_cfg</span><span class="o">.</span><span class="n">n_subset</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">train_index</span><span class="p">,</span> <span class="n">test_index</span> <span class="ow">in</span> <span class="n">splitter</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">df</span><span class="p">):</span>
+            <span class="n">df_train</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">train_index</span><span class="p">]</span>
+            <span class="n">train_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_train</span><span class="p">)</span>
+
+            <span class="n">val_index</span> <span class="o">=</span> <span class="n">test_index</span><span class="p">[:</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">test_index</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)]</span>
+            <span class="n">test_index</span> <span class="o">=</span> <span class="n">test_index</span><span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">test_index</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="p">:]</span>
+            <span class="n">df_test</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">test_index</span><span class="p">]</span>
+            <span class="n">df_val</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">val_index</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="n">return_val_splits</span><span class="p">:</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">df_val</span><span class="p">,</span> <span class="n">df_test</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_val</span><span class="p">,</span> <span class="n">df_test</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+    <span class="k">elif</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;time&quot;</span><span class="p">:</span>
+        <span class="c1"># Sort dataframe by time column first</span>
+        <span class="n">df_sorted</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="n">by</span><span class="o">=</span><span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;key&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span>
+            <span class="n">drop</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">split_cfg</span><span class="o">.</span><span class="n">n_subset</span><span class="p">):</span>
+            <span class="c1"># Calculate split point: train on first (1 - split_size*(n_subset-i)) portion</span>
+            <span class="c1"># This ensures expanding training sets: first iteration uses more data for training</span>
+            <span class="n">train_portion</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;split_size&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span>
+                <span class="n">split_cfg</span><span class="o">.</span><span class="n">n_subset</span> <span class="o">-</span> <span class="n">i</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Ensure train_portion is valid (not negative)</span>
+            <span class="k">if</span> <span class="n">train_portion</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Invalid train portion </span><span class="si">{</span><span class="n">train_portion</span><span class="si">}</span><span class="s2">. Consider reducing split_size or n_subset.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Calculate split index</span>
+            <span class="n">split_index</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df_sorted</span><span class="p">)</span> <span class="o">*</span> <span class="n">train_portion</span><span class="p">)</span>
+
+            <span class="c1"># Create train and test splits</span>
+            <span class="n">df_train</span> <span class="o">=</span> <span class="n">df_sorted</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">split_index</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">df_test</span> <span class="o">=</span> <span class="n">df_sorted</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span>
+                <span class="n">split_index</span> <span class="p">:</span> <span class="n">split_index</span>
+                <span class="o">+</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df_sorted</span><span class="p">)</span> <span class="o">*</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;split_size&quot;</span><span class="p">])</span>
+            <span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+            <span class="n">train_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_train</span><span class="p">)</span>
+
+            <span class="c1"># Split test set into validation and test portions</span>
+            <span class="n">mid_point</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df_test</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">df_val</span> <span class="o">=</span> <span class="n">df_test</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">mid_point</span><span class="p">]</span>
+            <span class="n">df_test</span> <span class="o">=</span> <span class="n">df_test</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">mid_point</span><span class="p">:]</span>
+
+            <span class="k">if</span> <span class="n">return_val_splits</span><span class="p">:</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">df_val</span><span class="p">,</span> <span class="n">df_test</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_val</span><span class="p">,</span> <span class="n">df_test</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+    <span class="k">elif</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;cluster&quot;</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">split_cfg</span><span class="o">.</span><span class="n">n_subset</span><span class="p">):</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;features&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">metric</span> <span class="o">=</span> <span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;metric&quot;</span><span class="p">][</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">df_train</span><span class="p">,</span> <span class="n">df_test</span> <span class="o">=</span> <span class="n">cluster_split</span><span class="p">(</span>
+                <span class="n">df</span><span class="p">,</span>
+                <span class="n">feature_set</span><span class="o">=</span><span class="n">features</span><span class="p">,</span>
+                <span class="n">metric</span><span class="o">=</span><span class="n">metric</span><span class="p">,</span>
+                <span class="n">split_size</span><span class="o">=</span><span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;split_size&quot;</span><span class="p">],</span>
+                <span class="n">n_jobs</span><span class="o">=</span><span class="n">split_cfg</span><span class="o">.</span><span class="n">method_params</span><span class="p">[</span><span class="s2">&quot;n_jobs&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+            <span class="n">mid_point</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">df_test</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">df_val</span> <span class="o">=</span> <span class="n">df_test</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">mid_point</span><span class="p">]</span>
+            <span class="n">df_test</span> <span class="o">=</span> <span class="n">df_test</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">mid_point</span><span class="p">:]</span>
+            <span class="n">train_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">df_train</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">return_val_splits</span><span class="p">:</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">df_val</span><span class="p">,</span> <span class="n">df_test</span><span class="p">])</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">val_splits</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_val</span><span class="p">,</span> <span class="n">df_test</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">train_splits</span><span class="p">,</span> <span class="n">val_splits</span></div>
+
+
+
+<div class="viewcode-block" id="aggregate_scores">
+<a class="viewcode-back" href="../../../api/matcha/cli/utils/index.html#matcha.cli.utils.aggregate_scores">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">aggregate_scores</span><span class="p">(</span><span class="n">perf_dict</span><span class="p">,</span> <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Aggregate per-split performance scores into a single summary.</span>
+
+<span class="sd">    Collects metric values across all splits (excluding ``mean`` and ``std``</span>
+<span class="sd">    keys) and reduces them with the specified aggregation function.</span>
+
+<span class="sd">    :param perf_dict: Dictionary mapping split indices to</span>
+<span class="sd">        ``{label: {metric: value}}`` nested dicts.</span>
+<span class="sd">    :param mode: Aggregation mode — ``&quot;mean&quot;`` for average, ``&quot;std&quot;`` for</span>
+<span class="sd">        standard deviation.</span>
+<span class="sd">    :returns: Dictionary of aggregated scores with the same</span>
+<span class="sd">        ``{label: {metric: value}}`` structure.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">aggregated_scores</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="c1"># Get all label keys</span>
+    <span class="n">label_keys</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">perf_dict</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">split</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">):</span>
+            <span class="n">label_keys</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">perf_dict</span><span class="p">[</span><span class="n">split</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">label_keys</span><span class="p">:</span>
+        <span class="c1"># Collect all values for this label across splits</span>
+        <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">perf_dict</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">split</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">label</span> <span class="ow">in</span> <span class="n">perf_dict</span><span class="p">[</span><span class="n">split</span><span class="p">]:</span>
+                <span class="n">score</span> <span class="o">=</span> <span class="n">perf_dict</span><span class="p">[</span><span class="n">split</span><span class="p">][</span><span class="n">label</span><span class="p">]</span>
+                <span class="c1"># If score is a dict (multiple metrics), aggregate each metric</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">score</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">metric</span><span class="p">,</span> <span class="n">val</span> <span class="ow">in</span> <span class="n">score</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                        <span class="n">aggregated_scores</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="p">{})</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span>
+                            <span class="n">metric</span><span class="p">,</span> <span class="p">[]</span>
+                        <span class="p">)</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">aggregated_scores</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">label</span><span class="p">,</span> <span class="p">[])</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
+        <span class="c1"># Aggregate</span>
+        <span class="k">for</span> <span class="n">metric</span> <span class="ow">in</span> <span class="n">aggregated_scores</span><span class="p">[</span><span class="n">label</span><span class="p">]:</span>
+            <span class="n">vals</span> <span class="o">=</span> <span class="n">aggregated_scores</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="n">metric</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="s2">&quot;std&quot;</span><span class="p">:</span>
+                <span class="n">aggregated_scores</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="n">metric</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">vals</span><span class="p">))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">aggregated_scores</span><span class="p">[</span><span class="n">label</span><span class="p">][</span><span class="n">metric</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">vals</span><span class="p">))</span>
+
+    <span class="k">return</span> <span class="n">aggregated_scores</span></div>
+
+
+
+<div class="viewcode-block" id="bootstrap_metrics">
+<a class="viewcode-back" href="../../../api/matcha/cli/utils/index.html#matcha.cli.utils.bootstrap_metrics">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">bootstrap_metrics</span><span class="p">(</span>
+    <span class="n">metric_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">n_bootstrap</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">frac_bootstrap</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="o">*</span><span class="n">arrays</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">metric_kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute metrics over bootstrap subsamples.</span>
+
+<span class="sd">    Repeatedly draws random subsets (with replacement) from the provided</span>
+<span class="sd">    arrays and evaluates *metric_fn* on each subsample to estimate metric</span>
+<span class="sd">    variability.</span>
+
+<span class="sd">    :param metric_fn: Callable accepting the arrays positionally followed by</span>
+<span class="sd">        ``**metric_kwargs`` and returning a ``dict[str, float]`` of metric</span>
+<span class="sd">        values.</span>
+<span class="sd">    :param n_bootstrap: Number of bootstrap iterations.</span>
+<span class="sd">    :param frac_bootstrap: Fraction of rows to sample in each iteration.</span>
+<span class="sd">    :param arrays: Arrays to subsample (labels, predictions, probabilities,</span>
+<span class="sd">        etc.). All must share the same length along axis 0.</span>
+<span class="sd">    :param metric_kwargs: Extra keyword arguments forwarded to *metric_fn*.</span>
+<span class="sd">    :returns: List of length *n_bootstrap*, where each element is a</span>
+<span class="sd">        ``dict[str, float]`` of metric values for that subsample.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">n</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">arrays</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="n">sample_size</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">n</span> <span class="o">*</span> <span class="n">frac_bootstrap</span><span class="p">))</span>
+    <span class="n">all_scores</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_bootstrap</span><span class="p">):</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">sample_size</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">sampled</span> <span class="o">=</span> <span class="p">[</span><span class="n">a</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">arrays</span><span class="p">]</span>
+        <span class="n">scores</span> <span class="o">=</span> <span class="n">metric_fn</span><span class="p">(</span><span class="o">*</span><span class="n">sampled</span><span class="p">,</span> <span class="o">**</span><span class="n">metric_kwargs</span><span class="p">)</span>
+        <span class="n">all_scores</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">all_scores</span></div>
+
+
+
+<div class="viewcode-block" id="store_split_scores">
+<a class="viewcode-back" href="../../../api/matcha/cli/utils/index.html#matcha.cli.utils.store_split_scores">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">store_split_scores</span><span class="p">(</span>
+    <span class="n">perf_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span>
+    <span class="n">split_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">label</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">metric_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+    <span class="n">n_bootstrap</span><span class="p">,</span>
+    <span class="n">frac_bootstrap</span><span class="p">,</span>
+    <span class="o">*</span><span class="n">arrays</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">metric_kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Compute and store per-split metric scores, handling bootstrap and non-bootstrap paths.</span>
+
+<span class="sd">    When bootstrapping is inactive (``n_bootstrap`` is ``None`` or ``1``),</span>
+<span class="sd">    computes the metric once and stores it under the integer *split_idx* key.</span>
+<span class="sd">    When bootstrapping is active, runs :func:`bootstrap_metrics` and stores</span>
+<span class="sd">    each subsample result under a ``&quot;{split_idx}_{b}&quot;`` string key so that</span>
+<span class="sd">    downstream bootstrap comparison tools can identify them.</span>
+
+<span class="sd">    :param perf_dict: Mutable performance dictionary to write into.</span>
+<span class="sd">    :param split_idx: Integer split index (e.g. fold number).</span>
+<span class="sd">    :param label: Endpoint label key (e.g. ``&quot;SOLUBILITY&quot;``).</span>
+<span class="sd">    :param metric_fn: Metric callable — e.g. ``process_regression`` or</span>
+<span class="sd">        ``process_classification``.</span>
+<span class="sd">    :param n_bootstrap: Number of bootstrap iterations, or ``None`` / ``1``</span>
+<span class="sd">        to skip bootstrapping.</span>
+<span class="sd">    :param frac_bootstrap: Fraction of test-set rows to sample per bootstrap</span>
+<span class="sd">        iteration.  Only used when *n_bootstrap* &gt; 1.</span>
+<span class="sd">    :param arrays: Positional arrays forwarded to *metric_fn* (and to</span>
+<span class="sd">        :func:`bootstrap_metrics` for subsampling).</span>
+<span class="sd">    :param metric_kwargs: Keyword arguments forwarded to *metric_fn*.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">n_bootstrap</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">n_bootstrap</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+        <span class="n">perf_dict</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">split_idx</span><span class="p">,</span> <span class="p">{})[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">metric_fn</span><span class="p">(</span><span class="o">*</span><span class="n">arrays</span><span class="p">,</span> <span class="o">**</span><span class="n">metric_kwargs</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">b</span><span class="p">,</span> <span class="n">scores</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+            <span class="n">bootstrap_metrics</span><span class="p">(</span>
+                <span class="n">metric_fn</span><span class="p">,</span> <span class="n">n_bootstrap</span><span class="p">,</span> <span class="n">frac_bootstrap</span><span class="p">,</span> <span class="o">*</span><span class="n">arrays</span><span class="p">,</span> <span class="o">**</span><span class="n">metric_kwargs</span>
+            <span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">perf_dict</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">split_idx</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">b</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">{})[</span><span class="n">label</span><span class="p">]</span> <span class="o">=</span> <span class="n">scores</span></div>
+
+
+
+<div class="viewcode-block" id="save_config_as_yaml">
+<a class="viewcode-back" href="../../../api/matcha/cli/utils/index.html#matcha.cli.utils.save_config_as_yaml">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">save_config_as_yaml</span><span class="p">(</span><span class="n">pydantic_config</span><span class="p">,</span> <span class="n">output_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Save a Pydantic model configuration as a YAML file.</span>
+
+<span class="sd">    :param pydantic_config: Pydantic model instance to serialize.</span>
+<span class="sd">    :param output_path: Path where the YAML file should be written.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+
+    <span class="n">cfg_dict</span> <span class="o">=</span> <span class="n">pydantic_config</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+        <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">cfg_dict</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">default_flow_style</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

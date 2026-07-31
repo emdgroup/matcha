@@ -1,0 +1,507 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.explainability.explainer &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.explainability.explainer</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.explainability.explainer</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.lime</span><span class="w"> </span><span class="kn">import</span> <span class="n">LIME</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.analogue_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalogueGenerator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">MolToSmiles</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.Draw</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimilarityMaps</span><span class="p">,</span> <span class="n">rdMolDraw2D</span> <span class="k">as</span> <span class="n">Draw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.colors</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pc</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cl</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">skp</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExplainerInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+
+<span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="MatchaExplanation">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplanation">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MatchaExplanation</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Container for LIME explanation results with visualization methods.</span>
+
+<span class="sd">    Holds the descriptor-level coefficients, ECFP atomic environments and</span>
+<span class="sd">    weights, the query molecule, and generated analogues. Provides plotting</span>
+<span class="sd">    utilities for coefficient bar charts and molecular heatmaps.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">df_desc</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">envs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span>
+        <span class="n">weights</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
+        <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">analogues</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a MatchaExplanation.</span>
+
+<span class="sd">        :param pd.DataFrame df_desc: LIME results from descriptor-based analysis,</span>
+<span class="sd">            with columns ``Descriptor``, ``Coefficient``, ``Standard deviation``.</span>
+<span class="sd">        :param dict[int, list[int]] envs: Mapping of fingerprint bit IDs to sets</span>
+<span class="sd">            of atom indices in their environment.</span>
+<span class="sd">        :param dict[int, float] weights: LIME coefficients per fingerprint bit ID.</span>
+<span class="sd">        :param Mol mol: The query RDKit molecule.</span>
+<span class="sd">        :param list[str] analogues: SMILES strings of the molecules used in the</span>
+<span class="sd">            LIME analysis.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">df_desc</span> <span class="o">=</span> <span class="n">df_desc</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">envs</span> <span class="o">=</span> <span class="n">envs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">analogues</span> <span class="o">=</span> <span class="n">analogues</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mol</span> <span class="o">=</span> <span class="n">mol</span>
+
+<div class="viewcode-block" id="MatchaExplanation.plot_coefficients">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplanation.plot_coefficients">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_coefficients</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">remove_noise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">keep_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Plot LIME coefficients as a horizontal bar chart.</span>
+
+<span class="sd">        :param bool remove_noise: Whether to filter out unreliable coefficients</span>
+<span class="sd">            (those where standard deviation exceeds the absolute coefficient or</span>
+<span class="sd">            absolute coefficient is &lt;= 0.1). Defaults to True.</span>
+<span class="sd">        :param int keep_k: Maximum number of descriptors to display. Defaults to 10.</span>
+
+<span class="sd">        :returns: Plotly figure with the LIME coefficient bar chart.</span>
+
+<span class="sd">        :raises ValueError: If no reliable coefficients remain after noise removal.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">df_plot</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">df_desc</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="n">last_row</span> <span class="o">=</span> <span class="n">df_plot</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">last_row</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">last_row</span><span class="p">[</span><span class="s2">&quot;Standard deviation&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="n">df_plot</span> <span class="o">=</span> <span class="n">df_plot</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Reliability&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">-</span> <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Standard deviation&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">remove_noise</span><span class="p">:</span>
+            <span class="n">df_plot</span> <span class="o">=</span> <span class="n">df_plot</span><span class="p">[</span><span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Reliability&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">df_plot</span> <span class="o">=</span> <span class="n">df_plot</span><span class="p">[</span><span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mf">0.1</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df_plot</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;No reliable coefficients remain after noise removal. &quot;</span>
+                <span class="s2">&quot;All descriptors have a standard deviation exceeding their &quot;</span>
+                <span class="s2">&quot;absolute coefficient or an absolute coefficient ≤ 0.1. &quot;</span>
+                <span class="s2">&quot;Try setting remove_noise=False or providing more data.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">df_plot</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">keep_k</span><span class="p">:</span>
+            <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Abs&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span>
+            <span class="n">df_plot</span> <span class="o">=</span> <span class="n">df_plot</span><span class="o">.</span><span class="n">nlargest</span><span class="p">(</span><span class="n">keep_k</span><span class="p">,</span> <span class="s2">&quot;Abs&quot;</span><span class="p">)</span>
+            <span class="n">df_plot</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="s2">&quot;Abs&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">df_plot</span> <span class="o">=</span> <span class="n">df_plot</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="n">descriptors</span> <span class="o">=</span> <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Descriptor&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="n">coefficients</span> <span class="o">=</span> <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="n">std_devs</span> <span class="o">=</span> <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Standard deviation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+        <span class="c1"># Interpolate bar color between two endpoints based on R²:</span>
+        <span class="c1">#   R² &lt;= 0.7  -&gt; #2dbecd (teal)</span>
+        <span class="c1">#   R² &gt;= 1.0  -&gt; #149b5f (green)</span>
+        <span class="n">t</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">((</span><span class="n">value</span> <span class="o">-</span> <span class="mf">0.7</span><span class="p">)</span> <span class="o">/</span> <span class="mf">0.3</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">low_rgb</span> <span class="o">=</span> <span class="n">pc</span><span class="o">.</span><span class="n">hex_to_rgb</span><span class="p">(</span><span class="s2">&quot;#2dbecd&quot;</span><span class="p">)</span>
+        <span class="n">high_rgb</span> <span class="o">=</span> <span class="n">pc</span><span class="o">.</span><span class="n">hex_to_rgb</span><span class="p">(</span><span class="s2">&quot;#149b5f&quot;</span><span class="p">)</span>
+        <span class="n">r</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">low_rgb</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">t</span> <span class="o">*</span> <span class="p">(</span><span class="n">high_rgb</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">low_rgb</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+        <span class="n">g</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">low_rgb</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">t</span> <span class="o">*</span> <span class="p">(</span><span class="n">high_rgb</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">low_rgb</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">low_rgb</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">+</span> <span class="n">t</span> <span class="o">*</span> <span class="p">(</span><span class="n">high_rgb</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="o">-</span> <span class="n">low_rgb</span><span class="p">[</span><span class="mi">2</span><span class="p">]))</span>
+        <span class="n">bar_color</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;rgb(</span><span class="si">{</span><span class="n">r</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">g</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">b</span><span class="si">}</span><span class="s2">)&quot;</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_trace</span><span class="p">(</span>
+            <span class="n">go</span><span class="o">.</span><span class="n">Bar</span><span class="p">(</span>
+                <span class="n">y</span><span class="o">=</span><span class="n">descriptors</span><span class="p">,</span>
+                <span class="n">x</span><span class="o">=</span><span class="n">coefficients</span><span class="p">,</span>
+                <span class="n">error_x</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;data&quot;</span><span class="p">,</span> <span class="n">array</span><span class="o">=</span><span class="n">std_devs</span><span class="p">),</span>
+                <span class="n">orientation</span><span class="o">=</span><span class="s2">&quot;h&quot;</span><span class="p">,</span>
+                <span class="n">marker_color</span><span class="o">=</span><span class="n">bar_color</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+            <span class="n">title</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="n">text</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;LIME analysis (R² = </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> ± </span><span class="si">{</span><span class="n">std</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">,</span>
+                <span class="n">x</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                <span class="n">xanchor</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">xaxis_title</span><span class="o">=</span><span class="s2">&quot;Importance score&quot;</span><span class="p">,</span>
+            <span class="n">xaxis</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
+                <span class="nb">range</span><span class="o">=</span><span class="p">[</span>
+                    <span class="nb">min</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">c</span> <span class="o">-</span> <span class="n">s</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">coefficients</span><span class="p">,</span> <span class="n">std_devs</span><span class="p">)),</span> <span class="mi">0</span><span class="p">),</span>
+                    <span class="nb">max</span><span class="p">(</span><span class="n">c</span> <span class="o">+</span> <span class="n">s</span> <span class="k">for</span> <span class="n">c</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">coefficients</span><span class="p">,</span> <span class="n">std_devs</span><span class="p">)),</span>
+                <span class="p">],</span>
+                <span class="n">showgrid</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">template</span><span class="o">=</span><span class="s2">&quot;plotly_white&quot;</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="nb">max</span><span class="p">(</span><span class="mi">400</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">descriptors</span><span class="p">)</span> <span class="o">*</span> <span class="mi">40</span><span class="p">),</span>
+            <span class="n">width</span><span class="o">=</span><span class="mi">800</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span></div>
+
+
+<div class="viewcode-block" id="MatchaExplanation.plot_heatmap">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplanation.plot_heatmap">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">plot_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colormap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;RdYlGn&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a heatmap of the molecule with atoms colored by LIME weights.</span>
+
+<span class="sd">        Atom colors are determined by summing ECFP bit weights for all bits</span>
+<span class="sd">        that include the atom, then scaling to [-1, +1].</span>
+
+<span class="sd">        :param str colormap: Matplotlib colormap name. Defaults to ``&quot;RdYlGn&quot;``.</span>
+
+<span class="sd">        :returns: Plotly figure containing the molecular similarity map image.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">highlights</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+        <span class="c1"># collect atomic weights by summing up weights originating from LIME analysis</span>
+        <span class="c1"># an atom can be present in multiple bits, thus the summation</span>
+        <span class="k">for</span> <span class="n">bitid</span><span class="p">,</span> <span class="n">atoms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">envs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">aid</span> <span class="ow">in</span> <span class="n">atoms</span><span class="p">:</span>
+                <span class="n">highlights</span><span class="p">[</span><span class="n">aid</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">bitid</span><span class="p">]</span>
+        <span class="c1"># scale the results between -1 and +1</span>
+        <span class="n">highlights</span> <span class="o">=</span> <span class="n">skp</span><span class="o">.</span><span class="n">minmax_scale</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">weight</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">highlights</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])],</span>
+            <span class="n">feature_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+
+        <span class="c1"># make the drawing using Cairo (PNG)</span>
+        <span class="n">d2d</span> <span class="o">=</span> <span class="n">Draw</span><span class="o">.</span><span class="n">MolDraw2DCairo</span><span class="p">(</span><span class="mi">550</span><span class="p">,</span> <span class="mi">350</span><span class="p">)</span>
+        <span class="n">dopts</span> <span class="o">=</span> <span class="n">d2d</span><span class="o">.</span><span class="n">drawOptions</span><span class="p">()</span>
+        <span class="n">dopts</span><span class="o">.</span><span class="n">useBWAtomPalette</span><span class="p">()</span>
+        <span class="n">dopts</span><span class="o">.</span><span class="n">addAtomIndices</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">SimilarityMaps</span><span class="o">.</span><span class="n">GetSimilarityMapFromWeights</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mol</span><span class="p">,</span>
+            <span class="n">highlights</span><span class="p">,</span>
+            <span class="n">draw2d</span><span class="o">=</span><span class="n">d2d</span><span class="p">,</span>
+            <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">d2d</span><span class="o">.</span><span class="n">FinishDrawing</span><span class="p">()</span>
+
+        <span class="c1"># Convert PNG bytes to a Plotly figure</span>
+        <span class="n">png_data</span> <span class="o">=</span> <span class="n">d2d</span><span class="o">.</span><span class="n">GetDrawingText</span><span class="p">()</span>
+        <span class="n">img</span> <span class="o">=</span> <span class="n">Image</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">png_data</span><span class="p">))</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">()</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">add_layout_image</span><span class="p">(</span>
+            <span class="nb">dict</span><span class="p">(</span>
+                <span class="n">source</span><span class="o">=</span><span class="n">img</span><span class="p">,</span>
+                <span class="n">xref</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span>
+                <span class="n">yref</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span>
+                <span class="n">x</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">y</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
+                <span class="n">sizex</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">width</span><span class="p">,</span>
+                <span class="n">sizey</span><span class="o">=</span><span class="n">img</span><span class="o">.</span><span class="n">height</span><span class="p">,</span>
+                <span class="n">sizing</span><span class="o">=</span><span class="s2">&quot;stretch&quot;</span><span class="p">,</span>
+                <span class="n">layer</span><span class="o">=</span><span class="s2">&quot;below&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_xaxes</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">width</span><span class="p">])</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">visible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="nb">range</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">img</span><span class="o">.</span><span class="n">height</span><span class="p">],</span> <span class="n">scaleanchor</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+            <span class="n">width</span><span class="o">=</span><span class="mi">550</span><span class="p">,</span>
+            <span class="n">height</span><span class="o">=</span><span class="mi">350</span><span class="p">,</span>
+            <span class="n">margin</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">l</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">r</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">t</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">b</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fig</span></div>
+</div>
+
+
+
+<span class="n">_pos_params</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;substituents&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="s2">&quot;F&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;I&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Br&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;Cl&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;O&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;C&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;[*]C(F)(F)F&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;[*]C#N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;[*]OC&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;[*]C1CC1&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;[*]C(=O)N&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;[*]S(=O)(=O)C&quot;</span><span class="p">,</span>
+    <span class="p">],</span>
+    <span class="s2">&quot;anchors&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;[cH]&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;num_sub&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="n">_nitrogen_walk_params</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;num_sub&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">}</span>
+
+
+<div class="viewcode-block" id="MatchaExplainer">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplainer">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MatchaExplainer</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;High-level interface for molecular explainability.</span>
+
+<span class="sd">    Combines LIME-based feature importance analysis with structural analogue</span>
+<span class="sd">    generation. Produces :class:`MatchaExplanation` objects that contain both</span>
+<span class="sd">    descriptor coefficients and atomic heatmap data for visualization.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">positional_analogue_scanning_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">nitrogen_walk_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">lime_descriptor_set</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lime_fingerprint_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">lime_scale_coeff</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">lime_remove_noise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the MatchaExplainer.</span>
+
+<span class="sd">        :param dict | None positional_analogue_scanning_params: Parameters for</span>
+<span class="sd">            positional analogue scanning. Empty dict uses defaults; None disables.</span>
+<span class="sd">        :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.</span>
+<span class="sd">            Empty dict uses defaults; None disables.</span>
+<span class="sd">        :param list[str] | None lime_descriptor_set: RDKit descriptor names for</span>
+<span class="sd">            LIME. None uses the default set.</span>
+<span class="sd">        :param dict | None lime_fingerprint_params: Morgan fingerprint parameters</span>
+<span class="sd">            for ECFP-based LIME. None uses defaults.</span>
+<span class="sd">        :param bool lime_scale_coeff: Whether to normalize LIME coefficients.</span>
+<span class="sd">            Defaults to True.</span>
+<span class="sd">        :param bool lime_remove_noise: Whether to filter unreliable coefficients</span>
+<span class="sd">            in the explanation. Defaults to True.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">ExplainerInputModel</span><span class="p">(</span>
+            <span class="n">positional_analogue_scanning_params</span><span class="o">=</span><span class="n">positional_analogue_scanning_params</span><span class="p">,</span>
+            <span class="n">nitrogen_walk_params</span><span class="o">=</span><span class="n">nitrogen_walk_params</span><span class="p">,</span>
+            <span class="n">lime_descriptor_set</span><span class="o">=</span><span class="n">lime_descriptor_set</span><span class="p">,</span>
+            <span class="n">lime_fingerprint_params</span><span class="o">=</span><span class="n">lime_fingerprint_params</span><span class="p">,</span>
+            <span class="n">lime_scale_coeff</span><span class="o">=</span><span class="n">lime_scale_coeff</span><span class="p">,</span>
+            <span class="n">lime_remove_noise</span><span class="o">=</span><span class="n">lime_remove_noise</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="o">==</span> <span class="p">{}:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pos_params</span> <span class="o">=</span> <span class="n">_pos_params</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pos_params</span> <span class="o">=</span> <span class="n">positional_analogue_scanning_params</span>
+        <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="o">==</span> <span class="p">{}:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nitrogen_walk_params</span> <span class="o">=</span> <span class="n">_nitrogen_walk_params</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nitrogen_walk_params</span> <span class="o">=</span> <span class="n">nitrogen_walk_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span> <span class="o">=</span> <span class="n">lime_descriptor_set</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span> <span class="o">=</span> <span class="n">lime_fingerprint_params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span> <span class="o">=</span> <span class="n">lime_scale_coeff</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_remove_noise</span> <span class="o">=</span> <span class="n">lime_remove_noise</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_lime_desc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run LIME analysis using RDKit descriptors.</span>
+
+<span class="sd">        :param list mols: RDKit molecule objects.</span>
+<span class="sd">        :param np.ndarray predictions: Target values for the molecules.</span>
+<span class="sd">        :param int bootstrap_num: Number of bootstrap iterations.</span>
+
+<span class="sd">        :returns: DataFrame of descriptor coefficients.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lime_desc</span> <span class="o">=</span> <span class="n">LIME</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span><span class="p">,</span> <span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="n">df_desc</span> <span class="o">=</span> <span class="n">lime_desc</span><span class="o">.</span><span class="n">explain</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">df_desc</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_lime_ecfp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run LIME analysis using ECFP fingerprints.</span>
+
+<span class="sd">        :param list mols: RDKit molecule objects.</span>
+<span class="sd">        :param np.ndarray predictions: Target values for the molecules.</span>
+<span class="sd">        :param int bootstrap_num: Number of bootstrap iterations.</span>
+
+<span class="sd">        :returns: Tuple of (envs, weights) mapping fingerprint bit IDs to</span>
+<span class="sd">            atom environments and their coefficients.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">lime_ecfp</span> <span class="o">=</span> <span class="n">LIME</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span><span class="p">,</span> <span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="n">df_ecfp</span> <span class="o">=</span> <span class="n">lime_ecfp</span><span class="o">.</span><span class="n">explain</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
+        <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="n">lime_ecfp</span><span class="o">.</span><span class="n">get_envs_and_weights</span><span class="p">(</span><span class="n">mols</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">df_ecfp</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span>
+
+<div class="viewcode-block" id="MatchaExplainer.generate_analogues">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplainer.generate_analogues">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_analogues</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate structural analogues for a molecule.</span>
+
+<span class="sd">        :param Mol mol: Query RDKit molecule.</span>
+
+<span class="sd">        :returns: List of unique analogue molecules.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">AnalogueGenerator</span><span class="o">.</span><span class="n">generate_analogues</span><span class="p">(</span>
+            <span class="n">mol</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pos_params</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_nitrogen_walk_params</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MatchaExplainer.decompose">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplainer.decompose">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decompose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Decompose a molecule into BRICS fragments.</span>
+
+<span class="sd">        :param Mol mol: Input RDKit molecule.</span>
+
+<span class="sd">        :returns: List of fragment molecules.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">AnalogueGenerator</span><span class="o">.</span><span class="n">decompose</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MatchaExplainer.explain">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplainer.explain">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">explain</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mols</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">predictions</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">bootstrap_num</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">25</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MatchaExplanation</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run LIME analysis with both RDKit descriptors and ECFP fingerprints.</span>
+
+<span class="sd">        Performs two parallel LIME analyses — one using RDKit physicochemical</span>
+<span class="sd">        descriptors for interpretable coefficients, and one using ECFP</span>
+<span class="sd">        fingerprints for atomic-level heatmap visualization.</span>
+
+<span class="sd">        :param list[Mol] mols: RDKit molecule objects to explain. At least 10</span>
+<span class="sd">            molecules are recommended for reliable results.</span>
+<span class="sd">        :param np.ndarray predictions: Target values (e.g., model predictions),</span>
+<span class="sd">            shape ``(n_molecules,)``.</span>
+<span class="sd">        :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.</span>
+
+<span class="sd">        :returns: :class:`MatchaExplanation` containing coefficients, atomic</span>
+<span class="sd">            environments, weights, and analogue SMILES.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Run LIME with RDKit descriptors</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span><span class="si">}</span><span class="s2"> molecules provided. At least 10 analogues are &quot;</span>
+                <span class="s2">&quot;recommended for reliable LIME explanations. Results may be unstable.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">df_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_desc</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
+
+        <span class="c1"># Run LIME with ECFP fingerprints</span>
+        <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_ecfp</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
+
+        <span class="c1"># Convert molecules to SMILES</span>
+        <span class="n">smiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mols</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">MatchaExplanation</span><span class="p">(</span><span class="n">df_desc</span><span class="p">,</span> <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">mols</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">smiles</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

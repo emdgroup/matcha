@@ -1,0 +1,125 @@
+matcha.explainability.explainer
+===============================
+
+.. py:module:: matcha.explainability.explainer
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.explainability.explainer.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.explainability.explainer.MatchaExplanation
+   matcha.explainability.explainer.MatchaExplainer
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: MatchaExplanation(df_desc: pandas.DataFrame, envs: dict[int, list[int]], weights: dict[int, float], mol: rdkit.Chem.rdchem.Mol, analogues: list[str])
+
+   Container for LIME explanation results with visualization methods.
+
+   Holds the descriptor-level coefficients, ECFP atomic environments and
+   weights, the query molecule, and generated analogues. Provides plotting
+   utilities for coefficient bar charts and molecular heatmaps.
+
+
+   .. py:attribute:: df_desc
+
+
+   .. py:attribute:: envs
+
+
+   .. py:attribute:: weights
+
+
+   .. py:attribute:: analogues
+
+
+   .. py:method:: plot_coefficients(remove_noise: bool = True, keep_k: int = 10) -> plotly.graph_objects.Figure
+
+      Plot LIME coefficients as a horizontal bar chart.
+
+      :param bool remove_noise: Whether to filter out unreliable coefficients
+          (those where standard deviation exceeds the absolute coefficient or
+          absolute coefficient is <= 0.1). Defaults to True.
+      :param int keep_k: Maximum number of descriptors to display. Defaults to 10.
+
+      :returns: Plotly figure with the LIME coefficient bar chart.
+
+      :raises ValueError: If no reliable coefficients remain after noise removal.
+
+
+
+   .. py:method:: plot_heatmap(colormap: str = 'RdYlGn') -> plotly.graph_objects.Figure
+
+      Generate a heatmap of the molecule with atoms colored by LIME weights.
+
+      Atom colors are determined by summing ECFP bit weights for all bits
+      that include the atom, then scaling to [-1, +1].
+
+      :param str colormap: Matplotlib colormap name. Defaults to ``"RdYlGn"``.
+
+      :returns: Plotly figure containing the molecular similarity map image.
+
+
+
+.. py:class:: MatchaExplainer(positional_analogue_scanning_params: dict | None = {}, nitrogen_walk_params: dict | None = {}, lime_descriptor_set: list[str] | None = None, lime_fingerprint_params: dict | None = None, lime_scale_coeff: bool = True, lime_remove_noise: bool = True)
+
+   High-level interface for molecular explainability.
+
+   Combines LIME-based feature importance analysis with structural analogue
+   generation. Produces :class:`MatchaExplanation` objects that contain both
+   descriptor coefficients and atomic heatmap data for visualization.
+
+
+   .. py:method:: generate_analogues(mol: rdkit.Chem.rdchem.Mol) -> list[rdkit.Chem.rdchem.Mol]
+
+      Generate structural analogues for a molecule.
+
+      :param Mol mol: Query RDKit molecule.
+
+      :returns: List of unique analogue molecules.
+
+
+
+   .. py:method:: decompose(mol: rdkit.Chem.rdchem.Mol) -> list[rdkit.Chem.rdchem.Mol]
+
+      Decompose a molecule into BRICS fragments.
+
+      :param Mol mol: Input RDKit molecule.
+
+      :returns: List of fragment molecules.
+
+
+
+   .. py:method:: explain(mols: list[rdkit.Chem.rdchem.Mol], predictions: numpy.ndarray, bootstrap_num: int = 25) -> MatchaExplanation
+
+      Run LIME analysis with both RDKit descriptors and ECFP fingerprints.
+
+      Performs two parallel LIME analyses — one using RDKit physicochemical
+      descriptors for interpretable coefficients, and one using ECFP
+      fingerprints for atomic-level heatmap visualization.
+
+      :param list[Mol] mols: RDKit molecule objects to explain. At least 10
+          molecules are recommended for reliable results.
+      :param np.ndarray predictions: Target values (e.g., model predictions),
+          shape ``(n_molecules,)``.
+      :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+
+      :returns: :class:`MatchaExplanation` containing coefficients, atomic
+          environments, weights, and analogue SMILES.
+
+
+

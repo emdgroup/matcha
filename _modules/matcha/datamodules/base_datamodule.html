@@ -1,0 +1,855 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.base_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.base_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.base_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Base data module providing shared featurization, scaling, and label encoding logic.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span><span class="p">,</span> <span class="n">abstractmethod</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">MoleculeDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning</span><span class="w"> </span><span class="kn">import</span> <span class="n">LightningDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span><span class="p">,</span> <span class="n">QuantileTransformer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">tensor</span><span class="p">,</span> <span class="n">float32</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">StackDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data._utils.collate</span><span class="w"> </span><span class="kn">import</span> <span class="n">collate</span><span class="p">,</span> <span class="n">default_collate_fn_map</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.label_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LabelEncoderRegistry</span><span class="p">,</span>
+    <span class="n">RegressionLabelEncoder</span><span class="p">,</span>
+    <span class="n">BinaryClassificationLabelEncoder</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.label_transform</span><span class="w"> </span><span class="kn">import</span> <span class="n">LabelTransform</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombinedStackDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">MolDataset</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">ResonanceMolSupplier</span><span class="p">,</span> <span class="n">ResonanceFlags</span>
+
+
+<div class="viewcode-block" id="BaseDataModule">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">BaseDataModule</span><span class="p">(</span><span class="n">ABC</span><span class="p">,</span> <span class="n">LightningDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base class for all datamodules.</span>
+
+<span class="sd">    It is not meant to be instantiated directly, but rather to be used as a parent</span>
+<span class="sd">    class for each datamodule.</span>
+<span class="sd">    The most important method for the children classes is :method:`self.featurize`. Please</span>
+<span class="sd">    check out the docs for that method for more information.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
+        <span class="n">augment_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+        <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the base data module.</span>
+
+<span class="sd">        :param str scaler_type: type of y scaler to use (``&#39;standard&#39;`` or ``&#39;quantile&#39;``)</span>
+<span class="sd">        :param bool augment_resonance: whether to augment training data with resonance structures</span>
+<span class="sd">        :param dict label_encoder_params: parameters for the label encoder</span>
+<span class="sd">        :param dict label_transform_params: parameters for the label transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataset_train</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataset_predict</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataset_val</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataset_test</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span> <span class="o">=</span> <span class="n">augment_resonance</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_y_scaler</span><span class="p">(</span><span class="n">scaler_type</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_label_encoder</span><span class="p">(</span><span class="n">label_encoder_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_label_transform</span><span class="p">(</span><span class="n">label_transform_params</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_set_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="p">(</span><span class="n">StackDataset</span><span class="p">,</span> <span class="n">CombinedStackDataset</span><span class="p">,</span> <span class="n">MoleculeDataset</span><span class="p">)):</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;_</span><span class="si">{</span><span class="n">attr_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot store </span><span class="si">{</span><span class="n">attr_name</span><span class="si">}</span><span class="s2"> as dataset&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;_</span><span class="si">{</span><span class="n">attr_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_y_scaler</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StandardScaler</span> <span class="o">|</span> <span class="n">QuantileTransformer</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Factory method to create y scaler instances.</span>
+
+<span class="sd">        :param str scaler_type: type of scaler to create (&#39;standard&#39; or &#39;quantile&#39;)</span>
+<span class="sd">        :return: configured scaler instance</span>
+<span class="sd">        :raises ValueError: if scaler_type is not &#39;standard&#39; or &#39;quantile&#39;</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">scaler_type</span> <span class="o">==</span> <span class="s2">&quot;standard&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scaler_type</span> <span class="o">=</span> <span class="n">scaler_type</span>
+        <span class="k">elif</span> <span class="n">scaler_type</span> <span class="o">==</span> <span class="s2">&quot;quantile&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span> <span class="o">=</span> <span class="n">QuantileTransformer</span><span class="p">(</span>
+                <span class="n">output_distribution</span><span class="o">=</span><span class="s2">&quot;uniform&quot;</span><span class="p">,</span> <span class="n">subsample</span><span class="o">=</span><span class="kc">None</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">scaler_type</span> <span class="o">=</span> <span class="n">scaler_type</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Unknown scaler_type &#39;</span><span class="si">{</span><span class="n">scaler_type</span><span class="si">}</span><span class="s2">&#39;. Must be &#39;standard&#39; or &#39;quantile&#39;.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_label_encoder</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">label_encoder_params</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegressionLabelEncoder</span> <span class="o">|</span> <span class="n">BinaryClassificationLabelEncoder</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Factory method to create label encoder instances.</span>
+
+<span class="sd">        :param dict label_encoder_params: parameters for label encoder configuration</span>
+<span class="sd">        :return: configured label encoder instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">label_encoder_params</span> <span class="o">!=</span> <span class="p">{}:</span>
+            <span class="c1"># If encoder_type is specified, use it; otherwise default to regression</span>
+            <span class="n">encoder_type</span> <span class="o">=</span> <span class="n">label_encoder_params</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;encoder_type&quot;</span><span class="p">,</span> <span class="s2">&quot;regression&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span> <span class="o">=</span> <span class="n">LabelEncoderRegistry</span><span class="p">[</span><span class="n">encoder_type</span><span class="p">](</span>
+                <span class="n">label_encoder_params</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span> <span class="o">=</span> <span class="n">LabelEncoderRegistry</span><span class="p">[</span><span class="s2">&quot;regression&quot;</span><span class="p">]()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">label_encoder_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">params</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_label_transform</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">label_transform_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LabelTransform</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Factory method to create label transform instances.</span>
+
+<span class="sd">        :param label_transform_map: transformation mapping configuration</span>
+<span class="sd">        :return: configured label transform instance</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">label_transform_params</span> <span class="o">==</span> <span class="p">{}</span> <span class="ow">or</span> <span class="n">label_transform_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span> <span class="o">=</span> <span class="n">LabelTransform</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span> <span class="o">=</span> <span class="n">LabelTransform</span><span class="p">(</span><span class="o">**</span><span class="n">label_transform_params</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">label_transform_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="o">.</span><span class="n">params</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_train</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_train&quot;</span><span class="p">)</span>
+
+    <span class="nd">@dataset_train</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_train</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_train&quot;</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_val</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_val&quot;</span><span class="p">)</span>
+
+    <span class="nd">@dataset_val</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_val</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_val&quot;</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_test</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_test&quot;</span><span class="p">)</span>
+
+    <span class="nd">@dataset_test</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_test</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_test&quot;</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_predict&quot;</span><span class="p">)</span>
+
+    <span class="nd">@dataset_predict</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dataset_predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_set_dataset</span><span class="p">(</span><span class="s2">&quot;dataset_predict&quot;</span><span class="p">,</span> <span class="n">dataset</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">y_scaler</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StandardScaler</span> <span class="o">|</span> <span class="n">QuantileTransformer</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Property to access the y scaler instance.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">label_encoder</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">RegressionLabelEncoder</span> <span class="o">|</span> <span class="n">BinaryClassificationLabelEncoder</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Property to access the label encoder instance.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">label_transform</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LabelTransform</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Property to access the label transform instance.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span>
+
+<div class="viewcode-block" id="BaseDataModule.train_dataloader">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.train_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">train_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span></div>
+
+
+    <span class="c1"># this is crazy, but apparently Lightning always requires a val dataloader</span>
+    <span class="c1"># to be defined inside a datamodule, even if you have no early stopping.</span>
+    <span class="c1"># because of this, we need to make a dummy one if dataset_val is None</span>
+<div class="viewcode-block" id="BaseDataModule.val_dataloader">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.val_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">val_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span><span class="p">,</span> <span class="n">DataLoader</span><span class="p">):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">DataLoader</span><span class="p">({})</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.test_dataloader">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.test_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">test_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.predict_dataloader">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.predict_dataloader">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_datamodule_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Simple validation function to check that the input dataset</span>
+<span class="sd">        has adequate types. In case it doesn&#39;t, either throw an error or fix it.&quot;&quot;&quot;</span>
+        <span class="n">valid</span> <span class="o">=</span> <span class="n">MolDataset</span><span class="p">(</span><span class="n">mols</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">valid</span><span class="o">.</span><span class="n">mols</span><span class="p">,</span> <span class="n">valid</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">valid</span><span class="o">.</span><span class="n">bound_mask</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_input</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Validates inputs and handles basic preprocessing without scaling.</span>
+
+<span class="sd">        :param x: list of molecules or SMILES strings</span>
+<span class="sd">        :param y: labels array or None</span>
+<span class="sd">        :param bound_mask: bound mask or None</span>
+<span class="sd">        :param n_jobs: number of jobs or None</span>
+<span class="sd">        :return: validated inputs</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># validate input</span>
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_datamodule_input</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">)</span>
+
+        <span class="c1"># parse y - handle empty case but don&#39;t scale</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="nb">type</span><span class="p">(</span><span class="kc">None</span><span class="p">)):</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_handle_empty_y</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+
+        <span class="c1"># if n_jobs is None, guess good n_jobs value</span>
+        <span class="k">if</span> <span class="n">n_jobs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_guess_n_jobs</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
+
+<div class="viewcode-block" id="BaseDataModule.featurize">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.featurize">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a list of rdkit molecules into a format fit for neural network training,</span>
+<span class="sd">        depending on the architecture to be used downstream.</span>
+
+<span class="sd">        This method generates features and applies scaling as needed. It toggles between</span>
+<span class="sd">        fitting (when is_training=True) and transforming (when is_training=False) scalers.</span>
+
+<span class="sd">        Returns a StackDataset in dictionary format, with the following keys:</span>
+<span class="sd">        - &#39;y&#39;: a tensor containing the labels to predict (required)</span>
+<span class="sd">        - &#39;mol_features&#39;: a tensor containing fixed-size molecular features</span>
+<span class="sd">        - &#39;graph&#39;: a DGLGraph object containing the molecular graph, e.g. for GNNs</span>
+<span class="sd">        - &#39;token_ids&#39;: a tensor containing the tokenized SMILES strings, e.g. for CLMs</span>
+
+<span class="sd">        Depending on the architecture, more inputs might be required.</span>
+
+<span class="sd">        :param list[Mol] x: list of rdkit molecules to featurize</span>
+
+<span class="sd">        :param np.ndarray | None y: labels to predict for each molecule, or None</span>
+
+<span class="sd">        :param bool is_training: Whether to fit the X and Y scalers on the input,</span>
+<span class="sd">            or leverage pre-existing ones to only normalize</span>
+
+<span class="sd">        :param list[str] | None bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+
+<span class="sd">        :return StackDataset: output ready to be batched by a torch.Dataloader</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.state_dict">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.state_dict">[docs]</a>
+    <span class="nd">@abstractmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the parameters necessary for datamodule tracking. The</span>
+<span class="sd">        parameters should be outputted inside a dictionary.</span>
+
+<span class="sd">        Necessary for MLFlow monitoring.</span>
+<span class="sd">        &quot;&quot;&quot;</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_guess_n_jobs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set number of jobs depending on the number of samples X.</span>
+
+<span class="sd">        The number of jobs is set to either len(x)/1000, 1 or 64 depending on the case.</span>
+
+<span class="sd">        :param list[Mol] x: list of rdkit molecules that need to be featurized</span>
+
+<span class="sd">        :return int: number of cores to use when generating features</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_jobs</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">/</span> <span class="mi">1000</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">n_jobs</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">n_jobs</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">elif</span> <span class="n">n_jobs</span> <span class="o">&gt;</span> <span class="nb">min</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">32</span><span class="p">):</span>
+            <span class="n">n_jobs</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">cpu_count</span><span class="p">()</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">n_jobs</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_handle_empty_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">target_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Handles the case where an empty y vector is passed</span>
+
+<span class="sd">        Creates a dummy array with the correct shape. It is meant to be used with test datasets.</span>
+
+<span class="sd">        :param int taget_size: number of compounds to process, needed to generate</span>
+<span class="sd">            a matching dummy y array filled with &#39;404&#39; to indicate missing values</span>
+
+<span class="sd">        :return np.ndarray: dummy array with appropriate shape</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">n_tasks</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="o">.</span><span class="n">n_features_in_</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">n_tasks</span> <span class="o">=</span> <span class="mi">1</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">target_size</span><span class="p">,</span> <span class="n">n_tasks</span><span class="p">))</span> <span class="o">+</span> <span class="mi">404</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_fit_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to update y scaler, modifying dataset in-place.</span>
+
+<span class="sd">        :param dataset: StackDataset to fit and transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">clip</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
+                <span class="n">y_clip</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;Min&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmin</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="s2">&quot;Max&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">y</span><span class="p">)}</span>
+                <span class="n">y_clip</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">y_clip</span><span class="o">.</span><span class="n">items</span><span class="p">()}</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="o">.</span><span class="n">set_clipping_bounds</span><span class="p">(</span><span class="n">y_clip</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">label_transform_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="o">.</span><span class="n">params</span>
+            <span class="n">y_scaled</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">forward</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">y_scaled</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_transform_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to transform y using scaler, modifying dataset in-place.</span>
+
+<span class="sd">        :param dataset: StackDataset to transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">forward</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span> <span class="s2">&quot;n_features_in_&quot;</span><span class="p">):</span>
+                <span class="n">y_transformed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+                <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y_transformed</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">pass</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_invert_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility to transform y using scaler, modifying dataset in-place.</span>
+
+<span class="sd">        :param dataset: StackDataset to transform</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="p">,</span> <span class="s2">&quot;n_features_in_&quot;</span><span class="p">):</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No scaler found for Y, skipping...&quot;</span><span class="p">)</span>
+
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">forward</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BaseDataModule.fit">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fits scalers and other stateful transformations on the dataset.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to fit transformations on</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fit_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.transform">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Applies fitted transformations to the dataset.</span>
+
+<span class="sd">        :param StackDataset dataset: dataset to transform</span>
+<span class="sd">        :return StackDataset: transformed dataset (modified in-place)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_transform_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_augment_single</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">args</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Helper for augment: performs augmentation for a single molecule.</span>
+<span class="sd">        args: tuple (mol, y_i, bound_i, use_resonance, max_n)</span>
+<span class="sd">        Returns: (aug_mols, aug_y, aug_bound)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mol</span><span class="p">,</span> <span class="n">y_i</span><span class="p">,</span> <span class="n">bound_i</span><span class="p">,</span> <span class="n">use_resonance</span><span class="p">,</span> <span class="n">max_n</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="n">mols_aug</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">y_aug</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">bound_aug</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">use_resonance</span><span class="p">:</span>
+            <span class="n">resonance</span> <span class="o">=</span> <span class="n">ResonanceMolSupplier</span><span class="p">(</span>
+                <span class="n">mol</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="n">ResonanceFlags</span><span class="o">.</span><span class="n">ALLOW_CHARGE_SEPARATION</span>
+            <span class="p">)</span>
+            <span class="n">resonance</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">resonance</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">resonance</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">max_n</span><span class="p">:</span>
+                <span class="n">resonance</span> <span class="o">=</span> <span class="n">resonance</span><span class="p">[:</span><span class="n">max_n</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">resonance</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">m</span><span class="p">))</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">resonance</span><span class="p">]</span>
+                <span class="n">resonance</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">resonance</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+                <span class="n">mols_aug</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">resonance</span><span class="p">)</span>
+                <span class="n">y_aug</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">y_i</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">resonance</span><span class="p">))</span>
+                <span class="k">if</span> <span class="n">bound_i</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">bound_aug</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">bound_i</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">resonance</span><span class="p">))</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">mols_aug</span><span class="p">,</span> <span class="n">y_aug</span><span class="p">,</span> <span class="n">bound_aug</span>
+
+<div class="viewcode-block" id="BaseDataModule.augment">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.augment">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">augment</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">use_resonance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">max_n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Augment the dataset with resonance structures.</span>
+
+<span class="sd">        :param list[Mol] mol_list: list of rdkit molecules to augment</span>
+<span class="sd">        :param np.ndarray y: labels array of shape (N, T)</span>
+<span class="sd">        :param list[str] | None bound_mask: bound mask or None</span>
+<span class="sd">        :param bool use_resonance: whether to use resonance augmentation</span>
+<span class="sd">        :param int max_n: maximum number of resonance structures per molecule</span>
+<span class="sd">        :param int n_jobs: number of parallel jobs</span>
+<span class="sd">        :returns: tuple of (augmented molecules, augmented labels, augmented bound mask)</span>
+<span class="sd">        :rtype: tuple[list[Mol], np.ndarray, list[str] | None]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># validate inputs without scaling</span>
+        <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Prepare arguments for each molecule</span>
+        <span class="n">args_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">mol</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mol_list</span><span class="p">):</span>
+            <span class="n">y_i</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
+            <span class="n">bound_i</span> <span class="o">=</span> <span class="n">bound_mask</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">if</span> <span class="n">bound_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">args_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">mol</span><span class="p">,</span> <span class="n">y_i</span><span class="p">,</span> <span class="n">bound_i</span><span class="p">,</span> <span class="n">use_resonance</span><span class="p">,</span> <span class="n">max_n</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">n_jobs</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="n">parallelize</span>
+
+            <span class="n">results</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
+                <span class="k">lambda</span> <span class="n">batch</span><span class="p">:</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_single</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">],</span>
+                <span class="n">args_list</span><span class="p">,</span>
+                <span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_single</span><span class="p">(</span><span class="n">arg</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args_list</span><span class="p">]</span>
+
+        <span class="n">mols_augmented</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">y_augmented</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">bound_augmented</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">mols</span><span class="p">,</span> <span class="n">ys</span><span class="p">,</span> <span class="n">bounds</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+            <span class="n">mols_augmented</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span>
+            <span class="n">y_augmented</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">ys</span><span class="p">)</span>
+            <span class="n">bound_augmented</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">bounds</span><span class="p">)</span> <span class="k">if</span> <span class="n">bounds</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">mols_augmented</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">y_augmented</span><span class="p">),</span>
+            <span class="n">bound_augmented</span> <span class="k">if</span> <span class="n">bound_augmented</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_y</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Modifies the dataset in-place to account for censor information</span>
+<span class="sd">        or classification settings.</span>
+
+<span class="sd">        :param dataset: StackDataset with labels to scale</span>
+<span class="sd">        :param bound_mask: list of str (N) defining whether the value</span>
+<span class="sd">            is exact or is &#39;less than&#39; / &#39;more than&#39;, will be ignored if set</span>
+<span class="sd">            to None</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">bound_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">bound_mask</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">sublist</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bound_mask</span><span class="p">):</span>
+                        <span class="n">sublist</span> <span class="o">=</span> <span class="p">[</span><span class="n">s</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;nan&quot;</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">sublist</span><span class="p">]</span>
+                        <span class="n">lt</span> <span class="o">=</span> <span class="p">[</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sublist</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;&lt;&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span>
+                        <span class="n">gt</span> <span class="o">=</span> <span class="p">[</span><span class="n">j</span> <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">sublist</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;&gt;&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span>
+                        <span class="n">mask</span><span class="p">[</span><span class="n">lt</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                        <span class="n">mask</span><span class="p">[</span><span class="n">gt</span><span class="p">,</span> <span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">lt</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bound_mask</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;&lt;&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span>
+                    <span class="n">gt</span> <span class="o">=</span> <span class="p">[</span><span class="n">i</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">bound_mask</span><span class="p">)</span> <span class="k">if</span> <span class="s2">&quot;&gt;&quot;</span> <span class="ow">in</span> <span class="n">s</span><span class="p">]</span>
+                    <span class="n">mask</span><span class="p">[</span><span class="n">lt</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+                    <span class="n">mask</span><span class="p">[</span><span class="n">gt</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+                <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">((</span><span class="n">y</span><span class="p">,</span> <span class="n">mask</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                <span class="c1"># Update the dataset with the bound mask modifications</span>
+                <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">is_classification</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">is_set</span><span class="p">():</span>
+            <span class="n">stack</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+                <span class="n">ith</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">_continuous_to_categorical</span><span class="p">(</span><span class="n">y</span><span class="p">[:,</span> <span class="n">i</span><span class="p">],</span> <span class="n">i</span><span class="p">)</span>
+                <span class="n">stack</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ith</span><span class="p">)</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="c1"># Update the dataset with the classification modifications</span>
+            <span class="n">dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">float32</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BaseDataModule.encode_y">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.encode_y">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">encode_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert raw, continuous values into a one-hot encoded matrix</span>
+<span class="sd">        for classification using the label encoder.</span>
+
+<span class="sd">        :param np.ndarray y: continuous target values of shape (N, T)</span>
+<span class="sd">        :return np.ndarray: one-hot encoded matrix</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">_all_to_categorical</span><span class="p">(</span><span class="n">y</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.invert_y">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.invert_y">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">invert_y</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Inverts all y transformations from numpy arrays.</span>
+
+<span class="sd">        :param y: np.array to invert</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span><span class="o">.</span><span class="n">inverse_transform</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+        <span class="n">y</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">forward</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">y</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.collate_fn">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.collate_fn">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Collate a batch of samples into a single dictionary of batched tensors.</span>
+
+<span class="sd">        :param list[dict] batch: list of sample dictionaries from the dataset</span>
+<span class="sd">        :returns: dictionary with collated tensors for each key</span>
+<span class="sd">        :rtype: dict</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">_identity</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">collate_fn_map</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">x</span>
+
+        <span class="n">collate_fn_map</span> <span class="o">=</span> <span class="n">default_collate_fn_map</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">collate_fn_map</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span><span class="p">)</span>
+        <span class="n">elem</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">elem</span><span class="o">.</span><span class="n">values</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">collate_fn_map</span><span class="p">:</span>
+                <span class="n">collate_fn_map</span><span class="p">[</span><span class="nb">type</span><span class="p">(</span><span class="n">value</span><span class="p">)]</span> <span class="o">=</span> <span class="n">_identity</span>
+        <span class="k">return</span> <span class="n">collate</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">collate_fn_map</span><span class="o">=</span><span class="n">collate_fn_map</span><span class="p">)</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_dataloader</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">,</span> <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DataLoader</span><span class="p">:</span>
+        <span class="c1"># Check if the last batch would have only 1 sample</span>
+        <span class="c1"># This prevents BatchNorm errors during training</span>
+        <span class="n">dataset_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+        <span class="n">batch_size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span>
+        <span class="n">last_batch_size</span> <span class="o">=</span> <span class="n">dataset_size</span> <span class="o">%</span> <span class="n">batch_size</span>
+        <span class="n">drop_last</span> <span class="o">=</span> <span class="p">(</span><span class="n">last_batch_size</span> <span class="o">==</span> <span class="mi">1</span><span class="p">)</span> <span class="ow">and</span> <span class="n">is_training</span>
+
+        <span class="k">return</span> <span class="n">DataLoader</span><span class="p">(</span>
+            <span class="n">dataset</span><span class="o">=</span><span class="n">dataset</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">shuffle</span><span class="o">=</span><span class="n">is_training</span><span class="p">,</span>
+            <span class="n">collate_fn</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">collate_fn</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">drop_last</span><span class="o">=</span><span class="n">drop_last</span><span class="p">,</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="BaseDataModule.setup">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.setup">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">setup</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set up dataloaders for a given Lightning stage.</span>
+
+<span class="sd">        :param str stage: one of ``&#39;fit&#39;``, ``&#39;test&#39;``, or ``&#39;predict&#39;``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;fit&quot;</span><span class="p">:</span>
+            <span class="n">dataloader_train</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dataset_train</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_train</span> <span class="o">=</span> <span class="n">dataloader_train</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">dataloader_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">dataset_val</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_val</span> <span class="o">=</span> <span class="n">dataloader_val</span>
+
+        <span class="k">elif</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;test&quot;</span><span class="p">:</span>
+            <span class="n">dataloader_test</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dataset_test</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_test</span> <span class="o">=</span> <span class="n">dataloader_test</span>
+
+        <span class="k">elif</span> <span class="n">stage</span> <span class="o">==</span> <span class="s2">&quot;predict&quot;</span><span class="p">:</span>
+            <span class="n">dataloader_predict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dataset_predict</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span> <span class="o">=</span> <span class="n">dataloader_predict</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.configure_label_encoder">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.configure_label_encoder">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">configure_label_encoder</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure the label encoder with new parameters.</span>
+
+<span class="sd">        :param dict params: parameters for label encoder configuration</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Add task_type if not provided (default to regression)</span>
+        <span class="k">if</span> <span class="s2">&quot;encoder_type&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+            <span class="n">params</span> <span class="o">=</span> <span class="n">params</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">params</span><span class="p">[</span><span class="s2">&quot;encoder_type&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;regression&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_create_label_encoder</span><span class="p">(</span><span class="n">params</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.configure_label_encoder_task">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.configure_label_encoder_task">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">configure_label_encoder_task</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">task_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">task_label</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;output&quot;</span><span class="p">,</span>
+        <span class="n">class_thresholds</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">class_labels</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configure a single task in the label encoder.</span>
+
+<span class="sd">        :param int task_idx: index of the task to configure</span>
+<span class="sd">        :param str task_label: human-readable label for the task</span>
+<span class="sd">        :param list[float] | None class_thresholds: thresholds for binary classification</span>
+<span class="sd">        :param list[str] | None class_labels: class label names</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">_set_task_params</span><span class="p">(</span>
+            <span class="n">task_idx</span><span class="p">,</span> <span class="n">task_label</span><span class="p">,</span> <span class="n">class_thresholds</span><span class="p">,</span> <span class="n">class_labels</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.parse_output">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.parse_output">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_output</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">output</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">convert_to_labels</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Parse model output using the label encoder.</span>
+
+<span class="sd">        :param np.ndarray output: raw model output array</span>
+<span class="sd">        :param str tag: suffix for column names (e.g. ``&#39;predictions&#39;``)</span>
+<span class="sd">        :param bool convert_to_labels: whether to convert to class labels</span>
+<span class="sd">        :returns: labelled DataFrame with parsed outputs</span>
+<span class="sd">        :rtype: pandas.DataFrame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">process</span><span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">convert_to_labels</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.has_class_labels">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.has_class_labels">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">has_class_labels</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check whether the label encoder has classification thresholds configured.</span>
+
+<span class="sd">        :returns: True if class labels are configured and non-None</span>
+<span class="sd">        :rtype: bool</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">params</span><span class="p">,</span> <span class="s2">&quot;class_thresholds&quot;</span><span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">class_thresholds</span> <span class="o">==</span> <span class="p">{}:</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span>
+            <span class="n">x</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">class_thresholds</span><span class="o">.</span><span class="n">values</span><span class="p">()</span>
+        <span class="p">):</span>
+            <span class="k">return</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">True</span></div>
+
+
+<div class="viewcode-block" id="BaseDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Restore internal state from a serialized state dictionary.</span>
+
+<span class="sd">        :param dict state_dict: dictionary containing y_scaler, label_encoder,</span>
+<span class="sd">            and label_transform objects</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;datamodule_type&quot;</span> <span class="ow">in</span> <span class="n">state_dict</span><span class="p">:</span>
+            <span class="n">state_dict</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;datamodule_type&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_y_scaler</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;y_scaler&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_encoder</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;label_encoder&quot;</span><span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_label_transform</span> <span class="o">=</span> <span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;label_transform&quot;</span><span class="p">]</span></div>
+</div>
+
+        <span class="c1"># Get label encoder/transform params and create the appropriate encoder type</span>
+        <span class="c1"># label_encoder_params = state_dict[&quot;label_encoder_params&quot;]</span>
+        <span class="c1"># label_transform_params = state_dict[&quot;label_transform_params&quot;]</span>
+
+        <span class="c1"># # Create encoder of the correct type and load its state</span>
+        <span class="c1"># self._create_label_encoder(label_encoder_params)</span>
+        <span class="c1"># self._create_label_transform(label_transform_params)</span>
+
+
+<span class="n">DataModuleRegistry</span> <span class="o">=</span> <span class="n">ClassRegistry</span><span class="p">[</span><span class="n">BaseDataModule</span><span class="p">]()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

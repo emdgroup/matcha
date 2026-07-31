@@ -1,0 +1,999 @@
+matcha.utils.schemas
+====================
+
+.. py:module:: matcha.utils.schemas
+
+.. autoapi-nested-parse::
+
+   Pydantic validation schemas for matcha model configurations, datamodules, and data.
+
+   This package provides input validation models for all matcha components including
+   PyTorch model architectures, scikit-learn wrappers, datamodule configurations,
+   molecular datasets, explainability, and calibration settings.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/utils/schemas/base/index
+   /api/matcha/utils/schemas/calibration/index
+   /api/matcha/utils/schemas/cli/index
+   /api/matcha/utils/schemas/data/index
+   /api/matcha/utils/schemas/datamodules/index
+   /api/matcha/utils/schemas/explainability/index
+   /api/matcha/utils/schemas/generic_models/index
+   /api/matcha/utils/schemas/label/index
+   /api/matcha/utils/schemas/sklearn_api/index
+   /api/matcha/utils/schemas/torch_api/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.GINInputModel
+   matcha.utils.schemas.AttentiveFPInputModel
+   matcha.utils.schemas.MPNNInputModel
+   matcha.utils.schemas.GatedGCNInputModel
+   matcha.utils.schemas.E3GNNInputModel
+   matcha.utils.schemas.GPSInputModel
+   matcha.utils.schemas.GPS3DInputModel
+   matcha.utils.schemas.GTInputModel
+   matcha.utils.schemas.GT3DInputModel
+   matcha.utils.schemas.CNNInputModel
+   matcha.utils.schemas.RNNInputModel
+   matcha.utils.schemas.RoFormerInputModel
+   matcha.utils.schemas.MLPInputModel
+   matcha.utils.schemas.SNNInputModel
+   matcha.utils.schemas.FinetunerInputModel
+   matcha.utils.schemas.ChempropFinetunerInputModel
+   matcha.utils.schemas.ChempropInputModel
+   matcha.utils.schemas.ChempropDataModuleInputModel
+   matcha.utils.schemas.TabularDataModuleInputModel
+   matcha.utils.schemas.GraphDataModuleInputModel
+   matcha.utils.schemas.GraphPretrainingDataModuleInputModel
+   matcha.utils.schemas.Graph3DDataModuleInputModel
+   matcha.utils.schemas.CLMDataModuleInputModel
+   matcha.utils.schemas.CombinedDataModuleInputModel
+   matcha.utils.schemas.ScikitLearnInputModel
+   matcha.utils.schemas.ScikitLearnEnsembleInputModel
+   matcha.utils.schemas.MolDataset
+   matcha.utils.schemas.MolReadout
+   matcha.utils.schemas.ExplainerInputModel
+   matcha.utils.schemas.ICPBaseInputModel
+   matcha.utils.schemas.ICPRegressionInputModel
+   matcha.utils.schemas.ICPClassificationInputModel
+   matcha.utils.schemas.EMBaseInputModel
+   matcha.utils.schemas.EMRegressionInputModel
+   matcha.utils.schemas.EMClassificationInputModel
+
+
+Package Contents
+----------------
+
+.. py:class:: GINInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.GINMixin`
+
+
+   Schema for the Graph Isomorphism Network (GIN) model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['gin']
+      :value: 'gin'
+
+
+
+.. py:class:: AttentiveFPInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.AttentiveFPMixin`
+
+
+   Schema for the AttentiveFP graph attention model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['attentivefp']
+      :value: 'attentivefp'
+
+
+
+   .. py:attribute:: enc_activation
+      :type:  str | None
+      :value: None
+
+
+
+.. py:class:: MPNNInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.MPNNMixin`
+
+
+   Schema for the Message Passing Neural Network (MPNN) model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['mpnn']
+      :value: 'mpnn'
+
+
+
+.. py:class:: GatedGCNInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.GatedGCNMixin`
+
+
+   Schema for the Gated Graph Convolutional Network model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['gatedgcn']
+      :value: 'gatedgcn'
+
+
+
+.. py:class:: E3GNNInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.E3GNNMixin`
+
+
+   Schema for the E(3)-equivariant Graph Neural Network model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['e3gnn']
+      :value: 'e3gnn'
+
+
+
+.. py:class:: GPSInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.GPSMixin`
+
+
+   Schema for the General Powerful Scalable (GPS) graph transformer configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['gps']
+      :value: 'gps'
+
+
+
+.. py:class:: GPS3DInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.GPS3DMixin`
+
+
+   Schema for the 3D GPS graph transformer model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['gps3d']
+      :value: 'gps3d'
+
+
+
+.. py:class:: GTInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.GTMixin`
+
+
+   Schema for the Graph Transformer model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['gt']
+      :value: 'gt'
+
+
+
+.. py:class:: GT3DInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.GT3DMixin`
+
+
+   Schema for the 3D Graph Transformer model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['gt3d']
+      :value: 'gt3d'
+
+
+
+.. py:class:: CNNInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.CLMMixin`, :py:obj:`matcha.utils.schemas.generic_models.CNNMixin`
+
+
+   Schema for the 1D Convolutional Neural Network model on character sequences.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['cnn']
+      :value: 'cnn'
+
+
+
+.. py:class:: RNNInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.CLMMixin`, :py:obj:`matcha.utils.schemas.generic_models.RNNMixin`
+
+
+   Schema for the Recurrent Neural Network model on character sequences.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['rnn']
+      :value: 'rnn'
+
+
+
+.. py:class:: RoFormerInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.CLMMixin`, :py:obj:`matcha.utils.schemas.generic_models.RoFormerMixin`
+
+
+   Schema for the RoFormer (rotary position embedding transformer) model configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['roformer']
+      :value: 'roformer'
+
+
+
+.. py:class:: MLPInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.TabularMixin`, :py:obj:`matcha.utils.schemas.generic_models.MLPMixin`
+
+
+   Schema for the Multi-Layer Perceptron model on tabular features.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['mlp']
+      :value: 'mlp'
+
+
+
+.. py:class:: SNNInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ClassicMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.TabularMixin`, :py:obj:`matcha.utils.schemas.generic_models.SNNMixin`
+
+
+   Schema for the Self-Normalizing Neural Network model on tabular features.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['snn']
+      :value: 'snn'
+
+
+
+.. py:class:: FinetunerInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.FinetunerMixin`
+
+
+   Schema for the pretrained model finetuning configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['finetuner']
+      :value: 'finetuner'
+
+
+
+.. py:class:: ChempropFinetunerInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.ChempropFinetunerMixin`
+
+
+   Schema for the Chemprop pretrained model finetuning configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['chemprop_finetuner']
+      :value: 'chemprop_finetuner'
+
+
+
+.. py:class:: ChempropInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for the Chemprop directed message passing neural network configuration.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['chemprop']
+      :value: 'chemprop'
+
+
+
+   .. py:attribute:: enc_atom_hidden_dim
+      :type:  int
+
+
+   .. py:attribute:: enc_num_layers
+      :type:  int
+
+
+   .. py:attribute:: enc_dropout
+      :type:  float
+
+
+   .. py:attribute:: enc_activation
+      :type:  str
+
+
+   .. py:attribute:: enc_readout
+      :type:  str
+
+
+   .. py:attribute:: additional_mol_features_dim
+      :type:  int
+
+
+   .. py:attribute:: pred_hidden_dim
+      :type:  int
+
+
+   .. py:attribute:: pred_num_layers
+      :type:  int
+
+
+   .. py:attribute:: pred_dropout
+      :type:  float
+
+
+   .. py:attribute:: pred_activation
+      :type:  str
+
+
+   .. py:attribute:: num_endpoints
+      :type:  int
+
+
+   .. py:attribute:: loss_fn
+      :type:  str
+
+
+   .. py:attribute:: optimizer
+      :type:  str
+
+
+   .. py:attribute:: optimizer_args
+      :type:  dict
+
+
+   .. py:attribute:: scheduler
+      :type:  str
+
+
+   .. py:attribute:: scheduler_args
+      :type:  dict
+
+
+.. py:class:: ChempropDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for Chemprop datamodule configuration with optional tabular features.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['chemprop']
+      :value: 'chemprop'
+
+
+
+   .. py:attribute:: input_dim
+      :type:  int
+      :value: 0
+
+
+
+   .. py:attribute:: feature_list
+      :type:  Optional[list[str]]
+      :value: None
+
+
+
+   .. py:attribute:: engine_params
+      :type:  Optional[Dict]
+      :value: None
+
+
+
+.. py:class:: TabularDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for tabular feature-based datamodule configuration.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['tabular']
+      :value: 'tabular'
+
+
+
+   .. py:attribute:: input_dim
+      :type:  int
+
+
+   .. py:attribute:: feature_list
+      :type:  list[str]
+
+
+   .. py:attribute:: engine_params
+      :type:  Optional[Dict]
+      :value: None
+
+
+
+.. py:class:: GraphDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for molecular graph datamodule with positional encoding settings.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph']
+      :value: 'graph'
+
+
+
+   .. py:attribute:: laplacian_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 10
+
+
+
+   .. py:attribute:: rwse_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: rrwp_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: elstatic_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: distmat_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: compute_distances
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: num_virtual_nodes
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: init_virtual_nodes
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: GraphPretrainingDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`GraphDataModuleInputModel`
+
+
+   Schema for graph pretraining datamodule with optional graph/node-level scaling.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph_pretraining']
+      :value: 'graph_pretraining'
+
+
+
+   .. py:attribute:: scale_y_graph
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: scale_y_node
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: Graph3DDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for 3D molecular graph datamodule with conformer generation settings.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph3d']
+      :value: 'graph3d'
+
+
+
+   .. py:attribute:: laplacian_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 10
+
+
+
+   .. py:attribute:: rwse_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: rrwp_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 20
+
+
+
+   .. py:attribute:: elstatic_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: distmat_k
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: compute_distances
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: num_virtual_nodes
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: init_virtual_nodes
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: embed_timeout
+      :type:  Annotated[float, Field(gt=0.0)]
+      :value: 30.0
+
+
+
+.. py:class:: CLMDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for character-level model datamodule with SMILES augmentation settings.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['clm']
+      :value: 'clm'
+
+
+
+   .. py:attribute:: max_length
+      :type:  Annotated[int, Field(gt=0)]
+      :value: 200
+
+
+
+   .. py:attribute:: num_augmentations
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 3
+
+
+
+   .. py:attribute:: num_test_augmentations
+      :type:  Annotated[int, Field(ge=0)]
+      :value: 0
+
+
+
+   .. py:attribute:: include_canonical
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: dictionary
+      :type:  dict
+
+
+   .. py:attribute:: num_tokens
+      :type:  int
+      :value: 4
+
+
+
+.. py:class:: CombinedDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`BaseDataModuleFields`
+
+
+   Schema for combining multiple datamodules with optional merge functions.
+
+
+   .. py:attribute:: model_config
+
+      Configuration for the model, should be a dictionary conforming to [`ConfigDict`][pydantic.config.ConfigDict].
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['combined']
+      :value: 'combined'
+
+
+
+   .. py:attribute:: datamodules
+      :type:  list
+
+
+   .. py:attribute:: merge_fn
+      :type:  Optional[Dict[str, Callable]]
+      :value: None
+
+
+
+   .. py:method:: validate_merge_fn(v)
+      :classmethod:
+
+
+
+.. py:class:: ScikitLearnInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level schema for a single scikit-learn-compatible matcha model configuration.
+
+   Combines training, datamodule, model architecture, metadata, and optional
+   calibration and tuning settings.
+
+
+   .. py:attribute:: training
+      :type:  TrainingInputModel
+
+
+   .. py:attribute:: datamodule
+      :type:  matcha.utils.schemas.datamodules.DataModuleModel
+
+
+   .. py:attribute:: model
+      :type:  matcha.utils.schemas.torch_api.TorchModel
+
+
+   .. py:attribute:: metadata
+      :type:  MetadataInputModel
+
+
+   .. py:attribute:: task_type
+      :type:  Literal['regression', 'binary_classification']
+
+
+   .. py:attribute:: calibration
+      :type:  matcha.utils.schemas.calibration.CalibratorModel | None
+
+
+   .. py:attribute:: mlflow
+      :type:  MLFlowInputModel | None
+
+
+   .. py:attribute:: tuning
+      :type:  TuningInputModel | None
+
+
+.. py:class:: ScikitLearnEnsembleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for an ensemble of scikit-learn-compatible matcha models.
+
+   Defines the ensemble architecture, base learner configuration, and number of models.
+
+
+   .. py:attribute:: architecture
+      :type:  str
+
+
+   .. py:attribute:: learner
+      :type:  ScikitLearnInputModel | dict
+
+
+   .. py:attribute:: n_models
+      :type:  int
+
+
+   .. py:attribute:: calibration
+      :type:  matcha.utils.schemas.calibration.CalibratorModel | None
+
+
+   .. py:attribute:: mlflow
+      :type:  MLFlowInputModel | None
+
+
+   .. py:attribute:: metadata
+      :type:  MetadataInputModel
+
+
+   .. py:attribute:: seed
+      :type:  int
+      :value: 0
+
+
+
+.. py:class:: MolDataset(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Validated dataset of RDKit molecules with optional targets and censoring masks.
+
+   Supports indexing and length queries, converting SMILES strings to Mol objects on
+   construction.
+
+
+   .. py:attribute:: mols
+      :type:  list[rdkit.Chem.rdchem.Mol] | list[str]
+
+
+   .. py:attribute:: y
+      :type:  numpy.ndarray | None
+      :value: None
+
+
+
+   .. py:attribute:: bound_mask
+      :type:  list[list[str]] | list[str] | None
+      :value: None
+
+
+
+   .. py:method:: check_lengths()
+
+      Validate that mols, y, and bound_mask have consistent lengths.
+
+
+
+   .. py:method:: validate_y(v, info: pydantic.ValidationInfo)
+
+      Validate that y is a 2D numpy array, reshaping 1D arrays as needed.
+
+
+
+   .. py:method:: validate_mols(v, info: pydantic.ValidationInfo)
+
+      Validate and convert SMILES strings to RDKit Mol objects.
+
+
+
+   .. py:method:: validate_bound_mask(v, info: pydantic.ValidationInfo)
+
+      Validate that bound_mask is a list of strings or list of lists of strings.
+
+
+
+.. py:class:: MolReadout
+
+   Dataclass representing a single molecule with its target value and censoring bound.
+
+
+   .. py:attribute:: mol
+      :type:  rdkit.Chem.rdchem.Mol
+
+
+   .. py:attribute:: y
+      :type:  int | float | numpy.ndarray | None
+      :value: None
+
+
+
+   .. py:attribute:: bound
+      :type:  str | list | None
+      :value: None
+
+
+
+.. py:class:: ExplainerInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for explainability method parameters including PAS, nitrogen walk, and LIME.
+
+
+   .. py:attribute:: positional_analogue_scanning_params
+      :type:  dict | None
+
+
+   .. py:attribute:: nitrogen_walk_params
+      :type:  dict | None
+
+
+   .. py:attribute:: lime_descriptor_set
+      :type:  list[str] | None
+
+
+   .. py:attribute:: lime_fingerprint_params
+      :type:  dict | None
+
+
+   .. py:attribute:: lime_scale_coeff
+      :type:  bool
+
+
+   .. py:attribute:: lime_remove_noise
+      :type:  bool
+
+
+.. py:class:: ICPBaseInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base input model for Inductive Conformal Prediction calibrators.
+
+
+   .. py:attribute:: confidence_alpha
+      :type:  float
+
+
+   .. py:attribute:: quantile
+      :type:  Union[float, list, numpy.ndarray]
+      :value: 0.0
+
+
+
+.. py:class:: ICPRegressionInputModel(/, **data: Any)
+
+   Bases: :py:obj:`ICPBaseInputModel`
+
+
+   Input model for ICP Regression calibrator.
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['icp_regression']
+      :value: 'icp_regression'
+
+
+
+.. py:class:: ICPClassificationInputModel(/, **data: Any)
+
+   Bases: :py:obj:`ICPBaseInputModel`
+
+
+   Input model for ICP Classification calibrator (multitask binary).
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['icp_classification']
+      :value: 'icp_classification'
+
+
+
+.. py:class:: EMBaseInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base input model for Error Model calibrators.
+
+
+   .. py:attribute:: algorithm
+      :type:  str
+      :value: 'GradientBoostingClassifier'
+
+
+
+   .. py:attribute:: algorithm_params
+      :type:  dict
+
+
+   .. py:attribute:: use_ecfp
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: use_interaction
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: min_compounds
+      :type:  int
+      :value: 50
+
+
+
+.. py:class:: EMRegressionInputModel(/, **data: Any)
+
+   Bases: :py:obj:`EMBaseInputModel`
+
+
+   Input model for Error Model Regression calibrator.
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['error_model_regression']
+      :value: 'error_model_regression'
+
+
+
+   .. py:attribute:: fold
+      :type:  float
+      :value: 2.0
+
+
+
+   .. py:attribute:: log10
+      :type:  bool
+      :value: False
+
+
+
+.. py:class:: EMClassificationInputModel(/, **data: Any)
+
+   Bases: :py:obj:`EMBaseInputModel`
+
+
+   Input model for Error Model Classification calibrator.
+
+
+   .. py:attribute:: calibrator_type
+      :type:  Literal['error_model_classification']
+      :value: 'error_model_classification'
+
+
+
+   .. py:attribute:: error_threshold
+      :type:  float
+      :value: 0.5
+
+
+

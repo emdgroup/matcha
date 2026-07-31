@@ -1,0 +1,181 @@
+matcha.datamodules.pretraining.on_the_fly_graph_pretraining_datamodule
+======================================================================
+
+.. py:module:: matcha.datamodules.pretraining.on_the_fly_graph_pretraining_datamodule
+
+.. autoapi-nested-parse::
+
+   On-the-fly DataModule variant for graph pretraining.
+
+   Delays graph featurization until batch collation time, saving memory when
+   working with large pretraining datasets. Follows the same wrapper pattern
+   as :class:`OnTheFlyMLMDataModule`.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.pretraining.on_the_fly_graph_pretraining_datamodule.OnTheFlyGraphPretrainingDataset
+   matcha.datamodules.pretraining.on_the_fly_graph_pretraining_datamodule.OnTheFlyGraphPretrainingDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: OnTheFlyGraphPretrainingDataset(smiles: list[str], y_graph: numpy.ndarray, y_node: list[numpy.ndarray])
+
+   Dataset that stores raw SMILES with molecule-level and atom-level labels.
+
+   Used by :class:`OnTheFlyGraphPretrainingDataModule` to defer featurization
+   to collation time.
+
+   :param smiles: list of SMILES strings
+   :param y_graph: array ``(N, G)`` of molecule-level targets
+   :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets
+
+
+   .. py:attribute:: smiles
+
+
+   .. py:attribute:: y_graph
+
+
+   .. py:attribute:: y_node
+
+
+.. py:class:: OnTheFlyGraphPretrainingDataModule(base: matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule, num_workers: int = 0, **kwargs)
+
+   Bases: :py:obj:`lightning.LightningDataModule`
+
+
+   DataModule that delays graph pretraining feature generation until batch time.
+
+   Wraps a :class:`GraphPretrainingDataModule` and stores raw SMILES,
+   molecule-level labels, and atom-level labels.  Graph construction and
+   featurization are performed inside the collate function when each batch
+   is assembled, keeping memory usage low for large-scale pretraining.
+
+   :param GraphPretrainingDataModule base: base datamodule used for
+       featurization
+   :param int num_workers: number of dataloader workers, defaults to 0
+
+
+   .. py:attribute:: base
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: num_workers
+      :value: 0
+
+
+
+   .. py:method:: train_dataloader()
+
+      Return the training dataloader.
+
+
+
+   .. py:method:: val_dataloader()
+
+      Return the validation dataloader, or an empty one if not set.
+
+
+
+   .. py:method:: test_dataloader()
+
+      Return the test dataloader.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Return the prediction dataloader.
+
+
+
+   .. py:method:: set_data(train_smiles: list[str] | None = None, train_y_graph: numpy.ndarray | None = None, train_y_node: list[numpy.ndarray] | None = None, val_smiles: list[str] | None = None, val_y_graph: numpy.ndarray | None = None, val_y_node: list[numpy.ndarray] | None = None, test_smiles: list[str] | None = None, test_y_graph: numpy.ndarray | None = None, test_y_node: list[numpy.ndarray] | None = None, predict_smiles: list[str] | None = None, predict_y_graph: numpy.ndarray | None = None, predict_y_node: list[numpy.ndarray] | None = None)
+
+      Set raw data for each split.
+
+      :param train_smiles: training SMILES
+      :param train_y_graph: training molecule-level labels ``(N, G)``
+      :param train_y_node: training atom-level labels, list of ``(A_i, T)``
+      :param val_smiles: validation SMILES
+      :param val_y_graph: validation molecule-level labels
+      :param val_y_node: validation atom-level labels
+      :param test_smiles: test SMILES
+      :param test_y_graph: test molecule-level labels
+      :param test_y_node: test atom-level labels
+      :param predict_smiles: prediction SMILES
+      :param predict_y_graph: prediction molecule-level labels
+      :param predict_y_node: prediction atom-level labels
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Generate graph pretraining features on-the-fly from SMILES.
+
+      Converts SMILES to molecules, delegates to the base datamodule's
+      :meth:`generate_features`, then reshapes into the dict format
+      expected by :class:`BaseGraphPretrainingModel`.
+
+      :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``
+      :return: dict with ``graph``, ``y_node``, ``y_graph``
+
+
+
+   .. py:method:: featurize(mol_list, y_graph=None, y_node=None, is_training=True, n_jobs=None)
+
+      Delegate to base datamodule's featurize method.
+
+      :param mol_list: list of RDKit molecules
+      :param y_graph: molecule-level labels
+      :param y_node: atom-level labels
+      :param is_training: whether to fit scalers
+      :param n_jobs: number of parallel workers
+      :return: featurized StackDataset
+
+
+
+   .. py:method:: generate_features(mol_list, y_graph=None, y_node=None, n_jobs=None)
+
+      Delegate to base datamodule's generate_features method.
+
+      :param mol_list: list of RDKit molecules
+      :param y_graph: molecule-level labels
+      :param y_node: atom-level labels
+      :param n_jobs: number of parallel workers
+      :return: StackDataset of unscaled features
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Setup dataloaders from raw data.
+
+      :param stage: one of ``"fit"``, ``"test"``, or ``"predict"``
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, base state, and num_workers
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+

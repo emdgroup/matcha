@@ -1,0 +1,555 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.e3gnn &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.e3gnn</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.encoders.e3gnn</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;E(n) Equivariant Graph Neural Network (E3GNN) encoder for 3D molecular conformers.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Batch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">MessagePassing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Adj</span><span class="p">,</span> <span class="n">OptTensor</span><span class="p">,</span> <span class="n">Size</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">EncoderRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span>
+
+
+<span class="c1"># Helper functions</span>
+<div class="viewcode-block" id="exists">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.exists">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">exists</span><span class="p">(</span><span class="n">val</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">val</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="fourier_encode_dist">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.fourier_encode_dist">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fourier_encode_dist</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">num_encodings</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">include_self</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fourier-encode scalar distances into multi-scale sinusoidal features.</span>
+
+<span class="sd">    :param torch.Tensor x: Distance values to encode.</span>
+<span class="sd">    :param int num_encodings: Number of frequency scales (powers of 2).</span>
+<span class="sd">    :param bool include_self: Whether to concatenate the original distance values.</span>
+<span class="sd">    :returns: Fourier-encoded features.</span>
+<span class="sd">    :rtype: torch.Tensor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="p">,</span> <span class="n">orig_x</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">x</span>
+    <span class="n">scales</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">num_encodings</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="n">scales</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">x</span><span class="o">.</span><span class="n">sin</span><span class="p">(),</span> <span class="n">x</span><span class="o">.</span><span class="n">cos</span><span class="p">()],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">x</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">x</span><span class="p">,</span> <span class="n">orig_x</span><span class="p">),</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">include_self</span> <span class="k">else</span> <span class="n">x</span>
+    <span class="k">return</span> <span class="n">x</span></div>
+
+
+
+<div class="viewcode-block" id="SiLU">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.SiLU">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SiLU</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;SiLU activation function.&quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SiLU.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.SiLU.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">x</span> <span class="o">*</span> <span class="n">torch</span><span class="o">.</span><span class="n">sigmoid</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="CoorsNorm">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.CoorsNorm">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">CoorsNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Coordinate normalization layer with learnable scale.</span>
+
+<span class="sd">    :param float eps: Epsilon for numerical stability in norm computation.</span>
+<span class="sd">    :param float scale_init: Initial value for the learnable scale parameter.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-8</span><span class="p">,</span> <span class="n">scale_init</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
+        <span class="n">scale</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">fill_</span><span class="p">(</span><span class="n">scale_init</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">scale</span><span class="p">)</span>
+
+<div class="viewcode-block" id="CoorsNorm.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.CoorsNorm.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coors</span><span class="p">):</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">coors</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">normed_coors</span> <span class="o">=</span> <span class="n">coors</span> <span class="o">/</span> <span class="n">norm</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">normed_coors</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="EGNN_Sparse">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.EGNN_Sparse">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">EGNN_Sparse</span><span class="p">(</span><span class="n">MessagePassing</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;E(n) Equivariant Graph Neural Network layer for sparse graphs.</span>
+
+<span class="sd">    Separates the edge assignment from the computation, allowing for great</span>
+<span class="sd">    reduction in time and computations when the graph is locally or sparsely connected.</span>
+
+<span class="sd">    Reference: https://arxiv.org/abs/2102.09844</span>
+
+<span class="sd">    :param int feats_dim: Dimension of node features</span>
+<span class="sd">    :param int edge_attr_dim: Dimension of edge attributes</span>
+<span class="sd">    :param int m_dim: Dimension of message hidden layer</span>
+<span class="sd">    :param int fourier_features: Number of Fourier features for distance encoding</span>
+<span class="sd">    :param bool soft_edge: Whether to use soft edge attention</span>
+<span class="sd">    :param bool norm_feats: Whether to normalize node features</span>
+<span class="sd">    :param bool norm_coors: Whether to normalize coordinates</span>
+<span class="sd">    :param float norm_coors_scale_init: Initial scale for coordinate normalization</span>
+<span class="sd">    :param bool update_feats: Whether to update node features</span>
+<span class="sd">    :param bool update_coors: Whether to update coordinates</span>
+<span class="sd">    :param float dropout: Dropout rate</span>
+<span class="sd">    :param float | None coor_weights_clamp_value: Clamp value for coordinate weights</span>
+<span class="sd">    :param str aggr: Aggregation method (&#39;add&#39;, &#39;mean&#39;, &#39;max&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">feats_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">edge_attr_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">m_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">,</span>
+        <span class="n">fourier_features</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">soft_edge</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">norm_feats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">norm_coors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">norm_coors_scale_init</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-2</span><span class="p">,</span>
+        <span class="n">update_feats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">update_coors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">coor_weights_clamp_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">aggr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;add&quot;</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">assert</span> <span class="n">aggr</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;add&quot;</span><span class="p">,</span> <span class="s2">&quot;sum&quot;</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="s2">&quot;mean&quot;</span><span class="p">},</span> <span class="p">(</span>
+            <span class="s2">&quot;Aggregation must be a valid option&quot;</span>
+        <span class="p">)</span>
+        <span class="k">assert</span> <span class="n">update_feats</span> <span class="ow">or</span> <span class="n">update_coors</span><span class="p">,</span> <span class="p">(</span>
+            <span class="s2">&quot;Must update either features, coordinates, or both&quot;</span>
+        <span class="p">)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;aggr&quot;</span><span class="p">,</span> <span class="n">aggr</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">EGNN_Sparse</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Model params</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fourier_features</span> <span class="o">=</span> <span class="n">fourier_features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feats_dim</span> <span class="o">=</span> <span class="n">feats_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m_dim</span> <span class="o">=</span> <span class="n">m_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">soft_edge</span> <span class="o">=</span> <span class="n">soft_edge</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm_feats</span> <span class="o">=</span> <span class="n">norm_feats</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm_coors</span> <span class="o">=</span> <span class="n">norm_coors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_coors</span> <span class="o">=</span> <span class="n">update_coors</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_feats</span> <span class="o">=</span> <span class="n">update_feats</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coor_weights_clamp_value</span> <span class="o">=</span> <span class="n">coor_weights_clamp_value</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">edge_input_dim</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">(</span><span class="n">fourier_features</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">edge_attr_dim</span> <span class="o">+</span> <span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">feats_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span> <span class="k">if</span> <span class="n">dropout</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
+
+        <span class="c1"># Edge MLP</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edge_mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edge_input_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_input_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">),</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dropout_layer</span><span class="p">,</span>
+            <span class="n">SiLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edge_input_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">m_dim</span><span class="p">),</span>
+            <span class="n">SiLU</span><span class="p">(),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Soft edge attention</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edge_weight</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">m_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sigmoid</span><span class="p">())</span> <span class="k">if</span> <span class="n">soft_edge</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Node normalization - use PyG LayerNorm for graph data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">node_norm</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">LayerNorm</span><span class="p">(</span><span class="n">feats_dim</span><span class="p">)</span> <span class="k">if</span> <span class="n">norm_feats</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coors_norm</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">CoorsNorm</span><span class="p">(</span><span class="n">scale_init</span><span class="o">=</span><span class="n">norm_coors_scale_init</span><span class="p">)</span> <span class="k">if</span> <span class="n">norm_coors</span> <span class="k">else</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Node MLP</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">node_mlp</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">feats_dim</span> <span class="o">+</span> <span class="n">m_dim</span><span class="p">,</span> <span class="n">feats_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dropout_layer</span><span class="p">,</span>
+                <span class="n">SiLU</span><span class="p">(),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">feats_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">feats_dim</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">update_feats</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Coordinate MLP</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coors_mlp</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">m_dim</span><span class="p">,</span> <span class="n">m_dim</span> <span class="o">*</span> <span class="mi">4</span><span class="p">),</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">dropout_layer</span><span class="p">,</span>
+                <span class="n">SiLU</span><span class="p">(),</span>
+                <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">m_dim</span> <span class="o">*</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">update_coors</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_init_weights</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_init_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">module</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">):</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_normal_</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">zeros_</span><span class="p">(</span><span class="n">module</span><span class="o">.</span><span class="n">bias</span><span class="p">)</span>
+
+<div class="viewcode-block" id="EGNN_Sparse.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.EGNN_Sparse.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">coors</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">feats</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_index</span><span class="p">:</span> <span class="n">Adj</span><span class="p">,</span>
+        <span class="n">edge_attr</span><span class="p">:</span> <span class="n">OptTensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch</span><span class="p">:</span> <span class="n">Adj</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">size</span><span class="p">:</span> <span class="n">Size</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass.</span>
+
+<span class="sd">        :param Tensor coors: Node coordinates [num_nodes, pos_dim]</span>
+<span class="sd">        :param Tensor feats: Node features [num_nodes, feats_dim]</span>
+<span class="sd">        :param Adj edge_index: Edge indices [2, num_edges]</span>
+<span class="sd">        :param OptTensor edge_attr: Edge attributes [num_edges, edge_attr_dim]</span>
+<span class="sd">        :param Adj batch: Batch assignment [num_nodes]</span>
+<span class="sd">        :param Size size: Size for bipartite graphs</span>
+<span class="sd">        :return tuple[Tensor, Tensor]: Updated coordinates [num_nodes, pos_dim] and</span>
+<span class="sd">            features [num_nodes, feats_dim] as separate tensors.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">rel_coors</span> <span class="o">=</span> <span class="n">coors</span><span class="p">[</span><span class="n">edge_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]]</span> <span class="o">-</span> <span class="n">coors</span><span class="p">[</span><span class="n">edge_index</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+        <span class="n">rel_dist</span> <span class="o">=</span> <span class="p">(</span><span class="n">rel_coors</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">fourier_features</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">rel_dist</span> <span class="o">=</span> <span class="n">fourier_encode_dist</span><span class="p">(</span>
+                <span class="n">rel_dist</span><span class="p">,</span> <span class="n">num_encodings</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">fourier_features</span>
+            <span class="p">)</span>
+            <span class="n">rel_dist</span> <span class="o">=</span> <span class="n">rel_dist</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># n () d -&gt; n d</span>
+
+        <span class="k">if</span> <span class="n">exists</span><span class="p">(</span><span class="n">edge_attr</span><span class="p">):</span>
+            <span class="n">edge_attr_feats</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">edge_attr</span><span class="p">,</span> <span class="n">rel_dist</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">edge_attr_feats</span> <span class="o">=</span> <span class="n">rel_dist</span>
+
+        <span class="n">hidden_out</span><span class="p">,</span> <span class="n">coors_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate</span><span class="p">(</span>
+            <span class="n">edge_index</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">feats</span><span class="p">,</span>
+            <span class="n">edge_attr</span><span class="o">=</span><span class="n">edge_attr_feats</span><span class="p">,</span>
+            <span class="n">coors</span><span class="o">=</span><span class="n">coors</span><span class="p">,</span>
+            <span class="n">rel_coors</span><span class="o">=</span><span class="n">rel_coors</span><span class="p">,</span>
+            <span class="n">batch</span><span class="o">=</span><span class="n">batch</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="n">coors_out</span><span class="p">,</span> <span class="n">hidden_out</span></div>
+
+
+<div class="viewcode-block" id="EGNN_Sparse.message">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.EGNN_Sparse.message">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_i</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">x_j</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create messages from neighboring nodes.&quot;&quot;&quot;</span>
+        <span class="n">m_ij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_mlp</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">x_i</span><span class="p">,</span> <span class="n">x_j</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">m_ij</span></div>
+
+
+<div class="viewcode-block" id="EGNN_Sparse.propagate">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/e3gnn/index.html#matcha.torch.encoders.e3gnn.EGNN_Sparse.propagate">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">propagate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">:</span> <span class="n">Adj</span><span class="p">,</span> <span class="n">size</span><span class="p">:</span> <span class="n">Size</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Propagate messages with coordinate updates.&quot;&quot;&quot;</span>
+        <span class="n">size</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_check_input</span><span class="p">(</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">size</span><span class="p">)</span>
+        <span class="n">coll_dict</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_collect</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_user_args</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">,</span> <span class="n">size</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span>
+        <span class="n">msg_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inspector</span><span class="o">.</span><span class="n">collect_param_data</span><span class="p">(</span><span class="s2">&quot;message&quot;</span><span class="p">,</span> <span class="n">coll_dict</span><span class="p">)</span>
+        <span class="n">aggr_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inspector</span><span class="o">.</span><span class="n">collect_param_data</span><span class="p">(</span><span class="s2">&quot;aggregate&quot;</span><span class="p">,</span> <span class="n">coll_dict</span><span class="p">)</span>
+        <span class="n">update_kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inspector</span><span class="o">.</span><span class="n">collect_param_data</span><span class="p">(</span><span class="s2">&quot;update&quot;</span><span class="p">,</span> <span class="n">coll_dict</span><span class="p">)</span>
+
+        <span class="c1"># Get messages</span>
+        <span class="n">m_ij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">message</span><span class="p">(</span><span class="o">**</span><span class="n">msg_kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Update coordinates if specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_coors</span><span class="p">:</span>
+            <span class="n">coor_wij</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coors_mlp</span><span class="p">(</span><span class="n">m_ij</span><span class="p">)</span>
+            <span class="c1"># Clamp if arg is set</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coor_weights_clamp_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">coor_wij</span> <span class="o">=</span> <span class="n">coor_wij</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span>
+                    <span class="nb">min</span><span class="o">=-</span><span class="bp">self</span><span class="o">.</span><span class="n">coor_weights_clamp_value</span><span class="p">,</span>
+                    <span class="nb">max</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">coor_weights_clamp_value</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Normalize if needed</span>
+            <span class="n">rel_coors</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coors_norm</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;rel_coors&quot;</span><span class="p">])</span>
+
+            <span class="n">mhat_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span><span class="n">coor_wij</span> <span class="o">*</span> <span class="n">rel_coors</span><span class="p">,</span> <span class="o">**</span><span class="n">aggr_kwargs</span><span class="p">)</span>
+            <span class="n">coors_out</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;coors&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">mhat_i</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">coors_out</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;coors&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Update features if specified</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_feats</span><span class="p">:</span>
+            <span class="c1"># Weight the edges if arg is passed</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">soft_edge</span><span class="p">:</span>
+                <span class="n">m_ij</span> <span class="o">=</span> <span class="n">m_ij</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_weight</span><span class="p">(</span><span class="n">m_ij</span><span class="p">)</span>
+            <span class="n">m_i</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span><span class="n">m_ij</span><span class="p">,</span> <span class="o">**</span><span class="n">aggr_kwargs</span><span class="p">)</span>
+
+            <span class="n">hidden_feats</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">node_norm</span><span class="p">(</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">])</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_norm</span> <span class="k">else</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">hidden_out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_mlp</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">hidden_feats</span><span class="p">,</span> <span class="n">m_i</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="n">hidden_out</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">hidden_out</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">hidden_out</span> <span class="o">=</span> <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Return tuple</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">update</span><span class="p">((</span><span class="n">hidden_out</span><span class="p">,</span> <span class="n">coors_out</span><span class="p">),</span> <span class="o">**</span><span class="n">update_kwargs</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="E3GNN">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.e3gnn.E3GNN">[docs]</a>
+<span class="nd">@EncoderRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">E3GNN</span><span class="p">(</span><span class="n">BaseGraphEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;E(n) Equivariant Graph Neural Network encoder.</span>
+
+<span class="sd">    This class performs message passing on molecular conformers using E(n) equivariant</span>
+<span class="sd">    convolutions, updates the atom representations according to relative atomic</span>
+<span class="sd">    positions and bond information, then returns a molecular embedding for property</span>
+<span class="sd">    prediction.</span>
+
+<span class="sd">    Uses the EGNN_Sparse layer for efficient message passing on sparse graphs.</span>
+
+<span class="sd">    It inherits from :class:`BaseGraphEncoder` for common graph encoding routines</span>
+<span class="sd">    (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`</span>
+<span class="sd">    for saving its hyperparameters.</span>
+
+<span class="sd">    References:</span>
+<span class="sd">    - https://arxiv.org/abs/2102.09844 (E(n) Equivariant Graph Neural Networks)</span>
+
+<span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
+
+<span class="sd">    :param int num_layers: number of message passing layers</span>
+<span class="sd">    :param int atom_input_dim: number of input atom features from GraphFeaturizer</span>
+<span class="sd">    :param int bond_input_dim: number of input bond features from GraphFeaturizer</span>
+<span class="sd">    :param int hidden_features: number of hidden features in message passing layers</span>
+<span class="sd">    :param int m_dim: dimension of message hidden layer in EGNN</span>
+<span class="sd">    :param int fourier_features: number of Fourier features for distance encoding</span>
+<span class="sd">    :param bool soft_edge: whether to use soft edge attention</span>
+<span class="sd">    :param bool norm_feats: whether to normalize node features</span>
+<span class="sd">    :param bool norm_coors: whether to normalize coordinates</span>
+<span class="sd">    :param bool update_coors: whether to update coordinates during message passing</span>
+<span class="sd">    :param str activation: activation function to be used in projection layers</span>
+<span class="sd">    :param float dropout: dropout noise level for projection layers</span>
+<span class="sd">    :param str jk: jumping knowledge strategy to use when returning molecular</span>
+<span class="sd">        representations after forward pass</span>
+<span class="sd">    :param str readout: readout function to aggregate all atom representations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_layers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">bond_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">m_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">fourier_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">soft_edge</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">norm_feats</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">norm_coors</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">update_coors</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">jk</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">readout</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+
+        <span class="c1"># Input projection: atom features -&gt; hidden features</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_input_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">activation</span><span class="p">,</span> <span class="s2">&quot;batch&quot;</span><span class="p">),</span>
+            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Message passing layers (EGNN_Sparse)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">EGNN_Sparse</span><span class="p">(</span>
+                    <span class="n">feats_dim</span><span class="o">=</span><span class="n">atom_hidden_dim</span><span class="p">,</span>
+                    <span class="n">edge_attr_dim</span><span class="o">=</span><span class="n">bond_input_dim</span><span class="p">,</span>
+                    <span class="n">m_dim</span><span class="o">=</span><span class="n">m_dim</span><span class="p">,</span>
+                    <span class="n">fourier_features</span><span class="o">=</span><span class="n">fourier_features</span><span class="p">,</span>
+                    <span class="n">soft_edge</span><span class="o">=</span><span class="n">soft_edge</span><span class="p">,</span>
+                    <span class="n">norm_feats</span><span class="o">=</span><span class="n">norm_feats</span><span class="p">,</span>
+                    <span class="n">norm_coors</span><span class="o">=</span><span class="n">norm_coors</span><span class="p">,</span>
+                    <span class="n">norm_coors_scale_init</span><span class="o">=</span><span class="mf">1e-2</span><span class="p">,</span>
+                    <span class="n">update_feats</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">update_coors</span><span class="o">=</span><span class="n">update_coors</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                    <span class="n">coor_weights_clamp_value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">aggr</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_jk</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_readout</span><span class="p">(</span><span class="n">readout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout_layer</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fp_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return fingerprint dimension.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span>
+
+<div class="viewcode-block" id="E3GNN.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.e3gnn.E3GNN.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">,</span> <span class="n">coords</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a batched PyG graph and 3D coordinates into a learned representation.</span>
+
+<span class="sd">        :param Batch graph: batched PyG graph from the dataloader</span>
+<span class="sd">        :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader</span>
+<span class="sd">        :return torch.Tensor: learned molecular representation [batch_size, fp_dim]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">g</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">graph_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_graph_batch</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+
+        <span class="c1"># Project atom features to hidden space</span>
+        <span class="n">atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
+
+        <span class="c1"># Message passing</span>
+        <span class="n">feats</span> <span class="o">=</span> <span class="n">atom_feats</span>
+        <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">coords</span><span class="p">,</span> <span class="n">feats</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span>
+                <span class="n">coords</span><span class="p">,</span> <span class="n">feats</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="n">bond_feats</span><span class="p">,</span> <span class="n">batch</span><span class="o">=</span><span class="n">graph_id</span>
+            <span class="p">)</span>
+            <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout_layer</span><span class="p">(</span><span class="n">feats</span><span class="p">)</span>
+            <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feats</span><span class="p">)</span>
+
+        <span class="c1"># Apply jumping knowledge</span>
+        <span class="n">final_atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_jk</span><span class="p">(</span><span class="n">all_atom_feats</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">final_atom_feats</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

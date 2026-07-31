@@ -1,0 +1,497 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.gps &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.gps</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.encoders.gps</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;General, Powerful, Scalable (GPS) Graph Transformer encoder.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Batch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">aggr</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_dense_batch</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">EncoderRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.activations</span><span class="w"> </span><span class="kn">import</span> <span class="n">ActivationRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">LayerRegistry</span><span class="p">,</span>
+    <span class="n">LnBnDr</span><span class="p">,</span>
+    <span class="n">SpatialEncoder</span><span class="p">,</span>
+    <span class="n">BiasedMultiHeadAttention</span><span class="p">,</span>
+    <span class="n">from_dense_batch</span><span class="p">,</span>
+<span class="p">)</span>
+
+
+<div class="viewcode-block" id="MPNNPlusConv">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gps/index.html#matcha.torch.encoders.gps.MPNNPlusConv">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MPNNPlusConv</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Minimal reimplementation of MPNNPlus convolution layer for GPS.</span>
+
+<span class="sd">    GPS++ style message passing layer that updates both node and edge features.</span>
+<span class="sd">    Uses variance-preserving aggregation for better gradient flow.</span>
+<span class="sd">    No internal normalization - relies on pre-norm pattern in GPSBlock.</span>
+
+<span class="sd">    Reference: https://arxiv.org/abs/2212.02229</span>
+
+<span class="sd">    :param int in_dim: Input node feature dimension</span>
+<span class="sd">    :param int out_dim: Output node feature dimension</span>
+<span class="sd">    :param int in_dim_edges: Input edge feature dimension</span>
+<span class="sd">    :param int out_dim_edges: Output edge feature dimension</span>
+<span class="sd">    :param str activation: Activation function name</span>
+<span class="sd">    :param float dropout: Node dropout rate</span>
+<span class="sd">    :param float edge_dropout: Edge dropout rate</span>
+<span class="sd">    :param int mlp_expansion_ratio: Hidden dim expansion factor</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">out_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">in_dim_edges</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">out_dim_edges</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;gelu&quot;</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+        <span class="n">edge_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">mlp_expansion_ratio</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="c1"># Variance-preserving aggregation from PyG</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span> <span class="o">=</span> <span class="n">aggr</span><span class="o">.</span><span class="n">VariancePreservingAggregation</span><span class="p">()</span>
+
+        <span class="c1"># Edge model: takes [sender_feat, receiver_feat, edge_feat] -&gt; updated edge_feat</span>
+        <span class="c1"># Using concat mode: 2 * in_dim + in_dim_edges</span>
+        <span class="n">edge_model_in_dim</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">in_dim</span> <span class="o">+</span> <span class="n">in_dim_edges</span>
+        <span class="n">edge_model_hidden_dim</span> <span class="o">=</span> <span class="n">mlp_expansion_ratio</span> <span class="o">*</span> <span class="n">in_dim_edges</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edge_model</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">LnBnDr</span><span class="p">(</span>
+                <span class="n">edge_model_in_dim</span><span class="p">,</span>
+                <span class="n">edge_model_hidden_dim</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">edge_dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">LnBnDr</span><span class="p">(</span>
+                <span class="n">edge_model_hidden_dim</span><span class="p">,</span>
+                <span class="n">out_dim_edges</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">edge_dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Node model: takes [aggregated_messages, node_feat] -&gt; updated node_feat</span>
+        <span class="c1"># VPA outputs same dim as input, scatter to both: 3 * in_dim + 2 * edge_dim</span>
+        <span class="n">node_model_in_dim</span> <span class="o">=</span> <span class="mi">3</span> <span class="o">*</span> <span class="n">in_dim</span> <span class="o">+</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">out_dim_edges</span>
+        <span class="n">node_model_hidden_dim</span> <span class="o">=</span> <span class="n">mlp_expansion_ratio</span> <span class="o">*</span> <span class="n">in_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">node_model</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">LnBnDr</span><span class="p">(</span>
+                <span class="n">node_model_in_dim</span><span class="p">,</span>
+                <span class="n">node_model_hidden_dim</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">LnBnDr</span><span class="p">(</span>
+                <span class="n">node_model_hidden_dim</span><span class="p">,</span>
+                <span class="n">out_dim</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="p">),</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="MPNNPlusConv.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gps/index.html#matcha.torch.encoders.gps.MPNNPlusConv.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_index</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_attr</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass.</span>
+
+<span class="sd">        :param torch.Tensor x: Node features [num_nodes, in_dim]</span>
+<span class="sd">        :param torch.Tensor edge_index: Edge indices [2, num_edges]</span>
+<span class="sd">        :param torch.Tensor edge_attr: Edge features [num_edges, in_dim_edges]</span>
+<span class="sd">        :return tuple: Updated node and edge features</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">senders</span> <span class="o">=</span> <span class="n">edge_index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">receivers</span> <span class="o">=</span> <span class="n">edge_index</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="c1"># Gather node features for edges</span>
+        <span class="n">sender_feats</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">senders</span><span class="p">]</span>  <span class="c1"># [num_edges, in_dim]</span>
+        <span class="n">receiver_feats</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">receivers</span><span class="p">]</span>  <span class="c1"># [num_edges, in_dim]</span>
+
+        <span class="c1"># ===== Edge update =====</span>
+        <span class="c1"># Concatenate sender, receiver, and edge features</span>
+        <span class="n">edge_input</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sender_feats</span><span class="p">,</span> <span class="n">receiver_feats</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">edge_attr_new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_model</span><span class="p">(</span><span class="n">edge_input</span><span class="p">)</span>
+
+        <span class="c1"># ===== Node update =====</span>
+        <span class="c1"># Create messages by concatenating edge features with node features</span>
+        <span class="c1"># Scatter to receivers: message = [edge_feat, sender_feat]</span>
+        <span class="n">msg_to_receivers</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">edge_attr_new</span><span class="p">,</span> <span class="n">sender_feats</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">agg_to_receivers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span><span class="p">(</span>
+            <span class="n">msg_to_receivers</span><span class="p">,</span> <span class="n">receivers</span><span class="p">,</span> <span class="n">dim_size</span><span class="o">=</span><span class="n">num_nodes</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Scatter to senders: message = [edge_feat, receiver_feat]</span>
+        <span class="n">msg_to_senders</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">edge_attr_new</span><span class="p">,</span> <span class="n">receiver_feats</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">agg_to_senders</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregator</span><span class="p">(</span><span class="n">msg_to_senders</span><span class="p">,</span> <span class="n">senders</span><span class="p">,</span> <span class="n">dim_size</span><span class="o">=</span><span class="n">num_nodes</span><span class="p">)</span>
+
+        <span class="c1"># Combine aggregated messages with original node features</span>
+        <span class="n">node_input</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">agg_to_receivers</span><span class="p">,</span> <span class="n">agg_to_senders</span><span class="p">,</span> <span class="n">x</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">x_new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">node_model</span><span class="p">(</span><span class="n">node_input</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">x</span> <span class="o">+</span> <span class="n">x_new</span><span class="p">,</span> <span class="n">edge_attr</span> <span class="o">+</span> <span class="n">edge_attr_new</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="GPSBlock">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gps/index.html#matcha.torch.encoders.gps.GPSBlock">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GPSBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;General, Powerful, Scalable (GPS) Graph Transformer Block.</span>
+
+<span class="sd">    Combines local message passing (MPNNPlus) with global self-attention.</span>
+<span class="sd">    Uses PyTorch Geometric for graph operations.</span>
+
+<span class="sd">    References:</span>
+<span class="sd">    - GPS: https://arxiv.org/abs/2205.12454</span>
+<span class="sd">    - GPS++: https://arxiv.org/abs/2212.02229</span>
+
+<span class="sd">    :param int atom_feats: Node feature dimension</span>
+<span class="sd">    :param int edge_feats: Edge feature dimension</span>
+<span class="sd">    :param float dropout: Dropout ratio</span>
+<span class="sd">    :param str norm: Normalization type</span>
+<span class="sd">    :param str activation: Activation function</span>
+<span class="sd">    :param int num_heads: Number of attention heads</span>
+<span class="sd">    :param int expansion_k: FFN expansion factor</span>
+<span class="sd">    :param int distance_k: Maximum distance for spatial encoding (unused, kept for API compatibility)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">atom_feats</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">edge_feats</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;adarmsn&quot;</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
+        <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
+        <span class="n">expansion_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="n">distance_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="c1"># Local message passing layer (MPNNPlus style with VPA)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mp</span> <span class="o">=</span> <span class="n">MPNNPlusConv</span><span class="p">(</span>
+            <span class="n">in_dim</span><span class="o">=</span><span class="n">atom_feats</span><span class="p">,</span>
+            <span class="n">out_dim</span><span class="o">=</span><span class="n">atom_feats</span><span class="p">,</span>
+            <span class="n">in_dim_edges</span><span class="o">=</span><span class="n">edge_feats</span><span class="p">,</span>
+            <span class="n">out_dim_edges</span><span class="o">=</span><span class="n">edge_feats</span><span class="p">,</span>
+            <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+            <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+            <span class="n">edge_dropout</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+            <span class="n">mlp_expansion_ratio</span><span class="o">=</span><span class="n">expansion_k</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Global attention layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">att</span> <span class="o">=</span> <span class="n">BiasedMultiHeadAttention</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">,</span> <span class="n">dropout</span><span class="p">)</span>
+
+        <span class="c1"># Layer norms - pre-norm pattern</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm1_local</span> <span class="o">=</span> <span class="n">LayerRegistry</span><span class="p">[</span><span class="n">norm</span><span class="p">](</span><span class="n">atom_feats</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm1_global</span> <span class="o">=</span> <span class="n">LayerRegistry</span><span class="p">[</span><span class="n">norm</span><span class="p">](</span><span class="n">atom_feats</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm2</span> <span class="o">=</span> <span class="n">LayerRegistry</span><span class="p">[</span><span class="n">norm</span><span class="p">](</span><span class="n">atom_feats</span><span class="p">)</span>
+
+        <span class="c1"># Feed-forward network</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">atom_feats</span> <span class="o">*</span> <span class="n">expansion_k</span><span class="p">)),</span>
+            <span class="n">ActivationRegistry</span><span class="p">[</span><span class="n">activation</span><span class="p">](),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">atom_feats</span> <span class="o">*</span> <span class="n">expansion_k</span><span class="p">),</span> <span class="n">atom_feats</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">),</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="GPSBlock.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/gps/index.html#matcha.torch.encoders.gps.GPSBlock.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">,</span>
+        <span class="n">feat</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_feat</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">graph_id</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">dist_bias</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass.</span>
+
+<span class="sd">        :param Batch graph: PyG batched graph</span>
+<span class="sd">        :param torch.Tensor feat: Node features [num_nodes, atom_feats]</span>
+<span class="sd">        :param torch.Tensor edge_feat: Edge features [num_edges, edge_feats]</span>
+<span class="sd">        :param torch.Tensor graph_id: Batch assignment [num_nodes]</span>
+<span class="sd">        :param torch.Tensor dist_bias: Distance bias for attention or None</span>
+<span class="sd">        :return tuple: Updated node and edge features</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Store input for residual</span>
+        <span class="n">h_in</span> <span class="o">=</span> <span class="n">feat</span>
+
+        <span class="c1"># Local message passing branch</span>
+        <span class="n">h_local</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm1_local</span><span class="p">(</span><span class="n">h_in</span><span class="p">)</span>
+        <span class="n">h_local</span><span class="p">,</span> <span class="n">edge_feat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mp</span><span class="p">(</span><span class="n">h_local</span><span class="p">,</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_feat</span><span class="p">)</span>
+
+        <span class="c1"># Global attention branch</span>
+        <span class="n">h_global</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm1_global</span><span class="p">(</span><span class="n">h_in</span><span class="p">)</span>
+        <span class="n">h_global_dense</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="n">to_dense_batch</span><span class="p">(</span><span class="n">h_global</span><span class="p">,</span> <span class="n">graph_id</span><span class="p">)</span>
+
+        <span class="c1"># Apply attention</span>
+        <span class="n">h_global_dense</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">att</span><span class="p">(</span><span class="n">h_global_dense</span><span class="p">,</span> <span class="n">attn_bias</span><span class="o">=</span><span class="n">dist_bias</span><span class="p">,</span> <span class="n">attn_mask</span><span class="o">=</span><span class="n">mask</span><span class="p">)</span>
+        <span class="n">h_global</span> <span class="o">=</span> <span class="n">from_dense_batch</span><span class="p">(</span><span class="n">h_global_dense</span><span class="p">,</span> <span class="n">graph_id</span><span class="p">)</span>
+
+        <span class="c1"># Combine local and global with input skip connection</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">h_in</span> <span class="o">+</span> <span class="n">h_local</span> <span class="o">+</span> <span class="n">h_global</span>
+
+        <span class="c1"># Feed-forward with residual</span>
+        <span class="n">h_ffn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm2</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+        <span class="n">h_ffn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span><span class="p">(</span><span class="n">h_ffn</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">h</span> <span class="o">+</span> <span class="n">h_ffn</span>
+
+        <span class="k">return</span> <span class="n">h</span><span class="p">,</span> <span class="n">edge_feat</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="GPS">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.gps.GPS">[docs]</a>
+<span class="nd">@EncoderRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GPS</span><span class="p">(</span><span class="n">BaseGraphEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;General, Powerful, Scalable (GPS) Graph Transformer encoder.</span>
+
+<span class="sd">    Combines local message passing with global self-attention for learning</span>
+<span class="sd">    molecular representations. Uses PyTorch Geometric for all graph operations.</span>
+
+<span class="sd">    It inherits from :class:`BaseGraphEncoder` for common graph encoding routines</span>
+<span class="sd">    (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`</span>
+<span class="sd">    for saving its hyperparameters.</span>
+
+<span class="sd">    References:</span>
+<span class="sd">    - https://arxiv.org/abs/2404.11568</span>
+<span class="sd">    - https://arxiv.org/abs/2205.12454</span>
+<span class="sd">    - https://proceedings.mlr.press/v202/ma23c.html</span>
+
+<span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
+<span class="sd">    Check the docs of :class:`matcha.torch.models.classic.GPSModel` for further details.</span>
+
+<span class="sd">    :param int num_layers: number of message passing layers</span>
+<span class="sd">    :param int atom_input_dim: number of input atom features from GraphFeaturizer</span>
+<span class="sd">    :param int bond_input_dim: number of input bond features from GraphFeaturizer</span>
+<span class="sd">    :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers</span>
+<span class="sd">    :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly</span>
+<span class="sd">    :param int expansion_k: expansion factor for the feed-forward network in GPSBlock</span>
+<span class="sd">    :param float | None distance_k: Upper bound for the shortest path distance to encode</span>
+<span class="sd">    :param str activation: activation function to be used in all layers</span>
+<span class="sd">    :param float dropout: dropout noise level</span>
+<span class="sd">    :param str | None norm: which norm to use inside LnBnDr layers</span>
+<span class="sd">    :param str jk: jumping knowledge strategy to use when returning molecular</span>
+<span class="sd">        representations after forward pass</span>
+<span class="sd">    :param str readout: readout function to aggregate all atom representations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_layers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">bond_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">expansion_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">distance_k</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">jk</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">readout</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">laplacian_k</span><span class="p">,</span> <span class="n">rwse_k</span><span class="p">,</span> <span class="n">elstatic_k</span><span class="p">,</span> <span class="n">distmat_k</span><span class="p">,</span> <span class="n">rrwp_k</span><span class="p">)</span>
+        <span class="c1"># Snap num_heads to the largest divisor of atom_hidden_dim that is &lt;= num_heads,</span>
+        <span class="c1"># so HPO can freely sample both values without causing a shape mismatch.</span>
+        <span class="k">while</span> <span class="n">num_heads</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">atom_hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">num_heads</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">GPSBlock</span><span class="p">(</span>
+                    <span class="n">atom_hidden_dim</span><span class="p">,</span>
+                    <span class="n">atom_hidden_dim</span><span class="p">,</span>
+                    <span class="n">dropout</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="p">,</span>
+                    <span class="n">activation</span><span class="p">,</span>
+                    <span class="n">num_heads</span><span class="p">,</span>
+                    <span class="n">expansion_k</span><span class="p">,</span>
+                    <span class="n">distance_k</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_input_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">activation</span><span class="p">,</span> <span class="n">norm</span><span class="p">),</span>
+            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bond_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">bond_input_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">activation</span><span class="p">,</span> <span class="n">norm</span><span class="p">),</span>
+            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">distance_k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="o">=</span> <span class="n">SpatialEncoder</span><span class="p">(</span><span class="n">distance_k</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_jk</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_readout</span><span class="p">(</span><span class="n">readout</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GPS.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.gps.GPS.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further</span>
+<span class="sd">        processing.</span>
+
+<span class="sd">        :param Batch graph: batched PyG graph from the dataloader</span>
+
+<span class="sd">        :return torch.Tensor: learned representation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">g</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">graph_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_graph_batch</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
+        <span class="n">bond_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bond_projection</span><span class="p">(</span><span class="n">bond_feats</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="s2">&quot;spd&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="n">g</span><span class="o">.</span><span class="n">spd</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dist_bias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span><span class="p">(</span><span class="n">g</span><span class="o">.</span><span class="n">spd</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dist_bias</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span>
+                <span class="n">g</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">graph_id</span><span class="p">,</span> <span class="n">dist_bias</span>
+            <span class="p">)</span>
+            <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
+
+        <span class="n">final_atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_jk</span><span class="p">(</span><span class="n">all_atom_feats</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">final_atom_feats</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

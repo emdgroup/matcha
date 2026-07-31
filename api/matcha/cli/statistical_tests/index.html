@@ -1,0 +1,320 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.statistical_tests &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.cli.statistical_tests</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/cli/statistical_tests/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.cli.statistical_tests">
+<span id="matcha-cli-statistical-tests"></span><h1>matcha.cli.statistical_tests<a class="headerlink" href="#module-matcha.cli.statistical_tests" title="Link to this heading"></a></h1>
+<p>Statistical comparison of model performance across paired data splits.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">summarize</span></code> CLI compares several models that were all evaluated on the
+<em>same</em> set of data splits (CV folds, time windows, clusters, or external
+files). Because every model sees the same splits, the observations are
+<strong>paired</strong> (a within-subject / repeated-measures design): the split-to-split
+variance is shared across models and must be partitioned out rather than
+pooled into the error term.</p>
+<p>This module provides two comparison strategies that both respect the paired
+design:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#matcha.cli.statistical_tests.ParametricComparison" title="matcha.cli.statistical_tests.ParametricComparison"><code class="xref py py-class docutils literal notranslate"><span class="pre">ParametricComparison</span></code></a> – one-way <strong>repeated-measures ANOVA</strong> as the
+omnibus test, followed by <strong>Tukey HSD computed against the RM-ANOVA error
+term</strong> for the pairwise comparisons. Both are implemented directly on top of
+numpy + scipy (no extra runtime dependency). Bonferroni correction is
+applied across the endpoint-metric combinations at the omnibus level; the
+studentized-range Tukey controls the family-wise error rate of the pairwise
+tests intrinsically, so no further pairwise correction is applied.</p></li>
+<li><p><a class="reference internal" href="#matcha.cli.statistical_tests.NonParametricComparison" title="matcha.cli.statistical_tests.NonParametricComparison"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonParametricComparison</span></code></a> – Friedman chi-squared omnibus test
+followed by pairwise Wilcoxon signed-rank tests with Benjamini-Hochberg
+correction. This path is unchanged in behaviour from the previous inline
+implementation in <code class="docutils literal notranslate"><span class="pre">summarize.py</span></code>.</p></li>
+</ul>
+<p>The parametric methodology (RM-ANOVA + Tukey against the ANOVA error term)
+follows the Polaris model-comparison example:
+<a class="reference external" href="https://github.com/polaris-hub/polaris-method-comparison/blob/main/ADME_example/model_comparison.py">https://github.com/polaris-hub/polaris-method-comparison/blob/main/ADME_example/model_comparison.py</a></p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.statistical_tests.ParametricComparison" title="matcha.cli.statistical_tests.ParametricComparison"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ParametricComparison</span></code></a></p></td>
+<td><p>Repeated-measures ANOVA omnibus + Tukey-on-residuals pairwise tests.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.cli.statistical_tests.NonParametricComparison" title="matcha.cli.statistical_tests.NonParametricComparison"><code class="xref py py-obj docutils literal notranslate"><span class="pre">NonParametricComparison</span></code></a></p></td>
+<td><p>Friedman omnibus + Wilcoxon signed-rank pairwise with BH correction.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.statistical_tests.BootstrapComparison" title="matcha.cli.statistical_tests.BootstrapComparison"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BootstrapComparison</span></code></a></p></td>
+<td><p>Bootstrap percentile CIs + Holm-Bonferroni pairwise comparisons.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.statistical_tests.build_comparison" title="matcha.cli.statistical_tests.build_comparison"><code class="xref py py-obj docutils literal notranslate"><span class="pre">build_comparison</span></code></a>(→ _PairedComparison)</p></td>
+<td><p>Construct the comparison strategy for the requested testing mode.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.ParametricComparison">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.cli.statistical_tests.</span></span><span class="sig-name descname"><span class="pre">ParametricComparison</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#ParametricComparison"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.ParametricComparison" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">_PairedComparison</span></code></p>
+<p>Repeated-measures ANOVA omnibus + Tukey-on-residuals pairwise tests.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.ParametricComparison.omnibus_name">
+<span class="sig-name descname"><span class="pre">omnibus_name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'rm_anova'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.ParametricComparison.omnibus_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.ParametricComparison.omnibus_method">
+<span class="sig-name descname"><span class="pre">omnibus_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'rm_anova'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.ParametricComparison.omnibus_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.ParametricComparison.pairwise_method">
+<span class="sig-name descname"><span class="pre">pairwise_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'tukey_hsd'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.ParametricComparison.pairwise_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.ParametricComparison.correction_method">
+<span class="sig-name descname"><span class="pre">correction_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'bonferroni</span> <span class="pre">(omnibus)</span> <span class="pre">+</span> <span class="pre">tukey_hsd</span> <span class="pre">studentized-range</span> <span class="pre">(pairwise)'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.ParametricComparison.correction_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.ParametricComparison.run_pairwise">
+<span class="sig-name descname"><span class="pre">run_pairwise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organized_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_to_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#ParametricComparison.run_pairwise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.ParametricComparison.run_pairwise" title="Link to this definition"></a></dt>
+<dd><p>Tukey HSD pairwise comparisons against the RM-ANOVA error term.</p>
+<p>Tukey’s studentized range controls the family-wise error rate within
+each endpoint-metric combination, so no additional correction is
+applied downstream.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.ParametricComparison.correct_pairwise">
+<span class="sig-name descname"><span class="pre">correct_pairwise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">comparison_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#ParametricComparison.correct_pairwise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.ParametricComparison.correct_pairwise" title="Link to this definition"></a></dt>
+<dd><p>No-op: Tukey’s studentized range already controls family-wise error.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.NonParametricComparison">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.cli.statistical_tests.</span></span><span class="sig-name descname"><span class="pre">NonParametricComparison</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#NonParametricComparison"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.NonParametricComparison" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">_PairedComparison</span></code></p>
+<p>Friedman omnibus + Wilcoxon signed-rank pairwise with BH correction.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.NonParametricComparison.omnibus_name">
+<span class="sig-name descname"><span class="pre">omnibus_name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'Friedman'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.NonParametricComparison.omnibus_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.NonParametricComparison.omnibus_method">
+<span class="sig-name descname"><span class="pre">omnibus_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'friedman_chi_squared'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.NonParametricComparison.omnibus_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.NonParametricComparison.pairwise_method">
+<span class="sig-name descname"><span class="pre">pairwise_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'wilcoxon_signed_rank'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.NonParametricComparison.pairwise_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.NonParametricComparison.correction_method">
+<span class="sig-name descname"><span class="pre">correction_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'bonferroni</span> <span class="pre">(omnibus)</span> <span class="pre">+</span> <span class="pre">benjamini_hochberg</span> <span class="pre">(pairwise)'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.NonParametricComparison.correction_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.NonParametricComparison.run_pairwise">
+<span class="sig-name descname"><span class="pre">run_pairwise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organized_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_to_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#NonParametricComparison.run_pairwise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.NonParametricComparison.run_pairwise" title="Link to this definition"></a></dt>
+<dd><p>Pairwise Wilcoxon signed-rank tests across paired splits.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.NonParametricComparison.correct_pairwise">
+<span class="sig-name descname"><span class="pre">correct_pairwise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">comparison_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#NonParametricComparison.correct_pairwise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.NonParametricComparison.correct_pairwise" title="Link to this definition"></a></dt>
+<dd><p>Benjamini-Hochberg correction, grouped by endpoint-metric combination.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.cli.statistical_tests.</span></span><span class="sig-name descname"><span class="pre">BootstrapComparison</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#BootstrapComparison"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">_PairedComparison</span></code></p>
+<p>Bootstrap percentile CIs + Holm-Bonferroni pairwise comparisons.</p>
+<p>Uses the <code class="docutils literal notranslate"><span class="pre">&quot;{split_idx}_{bootstrap_idx}&quot;</span></code> keys written by <code class="docutils literal notranslate"><span class="pre">evaluate</span></code>
+when <code class="docutils literal notranslate"><span class="pre">split.n_bootstrap</span> <span class="pre">&gt;</span> <span class="pre">1</span></code>. Each bootstrap sample is paired across
+runs because all models were evaluated with the same fixed seed, so
+element-wise differences form a valid paired distribution.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison.omnibus_name">
+<span class="sig-name descname"><span class="pre">omnibus_name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'bootstrap_skipped'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison.omnibus_name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison.omnibus_method">
+<span class="sig-name descname"><span class="pre">omnibus_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'none'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison.omnibus_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison.pairwise_method">
+<span class="sig-name descname"><span class="pre">pairwise_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'bootstrap_percentile'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison.pairwise_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison.correction_method">
+<span class="sig-name descname"><span class="pre">correction_method</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'holm_bonferroni</span> <span class="pre">(pairwise,</span> <span class="pre">per</span> <span class="pre">endpoint-metric)'</span></em><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison.correction_method" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison.run_omnibus">
+<span class="sig-name descname"><span class="pre">run_omnibus</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organized_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#BootstrapComparison.run_omnibus"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison.run_omnibus" title="Link to this definition"></a></dt>
+<dd><p>Bootstrap has no omnibus test; logs a warning and returns empty.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison.run_pairwise">
+<span class="sig-name descname"><span class="pre">run_pairwise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">organized_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">run_id_to_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#BootstrapComparison.run_pairwise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison.run_pairwise" title="Link to this definition"></a></dt>
+<dd><p>Pairwise bootstrap percentile CIs and empirical p-values.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.BootstrapComparison.correct_pairwise">
+<span class="sig-name descname"><span class="pre">correct_pairwise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">comparison_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#BootstrapComparison.correct_pairwise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.BootstrapComparison.correct_pairwise" title="Link to this definition"></a></dt>
+<dd><p>Holm-Bonferroni correction grouped by endpoint-metric combination.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="matcha.cli.statistical_tests.build_comparison">
+<span class="sig-prename descclassname"><span class="pre">matcha.cli.statistical_tests.</span></span><span class="sig-name descname"><span class="pre">build_comparison</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">statistical_test</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">_PairedComparison</span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/statistical_tests.html#build_comparison"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.statistical_tests.build_comparison" title="Link to this definition"></a></dt>
+<dd><p>Construct the comparison strategy for the requested testing mode.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>statistical_test</strong> – <code class="docutils literal notranslate"><span class="pre">&quot;parametric&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;non-parametric&quot;</span></code>.</p></li>
+<li><p><strong>logger</strong> – Logger passed through to the comparison instance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A <a class="reference internal" href="#matcha.cli.statistical_tests.ParametricComparison" title="matcha.cli.statistical_tests.ParametricComparison"><code class="xref py py-class docutils literal notranslate"><span class="pre">ParametricComparison</span></code></a> or
+<a class="reference internal" href="#matcha.cli.statistical_tests.NonParametricComparison" title="matcha.cli.statistical_tests.NonParametricComparison"><code class="xref py py-class docutils literal notranslate"><span class="pre">NonParametricComparison</span></code></a>.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <em>statistical_test</em> is not a supported mode.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,178 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.warnings &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.utils.warnings</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.utils.warnings</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Utilities for suppressing known harmless warnings from third-party libraries.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+
+<div class="viewcode-block" id="silence_nuisance_warnings">
+<a class="viewcode-back" href="../../../api/matcha/utils/warnings/index.html#matcha.utils.silence_nuisance_warnings">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">silence_nuisance_warnings</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Suppress known non-actionable warnings from PyTorch Lightning, Optuna,</span>
+<span class="sd">    atomInSmiles, Hugging Face, and RDKit.</span>
+
+<span class="sd">    This function should be called early in the application lifecycle to</span>
+<span class="sd">    prevent noisy but harmless warning messages from cluttering logs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Pytorch Lightning warnings that are safe to ignore</span>
+    <span class="c1"># see discussion here: https://github.com/Lightning-AI/pytorch-lightning/issues/10644</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;.*does not have many workers.which may be a bottleneck. Consider increasing the value of.*&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;.*Starting from v1.9.0, `tensorboardX` has been removed as a dependency.*&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*ou defined a `validation_step` but have no `val_dataloader`.*&quot;</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;.*Using padding=&#39;same&#39; with even kernel lengths and odd dilation may require a zero-padded copy of the input be created.*&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*GPU available but not used. You can set it by doing.*&quot;</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*is smaller than the logging interval Trainer.*&quot;</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*Trying to infer the `batch_size` from an ambiguous collection.*&quot;</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*You are using `torch.load` with `weights_only=False`.*&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Optuna warnings that are safe to ignore</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;.*Choices for a categorical distribution should be a tuple of None, bool, int, float and str for persistent storage but contains.*&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*QMCSampler is experimental.*&quot;</span><span class="p">)</span>
+
+    <span class="c1"># atomInSmiles warnings that are safe to ignore</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*invalid escape sequence.*&quot;</span><span class="p">)</span>
+
+    <span class="c1"># InfoAlign/huggingface warnings that are safe to ignore</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;.*`local_dir_use_symlinks` parameter is deprecated and will be ignored.*&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># RDKIT warnings that are safe to ignore</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*please use MorganGenerator.*&quot;</span><span class="p">)</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="s2">&quot;.*DEPRECATION WARNING: please use MorganGenerator.*&quot;</span>
+    <span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

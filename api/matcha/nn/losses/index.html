@@ -1,0 +1,606 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.losses &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.nn.losses</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../_sources/api/matcha/nn/losses/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.nn.losses">
+<span id="matcha-nn-losses"></span><h1>matcha.nn.losses<a class="headerlink" href="#module-matcha.nn.losses" title="Link to this heading"></a></h1>
+<p>Loss functions for regression, classification, and multitask learning.</p>
+<section id="attributes">
+<h2>Attributes<a class="headerlink" href="#attributes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.LossRegistry" title="matcha.nn.losses.LossRegistry"><code class="xref py py-obj docutils literal notranslate"><span class="pre">LossRegistry</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.BCEFocalLoss" title="matcha.nn.losses.BCEFocalLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BCEFocalLoss</span></code></a></p></td>
+<td><p>Focal loss implementation using binary cross entropy with logits.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.Poly1BCELoss" title="matcha.nn.losses.Poly1BCELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Poly1BCELoss</span></code></a></p></td>
+<td><p>Polynomial expansion of the binary cross entropy loss, which can lead to better</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.MultitaskLoss" title="matcha.nn.losses.MultitaskLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MultitaskLoss</span></code></a></p></td>
+<td><p>Implementation of a customizable multitask loss. The same loss is</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.MultiLoss" title="matcha.nn.losses.MultiLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MultiLoss</span></code></a></p></td>
+<td><p>Implementation of a customizable multi-loss function that supports</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a></p></td>
+<td><p>Loss function for handling bounded regression</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.MSELoss" title="matcha.nn.losses.MSELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MSELoss</span></code></a></p></td>
+<td><p>Mean squared error loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html#torch.nn.MSELoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.MSELoss</span></code></a>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.L1Loss" title="matcha.nn.losses.L1Loss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">L1Loss</span></code></a></p></td>
+<td><p>Mean absolute error loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.L1Loss.html#torch.nn.L1Loss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.L1Loss</span></code></a>).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.HuberLoss" title="matcha.nn.losses.HuberLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">HuberLoss</span></code></a></p></td>
+<td><p>Huber loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.HuberLoss.html#torch.nn.HuberLoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.HuberLoss</span></code></a>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.SmoothL1Loss" title="matcha.nn.losses.SmoothL1Loss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SmoothL1Loss</span></code></a></p></td>
+<td><p>Smooth L1 loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.SmoothL1Loss.html#torch.nn.SmoothL1Loss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.SmoothL1Loss</span></code></a>).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.BoundedMSELoss" title="matcha.nn.losses.BoundedMSELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedMSELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with MSE as the inner loss.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.BoundedMAELoss" title="matcha.nn.losses.BoundedMAELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedMAELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with MAE as the inner loss.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.BoundedHuberLoss" title="matcha.nn.losses.BoundedHuberLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedHuberLoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with Huber as the inner loss.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.BoundedSmoothL1Loss" title="matcha.nn.losses.BoundedSmoothL1Loss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedSmoothL1Loss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with Smooth L1 as the inner loss.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.BCELoss" title="matcha.nn.losses.BCELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BCELoss</span></code></a></p></td>
+<td><p>Binary cross-entropy with logits (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html#torch.nn.BCEWithLogitsLoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.BCEWithLogitsLoss</span></code></a>).</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.CrossEntropyLoss" title="matcha.nn.losses.CrossEntropyLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CrossEntropyLoss</span></code></a></p></td>
+<td><p>Cross-entropy loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html#torch.nn.CrossEntropyLoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.CrossEntropyLoss</span></code></a>).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.WeightedBCELoss" title="matcha.nn.losses.WeightedBCELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">WeightedBCELoss</span></code></a></p></td>
+<td><p>Weighted binary cross entropy loss with logits.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.GradNormLoss" title="matcha.nn.losses.GradNormLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GradNormLoss</span></code></a></p></td>
+<td><p>Implementation of GradNorm for adaptive loss balancing in multitask learning.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py data">
+<dt class="sig sig-object py" id="matcha.nn.losses.LossRegistry">
+<span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">LossRegistry</span></span><a class="headerlink" href="#matcha.nn.losses.LossRegistry" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.BCEFocalLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">BCEFocalLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alpha</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'mean'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BCEFocalLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BCEFocalLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Focal loss implementation using binary cross entropy with logits.
+Suitable for binary classification with class imbalance.
+Reference: <a class="reference external" href="https://arxiv.org/abs/1708.02002">https://arxiv.org/abs/1708.02002</a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.BCEFocalLoss.gamma">
+<span class="sig-name descname"><span class="pre">gamma</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></em><a class="headerlink" href="#matcha.nn.losses.BCEFocalLoss.gamma" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.BCEFocalLoss.alpha">
+<span class="sig-name descname"><span class="pre">alpha</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#matcha.nn.losses.BCEFocalLoss.alpha" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.BCEFocalLoss.reduction">
+<span class="sig-name descname"><span class="pre">reduction</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'mean'</span></em><a class="headerlink" href="#matcha.nn.losses.BCEFocalLoss.reduction" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.BCEFocalLoss.eps">
+<span class="sig-name descname"><span class="pre">eps</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-07</span></em><a class="headerlink" href="#matcha.nn.losses.BCEFocalLoss.eps" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.BCEFocalLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BCEFocalLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BCEFocalLoss.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Raw logits.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Binary target labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Focal loss value.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.Poly1BCELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">Poly1BCELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">epsilon</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#Poly1BCELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.Poly1BCELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Polynomial expansion of the binary cross entropy loss, which can lead to better
+classification performance if epsilon is tuned.
+Suitable for binary classification.
+Reference: <a class="reference external" href="https://arxiv.org/abs/2204.12511">https://arxiv.org/abs/2204.12511</a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.Poly1BCELoss.epsilon">
+<span class="sig-name descname"><span class="pre">epsilon</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1.0</span></em><a class="headerlink" href="#matcha.nn.losses.Poly1BCELoss.epsilon" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.Poly1BCELoss.reduction">
+<span class="sig-name descname"><span class="pre">reduction</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'mean'</span></em><a class="headerlink" href="#matcha.nn.losses.Poly1BCELoss.reduction" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.Poly1BCELoss.eps">
+<span class="sig-name descname"><span class="pre">eps</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1e-07</span></em><a class="headerlink" href="#matcha.nn.losses.Poly1BCELoss.eps" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.Poly1BCELoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#Poly1BCELoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.Poly1BCELoss.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Raw logits.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Binary target labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Poly1 BCE loss value.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.MultitaskLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">MultitaskLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mse'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#MultitaskLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.MultitaskLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Implementation of a customizable multitask loss. The same loss is
+used for all tasks.</p>
+<p>loss_fn is the name of the loss to broadcast, loss_args are its arguments.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.MultitaskLoss.loss">
+<span class="sig-name descname"><span class="pre">loss</span></span><a class="headerlink" href="#matcha.nn.losses.MultitaskLoss.loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.MultitaskLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#MultitaskLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.MultitaskLoss.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Predictions of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks)</span></code>.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Targets of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks)</span></code>; NaN marks missing.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Scalar loss averaged across valid entries and tasks.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.MultiLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">MultiLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_configs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#MultiLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.MultiLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Implementation of a customizable multi-loss function that supports
+dynamic weight scheduling during training.</p>
+<p>Each loss configuration is a dictionary with:
+- loss_fn: name of the loss function
+- loss_args: arguments for the loss function
+- task_map: tuple/list indicating which columns this loss applies to (start, end)
+- init_w: initial weight at T=0
+- final_w: final weight at T=end
+- T: total epochs to transition from init_w to final_w
+- warmup: epochs to keep init_w fixed before starting transition</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.MultiLoss.loss_configs">
+<span class="sig-name descname"><span class="pre">loss_configs</span></span><a class="headerlink" href="#matcha.nn.losses.MultiLoss.loss_configs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.MultiLoss.losses">
+<span class="sig-name descname"><span class="pre">losses</span></span><a class="headerlink" href="#matcha.nn.losses.MultiLoss.losses" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.MultiLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">T_current</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#MultiLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.MultiLoss.forward" title="Link to this definition"></a></dt>
+<dd><p>Forward pass with dynamic weight scheduling.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Model predictions.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Ground truth targets; NaN marks missing entries.</p></li>
+<li><p><strong>T_current</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Current training epoch for weight scheduling.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Weighted total loss (scalar during training, tuple with log during eval).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a> or <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>]</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.BoundedLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">BoundedLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mse'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BoundedLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BoundedLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Loss function for handling bounded regression</p>
+<p>Allows the use of bound information on the readout (e.g. IC50 &lt; x),
+so that the model is not penalized when it predicts e.g. y_pred &lt; x.
+Implementation is based on: <a class="reference external" href="https://chemprop.readthedocs.io/en/latest/_modules/chemprop/nn/metrics.html#BoundedMixin">https://chemprop.readthedocs.io/en/latest/_modules/chemprop/nn/metrics.html#BoundedMixin</a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.BoundedLoss.loss">
+<span class="sig-name descname"><span class="pre">loss</span></span><a class="headerlink" href="#matcha.nn.losses.BoundedLoss.loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.BoundedLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BoundedLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BoundedLoss.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Predictions.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Targets with bound info in the last dimension.
+Shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">[num_tasks,]</span> <span class="pre">2)</span></code> where <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">0]</span></code> is the value and
+<code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1]</span></code> encodes the bound type (<code class="docutils literal notranslate"><span class="pre">-1</span></code> = less-than, <code class="docutils literal notranslate"><span class="pre">1</span></code> = greater-than).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Loss computed only on non-masked predictions.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.MSELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">MSELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size_average</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#MSELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.MSELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html#torch.nn.MSELoss" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.MSELoss</span></code></a></p>
+<p>Mean squared error loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.MSELoss.html#torch.nn.MSELoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.MSELoss</span></code></a>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.L1Loss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">L1Loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size_average</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#L1Loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.L1Loss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.L1Loss.html#torch.nn.L1Loss" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.L1Loss</span></code></a></p>
+<p>Mean absolute error loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.L1Loss.html#torch.nn.L1Loss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.L1Loss</span></code></a>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.HuberLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">HuberLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#HuberLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.HuberLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.HuberLoss.html#torch.nn.HuberLoss" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.HuberLoss</span></code></a></p>
+<p>Huber loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.HuberLoss.html#torch.nn.HuberLoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.HuberLoss</span></code></a>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.SmoothL1Loss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">SmoothL1Loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">size_average</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">beta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#SmoothL1Loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.SmoothL1Loss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.SmoothL1Loss.html#torch.nn.SmoothL1Loss" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.SmoothL1Loss</span></code></a></p>
+<p>Smooth L1 loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.SmoothL1Loss.html#torch.nn.SmoothL1Loss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.SmoothL1Loss</span></code></a>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.BoundedMSELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">BoundedMSELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BoundedMSELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BoundedMSELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with MSE as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.BoundedMAELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">BoundedMAELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BoundedMAELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BoundedMAELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with MAE as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.BoundedHuberLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">BoundedHuberLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BoundedHuberLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BoundedHuberLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with Huber as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.BoundedSmoothL1Loss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">BoundedSmoothL1Loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BoundedSmoothL1Loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BoundedSmoothL1Loss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.BoundedLoss" title="matcha.nn.losses.BoundedLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">BoundedLoss</span></code></a> with Smooth L1 as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.BCELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">BCELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size_average</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos_weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#BCELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.BCELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html#torch.nn.BCEWithLogitsLoss" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.BCEWithLogitsLoss</span></code></a></p>
+<p>Binary cross-entropy with logits (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html#torch.nn.BCEWithLogitsLoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.BCEWithLogitsLoss</span></code></a>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.CrossEntropyLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">CrossEntropyLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">weight</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">size_average</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_index</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduce</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_smoothing</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#CrossEntropyLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.CrossEntropyLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html#torch.nn.CrossEntropyLoss" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.CrossEntropyLoss</span></code></a></p>
+<p>Cross-entropy loss (wraps <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.CrossEntropyLoss.html#torch.nn.CrossEntropyLoss" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.CrossEntropyLoss</span></code></a>).</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.WeightedBCELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">WeightedBCELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">w1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">reduction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mean'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#WeightedBCELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.WeightedBCELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Weighted binary cross entropy loss with logits.</p>
+<p>Applies per-class weights to handle class imbalance in binary classification.
+The user specifies the weight for the positive (minority) class; the weight
+for the negative class is computed so that <code class="docutils literal notranslate"><span class="pre">w0</span> <span class="pre">+</span> <span class="pre">w1</span> <span class="pre">=</span> <span class="pre">1</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>w1</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for class 1 (positive / minority class). Must be in (0, 1).</p></li>
+<li><p><strong>reduction</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Reduction mode: <code class="docutils literal notranslate"><span class="pre">'mean'</span></code>, <code class="docutils literal notranslate"><span class="pre">'sum'</span></code>, or <code class="docutils literal notranslate"><span class="pre">'none'</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.WeightedBCELoss.w1">
+<span class="sig-name descname"><span class="pre">w1</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.5</span></em><a class="headerlink" href="#matcha.nn.losses.WeightedBCELoss.w1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.WeightedBCELoss.w0">
+<span class="sig-name descname"><span class="pre">w0</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.5</span></em><a class="headerlink" href="#matcha.nn.losses.WeightedBCELoss.w0" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.WeightedBCELoss.reduction">
+<span class="sig-name descname"><span class="pre">reduction</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'mean'</span></em><a class="headerlink" href="#matcha.nn.losses.WeightedBCELoss.reduction" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.WeightedBCELoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#WeightedBCELoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.WeightedBCELoss.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>inputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Raw logits.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Binary target labels.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Weighted BCE loss value.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">GradNormLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mse'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">loss_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_endpoints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">weight_lr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.025</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#GradNormLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.GradNormLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Implementation of GradNorm for adaptive loss balancing in multitask learning.</p>
+<p>GradNorm automatically balances training by dynamically tuning gradient magnitudes.
+It adjusts task weights to ensure that all tasks train at similar rates.
+The weight updates are handled internally — no separate optimizer needed.</p>
+<p>Reference: <a class="reference external" href="https://arxiv.org/abs/1711.02257">https://arxiv.org/abs/1711.02257</a></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>loss_fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Name of the loss function to use for all tasks (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;mse&quot;</span></code>).</p></li>
+<li><p><strong>loss_args</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Arguments to pass to the loss function constructor.</p></li>
+<li><p><strong>num_endpoints</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of tasks.</p></li>
+<li><p><strong>weight_lr</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Learning rate for updating task weights internally.</p></li>
+</ul>
+</dd>
+</dl>
+<p>Example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">GradNormLoss</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="n">num_endpoints</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+<span class="c1"># Training loop (no changes needed):</span>
+<span class="n">loss</span> <span class="o">=</span> <span class="n">loss_fn</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">shared_layer</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">backbone</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+<span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+<span class="n">optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss.ALPHA">
+<span class="sig-name descname"><span class="pre">ALPHA</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1.5</span></em><a class="headerlink" href="#matcha.nn.losses.GradNormLoss.ALPHA" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss.loss">
+<span class="sig-name descname"><span class="pre">loss</span></span><a class="headerlink" href="#matcha.nn.losses.GradNormLoss.loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss.num_endpoints">
+<span class="sig-name descname"><span class="pre">num_endpoints</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></em><a class="headerlink" href="#matcha.nn.losses.GradNormLoss.num_endpoints" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss.weight_lr">
+<span class="sig-name descname"><span class="pre">weight_lr</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0.025</span></em><a class="headerlink" href="#matcha.nn.losses.GradNormLoss.weight_lr" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss.initial_losses">
+<span class="sig-name descname"><span class="pre">initial_losses</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#matcha.nn.losses.GradNormLoss.initial_losses" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">shared_layer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><span class="pre">torch.nn.Module</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#GradNormLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.GradNormLoss.forward" title="Link to this definition"></a></dt>
+<dd><p>Forward pass computing weighted multitask loss.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Predictions of shape <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">num_endpoints)</span></code>.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Targets of shape <code class="docutils literal notranslate"><span class="pre">(batch_size,</span> <span class="pre">num_endpoints)</span></code>.</p></li>
+<li><p><strong>shared_layer</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><em>torch.nn.Module</em></a><em> or </em><em>None</em>) – The last shared layer of the network. Required during
+training for GradNorm weight updates.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Weighted sum of task losses.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.GradNormLoss.reset_initial_losses">
+<span class="sig-name descname"><span class="pre">reset_initial_losses</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#GradNormLoss.reset_initial_losses"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.GradNormLoss.reset_initial_losses" title="Link to this definition"></a></dt>
+<dd><p>Reset the initial losses for a fresh start of GradNorm tracking.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

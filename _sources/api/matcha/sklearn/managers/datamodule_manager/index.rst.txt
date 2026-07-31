@@ -1,0 +1,184 @@
+matcha.sklearn.managers.datamodule_manager
+==========================================
+
+.. py:module:: matcha.sklearn.managers.datamodule_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.datamodule_manager.DataModuleManager
+
+
+Module Contents
+---------------
+
+.. py:class:: DataModuleManager
+
+   Manages the Lightning DataModule lifecycle: creation, featurization,
+   dataset assignment, and label encoding.
+
+   The underlying datamodule object is created by the concrete sklearn model
+   subclass via ``create_from_factory``, and from that point on the manager
+   owns the reference and exposes a controlled interface.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: datamodule
+
+      The underlying Lightning DataModule, or None if not yet created.
+
+
+   .. py:property:: params
+
+      Params owned by the underlying datamodule, or None.
+
+
+   .. py:method:: featurize(mols: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, is_training: bool = True, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Featurize molecules via the underlying datamodule.
+
+      :param list[Mol] mols: list of rdkit molecules to featurize
+      :param np.ndarray | None y: property labels (None → inference mode)
+      :param bool is_training: whether to fit scalers
+      :param list[str] | None bound_mask: censoring mask
+      :param int | None n_jobs: parallelism for featurization
+      :return StackDataset: featurized dataset
+
+
+
+   .. py:method:: set_train_dataset(dataset)
+
+      Assign the training dataset on the underlying datamodule.
+
+
+
+   .. py:method:: set_val_dataset(dataset)
+
+      Assign the validation dataset on the underlying datamodule.
+
+
+
+   .. py:method:: set_predict_dataset(dataset)
+
+      Assign the prediction dataset on the underlying datamodule.
+
+
+
+   .. py:method:: set_batch_size(batch_size: int)
+
+      Update the batch size on the underlying datamodule.
+
+
+
+   .. py:method:: configure_label_encoder(params: dict)
+
+      Configure the label encoder on the underlying datamodule.
+
+      :param dict params: label encoder configuration
+
+
+
+   .. py:method:: configure_label_encoder_task(task_idx: int, task_label: str, class_thresholds: list[float] | None = None, class_labels: list[str] | None = None)
+
+      Configure a single task in the label encoder.
+
+      :param int task_idx: index of the task
+      :param str task_label: label for the task
+      :param list[float] | None class_thresholds: thresholds for classification
+      :param list[str] | None class_labels: class label names
+
+
+
+   .. py:method:: parse_output(output: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Parse model output through the datamodule's label decoder.
+
+      :param np.ndarray output: raw model output
+      :param str tag: output tag
+      :param bool convert_to_labels: whether to convert to labels
+      :return: parsed output
+
+
+
+   .. py:method:: has_class_labels() -> bool
+
+      Whether the datamodule's label encoder has class labels configured.
+
+      :return bool: True if class labels are configured
+
+
+
+   .. py:method:: invert_y(preds: numpy.ndarray) -> numpy.ndarray
+
+      Invert the y transform on predictions (e.g. unscale).
+
+      :param np.ndarray preds: model predictions
+      :return np.ndarray: un-transformed predictions
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Return the datamodule state dict for serialization.
+
+      :return dict: state dict
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Load datamodule state from a state dict.
+
+      :param dict state_dict: state dict to load
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Proxy for the underlying datamodule's setup method.
+
+      :param str stage: one of 'fit', 'test', 'predict'
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Proxy for the underlying datamodule's predict_dataloader method.
+
+
+
+   .. py:method:: prepare_fit_datasets(x, y: numpy.ndarray | None, bound_mask: list[str] | None, validation_set: torch.utils.data.StackDataset | None, transform_fn, early_stopping: bool, seed: int, batch_size: int)
+
+      Prepare training (and optionally validation) datasets for fit.
+
+      Handles three input modes:
+      1. Pre-featurized StackDataset / CombinedStackDataset / MoleculeDataset
+      2. Raw molecule list with early stopping (auto-splits 90/10)
+      3. Raw molecule list without early stopping
+
+      :param x: molecules or pre-featurized dataset
+      :param np.ndarray | None y: labels
+      :param list[str] | None bound_mask: censoring mask
+      :param StackDataset | None validation_set: optional pre-featurized val set
+      :param transform_fn: callable to featurize molecules (model.transform)
+      :param bool early_stopping: whether to create a validation split
+      :param int seed: random seed for splitting
+      :param int batch_size: batch size to set on the datamodule
+
+
+
+   .. py:method:: encode_y(y: numpy.ndarray) -> numpy.ndarray
+
+      Convert raw, continuous values into a one-hot encoded matrix
+      for classification, using the datamodule's label encoder.
+
+      :param np.ndarray y: continuous target values
+      :return np.ndarray: one-hot encoded matrix
+
+
+

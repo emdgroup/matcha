@@ -1,0 +1,905 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.schemas.generic_models &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.utils.schemas.generic_models</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../_sources/api/matcha/utils/schemas/generic_models/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.utils.schemas.generic_models">
+<span id="matcha-utils-schemas-generic-models"></span><h1>matcha.utils.schemas.generic_models<a class="headerlink" href="#module-matcha.utils.schemas.generic_models" title="Link to this heading"></a></h1>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel" title="matcha.utils.schemas.generic_models.ClassicMatchaModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ClassicMatchaModel</span></code></a></p></td>
+<td><p>Base schema for all standard matcha models defining shared training parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GraphMixin" title="matcha.utils.schemas.generic_models.GraphMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GraphMixin</span></code></a></p></td>
+<td><p>Mixin schema for shared graph neural network encoder parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GINMixin" title="matcha.utils.schemas.generic_models.GINMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GINMixin</span></code></a></p></td>
+<td><p>Mixin schema for GIN-specific parameters such as aggregation and jumping knowledge.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.AttentiveFPMixin" title="matcha.utils.schemas.generic_models.AttentiveFPMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">AttentiveFPMixin</span></code></a></p></td>
+<td><p>Mixin schema for AttentiveFP-specific parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.MPNNMixin" title="matcha.utils.schemas.generic_models.MPNNMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MPNNMixin</span></code></a></p></td>
+<td><p>Mixin schema for MPNN-specific parameters including bond dimensions and aggregation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GatedGCNMixin" title="matcha.utils.schemas.generic_models.GatedGCNMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GatedGCNMixin</span></code></a></p></td>
+<td><p>Mixin schema for GatedGCN-specific parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.E3GNNMixin" title="matcha.utils.schemas.generic_models.E3GNNMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">E3GNNMixin</span></code></a></p></td>
+<td><p>Mixin schema for E(3)-equivariant GNN parameters including coordinate updates.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GPSMixin" title="matcha.utils.schemas.generic_models.GPSMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GPSMixin</span></code></a></p></td>
+<td><p>Mixin schema for GPS (General Powerful Scalable) graph transformer parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GPS3DMixin" title="matcha.utils.schemas.generic_models.GPS3DMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GPS3DMixin</span></code></a></p></td>
+<td><p>Mixin schema for 3D-aware GPS graph transformer parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GTMixin" title="matcha.utils.schemas.generic_models.GTMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GTMixin</span></code></a></p></td>
+<td><p>Mixin schema for Graph Transformer encoder parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GT3DMixin" title="matcha.utils.schemas.generic_models.GT3DMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GT3DMixin</span></code></a></p></td>
+<td><p>Mixin schema for 3D-aware Graph Transformer encoder parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.CLMMixin" title="matcha.utils.schemas.generic_models.CLMMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CLMMixin</span></code></a></p></td>
+<td><p>Mixin schema for character-level model (CLM) shared parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.CNNMixin" title="matcha.utils.schemas.generic_models.CNNMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">CNNMixin</span></code></a></p></td>
+<td><p>Mixin schema for CNN encoder parameters including kernel dimensions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.RNNMixin" title="matcha.utils.schemas.generic_models.RNNMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RNNMixin</span></code></a></p></td>
+<td><p>Mixin schema for RNN encoder parameters including type and bidirectionality.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.RoFormerMixin" title="matcha.utils.schemas.generic_models.RoFormerMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">RoFormerMixin</span></code></a></p></td>
+<td><p>Mixin schema for RoFormer encoder parameters with rotary position embeddings.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.TabularMixin" title="matcha.utils.schemas.generic_models.TabularMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">TabularMixin</span></code></a></p></td>
+<td><p>Mixin schema for tabular (deep lasso) model parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.MLPMixin" title="matcha.utils.schemas.generic_models.MLPMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">MLPMixin</span></code></a></p></td>
+<td><p>Mixin schema for MLP predictor parameters including hidden dimensions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.SNNMixin" title="matcha.utils.schemas.generic_models.SNNMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SNNMixin</span></code></a></p></td>
+<td><p>Mixin schema for Self-Normalizing Network parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.FinetunerMixin" title="matcha.utils.schemas.generic_models.FinetunerMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FinetunerMixin</span></code></a></p></td>
+<td><p>Mixin schema for finetuning a pretrained encoder with LoRA or full strategy.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin" title="matcha.utils.schemas.generic_models.ChempropFinetunerMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ChempropFinetunerMixin</span></code></a></p></td>
+<td><p>Mixin schema for finetuning a Chemprop pretrained model.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">ClassicMatchaModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#ClassicMatchaModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Base schema for all standard matcha models defining shared training parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.additional_mol_features_dim">
+<span class="sig-name descname"><span class="pre">additional_mol_features_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.additional_mol_features_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.num_endpoints">
+<span class="sig-name descname"><span class="pre">num_endpoints</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.num_endpoints" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.loss_fn">
+<span class="sig-name descname"><span class="pre">loss_fn</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.loss_fn" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.loss_args">
+<span class="sig-name descname"><span class="pre">loss_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.loss_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.optimizer">
+<span class="sig-name descname"><span class="pre">optimizer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.optimizer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.optimizer_args">
+<span class="sig-name descname"><span class="pre">optimizer_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.optimizer_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.scheduler">
+<span class="sig-name descname"><span class="pre">scheduler</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.scheduler" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.scheduler_args">
+<span class="sig-name descname"><span class="pre">scheduler_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.scheduler_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GraphMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GraphMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for shared graph neural network encoder parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_num_layers">
+<span class="sig-name descname"><span class="pre">enc_num_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_num_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_readout">
+<span class="sig-name descname"><span class="pre">enc_readout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_readout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.pred_hidden_dims">
+<span class="sig-name descname"><span class="pre">pred_hidden_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.pred_hidden_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_atom_input_dim">
+<span class="sig-name descname"><span class="pre">enc_atom_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_atom_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_atom_hidden_dim">
+<span class="sig-name descname"><span class="pre">enc_atom_hidden_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_atom_hidden_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_activation">
+<span class="sig-name descname"><span class="pre">enc_activation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_activation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_dropout">
+<span class="sig-name descname"><span class="pre">enc_dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_laplacian_k">
+<span class="sig-name descname"><span class="pre">enc_laplacian_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_laplacian_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_rwse_k">
+<span class="sig-name descname"><span class="pre">enc_rwse_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_rwse_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_distmat_k">
+<span class="sig-name descname"><span class="pre">enc_distmat_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_distmat_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_elstatic_k">
+<span class="sig-name descname"><span class="pre">enc_elstatic_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_elstatic_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.pred_activation">
+<span class="sig-name descname"><span class="pre">pred_activation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.pred_activation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.pred_dropout">
+<span class="sig-name descname"><span class="pre">pred_dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.pred_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.pred_task_head_dims">
+<span class="sig-name descname"><span class="pre">pred_task_head_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.pred_task_head_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphMixin.enc_rrwp_k">
+<span class="sig-name descname"><span class="pre">enc_rrwp_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphMixin.enc_rrwp_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GINMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GINMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GINMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GINMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for GIN-specific parameters such as aggregation and jumping knowledge.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GINMixin.enc_aggregation">
+<span class="sig-name descname"><span class="pre">enc_aggregation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GINMixin.enc_aggregation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GINMixin.enc_norm">
+<span class="sig-name descname"><span class="pre">enc_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GINMixin.enc_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GINMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GINMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.AttentiveFPMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">AttentiveFPMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#AttentiveFPMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.AttentiveFPMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for AttentiveFP-specific parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.AttentiveFPMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.AttentiveFPMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.AttentiveFPMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.AttentiveFPMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MPNNMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">MPNNMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#MPNNMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.MPNNMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for MPNN-specific parameters including bond dimensions and aggregation.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MPNNMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.MPNNMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MPNNMixin.enc_bond_hidden_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_hidden_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.MPNNMixin.enc_bond_hidden_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MPNNMixin.enc_aggregation">
+<span class="sig-name descname"><span class="pre">enc_aggregation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.MPNNMixin.enc_aggregation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MPNNMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.MPNNMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GatedGCNMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GatedGCNMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GatedGCNMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GatedGCNMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for GatedGCN-specific parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GatedGCNMixin.enc_norm">
+<span class="sig-name descname"><span class="pre">enc_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GatedGCNMixin.enc_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GatedGCNMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GatedGCNMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GatedGCNMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GatedGCNMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">E3GNNMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#E3GNNMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for E(3)-equivariant GNN parameters including coordinate updates.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_m_dim">
+<span class="sig-name descname"><span class="pre">enc_m_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_m_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_fourier_features">
+<span class="sig-name descname"><span class="pre">enc_fourier_features</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_fourier_features" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_soft_edge">
+<span class="sig-name descname"><span class="pre">enc_soft_edge</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_soft_edge" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_norm_feats">
+<span class="sig-name descname"><span class="pre">enc_norm_feats</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_norm_feats" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_norm_coors">
+<span class="sig-name descname"><span class="pre">enc_norm_coors</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_norm_coors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_update_coors">
+<span class="sig-name descname"><span class="pre">enc_update_coors</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_update_coors" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.E3GNNMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.E3GNNMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPSMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GPSMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GPSMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPSMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for GPS (General Powerful Scalable) graph transformer parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPSMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPSMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPSMixin.enc_num_heads">
+<span class="sig-name descname"><span class="pre">enc_num_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPSMixin.enc_num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPSMixin.enc_expansion_k">
+<span class="sig-name descname"><span class="pre">enc_expansion_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPSMixin.enc_expansion_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPSMixin.enc_distance_k">
+<span class="sig-name descname"><span class="pre">enc_distance_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPSMixin.enc_distance_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPSMixin.enc_norm">
+<span class="sig-name descname"><span class="pre">enc_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPSMixin.enc_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPS3DMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GPS3DMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GPS3DMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPS3DMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for 3D-aware GPS graph transformer parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPS3DMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPS3DMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPS3DMixin.enc_num_heads">
+<span class="sig-name descname"><span class="pre">enc_num_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPS3DMixin.enc_num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPS3DMixin.enc_expansion_k">
+<span class="sig-name descname"><span class="pre">enc_expansion_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPS3DMixin.enc_expansion_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPS3DMixin.enc_num_kernels">
+<span class="sig-name descname"><span class="pre">enc_num_kernels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPS3DMixin.enc_num_kernels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPS3DMixin.enc_norm">
+<span class="sig-name descname"><span class="pre">enc_norm</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPS3DMixin.enc_norm" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GPS3DMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GPS3DMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GTMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GTMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GTMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GTMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for Graph Transformer encoder parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GTMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GTMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GTMixin.enc_num_heads">
+<span class="sig-name descname"><span class="pre">enc_num_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GTMixin.enc_num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GTMixin.enc_expansion_k">
+<span class="sig-name descname"><span class="pre">enc_expansion_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GTMixin.enc_expansion_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GTMixin.enc_distance_k">
+<span class="sig-name descname"><span class="pre">enc_distance_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GTMixin.enc_distance_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GTMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GTMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GT3DMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GT3DMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GT3DMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GT3DMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for 3D-aware Graph Transformer encoder parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GT3DMixin.enc_bond_input_dim">
+<span class="sig-name descname"><span class="pre">enc_bond_input_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GT3DMixin.enc_bond_input_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GT3DMixin.enc_num_heads">
+<span class="sig-name descname"><span class="pre">enc_num_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GT3DMixin.enc_num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GT3DMixin.enc_expansion_k">
+<span class="sig-name descname"><span class="pre">enc_expansion_k</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GT3DMixin.enc_expansion_k" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GT3DMixin.enc_num_kernels">
+<span class="sig-name descname"><span class="pre">enc_num_kernels</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GT3DMixin.enc_num_kernels" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GT3DMixin.enc_jk">
+<span class="sig-name descname"><span class="pre">enc_jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GT3DMixin.enc_jk" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.CLMMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">CLMMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#CLMMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.CLMMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for character-level model (CLM) shared parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.CLMMixin.enc_num_characters">
+<span class="sig-name descname"><span class="pre">enc_num_characters</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.CLMMixin.enc_num_characters" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.CLMMixin.pred_hidden_dims">
+<span class="sig-name descname"><span class="pre">pred_hidden_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.CLMMixin.pred_hidden_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.CNNMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">CNNMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#CNNMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.CNNMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for CNN encoder parameters including kernel dimensions.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.CNNMixin.enc_hidden_dim">
+<span class="sig-name descname"><span class="pre">enc_hidden_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.CNNMixin.enc_hidden_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.CNNMixin.enc_kernel_dims">
+<span class="sig-name descname"><span class="pre">enc_kernel_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.CNNMixin.enc_kernel_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.CNNMixin.enc_num_heads">
+<span class="sig-name descname"><span class="pre">enc_num_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.CNNMixin.enc_num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RNNMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">RNNMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#RNNMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.RNNMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for RNN encoder parameters including type and bidirectionality.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RNNMixin.enc_rnn_type">
+<span class="sig-name descname"><span class="pre">enc_rnn_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RNNMixin.enc_rnn_type" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RNNMixin.enc_hidden_dim">
+<span class="sig-name descname"><span class="pre">enc_hidden_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RNNMixin.enc_hidden_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RNNMixin.enc_bidirectional">
+<span class="sig-name descname"><span class="pre">enc_bidirectional</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RNNMixin.enc_bidirectional" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RNNMixin.enc_num_layers">
+<span class="sig-name descname"><span class="pre">enc_num_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RNNMixin.enc_num_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RNNMixin.enc_embedding_dim">
+<span class="sig-name descname"><span class="pre">enc_embedding_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RNNMixin.enc_embedding_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RNNMixin.enc_num_heads">
+<span class="sig-name descname"><span class="pre">enc_num_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RNNMixin.enc_num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RoFormerMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">RoFormerMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#RoFormerMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.RoFormerMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for RoFormer encoder parameters with rotary position embeddings.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RoFormerMixin.enc_hidden_dim">
+<span class="sig-name descname"><span class="pre">enc_hidden_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RoFormerMixin.enc_hidden_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RoFormerMixin.enc_expansion_dim">
+<span class="sig-name descname"><span class="pre">enc_expansion_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RoFormerMixin.enc_expansion_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RoFormerMixin.enc_num_heads">
+<span class="sig-name descname"><span class="pre">enc_num_heads</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RoFormerMixin.enc_num_heads" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RoFormerMixin.enc_num_layers">
+<span class="sig-name descname"><span class="pre">enc_num_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RoFormerMixin.enc_num_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RoFormerMixin.enc_attention_dropout">
+<span class="sig-name descname"><span class="pre">enc_attention_dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RoFormerMixin.enc_attention_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.RoFormerMixin.enc_hidden_dropout">
+<span class="sig-name descname"><span class="pre">enc_hidden_dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.RoFormerMixin.enc_hidden_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.TabularMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">TabularMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#TabularMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.TabularMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for tabular (deep lasso) model parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.TabularMixin.deep_lasso_weight">
+<span class="sig-name descname"><span class="pre">deep_lasso_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.TabularMixin.deep_lasso_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.TabularMixin.dropout">
+<span class="sig-name descname"><span class="pre">dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.TabularMixin.dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MLPMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">MLPMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#MLPMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.MLPMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for MLP predictor parameters including hidden dimensions.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MLPMixin.hidden_dims">
+<span class="sig-name descname"><span class="pre">hidden_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.MLPMixin.hidden_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MLPMixin.activation">
+<span class="sig-name descname"><span class="pre">activation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.MLPMixin.activation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.MLPMixin.task_head_dims">
+<span class="sig-name descname"><span class="pre">task_head_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.MLPMixin.task_head_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.SNNMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">SNNMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#SNNMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.SNNMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for Self-Normalizing Network parameters.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.SNNMixin.hidden_dims">
+<span class="sig-name descname"><span class="pre">hidden_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.SNNMixin.hidden_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.SNNMixin.num_parallel">
+<span class="sig-name descname"><span class="pre">num_parallel</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.SNNMixin.num_parallel" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">FinetunerMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#FinetunerMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for finetuning a pretrained encoder with LoRA or full strategy.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.architecture">
+<span class="sig-name descname"><span class="pre">architecture</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.architecture" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.path_to_pretrained">
+<span class="sig-name descname"><span class="pre">path_to_pretrained</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.path_to_pretrained" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.pred_hidden_dims">
+<span class="sig-name descname"><span class="pre">pred_hidden_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.pred_hidden_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.activation">
+<span class="sig-name descname"><span class="pre">activation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.activation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.dropout">
+<span class="sig-name descname"><span class="pre">dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.num_endpoints">
+<span class="sig-name descname"><span class="pre">num_endpoints</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.num_endpoints" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.loss_fn">
+<span class="sig-name descname"><span class="pre">loss_fn</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.loss_fn" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.loss_args">
+<span class="sig-name descname"><span class="pre">loss_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.loss_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.optimizer">
+<span class="sig-name descname"><span class="pre">optimizer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.optimizer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.optimizer_args">
+<span class="sig-name descname"><span class="pre">optimizer_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.optimizer_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.pretrain_lr">
+<span class="sig-name descname"><span class="pre">pretrain_lr</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.pretrain_lr" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.pretrain_decay">
+<span class="sig-name descname"><span class="pre">pretrain_decay</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.pretrain_decay" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.scheduler">
+<span class="sig-name descname"><span class="pre">scheduler</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.scheduler" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.scheduler_args">
+<span class="sig-name descname"><span class="pre">scheduler_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.scheduler_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.finetuning_strategy">
+<span class="sig-name descname"><span class="pre">finetuning_strategy</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'full'</span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.finetuning_strategy" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.lora_rank">
+<span class="sig-name descname"><span class="pre">lora_rank</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">4</span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.lora_rank" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.lora_alpha">
+<span class="sig-name descname"><span class="pre">lora_alpha</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8.0</span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.lora_alpha" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.FinetunerMixin.lora_min_dim">
+<span class="sig-name descname"><span class="pre">lora_min_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">32</span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.FinetunerMixin.lora_min_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">ChempropFinetunerMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#ChempropFinetunerMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for finetuning a Chemprop pretrained model.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.path_to_pretrained">
+<span class="sig-name descname"><span class="pre">path_to_pretrained</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.path_to_pretrained" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.num_endpoints">
+<span class="sig-name descname"><span class="pre">num_endpoints</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.num_endpoints" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.loss_fn">
+<span class="sig-name descname"><span class="pre">loss_fn</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.loss_fn" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.optimizer">
+<span class="sig-name descname"><span class="pre">optimizer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.optimizer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.optimizer_args">
+<span class="sig-name descname"><span class="pre">optimizer_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.optimizer_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.scheduler_args">
+<span class="sig-name descname"><span class="pre">scheduler_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.scheduler_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_hidden_dim">
+<span class="sig-name descname"><span class="pre">pred_hidden_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_hidden_dim" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_num_layers">
+<span class="sig-name descname"><span class="pre">pred_num_layers</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_num_layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_dropout">
+<span class="sig-name descname"><span class="pre">pred_dropout</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_activation">
+<span class="sig-name descname"><span class="pre">pred_activation</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ChempropFinetunerMixin.pred_activation" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,86 @@
+matcha.torch.encoders.gps3d
+===========================
+
+.. py:module:: matcha.torch.encoders.gps3d
+
+.. autoapi-nested-parse::
+
+   3D-aware GPS Graph Transformer encoder using Gaussian Basis Kernel spatial encoding.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.gps3d.GPS3D
+
+
+Module Contents
+---------------
+
+.. py:class:: GPS3D(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, num_kernels: int, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   3D-aware General, Powerful, Scalable (GPS) Graph Transformer encoder.
+
+   Combines local message passing with global self-attention for learning
+   molecular representations, using 3D coordinate information for spatial
+   encoding. Uses PyTorch Geometric for all graph operations.
+
+   This encoder extends GPS by using 3D Gaussian Basis Kernel spatial encoding
+   based on actual 3D coordinates instead of graph-based shortest path distances.
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - https://arxiv.org/abs/2210.01765 (Uni-Mol: One Transformer Can Understand Both 2D & 3D Molecular Data)
+   - https://arxiv.org/abs/2205.12454 (GPS)
+   - https://arxiv.org/abs/2102.09844 (EGNN)
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+
+   :param int num_layers: number of message passing layers
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+   :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
+   :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
+   :param int expansion_k: expansion factor for the feed-forward network in GPSBlock
+   :param int num_kernels: number of Gaussian Basis Kernels for 3D spatial encoding
+   :param str activation: activation function to be used in all layers
+   :param float dropout: dropout noise level
+   :param str | None norm: which norm to use inside LnBnDr layers
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: bond_projection
+
+
+   .. py:attribute:: dist3d_encoder
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch, coords: torch.Tensor) -> torch.Tensor
+
+      Converts a batched PyG graph and 3D coordinates into a (batch_size, fp_dim)
+      tensor for further processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+      :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+

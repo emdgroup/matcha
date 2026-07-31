@@ -1,0 +1,85 @@
+matcha.explainability.lime
+==========================
+
+.. py:module:: matcha.explainability.lime
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.explainability.lime.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.explainability.lime.LIME
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: LIME(descriptor_set: list[str] | None = None, fingerprint_params: dict | None = None, scale_coeff: bool = True, use_fingerprints: bool = False)
+
+   Local Interpretable Model-agnostic Explanations for molecular predictions.
+
+   Fits bootstrapped Ridge regression models on molecular descriptors or
+   ECFP fingerprints to identify which features most influence a prediction.
+   Coefficients are optionally scaled to sum to 1 for interpretability.
+
+
+   .. py:property:: descriptor_set
+      :type: str
+
+
+      The list of RDKit descriptor names used as features.
+
+
+   .. py:property:: scale_coeff
+      :type: bool
+
+
+      Whether coefficients are scaled to sum to 1.
+
+
+   .. py:property:: r2_box
+      :type: list[float]
+
+
+      R-squared values from each bootstrap iteration.
+
+
+   .. py:method:: get_envs_and_weights(mol: rdkit.Chem.rdchem.Mol, out: pandas.DataFrame)
+
+      Extracts atomic environments and weights for a molecule given a lime analysis result
+
+      :param Mol mol: rdkit molecule
+      :param pd.DataFrame out: lime analysis result
+
+
+
+   .. py:method:: explain(X: list[rdkit.Chem.rdchem.Mol], Y: numpy.ndarray, bootstrap_num: int = 25) -> pandas.DataFrame
+
+      Perform LIME analysis on molecules.
+
+      Fits bootstrapped Ridge regression models to explain how molecular
+      descriptors (or fingerprint bits) relate to the target values. Returns
+      a DataFrame of coefficients sorted by importance.
+
+      :param list[Mol] X: RDKit molecule objects to explain.
+      :param np.ndarray Y: Target values (predictions or any endpoint),
+          shape ``(n_molecules,)``.
+      :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+
+      :returns: DataFrame with columns ``Descriptor``, ``Coefficient``, and
+          ``Standard deviation``, sorted by coefficient magnitude. The last
+          row contains the local fit R-squared summary.
+
+
+

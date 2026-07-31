@@ -1,0 +1,699 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.nn.layers &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.nn.layers</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.nn.layers</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Layer primitives for tabular and graph neural networks.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">norm</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.activations</span><span class="w"> </span><span class="kn">import</span> <span class="n">ActivationRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassRegistry</span>
+
+<span class="n">LayerRegistry</span> <span class="o">=</span> <span class="n">ClassRegistry</span><span class="p">()</span>
+
+<span class="c1"># ------------------------------------------------------------------------------#</span>
+<span class="c1">#   Tabular layers</span>
+<span class="c1"># ------------------------------------------------------------------------------#</span>
+
+
+<div class="viewcode-block" id="AdaRMSN">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.AdaRMSN">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;adarmsn&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AdaRMSN</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adaptive Root Mean Square Normalization (AdaRMSN)</span>
+
+<span class="sd">    This normalization preserves token magnitude information while controlling</span>
+<span class="sd">    token magnitudes to prevent softmax saturation.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param int dim: Feature dimension to normalize over.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">AdaRMSN</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dim</span> <span class="o">=</span> <span class="n">dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dim</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">dim</span><span class="p">))</span>
+
+<div class="viewcode-block" id="AdaRMSN.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.AdaRMSN.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor x: Input tensor of shape ``(..., dim)``.</span>
+<span class="sd">        :returns: Normalized tensor of the same shape.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">norm</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">x_normalized</span> <span class="o">=</span> <span class="n">x</span> <span class="o">/</span> <span class="p">(</span><span class="n">norm</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+        <span class="n">alpha_x_plus_beta_norm</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">x</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="n">gamma_prime</span> <span class="o">=</span> <span class="n">alpha_x_plus_beta_norm</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x_normalized</span> <span class="o">*</span> <span class="n">gamma_prime</span> <span class="o">/</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dim</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BatchNorm">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.BatchNorm">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;batch&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BatchNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">BatchNorm1d</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Batch normalization (wraps :class:`torch.nn.BatchNorm1d`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="LayerNorm">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.LayerNorm">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;layer&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LayerNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">LayerNorm</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Layer normalization (wraps :class:`torch.nn.LayerNorm`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="InstanceNorm">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.InstanceNorm">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;instance&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">InstanceNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">InstanceNorm1d</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instance normalization (wraps :class:`torch.nn.InstanceNorm1d`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="GraphNorm">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.GraphNorm">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;graph&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">GraphNorm</span><span class="p">(</span><span class="n">norm</span><span class="o">.</span><span class="n">GraphNorm</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Graph normalization (wraps :class:`torch_geometric.nn.norm.GraphNorm`).&quot;&quot;&quot;</span>
+
+    <span class="k">pass</span></div>
+
+
+
+<div class="viewcode-block" id="LnBnDr">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.LnBnDr">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;lnbndr&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">LnBnDr</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Linear-Norm-Dropout-Activation layer stack to simplify using this</span>
+<span class="sd">    pattern across different architectures.</span>
+<span class="sd">    Reference: https://docs.fast.ai/layers.html#linbndrop</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param int input_dim: Input feature dimension.</span>
+<span class="sd">        :param int output_dim: Output feature dimension.</span>
+<span class="sd">        :param float dropout: Dropout probability.</span>
+<span class="sd">        :param activation: Activation name from :data:`ActivationRegistry`, or ``None``.</span>
+<span class="sd">        :type activation: str or None</span>
+<span class="sd">        :param str norm: Normalization name from :data:`LayerRegistry`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">LnBnDr</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="n">layers</span> <span class="o">=</span> <span class="p">[</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)]</span>
+
+        <span class="k">if</span> <span class="n">norm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">LayerRegistry</span><span class="p">[</span><span class="n">norm</span><span class="p">](</span><span class="n">output_dim</span><span class="p">))</span>
+
+        <span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="n">activation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ActivationRegistry</span><span class="p">[</span><span class="n">activation</span><span class="p">]())</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span><span class="o">*</span><span class="n">layers</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">in_features</span> <span class="o">=</span> <span class="n">input_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out_features</span> <span class="o">=</span> <span class="n">output_dim</span>
+
+<div class="viewcode-block" id="LnBnDr.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.LnBnDr.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor x: Input tensor of shape ``(batch, input_dim)``.</span>
+<span class="sd">        :returns: Output tensor of shape ``(batch, output_dim)``.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MultiLn">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.MultiLn">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;multiln&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MultiLn</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Parallel linear layer implementation, used in the task-specific MLPs</span>
+<span class="sd">    when training multitask models.</span>
+<span class="sd">    Adapted from: https://github.com/datamol-io/graphium/blob/main/graphium/nn/ensemble_layers.py</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_parallel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param int in_dim: Input feature dimension.</span>
+<span class="sd">        :param int out_dim: Output feature dimension.</span>
+<span class="sd">        :param int num_parallel: Number of parallel linear heads.</span>
+<span class="sd">        :param bool bias: Whether to include a bias term.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">num_parallel</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">,</span> <span class="n">in_dim</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">num_parallel</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">out_dim</span><span class="p">))</span> <span class="k">if</span> <span class="n">bias</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_fn</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_uniform_</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+
+<div class="viewcode-block" id="MultiLn.reset_parameters">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.MultiLn.reset_parameters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">init_fn</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">zeros_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="MultiLn.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.MultiLn.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor x: Input tensor of shape ``(num_parallel, batch, in_dim)``.</span>
+<span class="sd">        :returns: Output tensor of shape ``(num_parallel, batch, out_dim)``.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">))</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">out</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MultiBatchNorm">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.MultiBatchNorm">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;multibatch&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MultiBatchNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Analogue of BatchNorm1d for working with MultiLn layers,</span>
+<span class="sd">    keeping separate statistics for each head.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_features</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">num_parallel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-5</span><span class="p">,</span>
+        <span class="n">momentum</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param int num_features: Number of features per head.</span>
+<span class="sd">        :param int num_parallel: Number of parallel heads.</span>
+<span class="sd">        :param float eps: Value added to denominator for numerical stability.</span>
+<span class="sd">        :param float momentum: Value for running mean/variance computation.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_parallel</span> <span class="o">=</span> <span class="n">num_parallel</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_features</span> <span class="o">=</span> <span class="n">num_features</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">num_parallel</span><span class="p">,</span> <span class="n">num_features</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_parallel</span><span class="p">,</span> <span class="n">num_features</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;running_mean&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_parallel</span><span class="p">,</span> <span class="n">num_features</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s2">&quot;running_var&quot;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">num_parallel</span><span class="p">,</span> <span class="n">num_features</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">eps</span> <span class="o">=</span> <span class="n">eps</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">=</span> <span class="n">momentum</span>
+
+<div class="viewcode-block" id="MultiBatchNorm.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.MultiBatchNorm.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor x: Input tensor of shape ``(num_parallel, batch, num_features)``.</span>
+<span class="sd">        :returns: Normalized tensor of the same shape.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">:</span>
+            <span class="n">batch_mean</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">batch_var</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">unbiased</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">running_mean</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span>
+            <span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">running_mean</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">*</span> <span class="n">batch_mean</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">running_var</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="mi">1</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span>
+            <span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">running_var</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">momentum</span> <span class="o">*</span> <span class="n">batch_var</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">batch_mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">running_mean</span>
+            <span class="n">batch_var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">running_var</span>
+
+        <span class="n">x_hat</span> <span class="o">=</span> <span class="p">(</span><span class="n">x</span> <span class="o">-</span> <span class="n">batch_mean</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:])</span> <span class="o">/</span> <span class="n">torch</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span>
+            <span class="n">batch_var</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span>
+        <span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="n">x_hat</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="MultiMLP">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.MultiMLP">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;multimlp&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MultiMLP</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Stack of MultiLn, norm (if batch, then its multibatch layers), dropout</span>
+<span class="sd">    and activation layers for instantiating the MLPs for each head in multitask</span>
+<span class="sd">    networks&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">input_dim</span><span class="p">,</span>
+        <span class="n">dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="n">num_parallel</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">norm</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param int input_dim: Input feature dimension.</span>
+<span class="sd">        :param list[int] dims: Hidden layer dimensions.</span>
+<span class="sd">        :param int num_parallel: Number of parallel MLP heads.</span>
+<span class="sd">        :param float dropout: Dropout probability.</span>
+<span class="sd">        :param str activation: Activation name from :data:`ActivationRegistry`.</span>
+<span class="sd">        :param str norm: Normalization name from :data:`LayerRegistry`.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_layers</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear_layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">([])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">norm_layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">([])</span>
+        <span class="n">dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">input_dim</span><span class="p">]</span> <span class="o">+</span> <span class="n">dims</span>
+
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dims</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">linear_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">MultiLn</span><span class="p">(</span><span class="n">dims</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dims</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="n">num_parallel</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">norm_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">LayerRegistry</span><span class="p">[</span><span class="n">norm</span><span class="p">](</span><span class="n">dims</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span> <span class="n">num_parallel</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear_layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">MultiLn</span><span class="p">(</span><span class="n">dims</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_parallel</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">act_fn</span> <span class="o">=</span> <span class="n">ActivationRegistry</span><span class="p">[</span><span class="n">activation</span><span class="p">]()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span>
+
+<div class="viewcode-block" id="MultiMLP.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.MultiMLP.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor x: Input tensor of shape ``(num_parallel, batch, input_dim)``.</span>
+<span class="sd">        :returns: Output tensor of shape ``(batch, num_parallel)``.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_layers</span><span class="p">):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear_layers</span><span class="p">[</span><span class="n">i</span><span class="p">](</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_layers</span><span class="p">[</span><span class="n">i</span><span class="p">](</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">act_fn</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear_layers</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">](</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
+</div>
+
+
+
+<span class="c1"># ------------------------------------------------------------------------------#</span>
+<span class="c1">#   2D Graph layers</span>
+<span class="c1"># ------------------------------------------------------------------------------#</span>
+
+
+<div class="viewcode-block" id="from_dense_batch">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.from_dense_batch">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">from_dense_batch</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reshape a dense-batched tensor back to sparse (variable-length) node format.</span>
+
+<span class="sd">    Converts from shape ``(batch_size, max_num_atoms, feat_size)`` to</span>
+<span class="sd">    ``(total_nodes, feat_size)`` using graph membership indices.</span>
+
+<span class="sd">    :param torch.Tensor out: Dense tensor of shape ``(batch_size, max_num_nodes, feat_size)``.</span>
+<span class="sd">    :param torch.Tensor batch: Node-to-graph assignment vector of shape ``(total_nodes,)``.</span>
+<span class="sd">    :returns: Reconstructed sparse tensor of shape ``(total_nodes, feat_size)``.</span>
+<span class="sd">    :rtype: torch.Tensor</span>
+<span class="sd">    :raises ValueError: If any node index exceeds the maximum number of nodes in the batch.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">batch_size</span><span class="p">,</span> <span class="n">max_num_nodes</span><span class="p">,</span> <span class="n">feat_size</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">size</span><span class="p">()</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">device</span>
+    <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">batch_size</span><span class="p">)</span>
+    <span class="n">cum_num_nodes</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">num_nodes</span><span class="o">.</span><span class="n">new_zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">),</span> <span class="n">num_nodes</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)]</span>
+    <span class="p">)</span>
+    <span class="n">node_idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="n">device</span><span class="p">)</span> <span class="o">-</span> <span class="n">cum_num_nodes</span><span class="p">[</span><span class="n">batch</span><span class="p">]</span>
+    <span class="n">max_nodes_in_batch</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">size</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">node_idx</span><span class="o">.</span><span class="n">max</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">max_nodes_in_batch</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Node index exceeds maximum number of nodes in the batch.&quot;</span><span class="p">)</span>
+    <span class="n">x_reconstructed</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="n">batch</span><span class="p">,</span> <span class="n">node_idx</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="n">x_reconstructed</span></div>
+
+
+
+<div class="viewcode-block" id="SpatialEncoder">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.SpatialEncoder">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;spatial_encoder&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SpatialEncoder</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;PyTorch Geometric compatible Spatial Encoder.</span>
+
+<span class="sd">    Encodes shortest path distances between node pairs as learnable embeddings.</span>
+<span class="sd">    This is a replacement for dgl.nn.pytorch.SpatialEncoder.</span>
+
+<span class="sd">    :param int max_dist: Maximum distance to encode (distances beyond this are clamped)</span>
+<span class="sd">    :param int num_heads: Number of attention heads (embedding dimension)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_dist</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">max_dist</span> <span class="o">=</span> <span class="n">max_dist</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">num_heads</span>
+        <span class="c1"># +2 for: 0 (self-loop), distances 1 to max_dist, and max_dist+1 (for distances &gt; max_dist)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">max_dist</span> <span class="o">+</span> <span class="mi">2</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SpatialEncoder.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.SpatialEncoder.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">spd</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode shortest path distances.</span>
+
+<span class="sd">        :param torch.Tensor spd: Shortest path distance matrix [batch_size, max_nodes, max_nodes]</span>
+<span class="sd">        :return torch.Tensor: Distance bias for attention [batch_size, max_nodes, max_nodes, num_heads]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Clamp distances to valid range [0, max_dist + 1]</span>
+        <span class="c1"># -1 (unreachable) maps to max_dist + 1</span>
+        <span class="n">clamped</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">spd</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">max_dist</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="c1"># Handle unreachable nodes (typically marked as -1 or very large values)</span>
+        <span class="n">clamped</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">spd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">spd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_dist</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">clamped</span><span class="p">)</span>
+        <span class="n">clamped</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">spd</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_dist</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">full_like</span><span class="p">(</span><span class="n">spd</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_dist</span> <span class="o">+</span> <span class="mi">1</span><span class="p">),</span> <span class="n">clamped</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">embedding</span><span class="p">(</span><span class="n">clamped</span><span class="o">.</span><span class="n">long</span><span class="p">())</span></div>
+</div>
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_gaussian</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">mean</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">std</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Gaussian basis kernel function.</span>
+
+<span class="sd">    :param torch.Tensor x: Input tensor</span>
+<span class="sd">    :param torch.Tensor mean: Mean of the Gaussian</span>
+<span class="sd">    :param torch.Tensor std: Standard deviation of the Gaussian</span>
+<span class="sd">    :return torch.Tensor: Gaussian kernel values</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="p">((</span><span class="n">x</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">std</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">std</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">pi</span><span class="p">))</span>
+
+
+<div class="viewcode-block" id="SpatialEncoder3d">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.SpatialEncoder3d">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;spatial_encoder_3d&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SpatialEncoder3d</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;PyTorch Geometric compatible 3D Spatial Encoder.</span>
+
+<span class="sd">    This module encodes pair-wise relation between node pair (i,j) in</span>
+<span class="sd">    the 3D geometric space, according to the Gaussian Basis Kernel function.</span>
+
+<span class="sd">    This is a replacement for dgl.nn.pytorch.SpatialEncoder3d from the paper:</span>
+<span class="sd">    &quot;One Transformer Can Understand Both 2D &amp; 3D Molecular Data&quot;</span>
+<span class="sd">    https://arxiv.org/pdf/2210.01765.pdf</span>
+
+<span class="sd">    The encoding is computed as:</span>
+
+<span class="sd">    ψ_{(i,j)}^k = (1 / (√(2π) |σ^k|)) * exp(-0.5 * ((γ_{(i,j)} * ||r_i - r_j|| + β_{(i,j)} - μ^k) / |σ^k|)^2)</span>
+
+<span class="sd">    where K is the number of Gaussian Basis kernels, r_i is the Cartesian coordinate</span>
+<span class="sd">    of node i, γ and β are learnable scaling factors and biases determined by node types,</span>
+<span class="sd">    and μ^k, σ^k are learnable centers and standard deviations of the kernels.</span>
+
+<span class="sd">    :param int num_kernels: Number of Gaussian Basis Kernels</span>
+<span class="sd">    :param int num_heads: Number of attention heads (default: 1)</span>
+<span class="sd">    :param int atom_feat_dim: Dimensionality of projected atom features (default: 128)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_kernels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">atom_feat_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_kernels</span> <span class="o">=</span> <span class="n">num_kernels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">num_heads</span>
+
+        <span class="c1"># Learnable kernel parameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">means</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">num_kernels</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stds</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">num_kernels</span><span class="p">))</span>
+
+        <span class="c1"># Linear projections for Gaussian kernels</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear_layer_1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">num_kernels</span><span class="p">,</span> <span class="n">num_kernels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear_layer_2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">num_kernels</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">)</span>
+
+        <span class="c1"># Per-atom linear projections for distance scaling (gamma) and shift (beta)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gamma_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">atom_feat_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">atom_feat_dim</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+        <span class="c1"># Initialize parameters</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">means</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">10</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stds</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">xavier_uniform_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma_proj</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">zeros_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gamma_proj</span><span class="o">.</span><span class="n">bias</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">zeros_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_proj</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">nn</span><span class="o">.</span><span class="n">init</span><span class="o">.</span><span class="n">zeros_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">beta_proj</span><span class="o">.</span><span class="n">bias</span><span class="p">)</span>
+
+<div class="viewcode-block" id="SpatialEncoder3d.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.SpatialEncoder3d.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">coord</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode 3D spatial relationships.</span>
+
+<span class="sd">        :param torch.Tensor coord: 3D coordinates of nodes [batch_size, max_nodes, 3]</span>
+<span class="sd">        :param torch.Tensor atom_feats: Projected atom features [batch_size, max_nodes, atom_feat_dim]</span>
+<span class="sd">        :return torch.Tensor: Attention bias from 3D spatial encoding [batch_size, max_nodes, max_nodes, num_heads]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Compute pairwise Euclidean distances</span>
+        <span class="n">euc_dist</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cdist</span><span class="p">(</span><span class="n">coord</span><span class="p">,</span> <span class="n">coord</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>  <span class="c1"># [B, N, N]</span>
+
+        <span class="c1"># Compute per-atom scaling scalars from atom features</span>
+        <span class="n">gamma</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gamma_proj</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>  <span class="c1"># [B, N, 1]</span>
+        <span class="n">beta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta_proj</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>  <span class="c1"># [B, N, 1]</span>
+
+        <span class="c1"># Additive pairwise combination (src + tgt), matching original embedding-sum design</span>
+        <span class="n">gamma_ij</span> <span class="o">=</span> <span class="n">gamma</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">gamma</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># [B, N, N, 1]</span>
+        <span class="n">beta_ij</span> <span class="o">=</span> <span class="n">beta</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span> <span class="n">beta</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># [B, N, N, 1]</span>
+
+        <span class="c1"># Scale euclidean distance</span>
+        <span class="n">euc_dist</span> <span class="o">=</span> <span class="n">gamma_ij</span> <span class="o">*</span> <span class="n">euc_dist</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">beta_ij</span>  <span class="c1"># [B, N, N, 1]</span>
+
+        <span class="c1"># Expand for all kernels</span>
+        <span class="n">euc_dist</span> <span class="o">=</span> <span class="n">euc_dist</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_kernels</span><span class="p">)</span>
+
+        <span class="c1"># Apply Gaussian basis kernel</span>
+        <span class="n">gaussian_kernel</span> <span class="o">=</span> <span class="n">_gaussian</span><span class="p">(</span>
+            <span class="n">euc_dist</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">means</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stds</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">+</span> <span class="mf">1e-2</span>
+        <span class="p">)</span>  <span class="c1"># shape: [B, N, N, K]</span>
+
+        <span class="c1"># Linear projection</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear_layer_1</span><span class="p">(</span><span class="n">gaussian_kernel</span><span class="p">)</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">gelu</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+        <span class="n">encoding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear_layer_2</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>  <span class="c1"># shape: [B, N, N, H]</span>
+
+        <span class="k">return</span> <span class="n">encoding</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BiasedMultiHeadAttention">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.BiasedMultiHeadAttention">[docs]</a>
+<span class="nd">@LayerRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;biased_mha&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BiasedMultiHeadAttention</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Multi-head attention with optional distance bias.</span>
+
+<span class="sd">    PyTorch Geometric compatible implementation of biased multi-head attention</span>
+<span class="sd">    for graph transformers. This is a replacement for dgl.nn.pytorch.gt.BiasedMHA.</span>
+
+<span class="sd">    :param int embed_dim: Embedding dimension</span>
+<span class="sd">    :param int num_heads: Number of attention heads</span>
+<span class="sd">    :param float dropout: Attention dropout ratio</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">embed_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embed_dim</span> <span class="o">=</span> <span class="n">embed_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">num_heads</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">head_dim</span> <span class="o">=</span> <span class="n">embed_dim</span> <span class="o">//</span> <span class="n">num_heads</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_dim</span><span class="o">**-</span><span class="mf">0.5</span>
+
+        <span class="k">assert</span> <span class="n">embed_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;embed_dim must be divisible by num_heads&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">q_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embed_dim</span><span class="p">,</span> <span class="n">embed_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">k_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embed_dim</span><span class="p">,</span> <span class="n">embed_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">v_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embed_dim</span><span class="p">,</span> <span class="n">embed_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">out_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embed_dim</span><span class="p">,</span> <span class="n">embed_dim</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">attn_dropout</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BiasedMultiHeadAttention.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/layers/index.html#matcha.nn.layers.BiasedMultiHeadAttention.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">attn_bias</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">attn_mask</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass.</span>
+
+<span class="sd">        :param torch.Tensor x: Input tensor [batch_size, seq_len, embed_dim]</span>
+<span class="sd">        :param torch.Tensor attn_bias: Optional attention bias [batch_size, seq_len, seq_len, num_heads]</span>
+<span class="sd">        :param torch.Tensor attn_mask: Optional attention mask [batch_size, seq_len] (True for valid positions)</span>
+<span class="sd">        :return torch.Tensor: Output tensor [batch_size, seq_len, embed_dim]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span>
+
+        <span class="c1"># Project Q, K, V</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">q_proj</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_dim</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">k_proj</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_dim</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">v_proj</span><span class="p">(</span><span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">head_dim</span><span class="p">)</span>
+
+        <span class="c1"># Transpose for attention: [batch, heads, seq, head_dim]</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">q</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="n">k</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">v</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="c1"># Compute attention scores</span>
+        <span class="n">attn_scores</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">k</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="o">-</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale</span>
+
+        <span class="c1"># Add distance bias if provided</span>
+        <span class="k">if</span> <span class="n">attn_bias</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># attn_bias: [batch, seq, seq, heads] -&gt; [batch, heads, seq, seq]</span>
+            <span class="n">attn_bias</span> <span class="o">=</span> <span class="n">attn_bias</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">attn_scores</span> <span class="o">=</span> <span class="n">attn_scores</span> <span class="o">+</span> <span class="n">attn_bias</span>
+
+        <span class="c1"># Apply mask if provided</span>
+        <span class="k">if</span> <span class="n">attn_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># attn_mask: [batch, seq] (True for valid positions)</span>
+            <span class="c1"># Create 2D mask: [batch, 1, 1, seq] for broadcasting</span>
+            <span class="n">mask_2d</span> <span class="o">=</span> <span class="n">attn_mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">attn_scores</span> <span class="o">=</span> <span class="n">attn_scores</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="o">~</span><span class="n">mask_2d</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">))</span>
+
+        <span class="c1"># Softmax and dropout</span>
+        <span class="n">attn_weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">attn_scores</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">attn_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_dropout</span><span class="p">(</span><span class="n">attn_weights</span><span class="p">)</span>
+
+        <span class="c1"># Apply attention to values</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">matmul</span><span class="p">(</span><span class="n">attn_weights</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+
+        <span class="c1"># Reshape and project output</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">embed_dim</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_proj</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">out</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

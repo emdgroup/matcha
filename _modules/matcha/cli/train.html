@@ -1,0 +1,282 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.train &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../cli.html">matcha.cli</a></li>
+      <li class="breadcrumb-item active">matcha.cli.train</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.cli.train</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;CLI command for training a MATCHA sklearn model.</span>
+
+<span class="sd">Loads a dataset, constructs an ensemble (or single) model from the</span>
+<span class="sd">specified architecture, fits it, optionally calibrates uncertainty, and</span>
+<span class="sd">serializes the trained artifact.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.cli.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dataset</span><span class="p">,</span> <span class="n">save_config_as_yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_df</span><span class="p">,</span> <span class="n">load_yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ensemble</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScikitLearnModelRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.cli</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLITrainInputModel</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../api/matcha/cli/train/index.html#matcha.cli.train.main">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a MATCHA sklearn model from a YAML configuration.</span>
+
+<span class="sd">    Orchestrates the full training pipeline: dataset loading, optional</span>
+<span class="sd">    calibration set splitting, model instantiation (single or ensemble),</span>
+<span class="sd">    fitting, uncertainty calibration, MLflow logging, and serialization.</span>
+
+<span class="sd">    :param cfg: Pre-parsed configuration object or ``None`` to parse from</span>
+<span class="sd">        CLI ``--config`` argument. Accepts a</span>
+<span class="sd">        :class:`~matcha.utils.schemas.cli.CLITrainInputModel` instance or a</span>
+<span class="sd">        raw dict that will be validated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">cfg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Train a model&quot;</span><span class="p">)</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s2">&quot;--config&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Path to the YAML config file&quot;</span>
+        <span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">CLITrainInputModel</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">CLITrainInputModel</span><span class="p">):</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">CLITrainInputModel</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+    <span class="n">log_path</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/train.log&quot;</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="s2">&quot;TRAIN&quot;</span><span class="p">,</span> <span class="n">logging_path</span><span class="o">=</span><span class="n">log_path</span><span class="p">)</span>
+
+    <span class="c1"># Load data</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;Loading dataset | path: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2"> | label: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="n">input_df</span> <span class="o">=</span> <span class="n">load_dataset</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dataset loaded&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Parse calibration settings</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">calibration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating calibration set from training data&quot;</span><span class="p">)</span>
+        <span class="n">input_df</span> <span class="o">=</span> <span class="n">input_df</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">calibration</span><span class="o">.</span><span class="n">split_column</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ascending</span><span class="o">=</span><span class="kc">True</span>
+        <span class="p">)</span>
+        <span class="n">k</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">input_df</span><span class="p">)</span> <span class="o">*</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">calibration</span><span class="o">.</span><span class="n">split_ratio</span><span class="p">)</span>
+        <span class="n">calibration_df</span> <span class="o">=</span> <span class="n">input_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">k</span><span class="p">:]</span>
+        <span class="n">input_df</span> <span class="o">=</span> <span class="n">input_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Calibration setup finished&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;No calibration options specified in data, skipping&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Parse dataframe into MATCHA-ready input</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Parsing dataset&quot;</span><span class="p">)</span>
+    <span class="n">mols</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span> <span class="o">=</span> <span class="n">parse_df</span><span class="p">(</span>
+        <span class="n">input_df</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">operator_key</span>
+    <span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Dataset parsed&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Parse model params / reload from HPO output</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading model config | path: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">optimum_config</span> <span class="o">=</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span><span class="p">)</span>
+        <span class="n">optimum_config</span><span class="p">[</span><span class="s2">&quot;datamodule&quot;</span><span class="p">][</span><span class="s2">&quot;label_encoder_params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">[</span>
+            <span class="s2">&quot;label_encoder_params&quot;</span>
+        <span class="p">]</span>
+        <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">optimum_config</span>
+
+    <span class="c1"># Create model / ensemble instance</span>
+    <span class="n">arch_cls</span> <span class="o">=</span> <span class="n">ScikitLearnModelRegistry</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">ensemble</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating ensemble model:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Architecture: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Ensemble size: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">ensemble</span><span class="si">}</span><span class="s2"> models&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Model parameters: </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">template</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">arch_cls</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="n">arch_cls</span><span class="p">(</span><span class="o">**</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="n">Ensemble</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="n">template</span><span class="p">,</span> <span class="n">n_models</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">ensemble</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating single model:&quot;</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Architecture: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Model parameters: </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">model</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">arch_cls</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="n">arch_cls</span><span class="p">(</span><span class="o">**</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Store additional info in model metadata</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">annotate</span><span class="p">(</span><span class="s2">&quot;dataset_metadata&quot;</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_name</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_name</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_version</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_version</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_scope</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_scope</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_owner</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_owner</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">description</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">description</span>
+
+    <span class="c1"># Set up MLFlow</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Setting up MLFlow logging | experiment: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">experiment_name</span><span class="si">}</span><span class="s2">&#39; | log_dir: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">log_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+        <span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">set_mlflow_experiment</span><span class="p">(</span>
+            <span class="n">experiment_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">experiment_name</span><span class="p">,</span>
+            <span class="n">tag</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">tags</span><span class="p">,</span>
+            <span class="n">log_dir</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Fit model</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Beginning model fit&quot;</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">operator</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model successfully fit&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Run calibration</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">calibration</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Running fit on calibration set | algorithm: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">calibration</span><span class="o">.</span><span class="n">algorithm</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+        <span class="p">)</span>
+        <span class="n">mols_cal</span><span class="p">,</span> <span class="n">y_cal</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">parse_df</span><span class="p">(</span><span class="n">calibration_df</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span><span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">calibrate_uncertainty</span><span class="p">(</span>
+            <span class="n">mols_cal</span><span class="p">,</span>
+            <span class="n">y_cal</span><span class="p">,</span>
+            <span class="n">algorithm</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">calibration</span><span class="o">.</span><span class="n">algorithm</span><span class="p">,</span>
+            <span class="n">algorithm_args</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">calibration</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping fit on calibration set&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Serialize model in target path</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Saving model | path: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39; | quantize: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">quantize</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span>
+            <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">quantize</span>
+        <span class="p">)</span>
+        <span class="n">save_config_as_yaml</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/cfg.yaml&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Skipping serialization in specific folder&quot;</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Finished&quot;</span><span class="p">)</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

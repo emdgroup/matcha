@@ -1,0 +1,509 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.cli.evaluate &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+          <li class="breadcrumb-item"><a href="../cli.html">matcha.cli</a></li>
+      <li class="breadcrumb-item active">matcha.cli.evaluate</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.cli.evaluate</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;CLI command for cross-validated model evaluation.</span>
+
+<span class="sd">Trains a single (non-ensemble) MATCHA model on each split, computes</span>
+<span class="sd">regression or classification metrics, generates plots, and logs results</span>
+<span class="sd">to MLflow.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.cli.utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">load_dataset</span><span class="p">,</span>
+    <span class="n">get_splits</span><span class="p">,</span>
+    <span class="n">aggregate_scores</span><span class="p">,</span>
+    <span class="n">save_config_as_yaml</span><span class="p">,</span>
+    <span class="n">store_split_scores</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">process_censor</span><span class="p">,</span>
+    <span class="n">process_regression</span><span class="p">,</span>
+    <span class="n">process_classification</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.plotting</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_regression</span><span class="p">,</span> <span class="n">plot_classification</span><span class="p">,</span> <span class="n">save_plot</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.cli</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLIEvaluationInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_df</span><span class="p">,</span> <span class="n">save_json</span><span class="p">,</span> <span class="n">load_yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.sklearn.base_sklearn_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ScikitLearnModelRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">MatchaLogger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">argparse</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
+
+<div class="viewcode-block" id="flatten_performance_dict">
+<a class="viewcode-back" href="../../../api/matcha/cli/evaluate/index.html#matcha.cli.evaluate.flatten_performance_dict">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">flatten_performance_dict</span><span class="p">(</span><span class="n">perf_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">tag</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Flatten a nested performance dictionary into a single-level dict for MLflow logging.</span>
+
+<span class="sd">    Converts the hierarchical ``{split: {endpoint: {metric: value}}}``</span>
+<span class="sd">    structure into flat keys of the form ``{tag}_{split}_{endpoint}_{metric}``.</span>
+
+<span class="sd">    :param perf_dict: Nested performance dictionary with split, endpoint,</span>
+<span class="sd">        and metric levels.</span>
+<span class="sd">    :param tag: Prefix string to prepend to flattened keys (e.g. ``&quot;log10&quot;``).</span>
+<span class="sd">    :returns: Flat dictionary mapping composite key strings to float values.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">flat</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">split_key</span><span class="p">,</span> <span class="n">split_val</span> <span class="ow">in</span> <span class="n">perf_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="n">split_key</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">]:</span>
+            <span class="n">prefix</span> <span class="o">=</span> <span class="n">tag</span> <span class="o">+</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">split_key</span> <span class="k">if</span> <span class="n">tag</span> <span class="k">else</span> <span class="n">split_key</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">prefix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tag</span><span class="si">}</span><span class="s2">_split_</span><span class="si">{</span><span class="n">split_key</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">tag</span> <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;split_</span><span class="si">{</span><span class="n">split_key</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">for</span> <span class="n">endpoint</span><span class="p">,</span> <span class="n">metrics</span> <span class="ow">in</span> <span class="n">split_val</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">metric</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">metrics</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">metric_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">endpoint</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">metric</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">flat</span><span class="p">[</span><span class="n">metric_name</span><span class="p">]</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">flat</span></div>
+
+
+
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../api/matcha/cli/evaluate/index.html#matcha.cli.evaluate.main">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run cross-validated model evaluation from a YAML configuration.</span>
+
+<span class="sd">    For each split, trains a single model instance, computes predictions,</span>
+<span class="sd">    calculates regression or classification metrics (with optional</span>
+<span class="sd">    bootstrapping), generates plots, and aggregates results across splits.</span>
+<span class="sd">    Final metrics and artifacts are optionally logged to MLflow.</span>
+
+<span class="sd">    :param cfg: Pre-parsed configuration object or ``None`` to parse from</span>
+<span class="sd">        CLI ``--config`` argument. Accepts a</span>
+<span class="sd">        :class:`~matcha.utils.schemas.cli.CLIEvaluationInputModel` instance</span>
+<span class="sd">        or a raw dict that will be validated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">cfg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span><span class="n">description</span><span class="o">=</span><span class="s2">&quot;Evaluate a model&quot;</span><span class="p">)</span>
+        <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
+            <span class="s2">&quot;--config&quot;</span><span class="p">,</span> <span class="nb">type</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span> <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Path to the YAML config file&quot;</span>
+        <span class="p">)</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_args</span><span class="p">()</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">args</span><span class="o">.</span><span class="n">config</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">raw</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">safe_load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">CLIEvaluationInputModel</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">CLIEvaluationInputModel</span><span class="p">):</span>
+        <span class="n">cfg</span> <span class="o">=</span> <span class="n">CLIEvaluationInputModel</span><span class="o">.</span><span class="n">model_validate</span><span class="p">(</span><span class="n">cfg</span><span class="p">)</span>
+    <span class="n">log_path</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/evaluate.log&quot;</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="s2">&quot;EVAL&quot;</span><span class="p">,</span> <span class="n">logging_path</span><span class="o">=</span><span class="n">log_path</span><span class="p">)</span>
+
+    <span class="n">performance_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">performance_dict_log10</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">n_bootstrap</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">split</span><span class="o">.</span><span class="n">n_bootstrap</span>
+    <span class="n">frac_bootstrap</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">split</span><span class="o">.</span><span class="n">frac_bootstrap</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading training dataset | settings: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">input_df</span> <span class="o">=</span> <span class="n">load_dataset</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Creating splits&quot;</span><span class="p">)</span>
+    <span class="n">train_splits</span><span class="p">,</span> <span class="n">test_splits</span> <span class="o">=</span> <span class="n">get_splits</span><span class="p">(</span>
+        <span class="n">input_df</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">split</span><span class="p">,</span> <span class="n">return_val_splits</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">dataset_cfg</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span>
+    <span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Generated </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_splits</span><span class="p">)</span><span class="si">}</span><span class="s2"> splits&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Parse model params / reload from HPO output</span>
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loading model config | path: </span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">optimum_config</span> <span class="o">=</span> <span class="n">load_yaml</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span><span class="p">)</span>
+        <span class="n">optimum_config</span><span class="p">[</span><span class="s2">&quot;datamodule&quot;</span><span class="p">][</span><span class="s2">&quot;label_encoder_params&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">[</span>
+            <span class="s2">&quot;label_encoder_params&quot;</span>
+        <span class="p">]</span>
+        <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">optimum_config</span>
+
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">train_splits</span><span class="p">)):</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Processing split </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Logging splits&quot;</span><span class="p">)</span>
+        <span class="n">train_splits</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/train_split_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+        <span class="n">test_splits</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/test_split_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">.csv&quot;</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)</span>
+
+        <span class="n">train_mols</span><span class="p">,</span> <span class="n">train_y</span><span class="p">,</span> <span class="n">train_operator</span> <span class="o">=</span> <span class="n">parse_df</span><span class="p">(</span>
+            <span class="n">train_splits</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">operator_key</span>
+        <span class="p">)</span>
+        <span class="n">test_mols</span><span class="p">,</span> <span class="n">test_y</span><span class="p">,</span> <span class="n">test_operator</span> <span class="o">=</span> <span class="n">parse_df</span><span class="p">(</span>
+            <span class="n">test_splits</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span><span class="p">,</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">operator_key</span>
+        <span class="p">)</span>
+        <span class="n">test_smi</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">test_mols</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">label_key</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">train_splits</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">columns</span> <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span> <span class="ow">in</span> <span class="n">x</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">label_key</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">label_key</span>
+
+        <span class="c1"># Create model / ensemble instance</span>
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">ensemble</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Invalid model configuration, the evaluate command cannot be used with ensembles! You can fix this by removing the `ensemble` argument from the config.&quot;</span>
+            <span class="p">)</span>
+            <span class="c1"># logger.info(&quot;Generating ensemble model:&quot;)</span>
+            <span class="c1"># logger.info(f&quot;  Architecture: &#39;{cfg.model.architecture}&#39;&quot;)</span>
+            <span class="c1"># logger.info(f&quot;  Ensemble size: {cfg.model.ensemble} models&quot;)</span>
+            <span class="c1"># logger.info(f&quot;  Model parameters: {json.dumps(cfg.model.params, indent=2)}&quot;)</span>
+            <span class="c1"># template = ScikitLearnModelRegistry[cfg.model.architecture](**cfg.model.params)</span>
+            <span class="c1"># model = Ensemble(model=template, n_models=cfg.model.ensemble)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Generating single model:&quot;</span><span class="p">)</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Architecture: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="n">arch_cls</span> <span class="o">=</span> <span class="n">ScikitLearnModelRegistry</span><span class="p">[</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;training&quot;</span><span class="p">][</span><span class="s2">&quot;seed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">arch_cls</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;seed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;  Model parameters: </span><span class="si">{</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">,</span><span class="w"> </span><span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+                <span class="n">model</span> <span class="o">=</span> <span class="n">arch_cls</span><span class="p">(</span><span class="o">**</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Setting up MLFlow logging | experiment: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">experiment_name</span><span class="si">}</span><span class="s2">&#39; | log_dir: &#39;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">log_dir</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">run_name</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">run_name</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">architecture</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">run_name</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">run_name</span>
+
+            <span class="n">model</span><span class="o">.</span><span class="n">set_mlflow_experiment</span><span class="p">(</span>
+                <span class="n">experiment_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">experiment_name</span><span class="p">,</span>
+                <span class="n">run_name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">run_name</span><span class="si">}</span><span class="s2">_split_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="n">tag</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">tags</span><span class="p">,</span>
+                <span class="n">log_dir</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Beginning model fit&quot;</span><span class="p">)</span>
+        <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_mols</span><span class="p">,</span> <span class="n">train_y</span><span class="p">,</span> <span class="n">train_operator</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Model successfully fit&quot;</span><span class="p">)</span>
+
+        <span class="n">preds</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">test_mols</span><span class="p">)</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Predictions calculated&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="s2">&quot;Classifier&quot;</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_type</span><span class="p">:</span>
+            <span class="n">probs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict_proba</span><span class="p">(</span><span class="n">test_mols</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">test_y</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+                <span class="n">test_y</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">_datamodule</span><span class="o">.</span><span class="n">_label_encoder</span><span class="o">.</span><span class="n">_all_to_categorical</span><span class="p">(</span><span class="n">test_y</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">preds</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">preds</span> <span class="o">=</span> <span class="n">preds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">preds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]):</span>
+            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Computing metrics for </span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+            <span class="c1"># skip this index j if all test labels are NaN</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">])):</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Skipping </span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2"> - all test labels are NaN&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="s2">&quot;Regressor&quot;</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_type</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">test_operator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">operator</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">test_operator</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">test_operator</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">)</span>
+                        <span class="k">else</span> <span class="n">test_operator</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                    <span class="p">)</span>
+                    <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">process_censor</span><span class="p">(</span><span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="n">operator</span><span class="p">)</span>
+
+                <span class="n">store_split_scores</span><span class="p">(</span>
+                    <span class="n">performance_dict</span><span class="p">,</span>
+                    <span class="n">i</span><span class="p">,</span>
+                    <span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+                    <span class="n">process_regression</span><span class="p">,</span>
+                    <span class="n">n_bootstrap</span><span class="p">,</span>
+                    <span class="n">frac_bootstrap</span><span class="p">,</span>
+                    <span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="n">log10</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="n">df_preds</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">&quot;smiles&quot;</span><span class="p">:</span> <span class="n">test_smi</span><span class="p">,</span> <span class="s2">&quot;true&quot;</span><span class="p">:</span> <span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span> <span class="s2">&quot;pred&quot;</span><span class="p">:</span> <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]}</span>
+                <span class="p">)</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">store_split_scores</span><span class="p">(</span>
+                        <span class="n">performance_dict_log10</span><span class="p">,</span>
+                        <span class="n">i</span><span class="p">,</span>
+                        <span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+                        <span class="n">process_regression</span><span class="p">,</span>
+                        <span class="n">n_bootstrap</span><span class="p">,</span>
+                        <span class="n">frac_bootstrap</span><span class="p">,</span>
+                        <span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                        <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                        <span class="n">log10</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="p">)</span>
+
+                    <span class="n">df_scaled</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                        <span class="p">{</span>
+                            <span class="s2">&quot;true_log10&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]),</span>
+                            <span class="s2">&quot;pred_log10&quot;</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">log10</span><span class="p">(</span><span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">]),</span>
+                        <span class="p">}</span>
+                    <span class="p">)</span>
+                    <span class="n">df_preds</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">df_preds</span><span class="p">,</span> <span class="n">df_scaled</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error processing log10 for </span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="n">df_preds</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">_preds.csv&quot;</span><span class="p">,</span>
+                    <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="c1"># Create plots directory</span>
+                <span class="n">plots_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="c1"># Plot unscaled true vs pred</span>
+                <span class="n">fig</span> <span class="o">=</span> <span class="n">plot_regression</span><span class="p">(</span>
+                    <span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="n">plot_title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2"> - Split </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> (Unscaled)&quot;</span><span class="p">,</span>
+                    <span class="n">labels</span><span class="o">=</span><span class="n">test_smi</span><span class="p">,</span>
+                    <span class="n">is_log10</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">save_plot</span><span class="p">(</span>
+                    <span class="n">fig</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">_unscaled.html&quot;</span><span class="p">)</span>
+                <span class="p">)</span>
+                <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saved unscaled plot&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Plot log10 scaled true vs pred (if log10 data is available)</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="s2">&quot;true_log10&quot;</span> <span class="ow">in</span> <span class="n">df_preds</span><span class="o">.</span><span class="n">columns</span>
+                    <span class="ow">and</span> <span class="s2">&quot;pred_log10&quot;</span> <span class="ow">in</span> <span class="n">df_preds</span><span class="o">.</span><span class="n">columns</span>
+                <span class="p">):</span>
+                    <span class="n">fig</span> <span class="o">=</span> <span class="n">plot_regression</span><span class="p">(</span>
+                        <span class="n">df_preds</span><span class="p">[</span><span class="s2">&quot;true_log10&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                        <span class="n">df_preds</span><span class="p">[</span><span class="s2">&quot;pred_log10&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                        <span class="n">plot_title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2"> - Split </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> (Log10)&quot;</span><span class="p">,</span>
+                        <span class="n">labels</span><span class="o">=</span><span class="n">test_smi</span><span class="p">,</span>
+                        <span class="n">is_log10</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="n">save_plot</span><span class="p">(</span>
+                        <span class="n">fig</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">_log10.html&quot;</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Saved log10 plot&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="s2">&quot;Classifier&quot;</span> <span class="ow">in</span> <span class="n">model</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">model_type</span><span class="p">:</span>
+                <span class="n">store_split_scores</span><span class="p">(</span>
+                    <span class="n">performance_dict</span><span class="p">,</span>
+                    <span class="n">i</span><span class="p">,</span>
+                    <span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">],</span>
+                    <span class="n">process_classification</span><span class="p">,</span>
+                    <span class="n">n_bootstrap</span><span class="p">,</span>
+                    <span class="n">frac_bootstrap</span><span class="p">,</span>
+                    <span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="n">probs</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                <span class="p">)</span>
+
+                <span class="n">df_preds</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;smiles&quot;</span><span class="p">:</span> <span class="n">test_smi</span><span class="p">,</span>
+                        <span class="s2">&quot;true&quot;</span><span class="p">:</span> <span class="n">test_y</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                        <span class="s2">&quot;pred&quot;</span><span class="p">:</span> <span class="n">preds</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                        <span class="s2">&quot;probs&quot;</span><span class="p">:</span> <span class="n">probs</span><span class="p">[:,</span> <span class="n">j</span><span class="p">],</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+
+                <span class="n">df_preds</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">_preds.csv&quot;</span><span class="p">,</span>
+                    <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="p">)</span>
+
+                <span class="n">plots_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">)</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+                <span class="n">fig</span> <span class="o">=</span> <span class="n">plot_classification</span><span class="p">(</span>
+                    <span class="n">df_preds</span><span class="p">[</span><span class="s2">&quot;true&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                    <span class="n">df_preds</span><span class="p">[</span><span class="s2">&quot;pred&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                    <span class="n">df_preds</span><span class="p">[</span><span class="s2">&quot;probs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">,</span>
+                    <span class="n">plot_title</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2"> - Split </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> (Classification)&quot;</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">save_plot</span><span class="p">(</span><span class="n">fig</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">label_key</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">_clf.html&quot;</span><span class="p">))</span>
+
+    <span class="n">performance_dict</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">aggregate_scores</span><span class="p">(</span><span class="n">performance_dict</span><span class="p">,</span> <span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+    <span class="n">performance_dict_log10</span><span class="p">[</span><span class="s2">&quot;mean&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">aggregate_scores</span><span class="p">(</span><span class="n">performance_dict_log10</span><span class="p">,</span> <span class="s2">&quot;mean&quot;</span><span class="p">)</span>
+
+    <span class="n">performance_dict</span><span class="p">[</span><span class="s2">&quot;std&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">aggregate_scores</span><span class="p">(</span><span class="n">performance_dict</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">)</span>
+    <span class="n">performance_dict_log10</span><span class="p">[</span><span class="s2">&quot;std&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">aggregate_scores</span><span class="p">(</span><span class="n">performance_dict_log10</span><span class="p">,</span> <span class="s2">&quot;std&quot;</span><span class="p">)</span>
+
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Evaluation finished&quot;</span><span class="p">)</span>
+    <span class="n">save_json</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/performance.json&quot;</span><span class="p">,</span> <span class="n">performance_dict</span><span class="p">)</span>
+    <span class="n">save_json</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/performance_log10.json&quot;</span><span class="p">,</span>
+        <span class="n">performance_dict_log10</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">save_config_as_yaml</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/cfg.yaml&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">flat_metrics</span> <span class="o">=</span> <span class="n">flatten_performance_dict</span><span class="p">(</span><span class="n">performance_dict</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">flat_metrics_log10</span> <span class="o">=</span> <span class="n">flatten_performance_dict</span><span class="p">(</span><span class="n">performance_dict_log10</span><span class="p">,</span> <span class="s2">&quot;log10&quot;</span><span class="p">)</span>
+
+        <span class="n">mlflow_logger</span> <span class="o">=</span> <span class="n">MatchaLogger</span><span class="p">(</span>
+            <span class="n">experiment_name</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">experiment_name</span><span class="p">,</span>
+            <span class="n">run_name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">run_name</span><span class="si">}</span><span class="s2">_metrics&quot;</span><span class="p">,</span>
+            <span class="n">save_dir</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span>
+            <span class="n">tracking_uri</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+            <span class="n">log_model</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">log_artifact</span><span class="p">(</span>
+            <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">_run_id</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/performance.json&quot;</span>
+        <span class="p">)</span>
+        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">log_artifact</span><span class="p">(</span>
+            <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">_run_id</span><span class="p">,</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="si">}</span><span class="s2">/performance_log10.json&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">fname</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.csv&quot;</span><span class="p">):</span>
+                <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">log_artifact</span><span class="p">(</span>
+                    <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">_run_id</span><span class="p">,</span>
+                    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="n">fname</span><span class="p">),</span>
+                <span class="p">)</span>
+
+        <span class="c1"># Log plot artifacts</span>
+        <span class="n">plots_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">serialization</span><span class="o">.</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;plots&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">listdir</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">):</span>
+                <span class="k">if</span> <span class="n">fname</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;.html&quot;</span><span class="p">):</span>
+                    <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">log_artifact</span><span class="p">(</span>
+                        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">_run_id</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">plots_dir</span><span class="p">,</span> <span class="n">fname</span><span class="p">)</span>
+                    <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">{</span><span class="o">**</span><span class="n">flat_metrics</span><span class="p">,</span> <span class="o">**</span><span class="n">flat_metrics_log10</span><span class="p">}</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">experiment</span><span class="o">.</span><span class="n">log_metric</span><span class="p">(</span><span class="n">mlflow_logger</span><span class="o">.</span><span class="n">_run_id</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+
+        <span class="n">mlflow_logger</span><span class="o">.</span><span class="n">conclude_experiment</span><span class="p">()</span></div>
+
+
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

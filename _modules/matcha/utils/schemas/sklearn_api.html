@@ -1,0 +1,225 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.utils.schemas.sklearn_api &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.utils.schemas.sklearn_api</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.utils.schemas.sklearn_api</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Pydantic schemas for scikit-learn-compatible matcha model configurations.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.torch_api</span><span class="w"> </span><span class="kn">import</span> <span class="n">TorchModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.calibration</span><span class="w"> </span><span class="kn">import</span> <span class="n">CalibratorModel</span>
+
+
+<div class="viewcode-block" id="TrainingInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/sklearn_api/index.html#matcha.utils.schemas.TrainingInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TrainingInputModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for training loop hyperparameters such as epochs, batch size, and early stopping.&quot;&quot;&quot;</span>
+
+    <span class="n">num_epochs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+    <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>
+    <span class="n">stochastic_weight_averaging</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;auto&quot;</span>
+    <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">early_stopping</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">patience</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+
+
+<div class="viewcode-block" id="MLFlowInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/sklearn_api/index.html#matcha.utils.schemas.MLFlowInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MLFlowInputModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for MLflow tracking configuration including experiment name and server URI.&quot;&quot;&quot;</span>
+
+    <span class="n">experiment</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">run</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">tag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">log_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;./matcha_log&quot;</span>
+    <span class="n">server_uri</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="RegressionInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/sklearn_api/index.html#matcha.utils.schemas.RegressionInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RegressionInputModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema that specifies a regression task type.&quot;&quot;&quot;</span>
+
+    <span class="n">task_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;regression&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;regression&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="MetadataInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/sklearn_api/index.html#matcha.utils.schemas.MetadataInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">MetadataInputModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for model metadata including ownership, versioning, and description.&quot;&quot;&quot;</span>
+
+    <span class="n">model_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">model_version</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">model_owner</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">model_scope</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">matcha_version</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">date</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">description</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">extra</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+
+
+<div class="viewcode-block" id="TuningInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/sklearn_api/index.html#matcha.utils.schemas.TuningInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">TuningInputModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for hyperparameter tuning configuration including search budgets and grids.&quot;&quot;&quot;</span>
+
+    <span class="n">architecture_search_budget</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">architecture_grid</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">optimizer_search_budget</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">optimizer_grid</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">scheduler_grid</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="ScikitLearnInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/sklearn_api/index.html#matcha.utils.schemas.ScikitLearnInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ScikitLearnInputModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Top-level schema for a single scikit-learn-compatible matcha model configuration.</span>
+
+<span class="sd">    Combines training, datamodule, model architecture, metadata, and optional</span>
+<span class="sd">    calibration and tuning settings.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">training</span><span class="p">:</span> <span class="n">TrainingInputModel</span>
+    <span class="n">datamodule</span><span class="p">:</span> <span class="n">DataModuleModel</span>
+    <span class="n">model</span><span class="p">:</span> <span class="n">TorchModel</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">MetadataInputModel</span>
+    <span class="n">task_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;regression&quot;</span><span class="p">,</span> <span class="s2">&quot;binary_classification&quot;</span><span class="p">]</span>
+    <span class="n">calibration</span><span class="p">:</span> <span class="n">CalibratorModel</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">mlflow</span><span class="p">:</span> <span class="n">MLFlowInputModel</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">tuning</span><span class="p">:</span> <span class="n">TuningInputModel</span> <span class="o">|</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="ScikitLearnEnsembleInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/sklearn_api/index.html#matcha.utils.schemas.ScikitLearnEnsembleInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">ScikitLearnEnsembleInputModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for an ensemble of scikit-learn-compatible matcha models.</span>
+
+<span class="sd">    Defines the ensemble architecture, base learner configuration, and number of models.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">architecture</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">learner</span><span class="p">:</span> <span class="n">ScikitLearnInputModel</span> <span class="o">|</span> <span class="nb">dict</span>
+    <span class="n">n_models</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">calibration</span><span class="p">:</span> <span class="n">CalibratorModel</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">mlflow</span><span class="p">:</span> <span class="n">MLFlowInputModel</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">metadata</span><span class="p">:</span> <span class="n">MetadataInputModel</span>
+    <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

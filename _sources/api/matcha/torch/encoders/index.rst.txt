@@ -1,0 +1,675 @@
+matcha.torch.encoders
+=====================
+
+.. py:module:: matcha.torch.encoders
+
+.. autoapi-nested-parse::
+
+   Neural network encoder architectures for molecular representation learning.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/torch/encoders/attentivefp/index
+   /api/matcha/torch/encoders/base_encoder/index
+   /api/matcha/torch/encoders/base_graph_encoder/index
+   /api/matcha/torch/encoders/cnn/index
+   /api/matcha/torch/encoders/e3gnn/index
+   /api/matcha/torch/encoders/gatedgcn/index
+   /api/matcha/torch/encoders/gin/index
+   /api/matcha/torch/encoders/gps/index
+   /api/matcha/torch/encoders/gps3d/index
+   /api/matcha/torch/encoders/gt/index
+   /api/matcha/torch/encoders/gt3d/index
+   /api/matcha/torch/encoders/rnn/index
+   /api/matcha/torch/encoders/roformer/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.AttentiveFP
+   matcha.torch.encoders.RoFormer
+   matcha.torch.encoders.CNN
+   matcha.torch.encoders.E3GNN
+   matcha.torch.encoders.GatedGCN
+   matcha.torch.encoders.GIN
+   matcha.torch.encoders.GPS
+   matcha.torch.encoders.GPS3D
+   matcha.torch.encoders.GT
+   matcha.torch.encoders.RNN
+
+
+Package Contents
+----------------
+
+.. py:class:: AttentiveFP(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, dropout: float, readout: str, jk: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Attention-based graph encoder as described in 'Pushing the Boundaries of Molecular
+   Representation for Drug Discovery with the Graph Attention Mechanism'
+   This class performs message passing, updates the atom representations and
+   returns a molecular embedding which can then be used for molecular property
+   prediction.
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+   References:
+   - https://www.ncbi.nlm.nih.gov/pubmed/31408336
+   - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.models.AttentiveFP.html
+   - https://arxiv.org/abs/1806.03536
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.AttentiveFPModel` for further details.
+
+   :param int num_layers: number of message passing layers
+
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+
+   :param int atom_hidden_dim: number of hidden atom features in message passing layers
+
+   :param float dropout: dropout noise level
+
+   :param str readout: readout function to aggregate all atom representations
+
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+
+
+   .. py:attribute:: dropout
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: gate_conv
+
+
+   .. py:attribute:: gru
+
+
+   .. py:attribute:: layers
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
+      processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+
+.. py:class:: RoFormer(num_characters: int, hidden_dim: int = 768, expansion_dim: int = 3072, num_heads: int = 12, num_layers: int = 4, attention_dropout: float = 0.1, hidden_dropout: float = 0.1)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_encoder.BaseEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Transformer encoder (RoFormer) for modelling chemical language representations.
+   It inherits from  :class:`lightning.pytorch.core.mixins` for saving its hyperparameters,
+   and from :class:`BaseEncoder` to be consistent with other encoders.
+   References:
+   - https://arxiv.org/abs/1810.04805
+   - https://arxiv.org/abs/2106.09553
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.TransformerModel` for further details.
+
+   :param int num_characters: dictionary size
+
+   :param int hidden_dim: token embedding dimensionality, defaults to
+       768
+
+   :param int expansion_dim: dimensionality to use inside transformer blocks,
+       defaults to 3072
+
+   :param int num_heads: number of attention heads for computing self-attention,
+       defaults to 12
+
+   :param int num_layers: number of transformer blocks to use, defaults
+       to 4
+
+   :param float attention_dropout: dropout to use when computing attention,
+       defaults to 0.1
+
+   :param float hidden_dropout: dropout to use in dense layers inside
+       transformer blocks, defaults to 0.1
+
+
+   .. py:attribute:: model
+
+
+   .. py:attribute:: model_config
+
+
+   .. py:attribute:: layers
+
+
+   .. py:method:: forward(token_ids: torch.Tensor) -> torch.Tensor
+
+      Encode tokenized SMILES into a fixed-size molecular representation.
+
+      Uses the [CLS] token output from the last hidden layer.
+
+      :param torch.Tensor token_ids: Batched token IDs [batch_size, seq_len].
+      :returns: Learned molecular representation [batch_size, hidden_dim].
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: CNN(num_characters: int, embedding_dim: int, hidden_dim: int, kernel_dims: list[int], num_heads: int, activation: str, dropout: float)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_encoder.BaseEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   1D convolution neural network (CNN) encoder for modelling chemical language
+   representations. After processing the input sequence, self attention is used
+   to compute a global representation of the molecule by making the [cls] token
+   attend to each other position in the string.
+   It inherits from  :class:`lightning.pytorch.core.mixins` for saving its hyperparameters,
+   and from :class:`BaseEncoder` to be consistent with other encoders.
+   References:
+   - https://arxiv.org/abs/2407.12152
+   - https://pubs.rsc.org/en/content/articlehtml/2023/dd/d2dd00099g
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.CNNModel` for further details.
+
+   :param int num_characters: total number of unique tokens in the dataset's
+       dictionary
+
+   :param int embedding_dim: number of token embedding features
+
+   :param list[int] hidden_dims: number of hidden token dimensionality across each
+       convolutional layer
+
+   :param list[int] kernel_dims: kernel sizes for each convolutional layer
+
+   :param int num_heads: number of self attention heads, must divide hidden_dims
+       evenly
+
+   :param str activation: activation function to use throughout all layers
+
+   :param float dropout:  dropout noise level
+
+
+   .. py:attribute:: embedding
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: attention
+
+
+   .. py:attribute:: pre_norm
+
+
+   .. py:attribute:: post_norm
+
+
+   .. py:attribute:: layer_weights
+
+
+   .. py:method:: forward(token_ids: list[list[int]]) -> torch.Tensor
+
+      Converts a nested list of integers objects into a (x, self.fp_dim) tensor for further
+      processing.
+
+      :param list[list[int]] token_ids: batched input from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+
+.. py:class:: E3GNN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, m_dim: int, fourier_features: int, soft_edge: bool, norm_feats: bool, norm_coors: bool, update_coors: bool, activation: str, dropout: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   E(n) Equivariant Graph Neural Network encoder.
+
+   This class performs message passing on molecular conformers using E(n) equivariant
+   convolutions, updates the atom representations according to relative atomic
+   positions and bond information, then returns a molecular embedding for property
+   prediction.
+
+   Uses the EGNN_Sparse layer for efficient message passing on sparse graphs.
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - https://arxiv.org/abs/2102.09844 (E(n) Equivariant Graph Neural Networks)
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+
+   :param int num_layers: number of message passing layers
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+   :param int hidden_features: number of hidden features in message passing layers
+   :param int m_dim: dimension of message hidden layer in EGNN
+   :param int fourier_features: number of Fourier features for distance encoding
+   :param bool soft_edge: whether to use soft edge attention
+   :param bool norm_feats: whether to normalize node features
+   :param bool norm_coors: whether to normalize coordinates
+   :param bool update_coors: whether to update coordinates during message passing
+   :param str activation: activation function to be used in projection layers
+   :param float dropout: dropout noise level for projection layers
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: dropout_layer
+
+
+   .. py:property:: fp_dim
+      :type: int
+
+
+      Return fingerprint dimension.
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch, coords: torch.Tensor) -> torch.Tensor
+
+      Converts a batched PyG graph and 3D coordinates into a learned representation.
+
+      :param Batch graph: batched PyG graph from the dataloader
+      :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader
+      :return torch.Tensor: learned molecular representation [batch_size, fp_dim]
+
+
+
+.. py:class:: GatedGCN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Gated Graph Convolution Network (GatedGCN) encoder as described in 'Benchmarking
+   Graph Neural Networks'. This class performs message passing via atom convolutions,
+   residual connections and edge convolutions, updates the atom representations
+   and returns a molecular embedding which can then be used for molecular
+   property prediction.
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - https://arxiv.org/abs/2003.00982
+   - https://pytorch-geometric.readthedocs.io/en/latest/
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.GatedGCNModel` for further details.
+
+   :param int num_layers: number of message passing layers
+
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+
+   :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
+
+   :param str activation: activation function to be used in all layers
+
+   :param float dropout: dropout noise level
+
+   :param str norm: which norm to use inside GatedGCN layers
+
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: norm_type
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
+      processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+
+.. py:class:: GIN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, activation: str, aggregation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Graph Isomorphism Network (GIN) encoder as described in 'How powerful are
+   graph neural networks?'. This class performes message passing via graph convolutions,
+   updates the atom representations and returns a molecular embedding which can
+   then be used for molecular property prediction.
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+   References:
+   - https://arxiv.org/abs/1810.00826
+   - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GINEConv.html
+   - https://arxiv.org/abs/1806.03536
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.GINModel` for further details.
+
+   :param int num_layers: number of message passing layers
+
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+
+   :param int atom_hidden_dim: number of hidden atom features in message passing layers
+
+   :param str activation: activation function to be used in all layers
+
+   :param str aggregation: function to use to aggregate atom messages in a given
+       neighborhood
+
+   :param float dropout: dropout noise level
+
+   :param str | None norm: which norm to use inside GIN layers ('batch', 'layer',
+       'graph', or None), defaults to 'graph'
+
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: norms
+
+
+   .. py:attribute:: norm_type
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (x, self.fp_dim) tensor for further
+      processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+
+.. py:class:: GPS(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, distance_k: float | None, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   General, Powerful, Scalable (GPS) Graph Transformer encoder.
+
+   Combines local message passing with global self-attention for learning
+   molecular representations. Uses PyTorch Geometric for all graph operations.
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - https://arxiv.org/abs/2404.11568
+   - https://arxiv.org/abs/2205.12454
+   - https://proceedings.mlr.press/v202/ma23c.html
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.GPSModel` for further details.
+
+   :param int num_layers: number of message passing layers
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+   :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
+   :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
+   :param int expansion_k: expansion factor for the feed-forward network in GPSBlock
+   :param float | None distance_k: Upper bound for the shortest path distance to encode
+   :param str activation: activation function to be used in all layers
+   :param float dropout: dropout noise level
+   :param str | None norm: which norm to use inside LnBnDr layers
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: bond_projection
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
+      processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+
+.. py:class:: GPS3D(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, num_kernels: int, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   3D-aware General, Powerful, Scalable (GPS) Graph Transformer encoder.
+
+   Combines local message passing with global self-attention for learning
+   molecular representations, using 3D coordinate information for spatial
+   encoding. Uses PyTorch Geometric for all graph operations.
+
+   This encoder extends GPS by using 3D Gaussian Basis Kernel spatial encoding
+   based on actual 3D coordinates instead of graph-based shortest path distances.
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - https://arxiv.org/abs/2210.01765 (Uni-Mol: One Transformer Can Understand Both 2D & 3D Molecular Data)
+   - https://arxiv.org/abs/2205.12454 (GPS)
+   - https://arxiv.org/abs/2102.09844 (EGNN)
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+
+   :param int num_layers: number of message passing layers
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+   :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
+   :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
+   :param int expansion_k: expansion factor for the feed-forward network in GPSBlock
+   :param int num_kernels: number of Gaussian Basis Kernels for 3D spatial encoding
+   :param str activation: activation function to be used in all layers
+   :param float dropout: dropout noise level
+   :param str | None norm: which norm to use inside LnBnDr layers
+   :param str jk: jumping knowledge strategy to use when returning molecular
+       representations after forward pass
+   :param str readout: readout function to aggregate all atom representations
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: bond_projection
+
+
+   .. py:attribute:: dist3d_encoder
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch, coords: torch.Tensor) -> torch.Tensor
+
+      Converts a batched PyG graph and 3D coordinates into a (batch_size, fp_dim)
+      tensor for further processing.
+
+      :param Batch graph: batched PyG graph from the dataloader
+      :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+
+.. py:class:: GT(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, distance_k: int | None, activation: str, dropout: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Graph Transformer encoder using stacked GTConv layers with distance-biased attention.
+
+   A graph transformer architecture that uses multi-head self-attention
+   with edge features and shortest-path distance encoding as attention bias.
+
+   Architecture: atom_projection, bond_projection → GTConv stack (with distance bias) → readout
+
+   It inherits from :class:`BaseGraphEncoder` for common graph encoding routines
+   (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`
+   for saving its hyperparameters.
+
+   References:
+   - Graph Transformer: https://arxiv.org/abs/2012.09699
+   - GPS: https://arxiv.org/abs/2205.12454
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+
+   :param int num_layers: number of GTConv layers
+   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int bond_input_dim: number of input bond features from GraphFeaturizer
+   :param int atom_hidden_dim: hidden dimension for atom features in GTConv layers
+   :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
+   :param int expansion_k: expansion factor for the feed-forward network in GTConv layers
+   :param int | None distance_k: maximum shortest-path distance for spatial encoding, None to disable
+   :param str activation: activation function to be used in all layers
+   :param float dropout: dropout noise level
+   :param str jk: jumping knowledge strategy ('last', 'concat', 'max', 'sum')
+   :param str readout: readout function to aggregate atom representations
+
+
+   .. py:attribute:: num_heads
+
+
+   .. py:attribute:: expansion_k
+
+
+   .. py:attribute:: atom_projection
+
+
+   .. py:attribute:: bond_projection
+
+
+   .. py:attribute:: layers
+
+
+   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+
+      Converts a batched PyG graph into a (batch_size, fp_dim) tensor.
+
+      :param Batch graph: batched PyG graph from the dataloader
+      :return torch.Tensor: learned molecular representation
+
+
+
+.. py:class:: RNN(num_layers: int, num_characters: int, embedding_dim: int, rnn_type: str, hidden_dim: int, bidirectional: str, num_heads: int, dropout: float)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_encoder.BaseEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Recurrent Neural Network (RNN) encoder for modelling chemical language
+   representations. After processing the input sequence, self attention is used
+   to compute a global representation of the molecule by making the [cls] token
+   attend to each other position in the string.
+   It inherits from  :class:`lightning.pytorch.core.mixins` to save its hyperparameters,
+   and from :class:`BaseEncoder` to be consistent with other encoders.
+   It is intended to be used inside a :class:`matcha.torch.models.classic.base_classic_model.BaseClassicModel`
+   instance.
+   References:
+   - https://arxiv.org/abs/2407.12152
+   - https://www.sciencedirect.com/science/article/pii/S2667318521000143
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.RNNModel` for further details.
+
+   :param int num_layers: number of RNN layers
+
+   :param int num_characters: total number of unique tokens in the dataset's
+       dictionary
+
+   :param int embedding_dim: number of token embedding features
+
+   :param str rnn_type: whether to use LSTM or GRU architectures
+
+   :param int hidden_dim: number of hidden token dimensionality
+
+   :param str bidirectional: whether to concatenate representation obtained
+       while running RNN in reverse on the string
+
+   :param int num_heads: number of self attention heads, must divide hidden_dims
+       evenly
+
+   :param float dropout:  dropout noise level
+
+
+   .. py:attribute:: embedding
+
+
+   .. py:attribute:: rnn
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: attention
+
+
+   .. py:attribute:: norm_in
+
+
+   .. py:attribute:: norm_out
+
+
+   .. py:method:: forward(token_ids: list[list[int]]) -> torch.Tensor
+
+      Converts a nested list of integers objects into a (x, self.fp_dim) tensor for further
+      processing.
+
+      :param list[list[int]] token_ids: batched input from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+

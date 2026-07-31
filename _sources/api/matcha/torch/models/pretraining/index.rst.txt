@@ -1,0 +1,681 @@
+matcha.torch.models.pretraining
+===============================
+
+.. py:module:: matcha.torch.models.pretraining
+
+.. autoapi-nested-parse::
+
+   Pretraining models for self-supervised learning.
+
+   This module contains model variants adapted for self-supervised learning tasks:
+   - RoFormerMLM: RoFormer variant for Masked Language Modeling (MLM)
+   - Graph pretraining models: GIN, GatedGCN, GPS, GT, AttentiveFP variants that
+     support both node-level and graph-level predictions
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/torch/models/pretraining/attentivefp_pretraining/index
+   /api/matcha/torch/models/pretraining/base_graph_pretraining/index
+   /api/matcha/torch/models/pretraining/base_pretraining_model/index
+   /api/matcha/torch/models/pretraining/gatedgcn_pretraining/index
+   /api/matcha/torch/models/pretraining/gin_pretraining/index
+   /api/matcha/torch/models/pretraining/gps_pretraining/index
+   /api/matcha/torch/models/pretraining/gt_pretraining/index
+   /api/matcha/torch/models/pretraining/roformer_mlm/index
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.torch.models.pretraining.PretrainingModelRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.pretraining.BasePretrainingModel
+   matcha.torch.models.pretraining.BaseGraphPretrainingModel
+   matcha.torch.models.pretraining.RoFormerMLM
+   matcha.torch.models.pretraining.GINPretraining
+   matcha.torch.models.pretraining.GatedGCNPretraining
+   matcha.torch.models.pretraining.GPSPretraining
+   matcha.torch.models.pretraining.GTPretraining
+   matcha.torch.models.pretraining.AttentiveFPPretraining
+
+
+Package Contents
+----------------
+
+.. py:class:: BasePretrainingModel
+
+   Bases: :py:obj:`lightning.LightningModule`, :py:obj:`abc.ABC`
+
+
+   Base class for all pretraining models.
+
+   This class provides common functionality for pretraining models,
+   including loss function parsing, optimizer/scheduler configuration, and
+   training/validation step logic.
+
+   Subclasses must implement:
+       - forward(): Returns predictions for the pretraining task
+       - encode(): Returns learned representations
+
+
+   .. py:attribute:: encoder
+      :value: None
+
+
+
+   .. py:attribute:: prediction_head
+      :value: None
+
+
+
+   .. py:method:: forward(batch: dict[str, Any]) -> torch.Tensor
+      :abstractmethod:
+
+
+      Forward pass for pretraining.
+
+      :param batch: Input batch
+      :return: Predictions for the pretraining task
+
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> torch.Tensor
+      :abstractmethod:
+
+
+      Extract learned representations.
+
+      :param batch: Input batch
+      :return: Learned representations
+
+
+
+   .. py:method:: training_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Training step logic.
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Loss value
+
+
+
+   .. py:method:: validation_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Validation step logic.
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Loss value
+
+
+
+   .. py:method:: predict_step(batch: dict[str, Any]) -> torch.Tensor
+
+      Prediction step logic.
+
+      :param batch: Input batch
+      :return: Predictions
+
+
+
+   .. py:method:: configure_optimizers()
+
+      Configure optimizers and schedulers for Lightning Trainer.
+
+
+
+   .. py:method:: export_encoder_checkpoint(path: str) -> None
+
+      Save only the encoder weights for downstream finetuning.
+
+      Writes ``encoder.ckpt`` containing the encoder's ``state_dict``
+      into the given directory.  This file is consumed by
+      :class:`PretrainedEncoderWrapper` when a finetuner loads a
+      pretrained artifact with ``origin_type == "pretraining"``.
+
+      :param str path: directory where ``encoder.ckpt`` will be written
+
+
+
+.. py:data:: PretrainingModelRegistry
+
+.. py:class:: BaseGraphPretrainingModel(num_node_targets: int = 1, num_graph_targets: int = 1, node_head_dims: list[int] | None = None, graph_head_dims: list[int] | None = None, node_task_head_dims: list[int] | None = None, graph_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, node_loss_weight: float = 0.5, graph_loss_weight: float = 0.5, per_task_log_every_n_steps: int = 1)
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_pretraining_model.BasePretrainingModel`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   Base class for graph neural network pretraining models.
+
+   This class provides a framework for GNN models that support simultaneous
+   node-level and graph-level predictions. A single forward pass through the
+   encoder produces node embeddings, which are then:
+   - Passed to a node-level MLP for node predictions
+   - Aggregated via readout and passed to a graph-level MLP for graph predictions
+
+   Both node-level and graph-level targets are externally provided by the user
+   (e.g. computed atom properties like partial charges, SASA, or electronegativity
+   for nodes, and molecular descriptors like logP or molecular weight for graphs).
+   The model does **not** reconstruct its own input atom features.
+
+   Subclasses must implement:
+       - _build_encoder(): Build the graph encoder
+       - _get_node_embeddings(): Extract node-level embeddings from encoder
+
+   :param int num_node_targets: Number of node-level prediction targets
+   :param int num_graph_targets: Number of graph-level prediction targets
+   :param list[int] node_head_dims: Hidden dimensions for the shared node prediction
+       head MLP (applied to all node tasks jointly)
+   :param list[int] graph_head_dims: Hidden dimensions for the shared graph prediction
+       head MLP (applied to all graph tasks jointly)
+   :param list[int] node_task_head_dims: Hidden dimensions for per-task node MLPs.
+       When set, each node task gets its own independent MLP on top of the shared
+       node head layers. Uses ``MultiMLP`` with separate parameters per task.
+   :param list[int] graph_task_head_dims: Hidden dimensions for per-task graph MLPs.
+       When set, each graph task gets its own independent MLP on top of the shared
+       graph head layers. Uses ``MultiMLP`` with separate parameters per task.
+   :param str pred_activation: Activation function for prediction heads
+   :param float pred_dropout: Dropout rate for prediction heads
+   :param str loss_fn: Loss function name (used for both heads)
+   :param dict loss_args: Additional loss function arguments
+   :param str optimizer: Optimizer name
+   :param dict optimizer_args: Optimizer arguments
+   :param str scheduler: Learning rate scheduler name
+   :param dict scheduler_args: Scheduler arguments
+   :param float node_loss_weight: Constant weight for node-level loss
+   :param float graph_loss_weight: Constant weight for graph-level loss
+   :param int per_task_log_every_n_steps: How often to log per-task losses.
+       Set higher to reduce overhead with many tasks (e.g. >100).
+
+
+   .. py:property:: num_node_targets
+      :type: int
+
+
+      Number of node-level prediction targets.
+
+
+   .. py:property:: num_graph_targets
+      :type: int
+
+
+      Number of graph-level prediction targets.
+
+
+   .. py:method:: forward(batch: dict[str, Any]) -> dict[str, torch.Tensor]
+
+      Forward pass for pretraining.
+
+      Runs a single encoder forward pass and computes both node-level
+      and graph-level predictions. When ``enc_node_encoder_depth`` is set,
+      the node head receives embeddings from only the first K layers while
+      the graph head receives embeddings from all layers.
+
+      :param batch: Input batch containing graph data
+      :return: Dictionary with 'node' and 'graph' predictions
+          - 'node': [num_nodes, num_node_targets]
+          - 'graph': [batch_size, num_graph_targets]
+
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> dict[str, torch.Tensor]
+
+      Extract learned representations.
+
+      :param batch: Input batch containing graph data
+      :return: Dictionary with 'node' and 'graph' embeddings
+          - 'node': [num_nodes, hidden_dim]
+          - 'graph': [batch_size, hidden_dim]
+
+
+
+   .. py:method:: training_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Training step for graph pretraining.
+
+      Expects batch to contain:
+          - Graph data (depends on encoder)
+          - 'y_node': Node-level targets [num_nodes, num_node_targets]
+            (externally provided atom-level labels, e.g. partial charges)
+          - 'y_graph': Graph-level targets [batch_size, num_graph_targets]
+            (externally provided molecule-level labels, e.g. logP)
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Total loss value
+
+
+
+   .. py:method:: validation_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Validation step for graph pretraining.
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Total loss value
+
+
+
+.. py:class:: RoFormerMLM(enc_num_characters: int, enc_hidden_dim: int = 256, enc_expansion_dim: int = 1024, enc_num_heads: int = 4, enc_num_layers: int = 2, enc_attention_dropout: float = 0.1, enc_hidden_dropout: float = 0.1, pred_hidden_dims: list[int] = [512], pred_activation: str = 'gelu', pred_dropout: float = 0.1, loss_fn: str = 'cross_entropy', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50})
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_pretraining_model.BasePretrainingModel`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   RoFormer model variant for Masked Language Modeling (MLM).
+
+   This model returns per-token predictions for use in MLM self-supervised
+   learning setups. Instead of aggregating token representations to a single
+   vector, it computes predictions for each token position.
+
+   The model can be used to predict masked tokens during pretraining, and the
+   learned encoder can be transferred to downstream tasks.
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = RoFormerMLM(enc_num_characters=100)
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int enc_num_characters: Vocabulary size
+   :param int enc_hidden_dim: Token embedding dimensionality, defaults to 256
+   :param int enc_expansion_dim: Dimensionality inside transformer blocks, defaults to 1024
+   :param int enc_num_heads: Number of attention heads, defaults to 4
+   :param int enc_num_layers: Number of transformer blocks, defaults to 2
+   :param float enc_attention_dropout: Dropout for attention, defaults to 0.1
+   :param float enc_hidden_dropout: Dropout in dense layers, defaults to 0.1
+   :param list[int] pred_hidden_dims: Hidden dimensions for prediction head, defaults to [512]
+   :param str pred_activation: Activation function, defaults to 'gelu'
+   :param float pred_dropout: Dropout for prediction head, defaults to 0.1
+   :param str loss_fn: Loss function to use, defaults to 'cross_entropy'
+   :param dict loss_args: Additional arguments for loss function
+   :param str optimizer: Optimizer to use, defaults to 'adamw'
+   :param dict optimizer_args: Additional arguments for optimizer
+   :param str scheduler: Learning rate scheduler, defaults to 'cosine_annealing'
+   :param dict scheduler_args: Additional arguments for scheduler
+
+
+   .. py:attribute:: encoder
+
+
+   .. py:attribute:: prediction_head
+
+
+   .. py:method:: forward(batch: dict[str, Any]) -> torch.Tensor
+
+      Forward pass for MLM prediction.
+
+      :param batch: Input batch containing 'token_ids' key
+      :return: Logits for each token position [batch_size, seq_length, vocab_size]
+
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> torch.Tensor
+
+      Extract per-token representations.
+
+      :param batch: Input batch containing 'token_ids' key
+      :return: Per-token embeddings [batch_size, seq_length, hidden_dim]
+
+
+
+   .. py:method:: training_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Training step for MLM.
+
+      Expects batch to contain:
+          - 'token_ids': Input tokens with some positions masked
+          - 'y': Original token IDs (targets)
+          - 'mask': Boolean mask indicating which positions to predict
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Loss value
+
+
+
+   .. py:method:: validation_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Validation step for MLM.
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Loss value
+
+
+
+.. py:class:: GINPretraining(num_node_targets: int = 1, num_graph_targets: int = 1, enc_num_layers: int = 6, enc_atom_input_dim: int = ATOM_FEAT_DIM, enc_bond_input_dim: int = BOND_FEAT_DIM, enc_atom_hidden_dim: int = 300, enc_aggregation: str = 'vpa', enc_jk: str = 'concat', enc_norm: str | None = 'graph', enc_readout: str = 'vpa', enc_activation: str = 'swish', enc_dropout: float = 0.2, enc_laplacian_k: int = 10, enc_rwse_k: int = 20, enc_elstatic_k: int = 0, enc_distmat_k: int = 0, enc_rrwp_k: int = 20, enc_node_encoder_depth: int | None = None, node_head_dims: list[int] | None = None, graph_head_dims: list[int] | None = None, node_task_head_dims: list[int] | None = None, graph_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, node_loss_weight: float = 0.5, graph_loss_weight: float = 0.5, per_task_log_every_n_steps: int = 1)
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel`
+
+
+   GIN model for pretraining with node-level and graph-level predictions.
+
+   This model performs a single encoder forward pass and produces both:
+   - Node-level predictions via a dedicated node MLP head
+   - Graph-level predictions via readout + graph MLP head
+
+   Both prediction targets are user-provided labels — the model does **not**
+   reconstruct its own input atom features. Typical node-level targets include
+   computed atom properties (partial charges, SASA, electronegativity, etc.),
+   while graph-level targets are molecular descriptors (logP, MW, etc.).
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GINPretraining(
+           num_node_targets=3,    # e.g., partial charge, SASA, electronegativity
+           num_graph_targets=2,   # e.g., logP, molecular weight
+       )
+
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int num_node_targets: Number of per-atom label dimensions to predict
+   :param int num_graph_targets: Number of per-molecule label dimensions to predict
+   :param int enc_num_layers: Number of message passing layers, defaults to 6
+   :param int enc_atom_input_dim: Input atom feature dimension, defaults to ATOM_FEAT_DIM
+   :param int enc_bond_input_dim: Input bond feature dimension, defaults to BOND_FEAT_DIM
+   :param int enc_atom_hidden_dim: Hidden dimension for atoms, defaults to 300
+   :param str enc_aggregation: Message aggregation strategy, defaults to 'vpa'
+   :param str enc_jk: Jumping knowledge strategy, defaults to 'concat'
+   :param str | None enc_norm: Normalization type, defaults to 'graph'
+   :param str enc_readout: Readout function, defaults to 'vpa'
+   :param str enc_activation: Activation function, defaults to 'swish'
+   :param float enc_dropout: Dropout rate, defaults to 0.2
+   :param list[int] node_head_dims: Hidden dims for shared node prediction head
+   :param list[int] graph_head_dims: Hidden dims for shared graph prediction head
+   :param list[int] node_task_head_dims: Per-task hidden dims for node head
+   :param list[int] graph_task_head_dims: Per-task hidden dims for graph head
+   :param str pred_activation: Activation for prediction heads
+   :param float pred_dropout: Dropout for prediction heads
+   :param str loss_fn: Loss function name
+   :param dict loss_args: Loss function arguments
+   :param str optimizer: Optimizer name
+   :param dict optimizer_args: Optimizer arguments
+   :param int | None enc_node_encoder_depth: Number of encoder layers used by the
+       node prediction head. When set, the node MLP receives embeddings from
+       only the first ``enc_node_encoder_depth`` layers while the graph MLP
+       uses all ``enc_num_layers`` layers. Defaults to None (both heads use
+       all layers).
+   :param str scheduler: Scheduler name
+   :param dict scheduler_args: Scheduler arguments
+   :param float node_loss_weight: Constant weight for node-level loss
+   :param float graph_loss_weight: Constant weight for graph-level loss
+
+
+   .. py:attribute:: node_head
+
+
+   .. py:attribute:: graph_head
+
+
+.. py:class:: GatedGCNPretraining(num_node_targets: int = 1, num_graph_targets: int = 1, enc_num_layers: int = 3, enc_atom_input_dim: int = ATOM_FEAT_DIM, enc_bond_input_dim: int = BOND_FEAT_DIM, enc_atom_hidden_dim: int = 300, enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_activation: str = 'swish', enc_dropout: float = 0.2, enc_laplacian_k: int = 10, enc_rwse_k: int = 20, enc_elstatic_k: int = 0, enc_distmat_k: int = 0, enc_rrwp_k: int = 20, enc_node_encoder_depth: int | None = None, node_head_dims: list[int] | None = None, graph_head_dims: list[int] | None = None, node_task_head_dims: list[int] | None = None, graph_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, node_loss_weight: float = 0.5, graph_loss_weight: float = 0.5, per_task_log_every_n_steps: int = 1)
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel`
+
+
+   GatedGCN model for self-supervised pretraining with node and graph level predictions.
+
+   This model performs a single encoder forward pass and produces both:
+   - Node-level predictions via a dedicated node MLP head
+   - Graph-level predictions via readout + graph MLP head
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GatedGCNPretraining(
+           num_node_targets=44,   # e.g., predict atom types
+           num_graph_targets=1,   # e.g., predict molecular property
+       )
+
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int num_node_targets: Number of node-level prediction targets
+   :param int num_graph_targets: Number of graph-level prediction targets
+   :param int enc_num_layers: Number of message passing layers, defaults to 3
+   :param int enc_atom_input_dim: Input atom feature dimension, defaults to ATOM_FEAT_DIM
+   :param int enc_bond_input_dim: Input bond feature dimension, defaults to BOND_FEAT_DIM
+   :param int enc_atom_hidden_dim: Hidden dimension for atoms, defaults to 300
+   :param str enc_jk: Jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: Normalization type, defaults to 'batch'
+   :param str enc_readout: Readout function, defaults to 'vpa'
+   :param str enc_activation: Activation function, defaults to 'swish'
+   :param float enc_dropout: Dropout rate, defaults to 0.2
+   :param list[int] node_head_dims: Hidden dims for shared node prediction head
+   :param list[int] graph_head_dims: Hidden dims for shared graph prediction head
+   :param list[int] node_task_head_dims: Per-task hidden dims for node head
+   :param list[int] graph_task_head_dims: Per-task hidden dims for graph head
+   :param str pred_activation: Activation for prediction heads
+   :param float pred_dropout: Dropout for prediction heads
+   :param str loss_fn: Loss function name
+   :param dict loss_args: Loss function arguments
+   :param str optimizer: Optimizer name
+   :param dict optimizer_args: Optimizer arguments
+   :param int | None enc_node_encoder_depth: Number of encoder layers used by the
+       node prediction head. When set, the node MLP receives embeddings from
+       only the first ``enc_node_encoder_depth`` layers while the graph MLP
+       uses all ``enc_num_layers`` layers. Defaults to None (both heads use
+       all layers).
+   :param str scheduler: Scheduler name
+   :param dict scheduler_args: Scheduler arguments
+   :param float node_loss_weight: Constant weight for node-level loss
+   :param float graph_loss_weight: Constant weight for graph-level loss
+
+
+   .. py:attribute:: node_head
+
+
+   .. py:attribute:: graph_head
+
+
+.. py:class:: GPSPretraining(num_node_targets: int = 1, num_graph_targets: int = 1, enc_num_layers: int = 6, enc_atom_input_dim: int = ATOM_FEAT_DIM, enc_bond_input_dim: int = BOND_FEAT_DIM, enc_atom_hidden_dim: int = 512, enc_num_heads: int = 8, enc_expansion_k: int = 1, enc_distance_k: int | None = None, enc_jk: str = 'last', enc_norm: str | None = 'layer', enc_readout: str = 'vpa', enc_activation: str = 'swish', enc_dropout: float = 0.2, enc_laplacian_k: int = 10, enc_rwse_k: int = 20, enc_elstatic_k: int = 0, enc_distmat_k: int = 0, enc_rrwp_k: int = 0, enc_node_encoder_depth: int | None = None, node_head_dims: list[int] | None = None, graph_head_dims: list[int] | None = None, node_task_head_dims: list[int] | None = None, graph_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, node_loss_weight: float = 0.5, graph_loss_weight: float = 0.5, per_task_log_every_n_steps: int = 1)
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel`
+
+
+   GPS model for self-supervised pretraining with node and graph level predictions.
+
+   GPS (General, Powerful, Scalable) combines local message passing with
+   global self-attention. This model performs a single encoder forward pass
+   and produces both:
+   - Node-level predictions via a dedicated node MLP head
+   - Graph-level predictions via readout + graph MLP head
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GPSPretraining(
+           num_node_targets=44,   # e.g., predict atom types
+           num_graph_targets=1,   # e.g., predict molecular property
+       )
+
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int num_node_targets: Number of node-level prediction targets
+   :param int num_graph_targets: Number of graph-level prediction targets
+   :param int enc_num_layers: Number of GPS blocks, defaults to 6
+   :param int enc_atom_input_dim: Input atom feature dimension, defaults to ATOM_FEAT_DIM
+   :param int enc_bond_input_dim: Input bond feature dimension, defaults to BOND_FEAT_DIM
+   :param int enc_atom_hidden_dim: Hidden dimension for atoms, defaults to 512
+   :param int enc_num_heads: Number of attention heads, defaults to 8
+   :param int enc_expansion_k: FFN expansion factor, defaults to 1
+   :param int | None enc_distance_k: Maximum distance for spatial encoding
+   :param str enc_jk: Jumping knowledge strategy, defaults to 'last'
+   :param str | None enc_norm: Normalization type, defaults to 'layer'
+   :param str enc_readout: Readout function, defaults to 'vpa'
+   :param str enc_activation: Activation function, defaults to 'swish'
+   :param float enc_dropout: Dropout rate, defaults to 0.2
+   :param list[int] node_head_dims: Hidden dims for shared node prediction head
+   :param list[int] graph_head_dims: Hidden dims for shared graph prediction head
+   :param list[int] node_task_head_dims: Per-task hidden dims for node head
+   :param list[int] graph_task_head_dims: Per-task hidden dims for graph head
+   :param str pred_activation: Activation for prediction heads
+   :param float pred_dropout: Dropout for prediction heads
+   :param str loss_fn: Loss function name
+   :param dict loss_args: Loss function arguments
+   :param str optimizer: Optimizer name
+   :param dict optimizer_args: Optimizer arguments
+   :param int | None enc_node_encoder_depth: Number of encoder layers used by the
+       node prediction head. When set, the node MLP receives embeddings from
+       only the first ``enc_node_encoder_depth`` layers while the graph MLP
+       uses all ``enc_num_layers`` layers. Defaults to None (both heads use
+       all layers).
+   :param str scheduler: Scheduler name
+   :param dict scheduler_args: Scheduler arguments
+   :param float node_loss_weight: Constant weight for node-level loss
+   :param float graph_loss_weight: Constant weight for graph-level loss
+
+
+   .. py:attribute:: node_head
+
+
+   .. py:attribute:: graph_head
+
+
+.. py:class:: GTPretraining(num_node_targets: int = 1, num_graph_targets: int = 1, enc_num_layers: int = 3, enc_atom_input_dim: int = ATOM_FEAT_DIM, enc_bond_input_dim: int = BOND_FEAT_DIM, enc_atom_hidden_dim: int = 512, enc_num_heads: int = 8, enc_expansion_k: int = 2, enc_distance_k: int | None = 5, enc_jk: str = 'last', enc_readout: str = 'vpa', enc_activation: str = 'gelu', enc_dropout: float = 0.2, enc_laplacian_k: int = 10, enc_rwse_k: int = 20, enc_elstatic_k: int = 0, enc_distmat_k: int = 0, enc_rrwp_k: int = 0, enc_node_encoder_depth: int | None = None, node_head_dims: list[int] | None = None, graph_head_dims: list[int] | None = None, node_task_head_dims: list[int] | None = None, graph_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, node_loss_weight: float = 0.5, graph_loss_weight: float = 0.5, per_task_log_every_n_steps: int = 1)
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel`
+
+
+   GT (Graph Transformer) model for self-supervised pretraining.
+
+   Graph Transformer uses multi-head self-attention with edge features and
+   shortest-path distance encoding. This model performs a single encoder
+   forward pass and produces both:
+   - Node-level predictions via a dedicated node MLP head
+   - Graph-level predictions via readout + graph MLP head
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = GTPretraining(
+           num_node_targets=44,   # e.g., predict atom types
+           num_graph_targets=1,   # e.g., predict molecular property
+       )
+
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int num_node_targets: Number of node-level prediction targets
+   :param int num_graph_targets: Number of graph-level prediction targets
+   :param int enc_num_layers: Number of GTConv layers, defaults to 3
+   :param int enc_atom_input_dim: Input atom feature dimension, defaults to ATOM_FEAT_DIM
+   :param int enc_bond_input_dim: Input bond feature dimension, defaults to BOND_FEAT_DIM
+   :param int enc_atom_hidden_dim: Hidden dimension for atoms, defaults to 512
+   :param int enc_num_heads: Number of attention heads, defaults to 8
+   :param int enc_expansion_k: FFN expansion factor, defaults to 2
+   :param int | None enc_distance_k: Maximum distance for spatial encoding
+   :param str enc_jk: Jumping knowledge strategy, defaults to 'last'
+   :param str enc_readout: Readout function, defaults to 'vpa'
+   :param str enc_activation: Activation function, defaults to 'gelu'
+   :param float enc_dropout: Dropout rate, defaults to 0.2
+   :param list[int] node_head_dims: Hidden dims for shared node prediction head
+   :param list[int] graph_head_dims: Hidden dims for shared graph prediction head
+   :param list[int] node_task_head_dims: Per-task hidden dims for node head
+   :param list[int] graph_task_head_dims: Per-task hidden dims for graph head
+   :param str pred_activation: Activation for prediction heads
+   :param float pred_dropout: Dropout for prediction heads
+   :param str loss_fn: Loss function name
+   :param dict loss_args: Loss function arguments
+   :param str optimizer: Optimizer name
+   :param dict optimizer_args: Optimizer arguments
+   :param int | None enc_node_encoder_depth: Number of encoder layers used by the
+       node prediction head. When set, the node MLP receives embeddings from
+       only the first ``enc_node_encoder_depth`` layers while the graph MLP
+       uses all ``enc_num_layers`` layers. Defaults to None (both heads use
+       all layers).
+   :param str scheduler: Scheduler name
+   :param dict scheduler_args: Scheduler arguments
+   :param float node_loss_weight: Constant weight for node-level loss
+   :param float graph_loss_weight: Constant weight for graph-level loss
+
+
+   .. py:attribute:: node_head
+
+
+   .. py:attribute:: graph_head
+
+
+.. py:class:: AttentiveFPPretraining(num_node_targets: int = 1, num_graph_targets: int = 1, enc_num_layers: int = 2, enc_atom_input_dim: int = ATOM_FEAT_DIM, enc_bond_input_dim: int = BOND_FEAT_DIM, enc_atom_hidden_dim: int = 300, enc_jk: str = 'concat', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_laplacian_k: int = 10, enc_rwse_k: int = 20, enc_elstatic_k: int = 0, enc_distmat_k: int = 0, enc_rrwp_k: int = 0, enc_node_encoder_depth: int | None = None, node_head_dims: list[int] | None = None, graph_head_dims: list[int] | None = None, node_task_head_dims: list[int] | None = None, graph_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, node_loss_weight: float = 0.5, graph_loss_weight: float = 0.5, per_task_log_every_n_steps: int = 1)
+
+   Bases: :py:obj:`matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel`
+
+
+   AttentiveFP model for self-supervised pretraining.
+
+   AttentiveFP uses attention-based message passing with edge features and GRU
+   units for node updates. This model performs a single encoder forward pass
+   and produces both:
+   - Node-level predictions via a dedicated node MLP head
+   - Graph-level predictions via readout + graph MLP head
+
+   Example usage:
+
+   .. code-block:: python
+
+       model = AttentiveFPPretraining(
+           num_node_targets=44,   # e.g., predict atom types
+           num_graph_targets=1,   # e.g., predict molecular property
+       )
+
+       trainer = L.Trainer(max_epochs=50)
+       trainer.fit(model=model, train_dataloaders=train_dataloader)
+
+   :param int num_node_targets: Number of node-level prediction targets
+   :param int num_graph_targets: Number of graph-level prediction targets
+   :param int enc_num_layers: Number of message passing layers, defaults to 2
+   :param int enc_atom_input_dim: Input atom feature dimension, defaults to ATOM_FEAT_DIM
+   :param int enc_bond_input_dim: Input bond feature dimension, defaults to BOND_FEAT_DIM
+   :param int enc_atom_hidden_dim: Hidden dimension for atoms, defaults to 300
+   :param str enc_jk: Jumping knowledge strategy, defaults to 'concat'
+   :param str enc_readout: Readout function, defaults to 'vpa'
+   :param float enc_dropout: Dropout rate, defaults to 0.2
+   :param list[int] node_head_dims: Hidden dims for shared node prediction head
+   :param list[int] graph_head_dims: Hidden dims for shared graph prediction head
+   :param list[int] node_task_head_dims: Per-task hidden dims for node head
+   :param list[int] graph_task_head_dims: Per-task hidden dims for graph head
+   :param str pred_activation: Activation for prediction heads
+   :param float pred_dropout: Dropout for prediction heads
+   :param str loss_fn: Loss function name
+   :param dict loss_args: Loss function arguments
+   :param str optimizer: Optimizer name
+   :param dict optimizer_args: Optimizer arguments
+   :param int | None enc_node_encoder_depth: Number of encoder layers used by the
+       node prediction head. When set, the node MLP receives embeddings from
+       only the first ``enc_node_encoder_depth`` layers while the graph MLP
+       uses all ``enc_num_layers`` layers. Defaults to None (both heads use
+       all layers).
+   :param str scheduler: Scheduler name
+   :param dict scheduler_args: Scheduler arguments
+   :param float node_loss_weight: Constant weight for node-level loss
+   :param float graph_loss_weight: Constant weight for graph-level loss
+
+
+   .. py:attribute:: node_head
+
+
+   .. py:attribute:: graph_head
+
+

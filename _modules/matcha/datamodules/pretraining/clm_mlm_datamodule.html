@@ -1,0 +1,399 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.pretraining.clm_mlm_datamodule &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.pretraining.clm_mlm_datamodule</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.pretraining.clm_mlm_datamodule</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;CLM Masked Language Modeling DataModule for self-supervised pretraining.&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">long</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.clm_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLMDataModule</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="n">CLMMLMDataModuleInputModel</span>
+
+
+<div class="viewcode-block" id="CLMMLMDataModule">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule">[docs]</a>
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;clm_mlm&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">CLMMLMDataModule</span><span class="p">(</span><span class="n">CLMDataModule</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;CLM DataModule variant for Masked Language Modeling (MLM) pretraining.</span>
+
+<span class="sd">    This datamodule extends CLMDataModule to produce training data suitable for</span>
+<span class="sd">    self-supervised masked language modeling. Instead of returning labels (y),</span>
+<span class="sd">    it returns:</span>
+<span class="sd">    - `token_ids`: The masked input sequence (with some tokens replaced by mask token)</span>
+<span class="sd">    - `y`: The original token sequence (targets for MLM prediction)</span>
+<span class="sd">    - `mask`: Boolean mask indicating which positions were masked</span>
+
+<span class="sd">    Masking is applied AFTER augmentation to ensure consistency. Special tokens</span>
+<span class="sd">    (pad, unk, cls, mask) are never masked.</span>
+
+<span class="sd">    :param float mask_rate: Fraction of tokens to mask for MLM training, defaults to 0.15</span>
+
+<span class="sd">    All other parameters are inherited from CLMDataModule.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># Special tokens that should never be masked</span>
+    <span class="n">_special_token_names</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="s2">&quot;unk&quot;</span><span class="p">,</span> <span class="s2">&quot;cls&quot;</span><span class="p">,</span> <span class="s2">&quot;mask&quot;</span><span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask_rate</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.15</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise the MLM datamodule.</span>
+
+<span class="sd">        :param mask_rate: fraction of non-special tokens to mask, defaults to 0.15</span>
+<span class="sd">        :param kwargs: additional keyword arguments forwarded to</span>
+<span class="sd">            :class:`CLMDataModule`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Set defaults suitable for MLM (no label processing)</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;is_classification&quot;</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span>  <span class="c1"># Avoids Y scaling</span>
+        <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;clip&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># Override params with MLM-specific schema</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">CLMMLMDataModuleInputModel</span><span class="p">(</span>
+            <span class="n">mask_rate</span><span class="o">=</span><span class="n">mask_rate</span><span class="p">,</span>
+            <span class="o">**</span><span class="p">{</span>
+                <span class="n">k</span><span class="p">:</span> <span class="n">v</span>
+                <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;datamodule_type&quot;</span><span class="p">,</span> <span class="s2">&quot;mask_rate&quot;</span><span class="p">)</span>
+            <span class="p">},</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="CLMMLMDataModule.export_to_classic">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.export_to_classic">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_to_classic</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CLMDataModule</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a :class:`CLMDataModule` that mirrors the current state.</span>
+
+<span class="sd">        The exported instance inherits the dictionary, max_length, and all</span>
+<span class="sd">        other CLM-specific settings so that it can be used directly for</span>
+<span class="sd">        downstream (non-MLM) training or inference.</span>
+
+<span class="sd">        :return CLMDataModule: a classic CLM datamodule with the same state</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Extract CLM-compatible params from current params</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span>
+        <span class="n">dm</span> <span class="o">=</span> <span class="n">CLMDataModule</span><span class="p">(</span>
+            <span class="n">max_length</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">max_length</span><span class="p">,</span>
+            <span class="n">num_augmentations</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">num_augmentations</span><span class="p">,</span>
+            <span class="n">num_test_augmentations</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">num_test_augmentations</span><span class="p">,</span>
+            <span class="n">include_canonical</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">include_canonical</span><span class="p">,</span>
+            <span class="n">is_classification</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">is_classification</span><span class="p">,</span>
+            <span class="n">scaler_type</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">scaler_type</span><span class="p">,</span>
+            <span class="n">clip</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">clip</span><span class="p">,</span>
+            <span class="n">label_encoder_params</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">label_encoder_params</span><span class="p">,</span>
+            <span class="n">label_transform_params</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">label_transform_params</span><span class="p">,</span>
+            <span class="n">batch_size</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">batch_size</span><span class="p">,</span>
+            <span class="n">num_workers</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">num_workers</span><span class="p">,</span>
+            <span class="n">augment_resonance</span><span class="o">=</span><span class="n">p</span><span class="o">.</span><span class="n">augment_resonance</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="c1"># Transfer the learned dictionary</span>
+        <span class="n">dm</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">dictionary</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">dm</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_tokens</span> <span class="o">=</span> <span class="n">p</span><span class="o">.</span><span class="n">num_tokens</span>
+        <span class="k">return</span> <span class="n">dm</span></div>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_special_token_ids</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the set of token IDs that should not be masked.</span>
+
+<span class="sd">        :return: set of integer token IDs for pad, unk, cls, and mask tokens</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">dictionary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">dictionary</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_special_token_names</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">dictionary</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_apply_masking</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">token_ids</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply MLM masking to token sequences.</span>
+
+<span class="sd">        Randomly replaces a fraction of non-special tokens with the mask token.</span>
+<span class="sd">        Special tokens (pad, unk, cls, mask) are never masked.</span>
+
+<span class="sd">        :param token_ids: original token IDs ``[batch_size, seq_length]``</span>
+<span class="sd">        :return: tuple of ``(masked_ids, original_ids, mask)`` where *mask* is</span>
+<span class="sd">            a boolean tensor indicating which positions were masked</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">special_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_special_token_ids</span><span class="p">()</span>
+        <span class="n">dictionary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span>
+        <span class="n">mask_token_id</span> <span class="o">=</span> <span class="n">dictionary</span><span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">]</span>
+
+        <span class="c1"># Create mask for valid positions (non-special tokens)</span>
+        <span class="n">valid_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">special_id</span> <span class="ow">in</span> <span class="n">special_ids</span><span class="p">:</span>
+            <span class="n">valid_mask</span> <span class="o">&amp;=</span> <span class="n">token_ids</span> <span class="o">!=</span> <span class="n">special_id</span>
+
+        <span class="c1"># Random mask based on mask_rate, applied only to valid positions</span>
+        <span class="n">random_mask</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">rand_like</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float</span><span class="p">)</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">mask_rate</span>
+        <span class="p">)</span>
+        <span class="n">final_mask</span> <span class="o">=</span> <span class="n">valid_mask</span> <span class="o">&amp;</span> <span class="n">random_mask</span>
+
+        <span class="c1"># Apply masking</span>
+        <span class="n">masked_token_ids</span> <span class="o">=</span> <span class="n">token_ids</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">masked_token_ids</span><span class="p">[</span><span class="n">final_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">mask_token_id</span>
+
+        <span class="k">return</span> <span class="n">masked_token_ids</span><span class="p">,</span> <span class="n">token_ids</span><span class="o">.</span><span class="n">clone</span><span class="p">(),</span> <span class="n">final_mask</span>
+
+<div class="viewcode-block" id="CLMMLMDataModule.generate_features">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.generate_features">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">generate_features</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate tokenized features with MLM masking applied.</span>
+
+<span class="sd">        Extends the parent to apply masking after tokenization and augmentation.</span>
+<span class="sd">        The *y* parameter is ignored; original tokens become the targets.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules</span>
+<span class="sd">        :param y: ignored (MLM is self-supervised); a dummy array is used</span>
+<span class="sd">        :param bound_mask: ignored for MLM</span>
+<span class="sd">        :param augment: whether to apply SMILES augmentation</span>
+<span class="sd">        :param is_training: whether to update the dictionary</span>
+<span class="sd">        :param n_jobs: number of parallel workers</span>
+<span class="sd">        :return: StackDataset with keys ``token_ids``, ``y``, and ``mask``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Create dummy y for parent validation</span>
+        <span class="k">if</span> <span class="n">y</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">),</span> <span class="mi">1</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+        <span class="c1"># Use parent&#39;s generate_features for tokenization + augmentation</span>
+        <span class="n">parent_dataset</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">augment</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Apply MLM masking (post-augmentation)</span>
+        <span class="n">token_ids</span> <span class="o">=</span> <span class="n">parent_dataset</span><span class="o">.</span><span class="n">datasets</span><span class="p">[</span><span class="s2">&quot;token_ids&quot;</span><span class="p">]</span>
+        <span class="n">masked_ids</span><span class="p">,</span> <span class="n">original_ids</span><span class="p">,</span> <span class="n">mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_apply_masking</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span>
+            <span class="n">token_ids</span><span class="o">=</span><span class="n">masked_ids</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">original_ids</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">long</span><span class="p">),</span>
+            <span class="n">mask</span><span class="o">=</span><span class="n">mask</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CLMMLMDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">augment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a dataset ready for MLM pretraining.</span>
+
+<span class="sd">        Optionally applies resonance augmentation, then delegates to</span>
+<span class="sd">        :meth:`generate_features` for tokenization and masking. Commits</span>
+<span class="sd">        the dictionary on the first training call.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules</span>
+<span class="sd">        :param y: ignored (MLM is self-supervised)</span>
+<span class="sd">        :param bound_mask: ignored for MLM</span>
+<span class="sd">        :param is_training: whether to commit the dictionary after featurization</span>
+<span class="sd">        :param augment: whether to apply SMILES augmentation</span>
+<span class="sd">        :param n_jobs: number of parallel workers</span>
+<span class="sd">        :return: StackDataset with keys ``token_ids``, ``y``, and ``mask``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Apply resonance augmentation if enabled</span>
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
+                <span class="n">mol_list</span><span class="p">,</span>
+                <span class="n">y</span><span class="p">,</span>
+                <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span>
+                <span class="n">use_resonance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+                <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+            <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">augment</span><span class="p">,</span> <span class="n">is_training</span><span class="p">,</span> <span class="n">n_jobs</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Commit dictionary if training</span>
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_tokens</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="CLMMLMDataModule.fit">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Commit the cached dictionary. No Y scaling for MLM.</span>
+
+<span class="sd">        :param dataset: the featurized StackDataset (unused beyond triggering commit)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_tokens</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_cached_dictionary</span> <span class="o">=</span> <span class="p">{}</span></div>
+
+
+<div class="viewcode-block" id="CLMMLMDataModule.transform">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.transform">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">transform</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dataset</span><span class="p">:</span> <span class="n">StackDataset</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;No-op for MLM since we don&#39;t scale Y.</span>
+
+<span class="sd">        :param dataset: featurized StackDataset</span>
+<span class="sd">        :return: the dataset unchanged</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">dataset</span></div>
+
+
+<div class="viewcode-block" id="CLMMLMDataModule.state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Serialise state for MLFlow logging.</span>
+
+<span class="sd">        :return: dict containing ID, params, and dictionary</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;ID&quot;</span><span class="p">:</span> <span class="s2">&quot;clm_mlm&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(),</span>
+            <span class="s2">&quot;dictionary&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">dictionary</span><span class="p">,</span>
+        <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="CLMMLMDataModule.load_state_dict">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.load_state_dict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_state_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Restore state from a previously serialised dict.</span>
+
+<span class="sd">        :param state_dict: dict produced by :meth:`state_dict`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">CLMMLMDataModuleInputModel</span><span class="p">(</span><span class="o">**</span><span class="n">state_dict</span><span class="p">[</span><span class="s2">&quot;params&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="CLMMLMDataModule.dummy">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/pretraining/index.html#matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule.dummy">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dummy</span><span class="p">(</span><span class="bp">cls</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a dummy instance with default parameters.</span>
+
+<span class="sd">        :return: a new :class:`CLMMLMDataModule` with default settings</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="p">()</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,815 @@
+matcha.sklearn.managers
+=======================
+
+.. py:module:: matcha.sklearn.managers
+
+.. autoapi-nested-parse::
+
+   Manager classes that encapsulate cross-cutting concerns for sklearn-compatible models.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/sklearn/managers/datamodule_manager/index
+   /api/matcha/sklearn/managers/ensemble_calibration_manager/index
+   /api/matcha/sklearn/managers/ensemble_mlflow_manager/index
+   /api/matcha/sklearn/managers/ensemble_serialization_manager/index
+   /api/matcha/sklearn/managers/explainability_manager/index
+   /api/matcha/sklearn/managers/hpo_manager/index
+   /api/matcha/sklearn/managers/mlflow_manager/index
+   /api/matcha/sklearn/managers/serialization_manager/index
+   /api/matcha/sklearn/managers/training_manager/index
+   /api/matcha/sklearn/managers/uncertainty_manager/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.DataModuleManager
+   matcha.sklearn.managers.MLFlowManager
+   matcha.sklearn.managers.SerializationManager
+   matcha.sklearn.managers.TrainingManager
+   matcha.sklearn.managers.CLMTrainingManager
+   matcha.sklearn.managers.FinetunerTrainingManager
+   matcha.sklearn.managers.UncertaintyManager
+   matcha.sklearn.managers.ExplainabilityManager
+   matcha.sklearn.managers.HPOManager
+   matcha.sklearn.managers.EnsembleMLFlowManager
+   matcha.sklearn.managers.EnsembleSerializationManager
+   matcha.sklearn.managers.EnsembleCalibrationManager
+
+
+Package Contents
+----------------
+
+.. py:class:: DataModuleManager
+
+   Manages the Lightning DataModule lifecycle: creation, featurization,
+   dataset assignment, and label encoding.
+
+   The underlying datamodule object is created by the concrete sklearn model
+   subclass via ``create_from_factory``, and from that point on the manager
+   owns the reference and exposes a controlled interface.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: datamodule
+
+      The underlying Lightning DataModule, or None if not yet created.
+
+
+   .. py:property:: params
+
+      Params owned by the underlying datamodule, or None.
+
+
+   .. py:method:: featurize(mols: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, is_training: bool = True, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Featurize molecules via the underlying datamodule.
+
+      :param list[Mol] mols: list of rdkit molecules to featurize
+      :param np.ndarray | None y: property labels (None → inference mode)
+      :param bool is_training: whether to fit scalers
+      :param list[str] | None bound_mask: censoring mask
+      :param int | None n_jobs: parallelism for featurization
+      :return StackDataset: featurized dataset
+
+
+
+   .. py:method:: set_train_dataset(dataset)
+
+      Assign the training dataset on the underlying datamodule.
+
+
+
+   .. py:method:: set_val_dataset(dataset)
+
+      Assign the validation dataset on the underlying datamodule.
+
+
+
+   .. py:method:: set_predict_dataset(dataset)
+
+      Assign the prediction dataset on the underlying datamodule.
+
+
+
+   .. py:method:: set_batch_size(batch_size: int)
+
+      Update the batch size on the underlying datamodule.
+
+
+
+   .. py:method:: configure_label_encoder(params: dict)
+
+      Configure the label encoder on the underlying datamodule.
+
+      :param dict params: label encoder configuration
+
+
+
+   .. py:method:: configure_label_encoder_task(task_idx: int, task_label: str, class_thresholds: list[float] | None = None, class_labels: list[str] | None = None)
+
+      Configure a single task in the label encoder.
+
+      :param int task_idx: index of the task
+      :param str task_label: label for the task
+      :param list[float] | None class_thresholds: thresholds for classification
+      :param list[str] | None class_labels: class label names
+
+
+
+   .. py:method:: parse_output(output: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Parse model output through the datamodule's label decoder.
+
+      :param np.ndarray output: raw model output
+      :param str tag: output tag
+      :param bool convert_to_labels: whether to convert to labels
+      :return: parsed output
+
+
+
+   .. py:method:: has_class_labels() -> bool
+
+      Whether the datamodule's label encoder has class labels configured.
+
+      :return bool: True if class labels are configured
+
+
+
+   .. py:method:: invert_y(preds: numpy.ndarray) -> numpy.ndarray
+
+      Invert the y transform on predictions (e.g. unscale).
+
+      :param np.ndarray preds: model predictions
+      :return np.ndarray: un-transformed predictions
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Return the datamodule state dict for serialization.
+
+      :return dict: state dict
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Load datamodule state from a state dict.
+
+      :param dict state_dict: state dict to load
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Proxy for the underlying datamodule's setup method.
+
+      :param str stage: one of 'fit', 'test', 'predict'
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Proxy for the underlying datamodule's predict_dataloader method.
+
+
+
+   .. py:method:: prepare_fit_datasets(x, y: numpy.ndarray | None, bound_mask: list[str] | None, validation_set: torch.utils.data.StackDataset | None, transform_fn, early_stopping: bool, seed: int, batch_size: int)
+
+      Prepare training (and optionally validation) datasets for fit.
+
+      Handles three input modes:
+      1. Pre-featurized StackDataset / CombinedStackDataset / MoleculeDataset
+      2. Raw molecule list with early stopping (auto-splits 90/10)
+      3. Raw molecule list without early stopping
+
+      :param x: molecules or pre-featurized dataset
+      :param np.ndarray | None y: labels
+      :param list[str] | None bound_mask: censoring mask
+      :param StackDataset | None validation_set: optional pre-featurized val set
+      :param transform_fn: callable to featurize molecules (model.transform)
+      :param bool early_stopping: whether to create a validation split
+      :param int seed: random seed for splitting
+      :param int batch_size: batch size to set on the datamodule
+
+
+
+   .. py:method:: encode_y(y: numpy.ndarray) -> numpy.ndarray
+
+      Convert raw, continuous values into a one-hot encoded matrix
+      for classification, using the datamodule's label encoder.
+
+      :param np.ndarray y: continuous target values
+      :return np.ndarray: one-hot encoded matrix
+
+
+
+.. py:class:: MLFlowManager
+
+   Manages MLflow experiment setup, logging, and artifact tracking.
+
+
+   .. py:attribute:: params
+      :type:  matcha.utils.schemas.sklearn_api.MLFlowInputModel | None
+      :value: None
+
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: is_active
+      :type: bool
+
+
+      Whether an MLflow experiment has been configured.
+
+
+   .. py:method:: setup_experiment(experiment_name: str, run_name: str = 'run', tag: dict | None = None, log_dir: str | None = './matcha_log', server_uri: str | None = None) -> matcha.utils.schemas.sklearn_api.MLFlowInputModel
+
+      Sets the experiment name and run name for the model.
+
+      :param str experiment_name: name of the experiment to set
+      :param str run_name: name of the run to associate with the experiment
+      :param dict | None tag: tags to associate with the run
+      :param str | None log_dir: directory for logging
+      :param str | None server_uri: MLflow server URI
+      :return MLFlowInputModel: the configured MLflow params
+
+
+
+   .. py:method:: create_logger() -> matcha.utils.logging.MatchaLogger
+
+      Creates a MatchaLogger instance from the current MLflow params.
+
+      :return MatchaLogger: configured MLflow logger
+
+
+
+   .. py:method:: log_training(model_instance, mlflow_logger: matcha.utils.logging.MatchaLogger)
+
+      Log training artifacts and params to MLflow.
+
+      :param model_instance: the sklearn model instance to log
+      :param MatchaLogger mlflow_logger: the MLflow logger to use
+
+
+
+   .. py:method:: log_calibrator(calibrator)
+
+      Log calibrator artifact to a new MLflow run.
+
+      :param calibrator: the calibrator object to log
+
+
+
+.. py:class:: SerializationManager
+
+   Handles saving, loading, and exporting sklearn model artifacts.
+
+   Artifact layout::
+
+       <folder_path>/
+       ├── model.ckpt                     # Lightning checkpoint (weights only)
+       ├── config/
+       │   ├── manifest.yaml              # Serialization version & class info
+       │   ├── model.yaml                 # Model architecture params
+       │   ├── training.yaml              # Training params
+       │   ├── datamodule.yaml            # Datamodule params
+       │   ├── metadata.yaml              # Model metadata
+       │   ├── calibration.yaml           # Calibration params (optional)
+       │   ├── tuning.yaml               # HPO params (optional)
+       │   └── mlflow.yaml               # MLflow params (optional)
+       └── state/
+           ├── datamodule_state.pkl       # Fitted scalers, encoders, transforms
+           └── calibrator.pkl             # Fitted calibrator object (optional)
+
+
+   .. py:attribute:: logger
+
+
+   .. py:method:: save(model_instance, folder_path: str, quantize: bool = False)
+
+      Save all components of a sklearn model into the target folder.
+
+      :param model_instance: the sklearn model instance to save
+      :param str folder_path: root folder where artifacts are stored
+      :param bool quantize: whether to quantize the model before saving
+
+
+
+   .. py:method:: quantize(model_instance)
+
+      Apply dynamic quantization to the model.
+
+      :param model_instance: the sklearn model instance to quantize
+
+
+
+   .. py:method:: get_input_args(model_instance) -> dict
+
+      Return the input arguments for the model as a dictionary.
+
+      Merges datamodule, model, and training params, then filters to only
+      those that appear in the child class constructor signature.
+
+      :param model_instance: the sklearn model instance
+      :return dict: dictionary of constructor arguments
+
+
+
+   .. py:method:: export_to_yaml(model_instance, path: str) -> None
+
+      Export the model configuration YAMLs to a directory (no weights, no state).
+
+      Writes the same ``config/`` subtree that :meth:`save` produces, so the
+      output can be inspected, version-controlled, or used as a template.
+
+      :param model_instance: the sklearn model instance
+      :param str path: directory where the config YAMLs will be written
+
+
+
+   .. py:method:: load_from_folder(cls, folder_path: str, accelerator: str = 'cuda')
+      :staticmethod:
+
+
+      Reconstruct a fully restored copy of a saved sklearn model.
+
+      :param cls: the model class to instantiate
+      :param str folder_path: location of folder with saved model artifacts
+      :param str accelerator: accelerator to use for model loading
+      :return: fully restored class instance
+
+
+
+   .. py:method:: load_from_config(cls, param_dict: dict)
+      :staticmethod:
+
+
+      Create a new class instance 'shell' from saved params.
+
+      Expects a structured dict with top-level keys:
+      ``model``, ``training``, ``datamodule``, ``metadata``,
+      and optionally ``calibration``, ``tuning``.
+
+      :param cls: the model class to instantiate
+      :param dict param_dict: structured parameter dictionary
+      :return: class instance with architecture but no fitted weights
+
+
+
+.. py:class:: TrainingManager
+
+   Manages Lightning Trainer creation, callbacks, and training loop.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: trainer
+      :type: lightning.Trainer | None
+
+
+      The underlying Lightning Trainer, available after training.
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.sklearn_api.TrainingInputModel | None
+
+
+      The training parameters owned by this manager.
+
+
+   .. py:property:: is_fitted
+      :type: bool
+
+
+      Whether the model has been successfully trained via run().
+
+
+   .. py:method:: configure(train_dict: dict) -> None
+
+      Set training parameters. Called once during init.
+
+      :param dict train_dict: dictionary of training parameters
+
+
+
+   .. py:method:: build_callbacks(training_params: matcha.utils.schemas.sklearn_api.TrainingInputModel) -> list
+
+      Create training callbacks based on training parameters.
+
+      :param TrainingInputModel training_params: training configuration
+      :return list: list of Lightning callbacks
+
+
+
+   .. py:method:: run(model, datamodule, architecture_cls, mlflow_manager=None, model_instance=None)
+
+      Execute the training loop.
+
+      :param model: the Lightning model to train
+      :param datamodule: the Lightning datamodule
+      :param architecture_cls: the model class (for checkpoint loading)
+      :param mlflow_manager: optional MLFlowManager for logging
+      :param model_instance: the sklearn model instance (for mlflow logging)
+      :return: the trained model (potentially loaded from best checkpoint)
+
+
+
+   .. py:method:: save_checkpoint(path: str)
+
+      Delegate to trainer.save_checkpoint.
+
+      :param str path: file path for the checkpoint
+
+
+
+.. py:class:: CLMTrainingManager
+
+   Bases: :py:obj:`TrainingManager`
+
+
+   Training manager specialized for CLM (Chemical Language Model) training.
+
+   Overrides the training loop to recreate the model with the correct num_tokens
+   parameter before training, and customizes MLflow logging to exclude
+   the vocabulary dictionary.
+
+
+   .. py:method:: run(model, datamodule, architecture_cls, mlflow_manager=None, model_instance=None)
+
+      Execute CLM training loop.
+
+      Recreates the model with the correct num_tokens parameter discovered
+      during featurization, then delegates to the parent training loop.
+
+      :param model: the Lightning model to train
+      :param datamodule: the Lightning datamodule
+      :param architecture_cls: the model class (for checkpoint loading)
+      :param mlflow_manager: optional MLFlowManager for logging
+      :param model_instance: the sklearn model instance (for mlflow logging and model recreation)
+      :return: the trained model
+
+
+
+.. py:class:: FinetunerTrainingManager
+
+   Bases: :py:obj:`TrainingManager`
+
+
+   Training manager specialized for fine-tuning models.
+
+   Customizes MLflow logging to exclude the vocabulary dictionary
+   when present in the datamodule params.
+
+
+.. py:class:: UncertaintyManager
+
+   Manages MC Dropout uncertainty estimation and calibration.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: calibrator
+
+      The calibrator object, if one has been fitted.
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.calibration.CalibratorModel | None
+
+
+      The calibration params, or None if no calibrator has been fitted.
+
+
+   .. py:method:: create_calibrator(name: str, params: dict, config: matcha.utils.schemas.calibration.CalibratorModel | None = None)
+
+      Factory method to create a calibrator instance.
+
+      :param str name: name of the calibrator algorithm
+      :param dict params: parameters for the calibrator
+      :param CalibratorModel | None config: optional config object (overrides name/params)
+
+
+
+   .. py:method:: compute(model_instance, x, num_iterations: int = 10, accelerator: str | None = None, devices: int | None = None, batch_size: int | None = None) -> numpy.ndarray
+
+      Computes uncertainty via Monte Carlo dropout for a test set.
+
+      :param model_instance: the sklearn model instance
+      :param x: input to compute uncertainty for
+      :param int num_iterations: how many iterations of dropout to do
+      :param str | None accelerator: hardware to use for predictions
+      :param int | None devices: how many resources to use
+      :param int | None batch_size: batch size to use
+      :return np.ndarray: array with the uncertainty for each prediction
+
+
+
+   .. py:method:: calibrate(model_instance, calibration_mols, calibration_y: numpy.ndarray, num_iterations: int = 10, algorithm: str = 'inductive_conformal', algorithm_args: dict | None = None)
+
+      Calibrate uncertainty estimates using a calibration set.
+
+      :param model_instance: the sklearn model instance
+      :param calibration_mols: molecules for calibration
+      :param np.ndarray calibration_y: true labels for calibration
+      :param int num_iterations: MC dropout iterations
+      :param str algorithm: calibration algorithm name
+      :param dict | None algorithm_args: arguments for the calibration algorithm
+
+
+
+.. py:class:: ExplainabilityManager
+
+   Manages LIME-based explainability.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: explainer
+
+      The explainer object, if one has been created.
+
+
+   .. py:method:: create_explainer(params: dict) -> None
+
+      Factory method to create an explainer instance.
+
+      :param dict params: parameters for the MatchaExplainer
+
+
+
+   .. py:method:: explain(model_instance, input_mol: rdkit.Chem.rdchem.Mol, task_idx: int = 0, lime_bootstrap_num: int = 25, lime_descriptor_set: list[str] | None = None, use_std: bool = False) -> matcha.explainability.MatchaExplanation
+
+      Generate LIME explanations for a molecule prediction.
+
+      :param model_instance: the sklearn model instance
+      :param Mol input_mol: RDKit molecule to explain
+      :param int task_idx: index of the task to explain
+      :param int lime_bootstrap_num: number of bootstrap iterations for LIME
+      :param list[str] | None lime_descriptor_set: RDKit descriptors for LIME
+      :param bool use_std: use uncertainty estimates for predictions
+      :return MatchaExplanation: LIME results with plotting methods
+
+
+
+.. py:class:: HPOManager
+
+   Manages hyperparameter optimization via Optuna.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.sklearn_api.TuningInputModel | None
+
+
+      The tuning parameters, populated after tune() is called.
+
+
+   .. py:method:: tune(model_instance, train_set: list[torch.utils.data.StackDataset] | torch.utils.data.StackDataset, val_set: list[torch.utils.data.StackDataset] | torch.utils.data.StackDataset, architecture_search_budget: int = 30, architecture_grid: dict | None = None, optimizer_search_budget: int = 30, optimizer_grid: dict | None = None, scheduler_grid: dict | None = None) -> tuple
+
+      Hyperparameter tuning routine, adapted from:
+      https://github.com/google-research/tuning_playbook
+
+      :param model_instance: the sklearn model instance
+      :param StackDataset train_set: dataset to use for training
+      :param StackDataset val_set: target to tune parameters against
+      :param int architecture_search_budget: iterations for architecture search
+      :param dict | None architecture_grid: architecture parameters to tune
+      :param int optimizer_search_budget: iterations for optimizer search
+      :param dict | None optimizer_grid: optimizer parameters to tune
+      :param dict | None scheduler_grid: scheduler parameters to tune
+      :return tuple: study objects from Optuna for architecture and optimizer
+
+
+
+.. py:class:: EnsembleMLFlowManager
+
+   Manages MLflow experiment setup and artifact logging for ensembles.
+
+   This mirrors :class:`MLFlowManager` but is tailored to ensemble-specific
+   concerns such as per-member run naming and ensemble-level artifact logging.
+
+
+   .. py:attribute:: params
+      :type:  matcha.utils.schemas.sklearn_api.MLFlowInputModel | None
+      :value: None
+
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: is_active
+      :type: bool
+
+
+      Whether an MLflow experiment has been configured.
+
+
+   .. py:method:: setup_experiment(experiment_name: str, run_name: str = 'model', tag: dict | None = None, log_dir: str | None = './matcha_log', server_uri: str | None = None) -> matcha.utils.schemas.sklearn_api.MLFlowInputModel
+
+      Configure the MLflow experiment for the ensemble.
+
+      :param str experiment_name: name of the experiment to set
+      :param str run_name: name of the run to associate with the experiment
+      :param dict | None tag: optional tags to associate with the run
+      :param str | None log_dir: optional directory for logging
+      :param str | None server_uri: optional MLflow server URI
+      :return MLFlowInputModel: the configured MLflow params
+
+
+
+   .. py:method:: setup_member_mlflow(member_model, member_idx: int) -> None
+
+      Configure MLflow on an individual ensemble member for its training run.
+
+      :param member_model: the BaseScikitLearnModel member
+      :param int member_idx: index of the member in the ensemble
+
+
+
+   .. py:method:: log_artifact(artifact_path: str, tag: dict) -> None
+
+      Log an artifact to a dedicated ensemble-level MLflow run.
+
+      :param str artifact_path: path to the artifact file to log
+      :param dict tag: tags specific to this artifact
+
+
+
+   .. py:method:: log_ensemble_params(params_dump: dict) -> None
+
+      Log ensemble parameters as a YAML artifact.
+
+      :param dict params_dump: the ensemble params dict to serialize
+
+
+
+   .. py:method:: log_calibrator(calibrator) -> None
+
+      Log a fitted calibrator artifact to MLflow.
+
+      :param calibrator: the calibrator object to log
+
+
+
+.. py:class:: EnsembleSerializationManager
+
+   Handles saving, loading, and exporting ensemble model artifacts.
+
+   Artifact layout::
+
+       <path>/
+       ├── config/
+       │   ├── manifest.yaml          # Serialization version & class info
+       │   ├── ensemble.yaml          # Ensemble-specific params (architecture, n_models, seed, learner)
+       │   ├── metadata.yaml          # Model metadata
+       │   ├── calibration.yaml       # Calibration params (optional)
+       │   └── mlflow.yaml            # MLflow params (optional)
+       ├── state/
+       │   └── calibrator.pkl         # Fitted calibrator object (optional)
+       ├── model_0/                   # First member (saved by its own serialization)
+       │   ├── model.ckpt
+       │   ├── config/
+       │   └── state/
+       ├── model_1/
+       │   └── ...
+       └── model_N/
+           └── ...
+
+
+   .. py:attribute:: logger
+
+
+   .. py:method:: save(ensemble, path: str, quantize: bool = False) -> None
+
+      Save all members and ensemble-level artifacts to *path*.
+
+      :param ensemble: the Ensemble instance to save
+      :param str path: root folder where artifacts are stored
+      :param bool quantize: whether to quantize models before saving
+
+
+
+   .. py:method:: export_to_yaml(ensemble, path: str) -> None
+
+      Export the ensemble configuration and parameters to a YAML file.
+
+      Uses the first model's input args as the learner config and adds
+      ensemble-specific fields (architecture, metadata, n_models).
+
+      :param ensemble: the Ensemble instance
+      :param str path: file path for the YAML output
+
+
+
+   .. py:method:: load_from_config(cls, params: dict)
+      :staticmethod:
+
+
+      Reconstruct an Ensemble from a saved parameter dictionary.
+
+      Creates individual model instances using the registered architecture's
+      ``from_config``, then wraps the first one into a new Ensemble via the
+      standard ``__init__``.
+
+      :param cls: the Ensemble class
+      :param dict params: saved ensemble parameters (structured format with
+          ``ensemble``, ``metadata``, ``calibration`` keys)
+      :return: reconstructed Ensemble instance
+
+
+
+   .. py:method:: load_from_folder(cls, path: str, accelerator: str = 'cuda')
+      :staticmethod:
+
+
+      Load a saved Ensemble from a folder.
+
+      Each member is individually loaded via its architecture's
+      ``from_folder``, then assembled into an Ensemble shell.
+
+      :param cls: the Ensemble class
+      :param str path: folder containing ensemble artifacts
+      :param str accelerator: device to load models onto
+      :return: fully restored Ensemble instance
+
+
+
+.. py:class:: EnsembleCalibrationManager
+
+   Manages calibration for ensemble models.
+
+   Unlike :class:`UncertaintyManager` (which handles MC-dropout-based
+   uncertainty for single models), this manager works with the ensemble's
+   built-in variance across members as the uncertainty signal.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: calibrator
+
+      The calibrator object, if one has been fitted.
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.calibration.CalibratorModel | None
+
+
+      The calibration params, or None if no calibrator exists.
+
+
+   .. py:method:: create_calibrator(name: str = 'inductive_conformal', params: dict | None = None, config: matcha.utils.schemas.calibration.CalibratorModel | None = None) -> None
+
+      Factory method to create a calibrator instance.
+
+      :param str name: name of the calibration algorithm
+      :param dict | None params: parameters for the calibrator
+      :param CalibratorModel | None config: optional config (overrides name/params)
+
+
+
+   .. py:method:: calibrate(ensemble, calibration_mols, calibration_y: numpy.ndarray, algorithm: str = 'inductive_conformal', algorithm_args: dict | None = None) -> None
+
+      Calibrate uncertainty estimates using a calibration set.
+
+      Performs ensemble prediction to get mean and std, creates a
+      calibrator, and fits it on the calibration data.
+
+      :param ensemble: the Ensemble instance
+      :param calibration_mols: molecules for calibration
+      :param np.ndarray calibration_y: true labels for calibration
+      :param str algorithm: calibration algorithm name
+      :param dict | None algorithm_args: arguments for the calibration algorithm
+
+
+
+   .. py:method:: compute_uncertainty(std: numpy.ndarray) -> numpy.ndarray
+
+      Adjust raw ensemble std using the fitted calibrator.
+
+      :param np.ndarray std: raw standard deviation from ensemble predictions
+      :return np.ndarray: calibrated uncertainty estimates
+
+
+

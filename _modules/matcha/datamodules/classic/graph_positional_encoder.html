@@ -1,0 +1,380 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.datamodules.classic.graph_positional_encoder &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.datamodules.classic.graph_positional_encoder</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.datamodules.classic.graph_positional_encoder</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Graph Positional Encodings for PyTorch Geometric graphs.</span>
+
+<span class="sd">This module provides various positional encoding methods for molecular graphs</span>
+<span class="sd">represented as PyTorch Geometric Data objects.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdmolops</span><span class="w"> </span><span class="kn">import</span> <span class="n">GetAdjacencyMatrix</span><span class="p">,</span> <span class="n">GetDistanceMatrix</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">scipy.linalg</span><span class="w"> </span><span class="kn">import</span> <span class="n">pinv</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_laplacian</span><span class="p">,</span> <span class="n">to_dense_adj</span>
+
+
+<div class="viewcode-block" id="GraphPE">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_positional_encoder/index.html#matcha.datamodules.classic.graph_positional_encoder.GraphPE">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GraphPE</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Class providing static methods for computing various positional encodings</span>
+<span class="sd">    on PyTorch Geometric graphs.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_adjacency_matrix</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get dense adjacency matrix from a PyG graph.</span>
+
+<span class="sd">        :param graph: PyTorch Geometric Data object</span>
+<span class="sd">        :return: Dense adjacency matrix (N, N)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span>
+        <span class="n">adj</span> <span class="o">=</span> <span class="n">to_dense_adj</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">max_num_nodes</span><span class="o">=</span><span class="n">num_nodes</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">adj</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># Remove batch dimension</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_handle_pe_exception</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">num_nodes</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return zero tensor when PE computation fails.</span>
+
+<span class="sd">        :param num_nodes: number of nodes in the graph</span>
+<span class="sd">        :param k: dimensionality of the positional encoding</span>
+<span class="sd">        :return: zero tensor of shape (num_nodes, k)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+
+<div class="viewcode-block" id="GraphPE.lap_pe">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_positional_encoder/index.html#matcha.datamodules.classic.graph_positional_encoder.GraphPE.lap_pe">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">lap_pe</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute Laplacian Positional Encoding.</span>
+
+<span class="sd">        Uses the eigenvectors of the graph Laplacian as positional encodings.</span>
+
+<span class="sd">        :param graph: PyTorch Geometric Data object</span>
+<span class="sd">        :param k: number of eigenvectors to use</span>
+<span class="sd">        :return: tensor of shape (num_nodes, k) containing Laplacian PE</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span>
+
+            <span class="c1"># Get Laplacian matrix</span>
+            <span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_weight</span> <span class="o">=</span> <span class="n">get_laplacian</span><span class="p">(</span>
+                <span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">normalization</span><span class="o">=</span><span class="s2">&quot;sym&quot;</span><span class="p">,</span> <span class="n">num_nodes</span><span class="o">=</span><span class="n">num_nodes</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Convert to dense matrix</span>
+            <span class="n">L</span> <span class="o">=</span> <span class="n">to_dense_adj</span><span class="p">(</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="n">edge_weight</span><span class="p">,</span> <span class="n">max_num_nodes</span><span class="o">=</span><span class="n">num_nodes</span><span class="p">)</span>
+            <span class="n">L</span> <span class="o">=</span> <span class="n">L</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># Remove batch dimension</span>
+
+            <span class="c1"># Compute eigenvalues and eigenvectors</span>
+            <span class="n">eigenvalues</span><span class="p">,</span> <span class="n">eigenvectors</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eigh</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+
+            <span class="c1"># Sort by eigenvalues (ascending)</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">eigenvalues</span><span class="p">)</span>
+            <span class="n">eigenvectors</span> <span class="o">=</span> <span class="n">eigenvectors</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">]</span>
+
+            <span class="c1"># Take the first k+1 eigenvectors (skip the first constant eigenvector)</span>
+            <span class="c1"># and take absolute values (to handle sign ambiguity)</span>
+            <span class="k">if</span> <span class="n">num_nodes</span> <span class="o">&lt;=</span> <span class="n">k</span><span class="p">:</span>
+                <span class="c1"># Pad with zeros if not enough nodes</span>
+                <span class="n">pe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+                <span class="n">pe</span><span class="p">[:,</span> <span class="p">:</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_nodes</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="n">k</span><span class="p">)]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span>
+                    <span class="n">eigenvectors</span><span class="p">[:,</span> <span class="mi">1</span> <span class="p">:</span> <span class="nb">min</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)]</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pe</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">eigenvectors</span><span class="p">[:,</span> <span class="mi">1</span> <span class="p">:</span> <span class="n">k</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span>
+
+            <span class="k">return</span> <span class="n">pe</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_handle_pe_exception</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphPE.rw_se">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_positional_encoder/index.html#matcha.datamodules.classic.graph_positional_encoder.GraphPE.rw_se">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rw_se</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute Random Walk Structural Encoding.</span>
+
+<span class="sd">        Uses the diagonal of powers of the random walk transition matrix.</span>
+
+<span class="sd">        :param graph: PyTorch Geometric Data object</span>
+<span class="sd">        :param k: number of random walk steps</span>
+<span class="sd">        :return: tensor of shape (num_nodes, k) containing RWSE</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span>
+
+            <span class="c1"># Get adjacency matrix</span>
+            <span class="n">adj</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_adjacency_matrix</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+
+            <span class="c1"># Compute degree matrix</span>
+            <span class="n">degrees</span> <span class="o">=</span> <span class="n">adj</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">degrees</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">degrees</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">degrees</span><span class="p">),</span> <span class="n">degrees</span><span class="p">)</span>
+
+            <span class="c1"># Random walk transition matrix: D^{-1} * A</span>
+            <span class="n">D_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">degrees</span><span class="p">)</span>
+            <span class="n">M</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">D_inv</span><span class="p">,</span> <span class="n">adj</span><span class="p">)</span>
+
+            <span class="c1"># Compute diagonal of M^1, M^2, ..., M^k</span>
+            <span class="n">rwse</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">M_power</span> <span class="o">=</span> <span class="n">M</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+
+            <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">k</span><span class="p">):</span>
+                <span class="n">rwse</span><span class="p">[:,</span> <span class="n">step</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">M_power</span><span class="p">)</span>
+                <span class="n">M_power</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">M_power</span><span class="p">,</span> <span class="n">M</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">rwse</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_handle_pe_exception</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">k</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphPE.rrwp_re">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_positional_encoder/index.html#matcha.datamodules.classic.graph_positional_encoder.GraphPE.rrwp_re">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">rrwp_re</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Data</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute Relative Random Walk Probabilities for edges.</span>
+
+<span class="sd">        For each edge (i, j), computes the k-step random walk probabilities</span>
+<span class="sd">        from i to j.</span>
+
+<span class="sd">        :param graph: PyTorch Geometric Data object</span>
+<span class="sd">        :param k: number of random walk steps</span>
+<span class="sd">        :return: tensor of shape (num_edges, k) containing RRWP</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">num_nodes</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">num_nodes</span>
+
+            <span class="c1"># Get adjacency matrix</span>
+            <span class="n">adj</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_get_adjacency_matrix</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+
+            <span class="c1"># Compute degree matrix</span>
+            <span class="n">degrees</span> <span class="o">=</span> <span class="n">adj</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">degrees</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">degrees</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">degrees</span><span class="p">),</span> <span class="n">degrees</span><span class="p">)</span>
+
+            <span class="c1"># Random walk transition matrix: D^{-1} * A</span>
+            <span class="n">D_inv</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="mf">1.0</span> <span class="o">/</span> <span class="n">degrees</span><span class="p">)</span>
+            <span class="n">M</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">D_inv</span><span class="p">,</span> <span class="n">adj</span><span class="p">)</span>
+
+            <span class="c1"># Compute P tensor: P[:, :, step] = M^step</span>
+            <span class="n">P</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">,</span> <span class="n">num_nodes</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">P</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">eye</span><span class="p">(</span><span class="n">num_nodes</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="n">P</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="n">M</span>
+
+            <span class="n">M_power</span> <span class="o">=</span> <span class="n">M</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">step</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">k</span><span class="p">):</span>
+                <span class="n">M_power</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">mm</span><span class="p">(</span><span class="n">M_power</span><span class="p">,</span> <span class="n">M</span><span class="p">)</span>
+                <span class="n">P</span><span class="p">[:,</span> <span class="p">:,</span> <span class="n">step</span><span class="p">]</span> <span class="o">=</span> <span class="n">M_power</span>
+
+            <span class="c1"># Extract edge encodings</span>
+            <span class="n">src</span><span class="p">,</span> <span class="n">dst</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span>
+            <span class="n">edge_encodings</span> <span class="o">=</span> <span class="n">P</span><span class="p">[</span><span class="n">src</span><span class="p">,</span> <span class="n">dst</span><span class="p">,</span> <span class="p">:]</span>
+
+            <span class="k">return</span> <span class="n">edge_encodings</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="n">num_edges</span> <span class="o">=</span> <span class="n">graph</span><span class="o">.</span><span class="n">edge_index</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">num_edges</span><span class="p">,</span> <span class="n">k</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphPE.elstatic_pe">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_positional_encoder/index.html#matcha.datamodules.classic.graph_positional_encoder.GraphPE.elstatic_pe">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">elstatic_pe</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute electrostatic-inspired positional encoding.</span>
+
+<span class="sd">        Uses statistics of the pseudo-inverse of the graph Laplacian</span>
+<span class="sd">        derived from the adjacency matrix.</span>
+
+<span class="sd">        :param mol: RDKit molecule object</span>
+<span class="sd">        :param k: number of statistical features to compute</span>
+<span class="sd">        :return: tensor of shape (num_atoms, k) containing electrostatic PE</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_pinv_embedding</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;adj&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GraphPE.distmat_pe">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_positional_encoder/index.html#matcha.datamodules.classic.graph_positional_encoder.GraphPE.distmat_pe">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">distmat_pe</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute distance matrix-based positional encoding.</span>
+
+<span class="sd">        Uses statistics of the pseudo-inverse of the graph Laplacian</span>
+<span class="sd">        derived from the distance matrix.</span>
+
+<span class="sd">        :param mol: RDKit molecule object</span>
+<span class="sd">        :param k: number of statistical features to compute</span>
+<span class="sd">        :return: tensor of shape (num_atoms, k) containing distance matrix PE</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_pinv_embedding</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="s2">&quot;dist&quot;</span><span class="p">)</span></div>
+
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_pinv_embedding</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute pseudo-inverse based positional encoding.</span>
+
+<span class="sd">        :param mol: RDKit molecule object</span>
+<span class="sd">        :param k: number of statistical features</span>
+<span class="sd">        :param fn: &#39;adj&#39; for adjacency matrix, &#39;dist&#39; for distance matrix</span>
+<span class="sd">        :return: tensor of shape (num_atoms, k)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">stats</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">,</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">,</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">3</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x</span><span class="o">**</span><span class="mi">4</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span>
+                <span class="n">x</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">,</span> <span class="n">keepdims</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span>
+            <span class="p">),</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span>
+            <span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="n">axis</span><span class="p">),</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">k</span> <span class="o">&gt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">stats</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;PE embedding k must be less or equal than </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">stats</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">stat_list</span> <span class="o">=</span> <span class="n">stats</span><span class="p">[:</span><span class="n">k</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">fn</span> <span class="o">==</span> <span class="s2">&quot;adj&quot;</span><span class="p">:</span>
+            <span class="n">adj</span> <span class="o">=</span> <span class="n">GetAdjacencyMatrix</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">fn</span> <span class="o">==</span> <span class="s2">&quot;dist&quot;</span><span class="p">:</span>
+            <span class="n">adj</span> <span class="o">=</span> <span class="n">GetDistanceMatrix</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">useBO</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">useAtomWts</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown function type: </span><span class="si">{</span><span class="n">fn</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">adj</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="o">-</span> <span class="n">adj</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">L</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">posinf</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">neginf</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">inv</span> <span class="o">=</span> <span class="n">pinv</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+        <span class="n">elstatic</span> <span class="o">=</span> <span class="n">inv</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">(</span><span class="n">inv</span><span class="p">))</span>
+
+        <span class="n">embedding</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">stat</span> <span class="ow">in</span> <span class="n">stat_list</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">stat</span><span class="p">(</span><span class="n">elstatic</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">result</span><span class="p">)</span> <span class="ow">or</span> <span class="n">result</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">elstatic</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">result</span><span class="p">)</span>
+            <span class="n">embedding</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>
+
+        <span class="n">pe</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">embedding</span><span class="p">,</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">pe</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

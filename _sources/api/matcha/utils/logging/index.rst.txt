@@ -1,0 +1,90 @@
+matcha.utils.logging
+====================
+
+.. py:module:: matcha.utils.logging
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.logging.MatchaLogger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.utils.logging.get_default_logger
+
+
+Module Contents
+---------------
+
+.. py:class:: MatchaLogger(experiment_name=None, run_name=None, **kwargs)
+
+   Bases: :py:obj:`lightning.pytorch.loggers.MLFlowLogger`
+
+
+   Custom MLflow logger for matcha that defers hyperparameter logging
+   and prevents premature experiment finalization.
+
+
+   .. py:property:: store
+      :type: bool
+
+
+      Whether hyperparameter logging is enabled.
+
+      :returns: ``True`` if logging is active, ``False`` otherwise.
+      :rtype: bool
+
+
+   .. py:method:: finalize(status: str = 'success')
+
+      Override original finalize method to prevent closing the experiment
+      once training is finished, and logging of raw pytorch artifacts
+
+
+
+   .. py:method:: conclude_experiment()
+
+      Manually conclude the experiment.
+
+
+
+   .. py:method:: log_hyperparams(params: dict)
+
+      Simple wrapper to prevent params to be saved until the method
+      is called manually
+
+
+
+   .. py:method:: log_matcha_artifacts(folder_path: list[str])
+
+      Add default artifacts after training.
+
+      Handles both files and subdirectories. Files are logged at the
+      artifact root; subdirectories are logged with their relative path
+      preserved.
+
+
+
+.. py:function:: get_default_logger(name: str, logging_path: str | None = None)
+
+   Create or retrieve a standard Python logger for matcha components.
+
+   Configures a logger with console output and, optionally, file output.
+   If the logger already has handlers, it is returned as-is to avoid
+   duplicate handler registration.
+
+   :param str name: Identifier appended to the ``MATCHA`` logger namespace.
+   :param logging_path: Optional file path for log output. Directories are
+       created if they do not exist.
+   :type logging_path: str | None
+   :returns: Configured logger instance.
+   :rtype: logging.Logger
+
+

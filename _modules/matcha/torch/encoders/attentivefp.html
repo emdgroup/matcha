@@ -1,0 +1,352 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.encoders.attentivefp &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../getting-started.html">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">matcha.torch.encoders.attentivefp</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for matcha.torch.encoders.attentivefp</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;AttentiveFP graph encoder with gated attention mechanism.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn.functional</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">F</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tensor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">GRUCell</span><span class="p">,</span> <span class="n">Linear</span><span class="p">,</span> <span class="n">Parameter</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Batch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">GATv2Conv</span><span class="p">,</span> <span class="n">MessagePassing</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.nn.inits</span><span class="w"> </span><span class="kn">import</span> <span class="n">glorot</span><span class="p">,</span> <span class="n">zeros</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Adj</span><span class="p">,</span> <span class="n">OptTensor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">softmax</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">EncoderRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
+
+
+<div class="viewcode-block" id="GATEConv">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/attentivefp/index.html#matcha.torch.encoders.attentivefp.GATEConv">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GATEConv</span><span class="p">(</span><span class="n">MessagePassing</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Graph Attention Edge Convolution layer for incorporating edge features into</span>
+<span class="sd">    node representations using attention mechanism.</span>
+
+<span class="sd">    This layer is adapted from the PyTorch Geometric AttentiveFP implementation.</span>
+<span class="sd">    Reference: https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.models.AttentiveFP.html</span>
+
+<span class="sd">    This class is not meant to be used directly, but acts as a building block for</span>
+<span class="sd">    :class:`AttentiveFP`.</span>
+
+<span class="sd">    :param int in_channels: Input node feature dimension.</span>
+<span class="sd">    :param int out_channels: Output node feature dimension.</span>
+<span class="sd">    :param int edge_dim: Edge feature dimension.</span>
+<span class="sd">    :param float dropout: Dropout rate for attention weights.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">in_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">edge_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">aggr</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span> <span class="n">node_dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">dropout</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">att_l</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">))</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">att_r</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">lin1</span> <span class="o">=</span> <span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span> <span class="o">+</span> <span class="n">edge_dim</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">lin2</span> <span class="o">=</span> <span class="n">Linear</span><span class="p">(</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">Parameter</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">empty</span><span class="p">(</span><span class="n">out_channels</span><span class="p">))</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">reset_parameters</span><span class="p">()</span>
+
+<div class="viewcode-block" id="GATEConv.reset_parameters">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/attentivefp/index.html#matcha.torch.encoders.attentivefp.GATEConv.reset_parameters">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">glorot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">att_l</span><span class="p">)</span>
+        <span class="n">glorot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">att_r</span><span class="p">)</span>
+        <span class="n">glorot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lin1</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">glorot</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lin2</span><span class="o">.</span><span class="n">weight</span><span class="p">)</span>
+        <span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="GATEConv.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/attentivefp/index.html#matcha.torch.encoders.attentivefp.GATEConv.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">edge_index</span><span class="p">:</span> <span class="n">Adj</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass computing attention-weighted message passing.</span>
+
+<span class="sd">        :param Tensor x: Node features [num_nodes, in_channels].</span>
+<span class="sd">        :param Adj edge_index: Edge indices [2, num_edges].</span>
+<span class="sd">        :param Tensor edge_attr: Edge features [num_edges, edge_dim].</span>
+<span class="sd">        :returns: Updated node features [num_nodes, out_channels].</span>
+<span class="sd">        :rtype: Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># edge_updater_type: (x: Tensor, edge_attr: Tensor)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_updater</span><span class="p">(</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">edge_attr</span><span class="o">=</span><span class="n">edge_attr</span><span class="p">)</span>
+
+        <span class="c1"># propagate_type: (x: Tensor, alpha: Tensor)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">propagate</span><span class="p">(</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="n">alpha</span><span class="p">)</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+
+<div class="viewcode-block" id="GATEConv.edge_update">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/attentivefp/index.html#matcha.torch.encoders.attentivefp.GATEConv.edge_update">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">edge_update</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x_j</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">x_i</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">edge_attr</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">index</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">ptr</span><span class="p">:</span> <span class="n">OptTensor</span><span class="p">,</span>
+        <span class="n">size_i</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+        <span class="n">x_j</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">leaky_relu</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lin1</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">x_j</span><span class="p">,</span> <span class="n">edge_attr</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)),</span> <span class="mf">0.01</span><span class="p">)</span>
+        <span class="n">alpha_j</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_j</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">att_l</span><span class="o">.</span><span class="n">t</span><span class="p">())</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">alpha_i</span> <span class="o">=</span> <span class="p">(</span><span class="n">x_i</span> <span class="o">@</span> <span class="bp">self</span><span class="o">.</span><span class="n">att_r</span><span class="o">.</span><span class="n">t</span><span class="p">())</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">alpha_j</span> <span class="o">+</span> <span class="n">alpha_i</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">leaky_relu</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="mf">0.01</span><span class="p">)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">softmax</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">index</span><span class="p">,</span> <span class="n">ptr</span><span class="p">,</span> <span class="n">size_i</span><span class="p">)</span>
+        <span class="n">alpha</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">alpha</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">alpha</span></div>
+
+
+<div class="viewcode-block" id="GATEConv.message">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/attentivefp/index.html#matcha.torch.encoders.attentivefp.GATEConv.message">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">message</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_j</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">,</span> <span class="n">alpha</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tensor</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">lin2</span><span class="p">(</span><span class="n">x_j</span><span class="p">)</span> <span class="o">*</span> <span class="n">alpha</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="AttentiveFP">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.attentivefp.AttentiveFP">[docs]</a>
+<span class="nd">@EncoderRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AttentiveFP</span><span class="p">(</span><span class="n">BaseGraphEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Attention-based graph encoder as described in &#39;Pushing the Boundaries of Molecular</span>
+<span class="sd">    Representation for Drug Discovery with the Graph Attention Mechanism&#39;</span>
+<span class="sd">    This class performs message passing, updates the atom representations and</span>
+<span class="sd">    returns a molecular embedding which can then be used for molecular property</span>
+<span class="sd">    prediction.</span>
+<span class="sd">    It inherits from :class:`BaseGraphEncoder` for common graph encoding routines</span>
+<span class="sd">    (e.g. jk-related routines) and from :class:`lightning.pytorch.core.mixins`</span>
+<span class="sd">    for saving its hyperparameters.</span>
+<span class="sd">    References:</span>
+<span class="sd">    - https://www.ncbi.nlm.nih.gov/pubmed/31408336</span>
+<span class="sd">    - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.models.AttentiveFP.html</span>
+<span class="sd">    - https://arxiv.org/abs/1806.03536</span>
+
+<span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
+<span class="sd">    Check the docs of :class:`matcha.torch.models.classic.AttentiveFPModel` for further details.</span>
+
+<span class="sd">    :param int num_layers: number of message passing layers</span>
+
+<span class="sd">    :param int atom_input_dim: number of input atom features from GraphFeaturizer</span>
+
+<span class="sd">    :param int bond_input_dim: number of input bond features from GraphFeaturizer</span>
+
+<span class="sd">    :param int atom_hidden_dim: number of hidden atom features in message passing layers</span>
+
+<span class="sd">    :param float dropout: dropout noise level</span>
+
+<span class="sd">    :param str readout: readout function to aggregate all atom representations</span>
+
+<span class="sd">    :param str jk: jumping knowledge strategy to use when returning molecular</span>
+<span class="sd">        representations after forward pass</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">num_layers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">bond_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">readout</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">jk</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
+            <span class="n">laplacian_k</span><span class="p">,</span>
+            <span class="n">rwse_k</span><span class="p">,</span>
+            <span class="n">elstatic_k</span><span class="p">,</span>
+            <span class="n">distmat_k</span><span class="p">,</span>
+            <span class="n">rrwp_k</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_jk</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_readout</span><span class="p">(</span><span class="n">readout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="n">dropout</span>
+
+        <span class="c1"># Initial atom embedding layer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">atom_input_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">)</span>
+
+        <span class="c1"># Initial context layer with edge features (GATEConv + GRU)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gate_conv</span> <span class="o">=</span> <span class="n">GATEConv</span><span class="p">(</span>
+            <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">bond_input_dim</span><span class="p">,</span> <span class="n">dropout</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gru</span> <span class="o">=</span> <span class="n">GRUCell</span><span class="p">(</span><span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">)</span>
+
+        <span class="c1"># Subsequent GNN layers (GATConv + GRU)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span> <span class="o">-</span> <span class="mi">1</span><span class="p">):</span>
+            <span class="n">conv</span> <span class="o">=</span> <span class="n">GATv2Conv</span><span class="p">(</span>
+                <span class="n">atom_hidden_dim</span><span class="p">,</span>
+                <span class="n">atom_hidden_dim</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">add_self_loops</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                <span class="n">negative_slope</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">gru</span> <span class="o">=</span> <span class="n">GRUCell</span><span class="p">(</span><span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">([</span><span class="n">conv</span><span class="p">,</span> <span class="n">gru</span><span class="p">]))</span>
+
+<div class="viewcode-block" id="AttentiveFP.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/index.html#matcha.torch.encoders.attentivefp.AttentiveFP.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further</span>
+<span class="sd">        processing.</span>
+
+<span class="sd">        :param Batch graph: batched PyG graph from the dataloader</span>
+
+<span class="sd">        :return torch.Tensor: learned representation</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">g</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_graph_batch</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Initial atom embedding</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
+
+        <span class="c1"># Initial context with edge features</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">elu_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gate_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">))</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">gru</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">relu_</span><span class="p">()</span>
+        <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="c1"># Subsequent GNN layers</span>
+        <span class="k">for</span> <span class="n">conv</span><span class="p">,</span> <span class="n">gru</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">elu</span><span class="p">(</span><span class="n">h</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">dropout</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">p</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">dropout</span><span class="p">,</span> <span class="n">training</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">training</span><span class="p">)</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="n">gru</span><span class="p">(</span><span class="n">h</span><span class="p">,</span> <span class="n">x</span><span class="p">)</span><span class="o">.</span><span class="n">relu</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">all_atom_feats</span> <span class="o">!=</span> <span class="p">[]:</span>
+                <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">+</span> <span class="n">all_atom_feats</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="n">final_atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_jk</span><span class="p">(</span><span class="n">all_atom_feats</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">final_atom_feats</span><span class="p">)</span></div>
+</div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

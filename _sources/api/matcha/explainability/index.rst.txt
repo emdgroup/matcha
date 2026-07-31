@@ -1,0 +1,297 @@
+matcha.explainability
+=====================
+
+.. py:module:: matcha.explainability
+
+.. autoapi-nested-parse::
+
+   Explainability tools for molecular property predictions.
+
+   This module provides methods to interpret and explain model predictions:
+
+   - **LIME analysis:** Identifies which molecular descriptors or fingerprint bits
+     most influence a prediction via local linear surrogate models.
+   - **Analogue generation:** Produces structural analogues of a query molecule using
+     positional analogue scanning and nitrogen walking.
+   - **MatchaExplainer:** High-level interface that combines LIME analysis with
+     analogue generation and provides visualization via :class:`MatchaExplanation`.
+
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /api/matcha/explainability/analogue_generator/index
+   /api/matcha/explainability/explainer/index
+   /api/matcha/explainability/lime/index
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.explainability.AnalogueGenerator
+   matcha.explainability.LIME
+   matcha.explainability.MatchaExplainer
+   matcha.explainability.MatchaExplanation
+
+
+Package Contents
+----------------
+
+.. py:class:: AnalogueGenerator
+
+   Generator of structural analogues for molecular explainability.
+
+   Provides class methods that produce analogues of a query molecule using
+   two complementary strategies:
+
+   - **Positional analogue scanning:** Substitutes atoms at anchor positions.
+   - **Nitrogen walk:** Replaces aromatic CH with nitrogen.
+
+   All generated analogues are validated via RDKit sanitization and deduplicated.
+
+
+   .. py:method:: generate_analogues(mol: rdkit.Chem.rdchem.Mol, positional_analogue_scanning_params: dict | None = {'substituents': ['F', 'I', 'Br', 'Cl', 'O', 'C', '[*]C(F)(F)F', '[*]C#N', '[*]OC', '[*]C1CC1', '[*]C(=O)N', '[*]S(=O)(=O)C'], 'anchors': ['[cH]', 'C'], 'num_sub': 1}, nitrogen_walk_params: dict | None = {'num_sub': 1}) -> list[rdkit.Chem.rdchem.Mol]
+      :classmethod:
+
+
+      Generate structural analogues of a molecule using scaffold-based and pairwise strategies.
+
+      Runs positional analogue scanning (PAS) and nitrogen walk on both the
+      input molecule and its Murcko scaffold, then applies a second round of
+      PAS and nitrogen walk to each first-pass PAS result. All results are
+      pooled, validated, deduplicated, and the input molecule is excluded.
+
+      :param Mol mol: Query RDKit molecule.
+      :param dict | None positional_analogue_scanning_params: Parameters for
+          positional analogue scanning. Set to None to skip. Keys:
+          ``substituents``, ``anchors``, ``num_sub``.
+      :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.
+          Set to None to skip. Keys: ``num_sub``.
+
+      :returns: List of unique, sanitized RDKit molecule objects (excluding
+          the input molecule).
+
+
+
+   .. py:method:: positional_analogue_scanning(mol_in: rdkit.Chem.rdchem.Mol, substituents: list = ['F', 'I', 'Br', 'Cl', 'O', 'C', '[*]C(F)(F)F', '[*]C#N', '[*]OC', '[*]C1CC1', '[*]C(=O)N', '[*]S(=O)(=O)C'], anchors: list = ['[cH]', 'C'], num_sub: int = 1, timeout: int = 60) -> list[rdkit.Chem.rdchem.Mol]
+      :classmethod:
+
+
+      Generate analogues via Positional Analogue Scanning.
+
+      Adds substituents at anchor positions in the molecule. Each entry in
+      ``substituents`` is either an element symbol (e.g. ``"F"``) or a
+      fragment SMILES with a ``[*]`` dummy attachment point
+      (e.g. ``"[*]C(F)(F)F"``). Based on the algorithm described in
+      https://pubs.acs.org/doi/10.1021/acs.jmedchem.9b02092.
+
+      Implementation adapted from:
+      https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html
+
+      :param Mol mol_in: Input RDKit molecule.
+      :param list substituents: Element symbols or fragment SMILES (with
+          ``[*]`` attachment point) to try as substituents.
+      :param list anchors: SMARTS patterns identifying attachment positions.
+      :param int num_sub: Number of simultaneous substitutions. Defaults to 1.
+      :param int timeout: Maximum runtime in seconds. Defaults to 60.
+
+      :returns: List of unique, deduplicated analogue molecules.
+
+
+
+   .. py:method:: nitrogen_walk(mol_in: rdkit.Chem.rdchem.Mol, num_sub: int = 1, timeout: int = 60) -> list[rdkit.Chem.rdchem.Mol]
+      :classmethod:
+
+
+      Generate analogues by replacing aromatic CH atoms with nitrogen.
+
+      Systematically walks aromatic carbon-hydrogen positions, replacing them
+      with nitrogen to produce aza-analogues.
+
+      Implementation adapted from:
+      https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html
+
+      :param Mol mol_in: Input RDKit molecule.
+      :param int num_sub: Number of simultaneous CH-to-N replacements. Defaults to 1.
+      :param int timeout: Maximum runtime in seconds. Defaults to 60.
+
+      :returns: List of unique, deduplicated analogue molecules.
+
+
+
+   .. py:method:: decompose(mol_in: rdkit.Chem.rdchem.Mol)
+      :classmethod:
+
+
+      Decompose a molecule into BRICS fragments.
+
+      Performs a single-pass BRICS decomposition and returns cleaned fragments
+      as RDKit molecules (with attachment-point labels removed).
+
+      :param Mol mol_in: Input RDKit molecule.
+
+      :returns: List of fragment molecules.
+
+
+
+.. py:class:: LIME(descriptor_set: list[str] | None = None, fingerprint_params: dict | None = None, scale_coeff: bool = True, use_fingerprints: bool = False)
+
+   Local Interpretable Model-agnostic Explanations for molecular predictions.
+
+   Fits bootstrapped Ridge regression models on molecular descriptors or
+   ECFP fingerprints to identify which features most influence a prediction.
+   Coefficients are optionally scaled to sum to 1 for interpretability.
+
+
+   .. py:property:: descriptor_set
+      :type: str
+
+
+      The list of RDKit descriptor names used as features.
+
+
+   .. py:property:: scale_coeff
+      :type: bool
+
+
+      Whether coefficients are scaled to sum to 1.
+
+
+   .. py:property:: r2_box
+      :type: list[float]
+
+
+      R-squared values from each bootstrap iteration.
+
+
+   .. py:method:: get_envs_and_weights(mol: rdkit.Chem.rdchem.Mol, out: pandas.DataFrame)
+
+      Extracts atomic environments and weights for a molecule given a lime analysis result
+
+      :param Mol mol: rdkit molecule
+      :param pd.DataFrame out: lime analysis result
+
+
+
+   .. py:method:: explain(X: list[rdkit.Chem.rdchem.Mol], Y: numpy.ndarray, bootstrap_num: int = 25) -> pandas.DataFrame
+
+      Perform LIME analysis on molecules.
+
+      Fits bootstrapped Ridge regression models to explain how molecular
+      descriptors (or fingerprint bits) relate to the target values. Returns
+      a DataFrame of coefficients sorted by importance.
+
+      :param list[Mol] X: RDKit molecule objects to explain.
+      :param np.ndarray Y: Target values (predictions or any endpoint),
+          shape ``(n_molecules,)``.
+      :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+
+      :returns: DataFrame with columns ``Descriptor``, ``Coefficient``, and
+          ``Standard deviation``, sorted by coefficient magnitude. The last
+          row contains the local fit R-squared summary.
+
+
+
+.. py:class:: MatchaExplainer(positional_analogue_scanning_params: dict | None = {}, nitrogen_walk_params: dict | None = {}, lime_descriptor_set: list[str] | None = None, lime_fingerprint_params: dict | None = None, lime_scale_coeff: bool = True, lime_remove_noise: bool = True)
+
+   High-level interface for molecular explainability.
+
+   Combines LIME-based feature importance analysis with structural analogue
+   generation. Produces :class:`MatchaExplanation` objects that contain both
+   descriptor coefficients and atomic heatmap data for visualization.
+
+
+   .. py:method:: generate_analogues(mol: rdkit.Chem.rdchem.Mol) -> list[rdkit.Chem.rdchem.Mol]
+
+      Generate structural analogues for a molecule.
+
+      :param Mol mol: Query RDKit molecule.
+
+      :returns: List of unique analogue molecules.
+
+
+
+   .. py:method:: decompose(mol: rdkit.Chem.rdchem.Mol) -> list[rdkit.Chem.rdchem.Mol]
+
+      Decompose a molecule into BRICS fragments.
+
+      :param Mol mol: Input RDKit molecule.
+
+      :returns: List of fragment molecules.
+
+
+
+   .. py:method:: explain(mols: list[rdkit.Chem.rdchem.Mol], predictions: numpy.ndarray, bootstrap_num: int = 25) -> MatchaExplanation
+
+      Run LIME analysis with both RDKit descriptors and ECFP fingerprints.
+
+      Performs two parallel LIME analyses — one using RDKit physicochemical
+      descriptors for interpretable coefficients, and one using ECFP
+      fingerprints for atomic-level heatmap visualization.
+
+      :param list[Mol] mols: RDKit molecule objects to explain. At least 10
+          molecules are recommended for reliable results.
+      :param np.ndarray predictions: Target values (e.g., model predictions),
+          shape ``(n_molecules,)``.
+      :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+
+      :returns: :class:`MatchaExplanation` containing coefficients, atomic
+          environments, weights, and analogue SMILES.
+
+
+
+.. py:class:: MatchaExplanation(df_desc: pandas.DataFrame, envs: dict[int, list[int]], weights: dict[int, float], mol: rdkit.Chem.rdchem.Mol, analogues: list[str])
+
+   Container for LIME explanation results with visualization methods.
+
+   Holds the descriptor-level coefficients, ECFP atomic environments and
+   weights, the query molecule, and generated analogues. Provides plotting
+   utilities for coefficient bar charts and molecular heatmaps.
+
+
+   .. py:attribute:: df_desc
+
+
+   .. py:attribute:: envs
+
+
+   .. py:attribute:: weights
+
+
+   .. py:attribute:: analogues
+
+
+   .. py:method:: plot_coefficients(remove_noise: bool = True, keep_k: int = 10) -> plotly.graph_objects.Figure
+
+      Plot LIME coefficients as a horizontal bar chart.
+
+      :param bool remove_noise: Whether to filter out unreliable coefficients
+          (those where standard deviation exceeds the absolute coefficient or
+          absolute coefficient is <= 0.1). Defaults to True.
+      :param int keep_k: Maximum number of descriptors to display. Defaults to 10.
+
+      :returns: Plotly figure with the LIME coefficient bar chart.
+
+      :raises ValueError: If no reliable coefficients remain after noise removal.
+
+
+
+   .. py:method:: plot_heatmap(colormap: str = 'RdYlGn') -> plotly.graph_objects.Figure
+
+      Generate a heatmap of the molecule with atoms colored by LIME weights.
+
+      Atom colors are determined by summing ECFP bit weights for all bits
+      that include the atom, then scaling to [-1, +1].
+
+      :param str colormap: Matplotlib colormap name. Defaults to ``"RdYlGn"``.
+
+      :returns: Plotly figure containing the molecular similarity map image.
+
+
+
