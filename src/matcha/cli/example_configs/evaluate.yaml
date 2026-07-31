@@ -1,0 +1,42 @@
+# ── Example config: Evaluate a MATCHA model ────────────────────────────
+#
+# Cross-validate a ChempropRegressor on fraction-unbound data using
+# temporal splits.
+#
+# Usage:
+#   matcha evaluate --config evaluate.yaml
+
+dataset:
+  path: /path/to/data/train.csv
+  smiles_key: SMILES
+  label_key: endpoint
+  operator_key: OPERATOR
+
+split:
+  method: time
+  n_subset: 3
+  method_params:
+    key: compound_id
+    split_size: 0.1
+
+model:
+  architecture: "ChempropRegressor"
+  params:
+    label_encoder_params: {
+          0: {"task_label": "Fub_human"},
+          1: {"task_label": "Fub_mouse"},
+          2: {"task_label": "Fub_rat"},
+          3: {"task_label": "Fu_mic"},
+            }
+    num_endpoints: 4
+    loss_fn: bounded-mse
+
+output:
+  mlflow:
+    experiment_name: "evaluating-fu"
+    run_name: "chemprop_optimized_short"
+    tags:
+      version: 1.0
+    log_dir: /path/to/mlflow
+  serialization:
+    path: /path/to/evaluation/my_run

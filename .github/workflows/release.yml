@@ -1,0 +1,178 @@
+name: Release
+
+# Disabled: manual dispatch only, and every job is gated behind
+# `vars.RELEASE_WORKFLOW_ENABLED == 'true'`. Enable by setting the
+# `RELEASE_WORKFLOW_ENABLED` repository variable to `true` once PyPI trusted
+# publishing is configured for this repository.
+
+on:
+  workflow_dispatch:
+    inputs:
+      increment:
+        description: Override version increment
+        required: false
+        default: "none"
+        type: choice
+        options: [none, PATCH, MINOR, MAJOR]
+      prerelease:
+        description: Optional prerelease identifier
+        required: false
+        default: "none"
+        type: choice
+        options: [none, alpha, beta, rc]
+      devrelease:
+        description: Development release
+        required: false
+        default: false
+        type: boolean
+      manual_version:
+        description: Set version manually, bypassing increment logic
+        required: false
+        default: ""
+        type: string
+
+concurrency:
+  group: release-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    name: Bump, Tag, Push
+    if: vars.RELEASE_WORKFLOW_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+
+    outputs:
+      previous_version: ${{ steps.bump.outputs.previous_version }}
+      version: ${{ steps.bump.outputs.version }}
+      bumped: ${{ steps.bump.outputs.bumped }}
+      revision_tag: ${{ steps.bump.outputs.revision_tag }}
+      changelog_body: ${{ steps.bump.outputs.changelog_body }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git identity
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+        run: |
+          git config --local user.name "${GITHUB_ACTOR}"
+          git config --local user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - name: Bump version with Commitizen
+        id: bump
+        uses: ./.github/actions/commitizen
+        with:
+          commitizen_version: latest
+          increment: ${{ inputs.manual_version == '' && (inputs.increment == 'none' && '' || inputs.increment) || '' }}
+          prerelease: ${{ inputs.prerelease == 'none' && '' || inputs.prerelease }}
+          devrelease: ${{ inputs.devrelease }}
+          manual_version: ${{ inputs.manual_version }}
+
+      - name: Bump devrelease for next development iteration
+        if: ${{ steps.bump.outputs.bumped == 'true' && inputs.devrelease == false && inputs.prerelease == 'none' }}
+        continue-on-error: true
+        uses: ./.github/actions/commitizen
+        with:
+          commitizen_version: latest
+          increment: PATCH
+          devrelease: "true"
+          create_tag: "false"
+
+      - name: Workflow summary
+        env:
+          PREVIOUS_VERSION: ${{ steps.bump.outputs.previous_version }}
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+          BUMPED: ${{ steps.bump.outputs.bumped }}
+          REVISION_TAG: ${{ steps.bump.outputs.revision_tag }}
+        run: |
+          {
+            echo "## Release Summary"
+            echo ""
+            echo "| Field | Value |"
+            echo "| ----- | ----- |"
+            echo "| Previous version | ${PREVIOUS_VERSION} |"
+            echo "| New version | ${NEW_VERSION} |"
+            echo "| Bumped | ${BUMPED} |"
+            echo "| Tag | ${REVISION_TAG} |"
+          } >>"${GITHUB_STEP_SUMMARY}"
+
+  publish:
+    name: Build and Publish to PyPI
+    needs: bump
+    if: ${{ vars.RELEASE_WORKFLOW_ENABLED == 'true' && needs.bump.outputs.bumped == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.bump.outputs.revision_tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: false
+
+      - name: Build distribution
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Upload build artifacts
+        id: upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ github.run_id }}
+          path: dist/
+          retention-days: 1
+
+  gh-release:
+    name: Create GitHub Release
+    needs: [bump, publish]
+    if: ${{ vars.RELEASE_WORKFLOW_ENABLED == 'true' && needs.bump.outputs.bumped == 'true' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          artifact-ids: ${{ needs.publish.outputs.artifact_id }}
+          path: dist/
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION_TAG: ${{ needs.bump.outputs.revision_tag }}
+          CHANGELOG_BODY: ${{ needs.bump.outputs.changelog_body }}
+          IS_PRERELEASE: ${{ inputs.devrelease == true || inputs.prerelease != 'none' }}
+        run: |
+          printf '%s\n' "${CHANGELOG_BODY}" > body.md
+          prerelease_flag=""
+          if [[ "${IS_PRERELEASE}" == "true" ]]; then
+            prerelease_flag="--prerelease"
+          fi
+          # shellcheck disable=SC2086
+          gh release create "${REVISION_TAG}" \
+            --repo "${{ github.repository }}" \
+            --title "${REVISION_TAG}" \
+            --notes-file body.md \
+            ${prerelease_flag} \
+            dist/*

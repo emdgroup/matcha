@@ -1,0 +1,77 @@
+# ── Example config: MLM encoder pretraining (RoFormerMLM) ─────────────
+#
+# Pretrain a RoFormer encoder with a masked-language-modelling objective
+# over SMILES strings.  The dictionary is fitted automatically from a
+# sample of the training set.
+#
+# Usage:
+#   python -m matcha.cli.pretrain_encoder --config pretrain_encoder_mlm.yaml
+
+dataset:
+  task_type: mlm
+  train_smiles: /path/to/pretraining/data/train_smiles.parquet
+  val_smiles: /path/to/pretraining/data/val_smiles.parquet
+
+model:
+  architecture: RoFormerMLM
+
+  # Neural-network constructor args only (passed directly to the model).
+  # enc_num_characters is injected automatically from the fitted dictionary
+  # so it does not need to be specified here.
+  params:
+    enc_hidden_dim: 256
+    enc_expansion_dim: 1024
+    enc_num_heads: 4
+    enc_num_layers: 4
+    enc_attention_dropout: 0.1
+    enc_hidden_dropout: 0.1
+    pred_hidden_dims: [512]
+    pred_activation: gelu
+    pred_dropout: 0.1
+    loss_fn: cross_entropy
+    loss_args: {}
+    optimizer: adamw
+    optimizer_args:
+      lr: 1.0e-4
+    scheduler: warmup_linear_decay
+
+  # Datamodule-specific settings (tokenisation, masking, augmentation).
+  datamodule:
+    mask_rate: 0.15
+    max_length: 200
+    num_augmentations: 5
+    num_test_augmentations: 4
+    include_canonical: true
+    batch_size: 256
+    num_workers: 0
+    augment_resonance: true
+
+  # Training-loop settings (epochs, early stopping, hardware, seed).
+  training:
+    num_epochs: 100
+    early_stopping: true
+    patience: 15
+    accelerator: gpu
+    devices: 1
+    seed: 42
+
+pipe:
+  visible_devices: "0"
+  strategy:
+    timeout_seconds: 3600
+    find_unused_parameters: false
+  dataloader_num_workers: 8
+  fit_datamodule_size: 50000
+  gradient_accumulation_steps: 1
+  gradient_clip_val: 1.0
+
+output:
+  serialization: /path/to/models/my_encoder
+  mlflow:
+    experiment_name: qm-mini
+    tags:
+      project: matcha-pretraining
+      task: graph
+    log_dir: /path/to/mlflow
+    run_name: gin
+    server_uri: null

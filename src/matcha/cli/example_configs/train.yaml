@@ -1,0 +1,41 @@
+# ── Example config: Train a MATCHA model ───────────────────────────────
+#
+# Train a GatedGCN ensemble on a multi-task fraction-unbound dataset.
+#
+# Usage:
+#   matcha train --config train.yaml
+
+dataset:
+  path: /path/to/data/train.csv
+  smiles_key: SMILES
+  label_key: endpoint
+  operator_key: OPERATOR
+
+model:
+  architecture: "GatedGCNRegressor"
+  ensemble: 5
+  params:
+    loss_fn: multitask
+    loss_args: {"loss_fn": "bounded_mse"}
+    num_endpoints: 4
+    num_epochs: 50
+    label_encoder_params: {
+          0: {"task_label": "Fub_human"},
+          1: {"task_label": "Fub_mouse"},
+          2: {"task_label": "Fub_rat"},
+          3: {"task_label": "dummy"},
+            }
+  metadata:
+    model_name: gatedgcn-fu-v1
+    model_version: 1.0
+    model_owner: <owner_name>
+    model_scope: global
+
+output:
+  mlflow:
+    experiment_name: "training-gatedgcn-fu-new-small"
+    tags:
+      version: ${model.metadata.model_version}
+    log_dir: /path/to/mlflow
+  serialization:
+    path: /path/to/models/my_model

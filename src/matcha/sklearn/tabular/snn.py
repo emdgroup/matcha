@@ -1,0 +1,240 @@
+"""Sklearn-compatible SNN wrappers for molecular property prediction from tabular descriptors."""
+
+from matcha.sklearn.tabular.base_sklearn_tabular import BaseScikitLearnTabular
+from matcha.torch.models.classic import SNNModel
+from matcha.sklearn.base_sklearn_model import (
+    ScikitLearnModelRegistry,
+    ScikitLearnClassifierMixin,
+    ScikitLearnRegressorMixin,
+)
+
+
+@ScikitLearnModelRegistry.register()
+class SNNClassifier(BaseScikitLearnTabular, ScikitLearnClassifierMixin):
+    """Self-Normalizing Neural Network (SNN) for molecular property classification.
+
+    Predicts molecular properties from molecular descriptors and fingerprints.
+    Uses SELU activations and AlphaDropout to maintain self-normalizing
+    properties, enabling training of deep networks without batch normalization.
+    Uses MultiLn parallel head layers for improved capacity.
+    Only compatible with classification datasets.
+    Inherits from :class:`~matcha.sklearn.tabular.base_sklearn_tabular.BaseScikitLearnTabular`.
+
+    References:
+
+    - Klambauer et al., *NeurIPS* (2017): https://arxiv.org/abs/1706.02515
+
+    Example usage:
+
+    .. code-block:: python
+
+        model = SNNClassifier()
+        model.fit(train_mols, train_y)
+        predictions = model.predict(test_mols)
+
+    :param list[int] hidden_dims: shape of hidden SNN layers, defaults to [256, 256]
+
+    :param int num_parallel: number of parallel heads in MultiLn layers, defaults to 8
+
+    :param float dropout: dropout rate (AlphaDropout), defaults to 0.05
+
+    :param int num_endpoints: number of endpoints (if multitasking) or classes
+        (if classification) to predict, defaults to 1
+
+    :param float deep_lasso_weight: weight for deep lasso regularization,
+        defaults to 0.1
+
+    :param str loss_fn: loss function to optimize, defaults to 'bce'
+
+    :param dict loss_args: additional arguments for the loss function, defaults to {}
+
+    :param str optimizer: optimizer to use while training, defaults to 'adamw'
+
+    :param dict optimizer_args: additional arguments for the optimizer, defaults
+        to {'lr': 5e-3, 'weight_decay': 1e-2, 'betas': (0.9, 0.95)}
+
+    :param str scheduler: learning rate scheduler, defaults to 'cosine_annealing_cyclic'.
+        ``total_steps`` is auto-computed from dataset size and epochs when not
+        explicitly provided.
+
+    :param dict scheduler_args: additional arguments for the scheduler, defaults
+        to {'min_lr': 1e-5, 'num_cycles': 5}
+
+    :param int num_epochs: number of epochs to train for, defaults to 100
+
+    :param int batch_size: batch size for training and prediction, defaults to 64
+
+    :param bool stochastic_weight_averaging: whether to add SWA epochs after
+        regular training, defaults to False
+
+    :param bool early_stopping: whether to use early stopping, defaults to True
+
+    :param int patience: how many epochs to wait before early stopping, defaults to 20
+
+    :param int devices: number of devices for training, defaults to 1
+
+    :param str accelerator: hardware accelerator ('cpu', 'gpu', 'tpu', or 'hpu'),
+        defaults to 'gpu'
+
+    :param list[str] feature_list: descriptor/fingerprint sets to use as input,
+        defaults to ['ECFP_count', 'rdkit_all_descriptors']
+
+    :param dict label_encoder_params: parameters for the label encoder, defaults to {}
+
+    :param str | list[str] | dict | None label_transform_map: label transform
+        configuration, defaults to None
+
+    :param bool augment_resonance: whether to augment with resonance structures,
+        defaults to False
+
+    :param int seed: random seed for reproducibility, defaults to 0
+    """
+
+    def __init__(
+        self,
+        hidden_dims: list[int] = [256, 256],
+        num_parallel: int = 8,
+        dropout: float = 0.05,
+        num_endpoints: int = 1,
+        deep_lasso_weight: float = 0.1,
+        loss_fn: str = "bce",
+        loss_args: dict = {},
+        optimizer: str = "adamw",
+        optimizer_args: dict = {"lr": 5e-3, "weight_decay": 1e-2, "betas": (0.9, 0.95)},
+        scheduler: str = "cosine_annealing_cyclic",
+        scheduler_args: dict = {"min_lr": 1e-5, "num_cycles": 5},
+        num_epochs: int = 100,
+        batch_size: int = 64,
+        stochastic_weight_averaging: bool = False,
+        early_stopping: bool = True,
+        patience: int = 20,
+        devices: int = 1,
+        accelerator: str = "gpu",
+        feature_list: list[str] = ["ECFP_count", "rdkit_all_descriptors"],
+        label_encoder_params: dict = {},
+        label_transform_map: str | list[str] | dict | None = None,
+        augment_resonance: bool = False,
+        seed: int = 0,
+    ):
+        self._architecture = SNNModel
+        params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
+        super(SNNClassifier, self).__init__(params)
+
+
+@ScikitLearnModelRegistry.register()
+class SNNRegressor(BaseScikitLearnTabular, ScikitLearnRegressorMixin):
+    """Self-Normalizing Neural Network (SNN) for molecular property regression.
+
+    Predicts molecular properties from molecular descriptors and fingerprints.
+    Uses SELU activations and AlphaDropout to maintain self-normalizing
+    properties, enabling training of deep networks without batch normalization.
+    Uses MultiLn parallel head layers for improved capacity.
+    Only compatible with regression datasets.
+    Inherits from :class:`~matcha.sklearn.tabular.base_sklearn_tabular.BaseScikitLearnTabular`.
+
+    References:
+
+    - Klambauer et al., *NeurIPS* (2017): https://arxiv.org/abs/1706.02515
+
+    Example usage:
+
+    .. code-block:: python
+
+        model = SNNRegressor()
+        model.fit(train_mols, train_y)
+        predictions = model.predict(test_mols)
+
+    :param list[int] hidden_dims: shape of hidden SNN layers, defaults to [256, 256]
+
+    :param int num_parallel: number of parallel heads in MultiLn layers, defaults to 8
+
+    :param float dropout: dropout rate (AlphaDropout), defaults to 0.05
+
+    :param int num_endpoints: number of endpoints to predict (for multitasking),
+        defaults to 1
+
+    :param float deep_lasso_weight: weight for deep lasso regularization,
+        defaults to 0.1
+
+    :param str loss_fn: loss function to optimize, defaults to 'mse'
+
+    :param dict loss_args: additional arguments for the loss function, defaults to {}
+
+    :param str optimizer: optimizer to use while training, defaults to 'adamw'
+
+    :param dict optimizer_args: additional arguments for the optimizer, defaults
+        to {'lr': 5e-3, 'weight_decay': 1e-2, 'betas': (0.9, 0.95)}
+
+    :param str scheduler: learning rate scheduler, defaults to 'cosine_annealing_cyclic'.
+        ``total_steps`` is auto-computed from dataset size and epochs when not
+        explicitly provided.
+
+    :param dict scheduler_args: additional arguments for the scheduler, defaults
+        to {'min_lr': 1e-5, 'num_cycles': 5}
+
+    :param int num_epochs: number of epochs to train for, defaults to 100
+
+    :param int batch_size: batch size for training and prediction, defaults to 64
+
+    :param bool stochastic_weight_averaging: whether to add SWA epochs after
+        regular training, defaults to False
+
+    :param bool early_stopping: whether to use early stopping, defaults to True
+
+    :param int patience: how many epochs to wait before early stopping, defaults to 20
+
+    :param int devices: number of devices for training, defaults to 1
+
+    :param str accelerator: hardware accelerator ('cpu', 'gpu', 'tpu', or 'hpu'),
+        defaults to 'gpu'
+
+    :param list[str] feature_list: descriptor/fingerprint sets to use as input,
+        defaults to ['ECFP_count', 'rdkit_all_descriptors']
+
+    :param bool clip: whether to clip predictions to the training label range,
+        defaults to True
+
+    :param dict label_encoder_params: parameters for the label encoder, defaults to {}
+
+    :param str | list[str] | dict | None label_transform_map: label transform
+        configuration, defaults to None
+
+    :param str scaler_type: type of feature scaler to use, defaults to 'standard'
+
+    :param bool augment_resonance: whether to augment with resonance structures,
+        defaults to False
+
+    :param int seed: random seed for reproducibility, defaults to 0
+    """
+
+    def __init__(
+        self,
+        hidden_dims: list[int] = [256, 256],
+        num_parallel: int = 8,
+        dropout: float = 0.05,
+        num_endpoints: int = 1,
+        deep_lasso_weight: float = 0.1,
+        loss_fn: str = "mse",
+        loss_args: dict = {},
+        optimizer: str = "adamw",
+        optimizer_args: dict = {"lr": 5e-3, "weight_decay": 1e-2, "betas": (0.9, 0.95)},
+        scheduler: str = "cosine_annealing_cyclic",
+        scheduler_args: dict = {"min_lr": 1e-5, "num_cycles": 5},
+        num_epochs: int = 100,
+        batch_size: int = 64,
+        stochastic_weight_averaging: bool = False,
+        early_stopping: bool = True,
+        patience: int = 20,
+        devices: int = 1,
+        accelerator: str = "gpu",
+        feature_list: list[str] = ["ECFP_count", "rdkit_all_descriptors"],
+        clip: bool = True,
+        label_encoder_params: dict = {},
+        label_transform_map: str | list[str] | dict | None = None,
+        scaler_type: str = "standard",
+        augment_resonance: bool = False,
+        seed: int = 0,
+    ):
+        self._architecture = SNNModel
+        params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
+        super(SNNRegressor, self).__init__(params)

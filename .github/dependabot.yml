@@ -1,0 +1,14 @@
+version: 2
+updates:
+  - package-ecosystem: "uv"
+    directory: "/"
+    commit-message: { prefix: build, include: scope }
+    groups:
+      production:  { applies-to: version-updates, dependency-type: production,  patterns: ["*"] }
+      development: { applies-to: version-updates, dependency-type: development, patterns: ["*"] }
+    schedule: { interval: monthly }
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    commit-message: { prefix: ci, include: scope }
+    schedule: { interval: monthly }

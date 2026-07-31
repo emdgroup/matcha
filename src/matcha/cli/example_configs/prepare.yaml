@@ -1,0 +1,26 @@
+# ── Example config: Prepare sparse multi-task dataset for pretraining ──
+#
+# Merge parquet files into a sparse matrix format consumed by the
+# ``pretrain_multitask`` command.
+#
+# Usage:
+#   matcha prepare_sparse_dataset --config prepare.yaml
+
+datasets:
+  files:
+    - /path/to/data/dataset_a.parquet
+    - /path/to/data/dataset_b.parquet
+  task_type:
+    - regression
+    - regression
+
+metadata:
+  merge_col: SMILES
+  tag_to_add: PRETRAIN
+
+validation:
+  min_compounds: 10
+  sampling_rate: 0.001
+  seed: 42
+
+output: /path/to/pretraining/data

@@ -1,0 +1,183 @@
+[project]
+name = "emd-matcha"
+description = "Neural networks for molecular property prediction"
+version = "0.0.9"
+readme = "README.md"
+authors = [{ name = "Davide Boldini", email = "davide.boldini@merckgroup.com" }]
+requires-python = '>=3.12,<3.14'
+dependencies = [
+    'numpy>=2.3.5,<3.0.0',
+    'pandas>=2.3.3,<3.0.0',
+    'pydantic>=2.12.5,<3.0.0',
+    'rdkit>=2025.3.6',
+    'scikit-fingerprints>=1.18.0,<2.0.0',
+    'scikit-learn>=1.8.0,<2.0.0',
+    'scipy>=1.17.0,<2.0.0',
+    'umap-learn>=0.5.11,<0.6.0',
+    'mlflow-skinny>=3.9.0,<4.0.0',
+    'plotly>=6.5.2,<7.0.0',
+]
+
+[project.optional-dependencies]
+cli = [
+    # necessary for full mlflow functionality support
+    'mlflow>=3.9.0,<4.0.0',
+    # necessary for foundation model training support
+    'fastparquet>=2025.12.0'
+]
+
+cpu = [
+    'torch>=2.9.1,<3.0.0',
+    'torch-geometric>=2.6.1,<3.0.0',
+    'lightning>=2.5.0,!=2.6.*',
+    'optuna>=4.2.0,<5.0.0',
+    'optuna-integration>=4.2.1,<5.0.0',
+    'einops>=0.8.0,<0.9.0',
+    'transformers>=4.56.2,<5.0.0',
+    'chemprop>=2.2.0,<3.0.0',
+]
+gpu = [
+    'torch>=2.9.1,<3.0.0',
+    'torch-geometric>=2.6.1,<3.0.0',
+    'lightning>=2.5.0,!=2.6.*',
+    'optuna>=4.2.0,<5.0.0',
+    'optuna-integration>=4.2.1,<5.0.0',
+    'einops>=0.8.0,<0.9.0',
+    'transformers>=4.56.2,<5.0.0',
+    'chemprop>=2.2.0,<3.0.0',
+]
+
+[dependency-groups]
+test = ['pytest>=9.1.1,<10.0.0', 'coverage>=7.15.2,<8.0.0']
+docs = [
+    'sphinx>=8.1.0,<9.0.0',
+    'sphinx-rtd-theme>=3.0.2,<4.0.0',
+    'myst-parser>=4.0.0,<5.0.0',
+    'sphinx-autoapi>=3.6.0,<4.0.0',
+    'nbsphinx>=0.9.5,<0.10.0',
+    'jupyter-sphinx>=0.5.3,<0.6.0',
+]
+dev = [{ include-group = "test" }, { include-group = "docs" }]
+
+[project.scripts]
+matcha = "matcha.cli:main"
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+required-version = ">=0.9.0"
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu129", extra = "gpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
+explicit = true
+
+[tool.coverage.run]
+source = ["src/matcha"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
+
+[tool.pytest.ini_options]
+addopts = "--strict-markers"
+filterwarnings = [
+    # config non-expected warnings to fail
+    "error",
+
+    # package warnings
+    "ignore:invalid escape sequence:SyntaxWarning",
+    "ignore:Total length of.*DataLoader.*across ranks is zero:UserWarning",
+    "ignore:Argument ``multivariate`` is an experimental feature:optuna.exceptions.ExperimentalWarning",
+    "ignore:The filesystem tracking backend.*is deprecated:FutureWarning",
+    "ignore:Found.*module.*in eval mode at the start of training:lightning.pytorch.utilities.warnings.PossibleUserWarning",
+    "ignore:dropout option adds dropout after all but last recurrent layer:UserWarning",
+    "ignore:n_quantiles.*is greater than the total number of samples.*n_quantiles is set to n_samples:UserWarning",
+    "ignore:`torch_geometric.distributed` has been deprecated:DeprecationWarning",
+    "ignore:Tensorflow not installed; ParametricUMAP will be unavailable:ImportWarning",
+    "ignore:`torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.:DeprecationWarning",
+    "ignore:.*isinstance\\(treespec, LeafSpec\\).*is deprecated.*:FutureWarning",
+
+    # lightning optimizer.step() warnings, see here: https://github.com/Lightning-AI/pytorch-lightning/pull/21426
+    "ignore:Seems like `optimizer.step\\(\\)` has been overridden after learning rate scheduler initialization:UserWarning",
+    ]
+
+[tool.pyright]
+include = ["src"]
+exclude = ["tests", "**/__pycache__"]
+typeCheckingMode = "basic"
+venvPath = "."
+venv = ".venv"
+reportMissingImports = false
+reportMissingTypeStubs = false
+reportOptionalMemberAccess = false
+reportOptionalSubscript = false
+reportOptionalCall = false
+reportOptionalIterable = false
+reportOptionalOperand = false
+reportIndexIssue = false
+reportCallIssue = false
+reportAttributeAccessIssue = false
+reportArgumentType = false
+reportReturnType = false
+reportAssignmentType = false
+reportPrivateImportUsage = false
+reportGeneralTypeIssues = false
+reportAbstractUsage = false
+reportRedeclaration = false
+pythonVersion = "3.12"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # line-too-long (handled by ruff format)
+    "W291",  # trailing-whitespace (handled by ruff format)
+    "W292",  # no-newline-at-end-of-file (handled by ruff format)
+    "W293",  # whitespace-before-punctuation (handled by ruff format)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"docs/source/conf.py" = ["E402"]
+"*.ipynb" = ["E402"]
+
+[tool.commitizen]
+name                                 = "cz_conventional_commits"
+breaking_change_exclamation_in_title = true
+version_provider                     = "uv"
+version_scheme                       = "pep440"
+tag_format                           = "v$version"
+annotated_tag                        = true
+update_changelog_on_bump             = false
+bump_message                         = "build(bump): version $current_version → $new_version"
+major_version_zero                   = false
+changelog_file                       = "CHANGELOG.md"
+changelog_incremental                = false
+changelog_merge_prerelease           = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/matcha"]

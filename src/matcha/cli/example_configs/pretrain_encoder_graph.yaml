@@ -1,0 +1,93 @@
+# ── Example config: Graph encoder pretraining (GINPretraining) ────────
+#
+# Pretrain a GIN encoder with supervised node-level + graph-level
+# multi-task objectives.  Node targets might be partial charges, SASA,
+# electronegativity, etc.  Graph targets might be logP, MW, TPSA, etc.
+#
+# Usage:
+#   python -m matcha.cli.pretrain_encoder --config pretrain_encoder_graph.yaml
+
+dataset:
+  task_type: graph
+  train_smiles: /path/to/pretraining/data/train_smiles.parquet
+  val_smiles: /path/to/pretraining/data/val_smiles.parquet
+  train_y_graph: /path/to/pretraining/data/train_graph_y.npz
+  val_y_graph: /path/to/pretraining/data/val_graph_y.npz
+  train_y_node: /path/to/pretraining/data/train_node_y.npz
+  val_y_node: /path/to/pretraining/data/val_node_y.npz
+
+model:
+  architecture: GatedGCNPretraining
+
+  # Neural-network constructor args only (passed directly to the model).
+  # Positional-encoding keys (laplacian_k, rwse_k, …) are automatically
+  # broadcast from the datamodule section as enc_<key>.
+  params:
+    num_node_targets: 3
+    num_graph_targets: 9
+    enc_num_layers: 3
+    enc_atom_hidden_dim: 300
+    enc_jk: last
+    enc_activation: swish
+    enc_dropout: 0.2
+    node_head_dims: [256]
+    node_task_head_dims: [128]  # per-task MLP on top of shared node layers
+    graph_head_dims: [256, 256]
+    # graph_task_head_dims: null  # optional: per-task branches for graph head
+    pred_activation: swish
+    pred_dropout: 0.2
+    loss_fn: mse
+    loss_args: {}
+    node_loss_weight: 0.5
+    graph_loss_weight: 0.5
+    optimizer: adamw
+    optimizer_args:
+      lr: 1.0e-4
+    scheduler: warmup_linear_decay
+
+  # Datamodule-specific settings (featurisation, batching, augmentation).
+  # Keys like laplacian_k, rwse_k, etc. are also forwarded to the model
+  # constructor as enc_laplacian_k, enc_rwse_k, … so graph encoders can
+  # size their positional-encoding layers.
+  datamodule:
+    laplacian_k: 10
+    rwse_k: 0
+    elstatic_k: 0
+    distmat_k: 0
+    rrwp_k: 0
+    compute_distances: true
+    num_virtual_nodes: 0
+    init_virtual_nodes: false
+    batch_size: 256
+    num_workers: 0
+    augment_resonance: true
+    scale_y_graph: false
+
+  # Training-loop settings (epochs, early stopping, hardware, seed).
+  training:
+    num_epochs: 50
+    early_stopping: true
+    patience: 10
+    accelerator: gpu
+    devices: 1
+    seed: 42
+
+pipe:
+  visible_devices: "0"
+  strategy:
+    timeout_seconds: 3600
+    find_unused_parameters: false
+  dataloader_num_workers: 8
+  fit_datamodule_size: 10000
+  gradient_accumulation_steps: 1
+  gradient_clip_val: 1.0
+
+output:
+  serialization: /path/to/models/my_encoder
+  mlflow:
+    experiment_name: qm-mini
+    tags:
+      project: matcha-pretraining
+      task: graph
+    log_dir: /path/to/mlflow
+    run_name: gin

@@ -1,0 +1,40 @@
+name: Pre-commit checks
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: Python version to use
+        required: false
+        default: "3.12"
+        type: string
+      skip:
+        description: Comma-separated list of pre-commit hook IDs to skip
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pre-commit-${{ github.sha }}
+      cancel-in-progress: true
+    permissions:
+      contents: read
+    env:
+      SKIP: ${{ inputs.skip }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@v4
+
+      - uses: astral-sh/setup-uv@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - uses: pre-commit/action@v3.0.1

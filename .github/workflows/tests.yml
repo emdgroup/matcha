@@ -1,0 +1,40 @@
+name: Unit tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install matcha with CPU support
+        run: uv sync --group test --extra cpu
+
+      - name: Run tests with coverage
+        run: |
+          uv run coverage run -m pytest -k 'not gpu'
+          uv run coverage xml -o coverage.xml
+          uv run coverage report
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false

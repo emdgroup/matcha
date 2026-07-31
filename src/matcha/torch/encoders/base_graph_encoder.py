@@ -1,0 +1,266 @@
+"""Base class for graph-based molecular encoders with positional encoding support."""
+
+import torch
+from torch import nn
+from torch_geometric.data import Batch
+
+from matcha.torch.encoders.base_encoder import BaseEncoder
+from matcha.nn.layers import LnBnDr
+from matcha.nn.readouts import ReadoutRegistry
+
+
+class BaseGraphEncoder(BaseEncoder):
+    """Base class for all graph encoders. It is not meant to be instantiated directly,
+    but rather to be used as a parent class for each featurizer.
+    Subclasses from :class:`BaseEncoder` to ensure that a :method:`forward` method
+    is present in children classes.
+    The class is just used to automate some tedious processes related to PyTorch Geometric
+    (see :method:`process_graph_batch`), handle different readout functions and jumping
+    knowledge settings.
+    """
+
+    def __init__(
+        self,
+        laplacian_k: int,
+        rwse_k: int,
+        elstatic_k: int,
+        distmat_k: int,
+        rrwp_k: int,
+    ):
+        """Initialize graph encoder with positional encoding MLPs.
+
+        :param int laplacian_k: Dimension of Laplacian eigenvector positional encoding (0 to disable).
+        :param int rwse_k: Dimension of random walk structural encoding (0 to disable).
+        :param int elstatic_k: Dimension of electrostatic positional encoding (0 to disable).
+        :param int distmat_k: Dimension of distance matrix positional encoding (0 to disable).
+        :param int rrwp_k: Dimension of relative random walk probabilities edge encoding (0 to disable).
+        """
+        super().__init__()
+
+        if laplacian_k != 0:
+            self.laplacian_mlp = nn.Sequential(
+                nn.BatchNorm1d(laplacian_k),
+                LnBnDr(
+                    laplacian_k,
+                    laplacian_k * 2,
+                    dropout=0.0,
+                    activation="relu",
+                    norm=None,
+                ),
+                LnBnDr(
+                    laplacian_k * 2,
+                    laplacian_k,
+                    dropout=0.0,
+                    activation=None,
+                    norm=None,
+                ),
+                nn.Dropout(0.1),
+            )
+        else:
+            self.laplacian_mlp = None
+
+        if rwse_k != 0:
+            self.rwse_mlp = nn.Sequential(
+                nn.BatchNorm1d(rwse_k),
+                LnBnDr(rwse_k, rwse_k * 2, dropout=0.0, activation="relu", norm=None),
+                LnBnDr(rwse_k * 2, rwse_k, dropout=0.0, activation=None, norm=None),
+                nn.Dropout(0.1),
+            )
+        else:
+            self.rwse_mlp = None
+
+        if elstatic_k != 0:
+            self.elstatic_mlp = nn.Sequential(
+                nn.BatchNorm1d(elstatic_k),
+                LnBnDr(
+                    elstatic_k,
+                    elstatic_k * 2,
+                    dropout=0.0,
+                    activation="relu",
+                    norm=None,
+                ),
+                LnBnDr(
+                    elstatic_k * 2,
+                    elstatic_k,
+                    dropout=0.0,
+                    activation=None,
+                    norm=None,
+                ),
+                nn.Dropout(0.1),
+            )
+        else:
+            self.elstatic_mlp = None
+
+        if distmat_k != 0:
+            self.distmat_mlp = nn.Sequential(
+                nn.BatchNorm1d(distmat_k),
+                LnBnDr(
+                    distmat_k, distmat_k * 2, dropout=0.0, activation="relu", norm=None
+                ),
+                LnBnDr(
+                    distmat_k * 2, distmat_k, dropout=0.0, activation=None, norm=None
+                ),
+                nn.Dropout(0.1),
+            )
+        else:
+            self.distmat_mlp = None
+
+        if rrwp_k != 0:
+            self.rrwp_mlp = nn.Sequential(
+                nn.BatchNorm1d(rrwp_k),
+                LnBnDr(rrwp_k, rrwp_k * 2, dropout=0.0, activation="relu", norm=None),
+                LnBnDr(rrwp_k * 2, rrwp_k, dropout=0.0, activation=None, norm=None),
+                nn.Dropout(0.1),
+            )
+        else:
+            self.rrwp_mlp = None
+
+    @property
+    def jk(self) -> str:
+        """Jumping knowledge strategy ('last', 'concat', 'max', or 'sum').
+
+        :returns: The configured jumping knowledge mode.
+        :rtype: str
+        """
+        return self._jk
+
+    def _process_graph_batch(
+        self, batch: Batch
+    ) -> tuple[Batch, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Extract and preprocess tensors from a PyG batched graph.
+
+        Clones node and edge features, applies positional encoding MLPs
+        (Laplacian, RWSE, electrostatic, distance matrix, RRWP), and
+        concatenates the resulting encodings to the feature tensors.
+
+        :param Batch batch: A PyTorch Geometric batched graph from the dataloader.
+        :returns: A tuple of (batch, node_feats, edge_feats, graph_id).
+        :rtype: tuple[Batch, torch.Tensor, torch.Tensor, torch.Tensor]
+        """
+        # Extract node and edge features (clone to avoid modifying original)
+        node_feats = batch.x.clone()
+        edge_feats = batch.edge_attr.clone() if batch.edge_attr is not None else None
+        graph_id = batch.batch  # Graph assignment for each node
+
+        if hasattr(batch, "spd") and batch.spd is not None:
+            batch.spd = batch.spd.to(node_feats.device)
+
+        node_pe = []
+        edge_pe = []
+
+        if self.laplacian_mlp is not None:
+            laplacian = batch.laplacian_k.clone()
+            laplacian = self.laplacian_mlp(laplacian)
+            node_pe.append(laplacian)
+
+        if self.rwse_mlp is not None:
+            rwse = batch.rwse_k.clone()
+            rwse = self.rwse_mlp(rwse)
+            node_pe.append(rwse)
+
+        if self.elstatic_mlp is not None:
+            elstatic = batch.elstatic_k.clone()
+            elstatic = self.elstatic_mlp(elstatic)
+            node_pe.append(elstatic)
+
+        if self.distmat_mlp is not None:
+            distmat = batch.distmat_k.clone()
+            distmat = self.distmat_mlp(distmat)
+            node_pe.append(distmat)
+
+        if len(node_pe) > 0:
+            node_pe = torch.concat(node_pe, axis=1)
+            node_feats = torch.concat([node_feats, node_pe], axis=1)
+
+        if self.rrwp_mlp is not None:
+            rrwp = batch.rrwp_k.clone()
+            rrwp = self.rrwp_mlp(rrwp)
+            edge_pe.append(rrwp)
+
+        if len(edge_pe) > 0:
+            edge_pe = torch.concat(edge_pe, axis=1)
+            edge_feats = torch.concat([edge_feats, edge_pe], axis=1)
+
+        return batch, node_feats, edge_feats, graph_id
+
+    def _parse_readout(self, readout: str, **kwargs):
+        """Utility function to handle readout function instantiation.
+
+        Readouts that require input dimensions will use self.fp_dim.
+        Some readouts (like set2set) modify the output dimension.
+
+        :param str readout: Name of the readout function.
+        :param kwargs: Additional keyword arguments passed to the readout.
+        """
+        # Readouts that double output dimension
+        if readout == "set2set":
+            self.readout = ReadoutRegistry[readout](
+                in_channels=self.fp_dim,
+                processing_steps=kwargs.get("processing_steps", 3),
+                num_layers=kwargs.get("num_layers", 1),
+            )
+            self._fp_dim = self.fp_dim * 2
+        # Readouts that require input dimension
+        elif readout == "attentive":
+            self.readout = ReadoutRegistry[readout](gate_nn_channels=self.fp_dim)
+        elif readout in ("lstm", "gru"):
+            out_channels = kwargs.get("out_channels", self.fp_dim)
+            self.readout = ReadoutRegistry[readout](
+                in_channels=self.fp_dim,
+                out_channels=out_channels,
+            )
+            self._fp_dim = out_channels
+        elif readout == "sort":
+            k = kwargs.get("k", 10)
+            self.readout = ReadoutRegistry[readout](k=k)
+            self._fp_dim = self.fp_dim * k
+        elif readout == "softmax":
+            self.readout = ReadoutRegistry[readout](
+                learn=kwargs.get("learn", True),
+                t=kwargs.get("t", 1.0),
+            )
+        elif readout == "powermean":
+            self.readout = ReadoutRegistry[readout](
+                learn=kwargs.get("learn", True),
+                p=kwargs.get("p", 1.0),
+            )
+        elif readout == "quantile":
+            self.readout = ReadoutRegistry[readout](q=kwargs.get("q", 0.5))
+        elif readout == "multi":
+            aggrs = ["mean", "max", "sum", "var"]
+            self.readout = ReadoutRegistry[readout](aggrs=aggrs, mode="attn")
+        # Simple readouts that don't require parameters
+        else:
+            self.readout = ReadoutRegistry[readout]()
+
+    def _parse_jk(self, jk: str):
+        """Configure jumping knowledge strategy and update :attr:`fp_dim` accordingly.
+
+        :param str jk: Strategy name — 'concat' multiplies ``fp_dim`` by ``num_layers``;
+            'last', 'max', and 'sum' keep ``fp_dim`` equal to ``atom_hidden_dim``.
+        """
+        self._jk = jk
+        if self.jk == "concat":
+            self._fp_dim = self.hparams["atom_hidden_dim"] * self.hparams["num_layers"]
+        else:
+            self._fp_dim = self.hparams["atom_hidden_dim"]
+
+    def _run_jk(self, atom_features: torch.Tensor) -> torch.Tensor:
+        """Combine per-layer atom representations using the configured jumping knowledge strategy.
+
+        :param list[torch.Tensor] atom_features: List of node feature tensors, one per
+            message-passing layer, each of shape ``[num_nodes, atom_hidden_dim]``.
+        :returns: Combined node features with shape determined by the JK strategy.
+        :rtype: torch.Tensor
+        """
+        if self.jk == "concat":
+            final_atom_features = torch.cat(atom_features, dim=1)
+        elif self.jk == "last":
+            final_atom_features = atom_features[-1]
+        elif self.jk == "max":
+            atom_features = [h.unsqueeze(0) for h in atom_features]
+            final_atom_features = torch.max(torch.cat(atom_features, dim=0), dim=0)[0]
+        elif self.jk == "sum":
+            atom_features = [h.unsqueeze(0) for h in atom_features]
+            final_atom_features = torch.sum(torch.cat(atom_features, dim=0), dim=0)
+        return final_atom_features

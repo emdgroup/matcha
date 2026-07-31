@@ -1,0 +1,88 @@
+# ── Example config: Multitask pretraining ─────────────────────────────
+#
+# Pretrain a GatedGCN model on a multi-task dataset produced by the
+# ``prepare_sparse_dataset`` command.  The config structure mirrors pretrain_encoder
+# configs: model params, datamodule overrides and training settings
+# each live in their own section.
+#
+# Usage:
+#   python -m matcha.cli.pretrain_multitask --config pretrain.yaml
+
+dataset:
+  # Base directory produced by the ``prepare_sparse_dataset`` command.
+  dataset_dir: /path/to/pretraining/data
+  # Optional per-file overrides (uncomment to point at non-default locations):
+  # train_smiles: /path/to/train_molecules.parquet
+  # val_smiles: /path/to/val_molecules.parquet
+  # train_tasks: /path/to/train_tasks.npz
+  # val_tasks: /path/to/val_tasks.npz
+  # task_metadata: /path/to/task_metadata.json
+
+model:
+  architecture: "GatedGCNRegressor"
+
+  # Neural-network constructor args only (passed to the model).
+  params:
+    enc_num_layers: 3
+    enc_atom_hidden_dim: 256
+    enc_dropout: 0.05
+    pred_dropout: 0.19
+    pred_hidden_dims: [256, 256]
+    pred_activation: relu
+    enc_activation: relu
+
+  # Datamodule-specific overrides (batching, featurisation, etc.).
+  datamodule:
+    batch_size: 256
+
+  # Training-loop settings (epochs, early stopping, hardware, seed).
+  training:
+    num_epochs: 20
+    early_stopping: true
+    patience: 10
+    accelerator: gpu
+    devices: 1
+    seed: 42
+
+loss:
+  - dataset: regression
+    loss_fn: mse
+    loss_args: {}
+    init_w: 1.0
+    final_w: 1.0
+    T: 1.0
+    warmup: 0.0
+  - dataset: classification
+    loss_fn: focal
+    loss_args:
+      gamma: 2.0
+    init_w: 1.0
+    final_w: 1.0
+    T: 1.0
+    warmup: 0.0
+  - dataset: regression_auxiliary
+    loss_fn: mse
+    loss_args: {}
+    init_w: 0.3
+    final_w: 0.3
+    T: 1.0
+    warmup: 0.0
+
+pipe:
+  visible_devices: "0"
+  strategy:
+    timeout_seconds: 300
+    find_unused_parameters: true
+  dataloader_num_workers: 8
+  fit_datamodule_size: 10000
+  gradient_accumulation_steps: 1
+  gradient_clip_val: 1.0
+
+output:
+  serialization: /path/to/models
+  mlflow:
+    experiment_name: pretraining
+    tags:
+      version: "1.0"
+    log_dir: /path/to/mlflow
+    run_name: small-gatedgcn

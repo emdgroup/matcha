@@ -1,0 +1,77 @@
+default_stages: [pre-commit, pre-push]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: check-yaml
+      - id: no-commit-to-branch
+        args: [--branch, main]
+        stages: [pre-commit]
+      - id: debug-statements
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.11.12
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.400
+    hooks:
+      - id: pyright
+        additional_dependencies: []
+
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v4.8.3
+    hooks:
+      - id: commitizen
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.11.15
+    hooks:
+      - id: uv-lock
+
+  # Tools below are managed by mise (installed via .mise.toml).
+  # In CI, jdx/mise-action ensures they are on PATH.
+  - repo: local
+    hooks:
+      - id: shellcheck
+        name: shellcheck
+        language: system
+        entry: shellcheck
+        types: [shell]
+
+      - id: shfmt
+        name: shfmt
+        language: system
+        entry: shfmt -l -w
+        types: [shell]
+
+      - id: markdownlint
+        name: markdownlint
+        language: system
+        entry: markdownlint --disable MD013 --
+        types: [markdown]
+        exclude: '(CHANGELOG\.md$|^skills/|^plugin/)'
+
+      - id: actionlint
+        name: actionlint
+        language: system
+        entry: actionlint
+        files: '^\.github/workflows/'
+        types: [yaml]
+
+      - id: zizmor
+        name: zizmor
+        language: system
+        entry: zizmor --offline --min-severity high
+        files: '^\.github/workflows/'
+        types: [yaml]
