@@ -8,7 +8,6 @@
 ![Python](https://img.shields.io/badge/python-3.12-blue)
 [![Release](https://github.com/emdgroup/matcha/actions/workflows/release.yml/badge.svg)](https://github.com/emdgroup/matcha/actions/workflows/release.yml)
 [![Unit tests](https://github.com/emdgroup/matcha/actions/workflows/tests.yml/badge.svg)](https://github.com/emdgroup/matcha/actions/workflows/tests.yml)
-[![codecov](https://codecov.io/gh/emdgroup/matcha/branch/main/graph/badge.svg)](https://codecov.io/gh/emdgroup/matcha)
 [![Docs](https://github.com/emdgroup/matcha/actions/workflows/docs.yml/badge.svg)](https://emdgroup.github.io/matcha/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](./LICENSE)
 [![ChemRxiv](https://img.shields.io/badge/ChemRxiv-preprint-b31b1b)](https://chemrxiv.org/doi/abs/10.26434/chemrxiv.15006766/v1)
