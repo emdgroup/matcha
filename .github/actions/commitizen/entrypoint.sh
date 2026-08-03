@@ -106,18 +106,30 @@ if [[ "${bumped}" == "true" ]]; then
 		--body "Automated release ${revision_tag}.")"
 	echo "Created PR: ${pr_url}"
 
-	echo "Waiting for PR checks to pass"
-	# gh exits 1 both when checks fail and when no checks are configured.
-	# Capture the output to distinguish the two cases; treat "no checks" as
-	# passing — required checks are enforced by branch protection independently.
-	if ! gh pr checks "${pr_url}" --watch --fail-fast; then
+	echo "Waiting for PR checks to register"
+	# GitHub takes a few seconds after PR creation to schedule the check runs.
+	# `gh pr checks --watch` exits immediately if no checks exist yet, which
+	# races with that scheduling window. Poll first until checks appear (or a
+	# short budget elapses), then hand off to --watch for the actual wait.
+	checks_registered="false"
+	for _ in $(seq 1 12); do
 		pr_checks_out="$(gh pr checks "${pr_url}" 2>&1 || true)"
-		echo "${pr_checks_out}"
 		if ! echo "${pr_checks_out}" | grep -qi "no checks reported"; then
+			checks_registered="true"
+			break
+		fi
+		sleep 5
+	done
+
+	if [[ "${checks_registered}" == "false" ]]; then
+		echo "No checks configured on release branch after 60s, proceeding"
+	else
+		echo "Checks registered, watching until completion"
+		if ! gh pr checks "${pr_url}" --watch --fail-fast; then
+			gh pr checks "${pr_url}" 2>&1 || true
 			echo "PR checks failed"
 			exit 1
 		fi
-		echo "No checks configured on release branch, proceeding"
 	fi
 
 	echo "Pushing main"
