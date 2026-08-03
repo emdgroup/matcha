@@ -1,9 +1,8 @@
 name: Release
 
-# Disabled: manual dispatch only, and every job is gated behind
-# `vars.RELEASE_WORKFLOW_ENABLED == 'true'`. Enable by setting the
-# `RELEASE_WORKFLOW_ENABLED` repository variable to `true` once PyPI trusted
-# publishing is configured for this repository.
+# Manual dispatch only. Publishing to PyPI uses trusted publishing via the
+# `pypi` GitHub environment; the trusted publisher on PyPI must be configured
+# with environment name `pypi`.
 
 on:
   workflow_dispatch:
@@ -38,7 +37,6 @@ concurrency:
 jobs:
   bump:
     name: Bump, Tag, Push
-    if: vars.RELEASE_WORKFLOW_ENABLED == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -107,8 +105,11 @@ jobs:
   publish:
     name: Build and Publish to PyPI
     needs: bump
-    if: ${{ vars.RELEASE_WORKFLOW_ENABLED == 'true' && needs.bump.outputs.bumped == 'true' }}
+    if: ${{ needs.bump.outputs.bumped == 'true' }}
     runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/emd-matcha
     permissions:
       contents: read
       id-token: write
@@ -145,7 +146,7 @@ jobs:
   gh-release:
     name: Create GitHub Release
     needs: [bump, publish]
-    if: ${{ vars.RELEASE_WORKFLOW_ENABLED == 'true' && needs.bump.outputs.bumped == 'true' }}
+    if: ${{ needs.bump.outputs.bumped == 'true' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
