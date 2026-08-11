@@ -139,6 +139,9 @@
 <span class="sd">    :param int enc_elstatic_k: electrostatic encoding dimension, defaults to 0</span>
 <span class="sd">    :param int enc_distmat_k: distance matrix encoding dimension, defaults to 0</span>
 <span class="sd">    :param int enc_rrwp_k: relative random-walk probabilities dimension, defaults to 20</span>
+<span class="sd">    :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``, defaults to 0.0</span>
+<span class="sd">    :param bool enc_train_eps: whether to learn ``eps`` as a parameter (GIN-ε variant),</span>
+<span class="sd">        defaults to True</span>
 <span class="sd">    :param list[int] pred_hidden_dims: hidden layer sizes in the MLP predictor,</span>
 <span class="sd">        defaults to [512, 256]</span>
 <span class="sd">    :param list[int] | None pred_task_head_dims: per-task head dimensions, defaults to None</span>
@@ -172,6 +175,8 @@
         <span class="n">enc_elstatic_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">enc_distmat_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">enc_rrwp_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+        <span class="n">enc_eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">enc_train_eps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">512</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span>
         <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
@@ -213,6 +218,8 @@
             <span class="n">elstatic_k</span><span class="o">=</span><span class="n">enc_elstatic_k</span><span class="p">,</span>
             <span class="n">distmat_k</span><span class="o">=</span><span class="n">enc_distmat_k</span><span class="p">,</span>
             <span class="n">rrwp_k</span><span class="o">=</span><span class="n">enc_rrwp_k</span><span class="p">,</span>
+            <span class="n">eps</span><span class="o">=</span><span class="n">enc_eps</span><span class="p">,</span>
+            <span class="n">train_eps</span><span class="o">=</span><span class="n">enc_train_eps</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_predictor</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_train_config</span><span class="p">()</span></div>

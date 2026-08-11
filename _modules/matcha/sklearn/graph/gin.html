@@ -179,6 +179,10 @@
 <span class="sd">    :param int rrwp_k: number of relative random walk probability dimensions,</span>
 <span class="sd">        defaults to 0</span>
 <span class="sd">    :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0</span>
+<span class="sd">    :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``,</span>
+<span class="sd">        defaults to 0.0</span>
+<span class="sd">    :param bool enc_train_eps: whether to learn ``eps`` as a parameter</span>
+<span class="sd">        (paper-recommended GIN-ε variant), defaults to True</span>
 <span class="sd">    :param list[str] | None feature_list: list of strings defining which molecular</span>
 <span class="sd">        feature set to compute, defaults to None</span>
 <span class="sd">    :param dict label_encoder_params: additional parameters for the label encoder,</span>
@@ -200,6 +204,8 @@
         <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;vpa&quot;</span><span class="p">,</span>
         <span class="n">enc_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
         <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
+        <span class="n">enc_eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">enc_train_eps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span>
         <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
@@ -316,6 +322,10 @@
 <span class="sd">    :param int rrwp_k: number of relative random walk probability dimensions,</span>
 <span class="sd">        defaults to 0</span>
 <span class="sd">    :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0</span>
+<span class="sd">    :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``,</span>
+<span class="sd">        defaults to 0.0</span>
+<span class="sd">    :param bool enc_train_eps: whether to learn ``eps`` as a parameter</span>
+<span class="sd">        (paper-recommended GIN-ε variant), defaults to True</span>
 <span class="sd">    :param list[str] | None feature_list: list of strings defining which molecular</span>
 <span class="sd">        feature set to compute, defaults to None</span>
 <span class="sd">    :param bool clip: whether to clip predictions to training label range,</span>
@@ -340,6 +350,8 @@
         <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;vpa&quot;</span><span class="p">,</span>
         <span class="n">enc_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.2</span><span class="p">,</span>
         <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
+        <span class="n">enc_eps</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">enc_train_eps</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">256</span><span class="p">],</span>
         <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>

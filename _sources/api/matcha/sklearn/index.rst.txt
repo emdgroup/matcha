@@ -1483,7 +1483,7 @@ Package Contents
    :param int seed: random seed, defaults to 0
 
 
-.. py:class:: GINClassifier(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_aggregation: str = 'VariancePreservingAggregation', enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
+.. py:class:: GINClassifier(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_aggregation: str = 'VariancePreservingAggregation', enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', enc_eps: float = 0.0, enc_train_eps: bool = True, pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'bce', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, augment_resonance: bool = False, seed: int = 0)
 
    Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnClassifierMixin`
 
@@ -1565,6 +1565,10 @@ Package Contents
    :param int rrwp_k: number of relative random walk probability dimensions,
        defaults to 0
    :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0
+   :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``,
+       defaults to 0.0
+   :param bool enc_train_eps: whether to learn ``eps`` as a parameter
+       (paper-recommended GIN-ε variant), defaults to True
    :param list[str] | None feature_list: list of strings defining which molecular
        feature set to compute, defaults to None
    :param dict label_encoder_params: additional parameters for the label encoder,
@@ -1576,7 +1580,7 @@ Package Contents
    :param int seed: random seed for reproducibility, defaults to 0
 
 
-.. py:class:: GINRegressor(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_aggregation: str = 'VariancePreservingAggregation', enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
+.. py:class:: GINRegressor(enc_num_layers: int = 3, enc_atom_hidden_dim: int = 256, enc_aggregation: str = 'VariancePreservingAggregation', enc_jk: str = 'last', enc_norm: str | None = 'batch', enc_readout: str = 'vpa', enc_dropout: float = 0.2, enc_activation: str = 'swish', enc_eps: float = 0.0, enc_train_eps: bool = True, pred_hidden_dims: list[int] = [256, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001, 'weight_decay': 0.0001}, scheduler: str = 'warmup_linear_decay', scheduler_args: dict = {'min_lr': 1e-05}, num_epochs: int = 100, batch_size: int = 64, stochastic_weight_averaging: bool = False, early_stopping: bool = True, patience: int = 20, devices: int = 1, accelerator: str = 'gpu', rwse_k: int = 0, laplacian_k: int = 0, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 0, num_virtual_nodes: int = 0, feature_list: list[str] | None = None, clip: bool = True, label_encoder_params: dict = {}, label_transform_map: str | list[str] | dict | None = None, scaler_type: str = 'standard', augment_resonance: bool = False, seed: int = 0)
 
    Bases: :py:obj:`matcha.sklearn.graph.base_sklearn_gnn.BaseScikitLearnGNN`, :py:obj:`matcha.sklearn.base_sklearn_model.ScikitLearnRegressorMixin`
 
@@ -1657,6 +1661,10 @@ Package Contents
    :param int rrwp_k: number of relative random walk probability dimensions,
        defaults to 0
    :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0
+   :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``,
+       defaults to 0.0
+   :param bool enc_train_eps: whether to learn ``eps`` as a parameter
+       (paper-recommended GIN-ε variant), defaults to True
    :param list[str] | None feature_list: list of strings defining which molecular
        feature set to compute, defaults to None
    :param bool clip: whether to clip predictions to training label range,

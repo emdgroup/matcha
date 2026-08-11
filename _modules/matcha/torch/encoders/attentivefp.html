@@ -220,7 +220,6 @@
 <span class="sd">    References:</span>
 <span class="sd">    - https://www.ncbi.nlm.nih.gov/pubmed/31408336</span>
 <span class="sd">    - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.models.AttentiveFP.html</span>
-<span class="sd">    - https://arxiv.org/abs/1806.03536</span>
 
 <span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
 <span class="sd">    Check the docs of :class:`matcha.torch.models.classic.AttentiveFPModel` for further details.</span>
@@ -304,7 +303,7 @@
         <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="c1"># Initial atom embedding</span>
-        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">leaky_relu_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">),</span> <span class="mf">0.01</span><span class="p">)</span>
 
         <span class="c1"># Initial context with edge features</span>
         <span class="n">h</span> <span class="o">=</span> <span class="n">F</span><span class="o">.</span><span class="n">elu_</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">gate_conv</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">))</span>

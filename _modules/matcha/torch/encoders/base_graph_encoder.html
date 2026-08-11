@@ -240,23 +240,19 @@
         <span class="n">edge_pe</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">laplacian_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">laplacian</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">laplacian_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-            <span class="n">laplacian</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">laplacian_mlp</span><span class="p">(</span><span class="n">laplacian</span><span class="p">)</span>
+            <span class="n">laplacian</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">laplacian_mlp</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">laplacian_k</span><span class="p">)</span>
             <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">laplacian</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rwse_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">rwse</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">rwse_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-            <span class="n">rwse</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rwse_mlp</span><span class="p">(</span><span class="n">rwse</span><span class="p">)</span>
+            <span class="n">rwse</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rwse_mlp</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">rwse_k</span><span class="p">)</span>
             <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rwse</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">elstatic_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">elstatic</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">elstatic_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-            <span class="n">elstatic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elstatic_mlp</span><span class="p">(</span><span class="n">elstatic</span><span class="p">)</span>
+            <span class="n">elstatic</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">elstatic_mlp</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">elstatic_k</span><span class="p">)</span>
             <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">elstatic</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">distmat_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">distmat</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">distmat_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-            <span class="n">distmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distmat_mlp</span><span class="p">(</span><span class="n">distmat</span><span class="p">)</span>
+            <span class="n">distmat</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">distmat_mlp</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">distmat_k</span><span class="p">)</span>
             <span class="n">node_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">distmat</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">node_pe</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
@@ -264,8 +260,7 @@
             <span class="n">node_feats</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">node_feats</span><span class="p">,</span> <span class="n">node_pe</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rrwp_mlp</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">rrwp</span> <span class="o">=</span> <span class="n">batch</span><span class="o">.</span><span class="n">rrwp_k</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
-            <span class="n">rrwp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rrwp_mlp</span><span class="p">(</span><span class="n">rrwp</span><span class="p">)</span>
+            <span class="n">rrwp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rrwp_mlp</span><span class="p">(</span><span class="n">batch</span><span class="o">.</span><span class="n">rrwp_k</span><span class="p">)</span>
             <span class="n">edge_pe</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rrwp</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">edge_pe</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>

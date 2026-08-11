@@ -97,7 +97,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">EncoderRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span><span class="p">,</span> <span class="n">LayerRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span>
 
 
 <div class="viewcode-block" id="GIN">
@@ -114,7 +114,7 @@
 <span class="sd">    References:</span>
 <span class="sd">    - https://arxiv.org/abs/1810.00826</span>
 <span class="sd">    - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GINEConv.html</span>
-<span class="sd">    - https://arxiv.org/abs/1806.03536</span>
+<span class="sd">    - https://arxiv.org/abs/1905.12265</span>
 
 <span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
 <span class="sd">    Check the docs of :class:`matcha.torch.models.classic.GINModel` for further details.</span>
@@ -141,6 +141,11 @@
 <span class="sd">        representations after forward pass</span>
 
 <span class="sd">    :param str readout: readout function to aggregate all atom representations</span>
+
+<span class="sd">    :param float eps: initial value of the ``eps`` term in ``GINEConv``</span>
+
+<span class="sd">    :param bool train_eps: whether to learn ``eps`` as a parameter (paper-recommended</span>
+<span class="sd">        GIN-ε variant)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -160,12 +165,12 @@
         <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
         <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">train_eps</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">laplacian_k</span><span class="p">,</span> <span class="n">rwse_k</span><span class="p">,</span> <span class="n">elstatic_k</span><span class="p">,</span> <span class="n">distmat_k</span><span class="p">,</span> <span class="n">rrwp_k</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">norms</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">norm_type</span> <span class="o">=</span> <span class="n">norm</span>
         <span class="n">start_dim</span> <span class="o">=</span> <span class="n">atom_input_dim</span>
         <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
             <span class="n">mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
@@ -174,14 +179,14 @@
                     <span class="n">atom_hidden_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
                     <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
                     <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
-                    <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span>
                 <span class="p">),</span>
                 <span class="n">LnBnDr</span><span class="p">(</span>
                     <span class="n">atom_hidden_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span>
                     <span class="n">atom_hidden_dim</span><span class="p">,</span>
                     <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
                     <span class="n">activation</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-                    <span class="n">norm</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                    <span class="n">norm</span><span class="o">=</span><span class="n">norm</span><span class="p">,</span>
                 <span class="p">),</span>
             <span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
@@ -189,12 +194,10 @@
                     <span class="n">nn</span><span class="o">=</span><span class="n">mlp</span><span class="p">,</span>
                     <span class="n">edge_dim</span><span class="o">=</span><span class="n">bond_input_dim</span><span class="p">,</span>
                     <span class="n">aggr</span><span class="o">=</span><span class="n">aggregation</span><span class="p">,</span>
+                    <span class="n">eps</span><span class="o">=</span><span class="n">eps</span><span class="p">,</span>
+                    <span class="n">train_eps</span><span class="o">=</span><span class="n">train_eps</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="n">norm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">norm</span> <span class="o">!=</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">norms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">LayerRegistry</span><span class="p">[</span><span class="n">norm</span><span class="p">](</span><span class="n">atom_hidden_dim</span><span class="p">))</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">norms</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">())</span>
             <span class="n">start_dim</span> <span class="o">=</span> <span class="n">atom_hidden_dim</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_jk</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_readout</span><span class="p">(</span><span class="n">readout</span><span class="p">)</span>
@@ -212,12 +215,8 @@
         <span class="n">g</span><span class="p">,</span> <span class="n">feats</span><span class="p">,</span> <span class="n">efeats</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_graph_batch</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
         <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">norm</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">norms</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
             <span class="n">feats</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">efeats</span><span class="p">)</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_type</span> <span class="o">==</span> <span class="s2">&quot;graph&quot;</span><span class="p">:</span>
-                <span class="n">feats</span> <span class="o">=</span> <span class="n">norm</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">batch</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">feats</span> <span class="o">=</span> <span class="n">norm</span><span class="p">(</span><span class="n">feats</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">all_atom_feats</span> <span class="o">!=</span> <span class="p">[]:</span>
                 <span class="n">feats</span> <span class="o">=</span> <span class="n">feats</span> <span class="o">+</span> <span class="n">all_atom_feats</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">feats</span><span class="p">)</span>
