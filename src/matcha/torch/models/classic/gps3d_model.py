@@ -40,7 +40,7 @@ class GPS3DModel(BaseClassicModel, HyperparametersMixin):
     :param str enc_jk: jumping knowledge strategy, defaults to 'last'
     :param str | None enc_norm: normalisation type, defaults to 'layer'
     :param int enc_num_heads: number of attention heads, defaults to 8
-    :param int enc_num_kernels: number of Gaussian distance kernels, defaults to 3
+    :param int enc_num_kernels: number of Gaussian distance kernels, defaults to 128
     :param int enc_expansion_k: local MPNN expansion factor, defaults to 2
     :param str enc_readout: graph-level readout strategy, defaults to 'vpa'
     :param str enc_activation: activation function in the encoder, defaults to 'swish'
@@ -75,7 +75,7 @@ class GPS3DModel(BaseClassicModel, HyperparametersMixin):
         enc_jk: str = "last",
         enc_norm: str | None = "layer",
         enc_num_heads: int = 8,
-        enc_num_kernels: int = 3,
+        enc_num_kernels: int = 128,
         enc_expansion_k: int = 2,
         enc_readout: str = "vpa",
         enc_activation: str = "swish",
@@ -111,6 +111,7 @@ class GPS3DModel(BaseClassicModel, HyperparametersMixin):
         self.encoder = GPS3D(
             num_layers=enc_num_layers,
             atom_input_dim=atom_input_dim,
+            raw_atom_input_dim=enc_atom_input_dim,
             bond_input_dim=edge_input_dim,
             atom_hidden_dim=enc_atom_hidden_dim,
             activation=enc_activation,
