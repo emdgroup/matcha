@@ -58,7 +58,10 @@ class GatedGCNConv(MessagePassing):
         self.E = nn.Linear(in_channels, out_channels, bias=True)
 
         # Edge output projection
-        self.edge_out = nn.Linear(out_channels, out_edge_dim, bias=True)
+        self.edge_out = nn.Sequential(
+            nn.Linear(out_channels, out_edge_dim, bias=True),
+            nn.Dropout(dropout),
+        )
 
         # Activation and dropout
         self.activation = ActivationRegistry[activation]() if activation else None
@@ -244,7 +247,6 @@ class GatedGCN(BaseGraphEncoder, HyperparametersMixin):
         self._parse_readout(readout)
 
         self.layers = ModuleList()
-        self.norm_type = norm
 
         for i in range(num_layers):
             in_channels = atom_input_dim if i == 0 else atom_hidden_dim

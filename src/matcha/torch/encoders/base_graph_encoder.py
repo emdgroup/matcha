@@ -149,23 +149,19 @@ class BaseGraphEncoder(BaseEncoder):
         edge_pe = []
 
         if self.laplacian_mlp is not None:
-            laplacian = batch.laplacian_k.clone()
-            laplacian = self.laplacian_mlp(laplacian)
+            laplacian = self.laplacian_mlp(batch.laplacian_k)
             node_pe.append(laplacian)
 
         if self.rwse_mlp is not None:
-            rwse = batch.rwse_k.clone()
-            rwse = self.rwse_mlp(rwse)
+            rwse = self.rwse_mlp(batch.rwse_k)
             node_pe.append(rwse)
 
         if self.elstatic_mlp is not None:
-            elstatic = batch.elstatic_k.clone()
-            elstatic = self.elstatic_mlp(elstatic)
+            elstatic = self.elstatic_mlp(batch.elstatic_k)
             node_pe.append(elstatic)
 
         if self.distmat_mlp is not None:
-            distmat = batch.distmat_k.clone()
-            distmat = self.distmat_mlp(distmat)
+            distmat = self.distmat_mlp(batch.distmat_k)
             node_pe.append(distmat)
 
         if len(node_pe) > 0:
@@ -173,8 +169,7 @@ class BaseGraphEncoder(BaseEncoder):
             node_feats = torch.concat([node_feats, node_pe], axis=1)
 
         if self.rrwp_mlp is not None:
-            rrwp = batch.rrwp_k.clone()
-            rrwp = self.rrwp_mlp(rrwp)
+            rrwp = self.rrwp_mlp(batch.rrwp_k)
             edge_pe.append(rrwp)
 
         if len(edge_pe) > 0:
