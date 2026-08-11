@@ -31,7 +31,10 @@ Module Contents
 
    GPS++ style message passing layer that updates both node and edge features.
    Uses variance-preserving aggregation for better gradient flow.
-   No internal normalization - relies on pre-norm pattern in GPSBlock.
+   No internal normalization - relies on pre-norm pattern in GPSBlock. Returns
+   pure deltas (no internal residual) so that GPSBlock can provide a single,
+   symmetric skip connection over both the message-passing and attention
+   branches.
 
    Reference: https://arxiv.org/abs/2212.02229
 
@@ -61,7 +64,7 @@ Module Contents
       :param torch.Tensor x: Node features [num_nodes, in_dim]
       :param torch.Tensor edge_index: Edge indices [2, num_edges]
       :param torch.Tensor edge_attr: Edge features [num_edges, in_dim_edges]
-      :return tuple: Updated node and edge features
+      :return tuple: Node and edge deltas (no internal residual)
 
 
 
@@ -98,6 +101,9 @@ Module Contents
    .. py:attribute:: norm1_local
 
 
+   .. py:attribute:: norm1_edge
+
+
    .. py:attribute:: norm1_global
 
 
@@ -120,7 +126,7 @@ Module Contents
 
 
 
-.. py:class:: GPS(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, distance_k: float | None, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+.. py:class:: GPS(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, distance_k: int | None, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
 
    Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -148,7 +154,7 @@ Module Contents
    :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
    :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
    :param int expansion_k: expansion factor for the feed-forward network in GPSBlock
-   :param float | None distance_k: Upper bound for the shortest path distance to encode
+   :param int | None distance_k: Upper bound for the shortest path distance to encode
    :param str activation: activation function to be used in all layers
    :param float dropout: dropout noise level
    :param str | None norm: which norm to use inside LnBnDr layers

@@ -101,6 +101,9 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">EncoderRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span><span class="p">,</span> <span class="n">SpatialEncoder</span><span class="p">,</span> <span class="n">from_dense_batch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+
+<span class="n">_LOGGER</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="GTConv">
@@ -114,7 +117,6 @@
 <span class="sd">    Features (inspired by EGT - arXiv:2108.03348):</span>
 <span class="sd">    - Distance bias: applied to ALL node pairs (enables global attention based on graph distance)</span>
 <span class="sd">    - Edge bias: applied only to CONNECTED nodes (encodes bond features into attention)</span>
-<span class="sd">    - Logit clipping: clamps attention logits to [-5, 5] for numerical stability</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -129,10 +131,11 @@
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
-        <span class="c1"># Snap num_heads to the largest divisor of hidden_dim that is &lt;= num_heads,</span>
-        <span class="c1"># so HPO can freely sample both values without causing a shape mismatch.</span>
-        <span class="k">while</span> <span class="n">num_heads</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">num_heads</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;hidden_dim (</span><span class="si">{</span><span class="n">hidden_dim</span><span class="si">}</span><span class="s2">) must be divisible by &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;num_heads (</span><span class="si">{</span><span class="n">num_heads</span><span class="si">}</span><span class="s2">).&quot;</span>
+            <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">num_heads</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">hidden_dim</span> <span class="o">=</span> <span class="n">hidden_dim</span>
@@ -185,6 +188,9 @@
         <span class="n">edge_attr</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
         <span class="n">graph_id</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
         <span class="n">dist_bias</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">edge_graph_ids</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">local_src</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">local_dst</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass through the GT convolution layer.</span>
 
@@ -194,10 +200,18 @@
 <span class="sd">        :param torch.Tensor graph_id: Graph assignment for each node [N] (long tensor).</span>
 <span class="sd">        :param torch.Tensor | None dist_bias: Distance bias for all node pairs</span>
 <span class="sd">            [B, max_nodes, max_nodes, num_heads], or None.</span>
+<span class="sd">        :param torch.Tensor | None edge_graph_ids: Optional precomputed graph id</span>
+<span class="sd">            for each edge [E]. Computed from ``edge_index`` and ``graph_id`` when</span>
+<span class="sd">            not provided (pass precomputed values to avoid redoing the work per</span>
+<span class="sd">            layer).</span>
+<span class="sd">        :param torch.Tensor | None local_src: Optional precomputed local source</span>
+<span class="sd">            index for each edge [E]. Computed inline when not provided.</span>
+<span class="sd">        :param torch.Tensor | None local_dst: Optional precomputed local</span>
+<span class="sd">            destination index for each edge [E]. Computed inline when not</span>
+<span class="sd">            provided.</span>
 <span class="sd">        :returns: Updated node features [N, node_in_dim].</span>
 <span class="sd">        :rtype: torch.Tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Ensure graph_id is long type</span>
         <span class="k">if</span> <span class="n">graph_id</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">:</span>
             <span class="n">graph_id</span> <span class="o">=</span> <span class="n">graph_id</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
 
@@ -237,28 +251,22 @@
             <span class="c1"># dist_bias: [B, max_nodes, max_nodes, H] -&gt; [B, H, max_nodes, max_nodes]</span>
             <span class="n">attn_logits</span> <span class="o">=</span> <span class="n">attn_logits</span> <span class="o">+</span> <span class="n">dist_bias</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
 
-        <span class="c1"># Compute local indices for edges (needed for edge bias)</span>
+        <span class="c1"># Add edge bias at connected node positions only</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">edge_in_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">edge_attr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">src</span><span class="p">,</span> <span class="n">dst</span> <span class="o">=</span> <span class="n">edge_index</span>
-            <span class="n">edge_graph_ids</span> <span class="o">=</span> <span class="n">graph_id</span><span class="p">[</span><span class="n">src</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">edge_graph_ids</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">local_src</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">local_dst</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">src</span><span class="p">,</span> <span class="n">dst</span> <span class="o">=</span> <span class="n">edge_index</span>
+                <span class="n">edge_graph_ids</span> <span class="o">=</span> <span class="n">graph_id</span><span class="p">[</span><span class="n">src</span><span class="p">]</span>
+                <span class="n">num_nodes_per_graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">graph_id</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">B</span><span class="p">)</span>
+                <span class="n">node_offsets</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">graph_id</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
+                        <span class="n">torch</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">num_nodes_per_graph</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                    <span class="p">]</span>
+                <span class="p">)</span>
+                <span class="n">local_src</span> <span class="o">=</span> <span class="n">src</span> <span class="o">-</span> <span class="n">node_offsets</span><span class="p">[</span><span class="n">edge_graph_ids</span><span class="p">]</span>
+                <span class="n">local_dst</span> <span class="o">=</span> <span class="n">dst</span> <span class="o">-</span> <span class="n">node_offsets</span><span class="p">[</span><span class="n">edge_graph_ids</span><span class="p">]</span>
 
-            <span class="c1"># Compute local indices within each graph</span>
-            <span class="n">num_nodes_per_graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">graph_id</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">B</span><span class="p">)</span>
-            <span class="n">node_offsets</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-                <span class="p">[</span>
-                    <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">graph_id</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
-                    <span class="n">torch</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">num_nodes_per_graph</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
-                <span class="p">]</span>
-            <span class="p">)</span>
-            <span class="n">local_src</span> <span class="o">=</span> <span class="n">src</span> <span class="o">-</span> <span class="n">node_offsets</span><span class="p">[</span><span class="n">edge_graph_ids</span><span class="p">]</span>
-            <span class="n">local_dst</span> <span class="o">=</span> <span class="n">dst</span> <span class="o">-</span> <span class="n">node_offsets</span><span class="p">[</span><span class="n">edge_graph_ids</span><span class="p">]</span>
-
-            <span class="c1"># Extract unbiased attention logits for connected node pairs: [E, H]</span>
-            <span class="c1"># attn_logits_unbiased: [B, H, max_nodes, max_nodes]</span>
-
-            <span class="c1"># Add edge bias to attention logits at edge positions only</span>
             <span class="n">edge_bias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">WE_logits</span><span class="p">(</span><span class="n">edge_attr</span><span class="p">)</span>  <span class="c1"># [E, H]</span>
-            <span class="n">attn_logits</span> <span class="o">=</span> <span class="n">attn_logits</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
             <span class="n">attn_logits</span><span class="p">[</span>
                 <span class="n">edge_graph_ids</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">),</span>
                 <span class="n">torch</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
@@ -268,13 +276,21 @@
                 <span class="n">local_dst</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span><span class="p">),</span>
             <span class="p">]</span> <span class="o">+=</span> <span class="n">edge_bias</span>
 
-        <span class="c1"># Apply padding mask (set padded positions to -inf)</span>
-        <span class="n">attn_mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># [B, 1, 1, max_nodes]</span>
-        <span class="n">attn_logits</span> <span class="o">=</span> <span class="n">attn_logits</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="o">~</span><span class="n">attn_mask</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">))</span>
+        <span class="c1"># Safe-softmax: mask keys on padded positions AND zero out logits for</span>
+        <span class="c1"># fully-padded query rows to avoid NaN gradients through WV / WO.</span>
+        <span class="n">key_mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>  <span class="c1"># [B, 1, 1, max_nodes]</span>
+        <span class="n">query_mask</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># [B, 1, max_nodes, 1]</span>
+        <span class="n">attn_logits</span> <span class="o">=</span> <span class="n">attn_logits</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="o">~</span><span class="n">key_mask</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="s2">&quot;-inf&quot;</span><span class="p">))</span>
+        <span class="c1"># For rows where all keys are masked (fully-padded queries), replace</span>
+        <span class="c1"># the entire row with a finite constant so softmax returns a valid</span>
+        <span class="c1"># (uniform) distribution instead of NaN.</span>
+        <span class="n">attn_logits</span> <span class="o">=</span> <span class="n">attn_logits</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="o">~</span><span class="n">query_mask</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
 
         <span class="c1"># Softmax and dropout</span>
         <span class="n">attn_weights</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">softmax</span><span class="p">(</span><span class="n">attn_logits</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">attn_weights</span> <span class="o">=</span> <span class="n">attn_weights</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="o">~</span><span class="n">attn_mask</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="c1"># Zero out weights for fully-padded query rows (their outputs get</span>
+        <span class="c1"># discarded by from_dense_batch anyway).</span>
+        <span class="n">attn_weights</span> <span class="o">=</span> <span class="n">attn_weights</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="o">~</span><span class="n">query_mask</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
         <span class="n">attn_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_dropout</span><span class="p">(</span><span class="n">attn_weights</span><span class="p">)</span>
 
         <span class="c1"># Apply attention to values: [B, H, max_nodes, Dh]</span>
@@ -318,7 +334,7 @@
 <span class="sd">    for saving its hyperparameters.</span>
 
 <span class="sd">    References:</span>
-<span class="sd">    - Graph Transformer: https://arxiv.org/abs/2012.09699</span>
+<span class="sd">    - Edge-augmented Graph Transformer (EGT): https://arxiv.org/abs/2108.03348</span>
 <span class="sd">    - GPS: https://arxiv.org/abs/2205.12454</span>
 
 <span class="sd">    It is intended to be used inside a :class:`BaseClassicModel` instance.</span>
@@ -358,12 +374,19 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">laplacian_k</span><span class="p">,</span> <span class="n">rwse_k</span><span class="p">,</span> <span class="n">elstatic_k</span><span class="p">,</span> <span class="n">distmat_k</span><span class="p">,</span> <span class="n">rrwp_k</span><span class="p">)</span>
         <span class="c1"># Snap num_heads to the largest divisor of atom_hidden_dim that is &lt;= num_heads,</span>
         <span class="c1"># so HPO can freely sample both values without causing a shape mismatch.</span>
+        <span class="n">requested_num_heads</span> <span class="o">=</span> <span class="n">num_heads</span>
         <span class="k">while</span> <span class="n">num_heads</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">atom_hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">num_heads</span> <span class="o">-=</span> <span class="mi">1</span>
+        <span class="k">if</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="n">requested_num_heads</span><span class="p">:</span>
+            <span class="n">_LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;GT: num_heads=</span><span class="si">%d</span><span class="s2"> does not divide atom_hidden_dim=</span><span class="si">%d</span><span class="s2">; &quot;</span>
+                <span class="s2">&quot;snapping to num_heads=</span><span class="si">%d</span><span class="s2">.&quot;</span><span class="p">,</span>
+                <span class="n">requested_num_heads</span><span class="p">,</span>
+                <span class="n">atom_hidden_dim</span><span class="p">,</span>
+                <span class="n">num_heads</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">num_heads</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">expansion_k</span> <span class="o">=</span> <span class="n">expansion_k</span>
 
         <span class="c1"># Input projections (similar to GPS)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
@@ -405,7 +428,14 @@
 <span class="sd">        :param Batch graph: batched PyG graph with spd attribute [batch_size, max_nodes, max_nodes]</span>
 <span class="sd">        :return torch.Tensor | None: distance bias [batch_size, max_nodes, max_nodes, num_heads] or None</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="s2">&quot;spd&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">graph</span><span class="o">.</span><span class="n">spd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="s2">&quot;spd&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">graph</span><span class="o">.</span><span class="n">spd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_LOGGER</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                <span class="s2">&quot;GT: distance_k is set but graph.spd is missing; distance &quot;</span>
+                <span class="s2">&quot;bias will be skipped. Ensure the datamodule is configured &quot;</span>
+                <span class="s2">&quot;with compute_distances=True.&quot;</span>
+            <span class="p">)</span>
             <span class="k">return</span> <span class="kc">None</span>
 
         <span class="c1"># Encode distances: [batch_size, max_nodes, max_nodes] -&gt; [batch_size, max_nodes, max_nodes, num_heads]</span>
@@ -421,6 +451,9 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">g</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">graph_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_graph_batch</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
 
+        <span class="k">if</span> <span class="n">graph_id</span><span class="o">.</span><span class="n">dtype</span> <span class="o">!=</span> <span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">:</span>
+            <span class="n">graph_id</span> <span class="o">=</span> <span class="n">graph_id</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+
         <span class="c1"># Project input features to hidden dimension</span>
         <span class="n">atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
         <span class="n">bond_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bond_projection</span><span class="p">(</span><span class="n">bond_feats</span><span class="p">)</span>
@@ -428,12 +461,38 @@
         <span class="c1"># Get distance bias for ALL node pairs</span>
         <span class="n">dist_bias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distance_bias</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
 
+        <span class="c1"># Precompute per-edge local indices once — these are pure functions of</span>
+        <span class="c1"># graph_id and edge_index and do not change across layers.</span>
+        <span class="n">edge_graph_ids</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">local_src</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">local_dst</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">bond_feats</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">src</span><span class="p">,</span> <span class="n">dst</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span>
+            <span class="n">edge_graph_ids</span> <span class="o">=</span> <span class="n">graph_id</span><span class="p">[</span><span class="n">src</span><span class="p">]</span>
+            <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">graph_id</span><span class="o">.</span><span class="n">max</span><span class="p">()</span><span class="o">.</span><span class="n">item</span><span class="p">())</span> <span class="o">+</span> <span class="mi">1</span> <span class="k">if</span> <span class="n">graph_id</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">0</span>
+            <span class="n">num_nodes_per_graph</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">bincount</span><span class="p">(</span><span class="n">graph_id</span><span class="p">,</span> <span class="n">minlength</span><span class="o">=</span><span class="n">batch_size</span><span class="p">)</span>
+            <span class="n">node_offsets</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">graph_id</span><span class="o">.</span><span class="n">device</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">long</span><span class="p">),</span>
+                    <span class="n">torch</span><span class="o">.</span><span class="n">cumsum</span><span class="p">(</span><span class="n">num_nodes_per_graph</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">local_src</span> <span class="o">=</span> <span class="n">src</span> <span class="o">-</span> <span class="n">node_offsets</span><span class="p">[</span><span class="n">edge_graph_ids</span><span class="p">]</span>
+            <span class="n">local_dst</span> <span class="o">=</span> <span class="n">dst</span> <span class="o">-</span> <span class="n">node_offsets</span><span class="p">[</span><span class="n">edge_graph_ids</span><span class="p">]</span>
+
         <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
 
         <span class="c1"># Pass through GTConv stack with distance bias</span>
         <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
             <span class="n">atom_feats</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span>
-                <span class="n">atom_feats</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">graph_id</span><span class="p">,</span> <span class="n">dist_bias</span><span class="o">=</span><span class="n">dist_bias</span>
+                <span class="n">atom_feats</span><span class="p">,</span>
+                <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span>
+                <span class="n">bond_feats</span><span class="p">,</span>
+                <span class="n">graph_id</span><span class="p">,</span>
+                <span class="n">dist_bias</span><span class="o">=</span><span class="n">dist_bias</span><span class="p">,</span>
+                <span class="n">edge_graph_ids</span><span class="o">=</span><span class="n">edge_graph_ids</span><span class="p">,</span>
+                <span class="n">local_src</span><span class="o">=</span><span class="n">local_src</span><span class="p">,</span>
+                <span class="n">local_dst</span><span class="o">=</span><span class="n">local_dst</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
 

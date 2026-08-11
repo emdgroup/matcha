@@ -490,7 +490,7 @@ This is a replacement for dgl.nn.pytorch.SpatialEncoder.</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="matcha.nn.layers.SpatialEncoder3d">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.layers.</span></span><span class="sig-name descname"><span class="pre">SpatialEncoder3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_kernels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">atom_feat_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/layers.html#SpatialEncoder3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.layers.SpatialEncoder3d" title="Link to this definition"></a></dt>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.layers.</span></span><span class="sig-name descname"><span class="pre">SpatialEncoder3d</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_kernels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">atom_feat_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_dist</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/layers.html#SpatialEncoder3d"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.layers.SpatialEncoder3d" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
 <p>PyTorch Geometric compatible 3D Spatial Encoder.</p>
 <p>This module encodes pair-wise relation between node pair (i,j) in
@@ -508,7 +508,8 @@ and μ^k, σ^k are learnable centers and standard deviations of the kernels.</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>num_kernels</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of Gaussian Basis Kernels</p></li>
 <li><p><strong>num_heads</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of attention heads (default: 1)</p></li>
-<li><p><strong>atom_feat_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Dimensionality of projected atom features (default: 128)</p></li>
+<li><p><strong>atom_feat_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Dimensionality of projected atom features</p></li>
+<li><p><strong>max_dist</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Upper bound of the deterministic linspace init for kernel means (default: 10.0)</p></li>
 </ul>
 </dd>
 </dl>
@@ -523,13 +524,18 @@ and μ^k, σ^k are learnable centers and standard deviations of the kernels.</p>
 <dd></dd></dl>
 
 <dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.layers.SpatialEncoder3d.max_dist">
+<span class="sig-name descname"><span class="pre">max_dist</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">10.0</span></em><a class="headerlink" href="#matcha.nn.layers.SpatialEncoder3d.max_dist" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
 <dt class="sig sig-object py" id="matcha.nn.layers.SpatialEncoder3d.means">
 <span class="sig-name descname"><span class="pre">means</span></span><a class="headerlink" href="#matcha.nn.layers.SpatialEncoder3d.means" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
-<dt class="sig sig-object py" id="matcha.nn.layers.SpatialEncoder3d.stds">
-<span class="sig-name descname"><span class="pre">stds</span></span><a class="headerlink" href="#matcha.nn.layers.SpatialEncoder3d.stds" title="Link to this definition"></a></dt>
+<dt class="sig sig-object py" id="matcha.nn.layers.SpatialEncoder3d.raw_stds">
+<span class="sig-name descname"><span class="pre">raw_stds</span></span><a class="headerlink" href="#matcha.nn.layers.SpatialEncoder3d.raw_stds" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py attribute">
@@ -630,6 +636,11 @@ for graph transformers. This is a replacement for dgl.nn.pytorch.gt.BiasedMHA.</
 <dl class="py attribute">
 <dt class="sig sig-object py" id="matcha.nn.layers.BiasedMultiHeadAttention.attn_dropout">
 <span class="sig-name descname"><span class="pre">attn_dropout</span></span><a class="headerlink" href="#matcha.nn.layers.BiasedMultiHeadAttention.attn_dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.layers.BiasedMultiHeadAttention.out_dropout">
+<span class="sig-name descname"><span class="pre">out_dropout</span></span><a class="headerlink" href="#matcha.nn.layers.BiasedMultiHeadAttention.out_dropout" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 <dl class="py method">

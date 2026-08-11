@@ -34,7 +34,6 @@ Module Contents
    Features (inspired by EGT - arXiv:2108.03348):
    - Distance bias: applied to ALL node pairs (enables global attention based on graph distance)
    - Edge bias: applied only to CONNECTED nodes (encodes bond features into attention)
-   - Logit clipping: clamps attention logits to [-5, 5] for numerical stability
 
 
    .. py:attribute:: num_heads
@@ -86,7 +85,7 @@ Module Contents
    .. py:attribute:: ffn
 
 
-   .. py:method:: forward(x: torch.Tensor, edge_index: torch.Tensor, edge_attr: Optional[torch.Tensor], graph_id: torch.Tensor, dist_bias: Optional[torch.Tensor] = None) -> torch.Tensor
+   .. py:method:: forward(x: torch.Tensor, edge_index: torch.Tensor, edge_attr: Optional[torch.Tensor], graph_id: torch.Tensor, dist_bias: Optional[torch.Tensor] = None, edge_graph_ids: Optional[torch.Tensor] = None, local_src: Optional[torch.Tensor] = None, local_dst: Optional[torch.Tensor] = None) -> torch.Tensor
 
       Forward pass through the GT convolution layer.
 
@@ -96,6 +95,15 @@ Module Contents
       :param torch.Tensor graph_id: Graph assignment for each node [N] (long tensor).
       :param torch.Tensor | None dist_bias: Distance bias for all node pairs
           [B, max_nodes, max_nodes, num_heads], or None.
+      :param torch.Tensor | None edge_graph_ids: Optional precomputed graph id
+          for each edge [E]. Computed from ``edge_index`` and ``graph_id`` when
+          not provided (pass precomputed values to avoid redoing the work per
+          layer).
+      :param torch.Tensor | None local_src: Optional precomputed local source
+          index for each edge [E]. Computed inline when not provided.
+      :param torch.Tensor | None local_dst: Optional precomputed local
+          destination index for each edge [E]. Computed inline when not
+          provided.
       :returns: Updated node features [N, node_in_dim].
       :rtype: torch.Tensor
 
@@ -118,7 +126,7 @@ Module Contents
    for saving its hyperparameters.
 
    References:
-   - Graph Transformer: https://arxiv.org/abs/2012.09699
+   - Edge-augmented Graph Transformer (EGT): https://arxiv.org/abs/2108.03348
    - GPS: https://arxiv.org/abs/2205.12454
 
    It is intended to be used inside a :class:`BaseClassicModel` instance.
@@ -134,12 +142,6 @@ Module Contents
    :param float dropout: dropout noise level
    :param str jk: jumping knowledge strategy ('last', 'concat', 'max', 'sum')
    :param str readout: readout function to aggregate atom representations
-
-
-   .. py:attribute:: num_heads
-
-
-   .. py:attribute:: expansion_k
 
 
    .. py:attribute:: atom_projection

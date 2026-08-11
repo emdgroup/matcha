@@ -419,7 +419,7 @@ Package Contents
 
 
 
-.. py:class:: GPS(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, distance_k: float | None, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+.. py:class:: GPS(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, distance_k: int | None, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
 
    Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -447,7 +447,7 @@ Package Contents
    :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
    :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
    :param int expansion_k: expansion factor for the feed-forward network in GPSBlock
-   :param float | None distance_k: Upper bound for the shortest path distance to encode
+   :param int | None distance_k: Upper bound for the shortest path distance to encode
    :param str activation: activation function to be used in all layers
    :param float dropout: dropout noise level
    :param str | None norm: which norm to use inside LnBnDr layers
@@ -476,7 +476,7 @@ Package Contents
 
 
 
-.. py:class:: GPS3D(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, num_kernels: int, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+.. py:class:: GPS3D(num_layers: int, atom_input_dim: int, raw_atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, num_heads: int, expansion_k: int, num_kernels: int, activation: str, dropout: float, norm: str | None, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
 
    Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -495,14 +495,17 @@ Package Contents
    for saving its hyperparameters.
 
    References:
-   - https://arxiv.org/abs/2210.01765 (Uni-Mol: One Transformer Can Understand Both 2D & 3D Molecular Data)
-   - https://arxiv.org/abs/2205.12454 (GPS)
-   - https://arxiv.org/abs/2102.09844 (EGNN)
+   - https://arxiv.org/abs/2205.12454 (GPS: General, Powerful, Scalable Graph Transformer)
+   - https://arxiv.org/abs/2210.01765 §3.2 (Uni-Mol: Gaussian Basis Kernel spatial encoding)
 
    It is intended to be used inside a :class:`BaseClassicModel` instance.
 
    :param int num_layers: number of message passing layers
-   :param int atom_input_dim: number of input atom features from GraphFeaturizer
+   :param int atom_input_dim: number of input atom features after positional
+       encoding concatenation (used by the atom projection)
+   :param int raw_atom_input_dim: number of raw input atom features from the
+       featurizer, before positional encoding concatenation (used by the 3D
+       spatial encoder to compute γ/β from the pre-PE features)
    :param int bond_input_dim: number of input bond features from GraphFeaturizer
    :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
    :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
@@ -557,7 +560,7 @@ Package Contents
    for saving its hyperparameters.
 
    References:
-   - Graph Transformer: https://arxiv.org/abs/2012.09699
+   - Edge-augmented Graph Transformer (EGT): https://arxiv.org/abs/2108.03348
    - GPS: https://arxiv.org/abs/2205.12454
 
    It is intended to be used inside a :class:`BaseClassicModel` instance.
@@ -573,12 +576,6 @@ Package Contents
    :param float dropout: dropout noise level
    :param str jk: jumping knowledge strategy ('last', 'concat', 'max', 'sum')
    :param str readout: readout function to aggregate atom representations
-
-
-   .. py:attribute:: num_heads
-
-
-   .. py:attribute:: expansion_k
 
 
    .. py:attribute:: atom_projection

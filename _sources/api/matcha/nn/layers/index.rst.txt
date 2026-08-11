@@ -284,7 +284,7 @@ Module Contents
 
 
 
-.. py:class:: SpatialEncoder3d(num_kernels: int, num_heads: int = 1, atom_feat_dim: int = 128)
+.. py:class:: SpatialEncoder3d(num_kernels: int, num_heads: int = 1, *, atom_feat_dim: int, max_dist: float = 10.0)
 
    Bases: :py:obj:`torch.nn.Module`
 
@@ -308,7 +308,8 @@ Module Contents
 
    :param int num_kernels: Number of Gaussian Basis Kernels
    :param int num_heads: Number of attention heads (default: 1)
-   :param int atom_feat_dim: Dimensionality of projected atom features (default: 128)
+   :param int atom_feat_dim: Dimensionality of projected atom features
+   :param float max_dist: Upper bound of the deterministic linspace init for kernel means (default: 10.0)
 
 
    .. py:attribute:: num_kernels
@@ -319,10 +320,15 @@ Module Contents
 
 
 
+   .. py:attribute:: max_dist
+      :value: 10.0
+
+
+
    .. py:attribute:: means
 
 
-   .. py:attribute:: stds
+   .. py:attribute:: raw_stds
 
 
    .. py:attribute:: linear_layer_1
@@ -387,6 +393,9 @@ Module Contents
 
 
    .. py:attribute:: attn_dropout
+
+
+   .. py:attribute:: out_dropout
 
 
    .. py:method:: forward(x: torch.Tensor, attn_bias: torch.Tensor | None = None, attn_mask: torch.Tensor | None = None) -> torch.Tensor

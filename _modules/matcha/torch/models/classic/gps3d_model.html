@@ -131,7 +131,7 @@
 <span class="sd">    :param str enc_jk: jumping knowledge strategy, defaults to &#39;last&#39;</span>
 <span class="sd">    :param str | None enc_norm: normalisation type, defaults to &#39;layer&#39;</span>
 <span class="sd">    :param int enc_num_heads: number of attention heads, defaults to 8</span>
-<span class="sd">    :param int enc_num_kernels: number of Gaussian distance kernels, defaults to 3</span>
+<span class="sd">    :param int enc_num_kernels: number of Gaussian distance kernels, defaults to 128</span>
 <span class="sd">    :param int enc_expansion_k: local MPNN expansion factor, defaults to 2</span>
 <span class="sd">    :param str enc_readout: graph-level readout strategy, defaults to &#39;vpa&#39;</span>
 <span class="sd">    :param str enc_activation: activation function in the encoder, defaults to &#39;swish&#39;</span>
@@ -166,7 +166,7 @@
         <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;last&quot;</span><span class="p">,</span>
         <span class="n">enc_norm</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s2">&quot;layer&quot;</span><span class="p">,</span>
         <span class="n">enc_num_heads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
-        <span class="n">enc_num_kernels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span>
+        <span class="n">enc_num_kernels</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">128</span><span class="p">,</span>
         <span class="n">enc_expansion_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
         <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;vpa&quot;</span><span class="p">,</span>
         <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
@@ -202,6 +202,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">GPS3D</span><span class="p">(</span>
             <span class="n">num_layers</span><span class="o">=</span><span class="n">enc_num_layers</span><span class="p">,</span>
             <span class="n">atom_input_dim</span><span class="o">=</span><span class="n">atom_input_dim</span><span class="p">,</span>
+            <span class="n">raw_atom_input_dim</span><span class="o">=</span><span class="n">enc_atom_input_dim</span><span class="p">,</span>
             <span class="n">bond_input_dim</span><span class="o">=</span><span class="n">edge_input_dim</span><span class="p">,</span>
             <span class="n">atom_hidden_dim</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">,</span>
             <span class="n">activation</span><span class="o">=</span><span class="n">enc_activation</span><span class="p">,</span>
