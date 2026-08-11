@@ -48,6 +48,9 @@ class GINModel(BaseClassicModel, HyperparametersMixin):
     :param int enc_elstatic_k: electrostatic encoding dimension, defaults to 0
     :param int enc_distmat_k: distance matrix encoding dimension, defaults to 0
     :param int enc_rrwp_k: relative random-walk probabilities dimension, defaults to 20
+    :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``, defaults to 0.0
+    :param bool enc_train_eps: whether to learn ``eps`` as a parameter (GIN-ε variant),
+        defaults to True
     :param list[int] pred_hidden_dims: hidden layer sizes in the MLP predictor,
         defaults to [512, 256]
     :param list[int] | None pred_task_head_dims: per-task head dimensions, defaults to None
@@ -81,6 +84,8 @@ class GINModel(BaseClassicModel, HyperparametersMixin):
         enc_elstatic_k: int = 0,
         enc_distmat_k: int = 0,
         enc_rrwp_k: int = 20,
+        enc_eps: float = 0.0,
+        enc_train_eps: bool = True,
         pred_hidden_dims: list[int] = [512, 256],
         pred_task_head_dims: list[int] | None = None,
         pred_activation: str = "swish",
@@ -122,6 +127,8 @@ class GINModel(BaseClassicModel, HyperparametersMixin):
             elstatic_k=enc_elstatic_k,
             distmat_k=enc_distmat_k,
             rrwp_k=enc_rrwp_k,
+            eps=enc_eps,
+            train_eps=enc_train_eps,
         )
         self._parse_predictor()
         self._parse_train_config()

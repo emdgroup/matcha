@@ -174,6 +174,8 @@ _ARCH_KWARGS[GINClassifier] = {
     "enc_num_layers": 1,
     "enc_atom_hidden_dim": 32,
     "pred_hidden_dims": [32],
+    "enc_eps": 0.0,
+    "enc_train_eps": True,
 }
 _ARCH_KWARGS[GINRegressor] = {**_ARCH_KWARGS[GINClassifier]}
 

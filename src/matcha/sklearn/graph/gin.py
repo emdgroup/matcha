@@ -88,6 +88,10 @@ class GINClassifier(BaseScikitLearnGNN, ScikitLearnClassifierMixin):
     :param int rrwp_k: number of relative random walk probability dimensions,
         defaults to 0
     :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0
+    :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``,
+        defaults to 0.0
+    :param bool enc_train_eps: whether to learn ``eps`` as a parameter
+        (paper-recommended GIN-ε variant), defaults to True
     :param list[str] | None feature_list: list of strings defining which molecular
         feature set to compute, defaults to None
     :param dict label_encoder_params: additional parameters for the label encoder,
@@ -109,6 +113,8 @@ class GINClassifier(BaseScikitLearnGNN, ScikitLearnClassifierMixin):
         enc_readout: str = "vpa",
         enc_dropout: float = 0.2,
         enc_activation: str = "swish",
+        enc_eps: float = 0.0,
+        enc_train_eps: bool = True,
         pred_hidden_dims: list[int] = [256, 256],
         pred_task_head_dims: list[int] | None = None,
         pred_activation: str = "swish",
@@ -222,6 +228,10 @@ class GINRegressor(BaseScikitLearnGNN, ScikitLearnRegressorMixin):
     :param int rrwp_k: number of relative random walk probability dimensions,
         defaults to 0
     :param int num_virtual_nodes: number of virtual nodes to add, defaults to 0
+    :param float enc_eps: initial value of the ``eps`` term in ``GINEConv``,
+        defaults to 0.0
+    :param bool enc_train_eps: whether to learn ``eps`` as a parameter
+        (paper-recommended GIN-ε variant), defaults to True
     :param list[str] | None feature_list: list of strings defining which molecular
         feature set to compute, defaults to None
     :param bool clip: whether to clip predictions to training label range,
@@ -246,6 +256,8 @@ class GINRegressor(BaseScikitLearnGNN, ScikitLearnRegressorMixin):
         enc_readout: str = "vpa",
         enc_dropout: float = 0.2,
         enc_activation: str = "swish",
+        enc_eps: float = 0.0,
+        enc_train_eps: bool = True,
         pred_hidden_dims: list[int] = [256, 256],
         pred_task_head_dims: list[int] | None = None,
         pred_activation: str = "swish",

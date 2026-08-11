@@ -114,7 +114,6 @@ class AttentiveFP(BaseGraphEncoder, HyperparametersMixin):
     References:
     - https://www.ncbi.nlm.nih.gov/pubmed/31408336
     - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.models.AttentiveFP.html
-    - https://arxiv.org/abs/1806.03536
 
     It is intended to be used inside a :class:`BaseClassicModel` instance.
     Check the docs of :class:`matcha.torch.models.classic.AttentiveFPModel` for further details.
@@ -196,7 +195,7 @@ class AttentiveFP(BaseGraphEncoder, HyperparametersMixin):
         all_atom_feats = []
 
         # Initial atom embedding
-        x = self.atom_projection(atom_feats)
+        x = F.leaky_relu_(self.atom_projection(atom_feats), 0.01)
 
         # Initial context with edge features
         h = F.elu_(self.gate_conv(x, g.edge_index, bond_feats))

@@ -46,6 +46,8 @@ class GINMixin(BaseDataModel):
     enc_aggregation: str
     enc_norm: str | None
     enc_jk: str
+    enc_eps: float
+    enc_train_eps: bool
 
 
 class AttentiveFPMixin(BaseDataModel):

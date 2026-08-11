@@ -8,7 +8,7 @@ from torch import nn
 
 from matcha.torch.encoders.base_encoder import EncoderRegistry
 from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder
-from matcha.nn.layers import LnBnDr, LayerRegistry
+from matcha.nn.layers import LnBnDr
 
 
 @EncoderRegistry.register()
@@ -23,7 +23,7 @@ class GIN(BaseGraphEncoder, HyperparametersMixin):
     References:
     - https://arxiv.org/abs/1810.00826
     - https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.GINEConv.html
-    - https://arxiv.org/abs/1806.03536
+    - https://arxiv.org/abs/1905.12265
 
     It is intended to be used inside a :class:`BaseClassicModel` instance.
     Check the docs of :class:`matcha.torch.models.classic.GINModel` for further details.
@@ -50,6 +50,11 @@ class GIN(BaseGraphEncoder, HyperparametersMixin):
         representations after forward pass
 
     :param str readout: readout function to aggregate all atom representations
+
+    :param float eps: initial value of the ``eps`` term in ``GINEConv``
+
+    :param bool train_eps: whether to learn ``eps`` as a parameter (paper-recommended
+        GIN-ε variant)
     """
 
     def __init__(
@@ -69,12 +74,12 @@ class GIN(BaseGraphEncoder, HyperparametersMixin):
         elstatic_k: int,
         distmat_k: int,
         rrwp_k: int,
+        eps: float,
+        train_eps: bool,
     ):
         super().__init__(laplacian_k, rwse_k, elstatic_k, distmat_k, rrwp_k)
         self.save_hyperparameters()
         self.layers = nn.ModuleList()
-        self.norms = nn.ModuleList()
-        self.norm_type = norm
         start_dim = atom_input_dim
         for _ in range(num_layers):
             mlp = nn.Sequential(
@@ -83,14 +88,14 @@ class GIN(BaseGraphEncoder, HyperparametersMixin):
                     atom_hidden_dim * 2,
                     dropout=dropout,
                     activation=activation,
-                    norm=None,
+                    norm=norm,
                 ),
                 LnBnDr(
                     atom_hidden_dim * 2,
                     atom_hidden_dim,
                     dropout=dropout,
                     activation=None,
-                    norm=None,
+                    norm=norm,
                 ),
             )
             self.layers.append(
@@ -98,12 +103,10 @@ class GIN(BaseGraphEncoder, HyperparametersMixin):
                     nn=mlp,
                     edge_dim=bond_input_dim,
                     aggr=aggregation,
+                    eps=eps,
+                    train_eps=train_eps,
                 )
             )
-            if norm is not None and norm != "none":
-                self.norms.append(LayerRegistry[norm](atom_hidden_dim))
-            else:
-                self.norms.append(nn.Identity())
             start_dim = atom_hidden_dim
         self._parse_jk(jk)
         self._parse_readout(readout)
@@ -119,12 +122,8 @@ class GIN(BaseGraphEncoder, HyperparametersMixin):
         g, feats, efeats, _ = self._process_graph_batch(graph)
         all_atom_feats = []
 
-        for layer, norm in zip(self.layers, self.norms):
+        for layer in self.layers:
             feats = layer(feats, g.edge_index, efeats)
-            if self.norm_type == "graph":
-                feats = norm(feats, g.batch)
-            else:
-                feats = norm(feats)
             if all_atom_feats != []:
                 feats = feats + all_atom_feats[-1]
             all_atom_feats.append(feats)

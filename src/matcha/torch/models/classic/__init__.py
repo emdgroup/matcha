@@ -6,7 +6,7 @@ from matcha.torch.models.classic.roformer_model import RoFormerModel
 from matcha.torch.models.classic.chemprop_model import ChempropModel
 from matcha.torch.models.classic.cnn_model import CNNModel
 from matcha.torch.models.classic.e3gnn_model import E3GNNModel
-from matcha.torch.models.classic.gatedcgn_model import GatedGCNModel
+from matcha.torch.models.classic.gatedgcn_model import GatedGCNModel
 from matcha.torch.models.classic.gin_model import GINModel
 from matcha.torch.models.classic.gps3d_model import GPS3DModel
 from matcha.torch.models.classic.gps_model import GPSModel
