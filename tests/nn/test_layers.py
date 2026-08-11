@@ -346,9 +346,10 @@ class TestSpatialEncoder3d:
 
     def test_spatial3d_distances_produce_distinct_bias(self):
         enc = SpatialEncoder3d(num_kernels=8, num_heads=4, atom_feat_dim=16)
-        # Pin kernel centres/widths so distances 1.0 and 3.0 land in distinct kernel regions
+        # Pin kernel centres/widths so distances 1.0 and 3.0 land in distinct kernel regions.
+        # softplus(-0.4328) ≈ 0.5 — matches the original std=0.5 used before reparameterization.
         enc.means.data = torch.linspace(0, 4, 8)
-        enc.stds.data = torch.ones(8) * 0.5
+        enc.raw_stds.data = torch.full((8,), -0.4328)
         # atom_feats = 1/D so gamma_proj(feats) = sum(1 * 1/16)*16 = 1 per atom
         # → gamma_ij = 2, scaled distances: 2*0.5=1.0 vs 2*1.5=3.0
         atom_feats = torch.ones(1, 2, 16) / 16

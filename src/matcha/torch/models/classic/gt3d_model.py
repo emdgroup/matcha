@@ -106,6 +106,7 @@ class GT3DModel(BaseClassicModel, HyperparametersMixin):
         edge_input_dim = enc_bond_input_dim + enc_rrwp_k
         self.encoder = GT3D(
             atom_input_dim=atom_input_dim,
+            raw_atom_input_dim=enc_atom_input_dim,
             bond_input_dim=edge_input_dim,
             atom_hidden_dim=enc_atom_hidden_dim,
             num_layers=enc_num_layers,

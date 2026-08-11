@@ -329,14 +329,10 @@ class SpatialEncoder(nn.Module):
         :param torch.Tensor spd: Shortest path distance matrix [batch_size, max_nodes, max_nodes]
         :return torch.Tensor: Distance bias for attention [batch_size, max_nodes, max_nodes, num_heads]
         """
-        # Clamp distances to valid range [0, max_dist + 1]
-        # -1 (unreachable) maps to max_dist + 1
+        # Clamp handles [0, max_dist + 1]; the where routes -1 (unreachable)
+        # to the max_dist + 1 sentinel bucket.
         clamped = torch.clamp(spd, min=0, max=self.max_dist + 1)
-        # Handle unreachable nodes (typically marked as -1 or very large values)
         clamped = torch.where(spd < 0, torch.full_like(spd, self.max_dist + 1), clamped)
-        clamped = torch.where(
-            spd > self.max_dist, torch.full_like(spd, self.max_dist + 1), clamped
-        )
 
         return self.embedding(clamped.long())
 
@@ -373,17 +369,27 @@ class SpatialEncoder3d(nn.Module):
 
     :param int num_kernels: Number of Gaussian Basis Kernels
     :param int num_heads: Number of attention heads (default: 1)
-    :param int atom_feat_dim: Dimensionality of projected atom features (default: 128)
+    :param int atom_feat_dim: Dimensionality of projected atom features
+    :param float max_dist: Upper bound of the deterministic linspace init for kernel means (default: 10.0)
     """
 
-    def __init__(self, num_kernels: int, num_heads: int = 1, atom_feat_dim: int = 128):
+    def __init__(
+        self,
+        num_kernels: int,
+        num_heads: int = 1,
+        *,
+        atom_feat_dim: int,
+        max_dist: float = 10.0,
+    ):
         super().__init__()
         self.num_kernels = num_kernels
         self.num_heads = num_heads
+        self.max_dist = max_dist
 
-        # Learnable kernel parameters
+        # Learnable kernel parameters — softplus keeps stds strictly positive
+        # without the +1e-2 hack in forward.
         self.means = nn.Parameter(torch.empty(num_kernels))
-        self.stds = nn.Parameter(torch.empty(num_kernels))
+        self.raw_stds = nn.Parameter(torch.empty(num_kernels))
 
         # Linear projections for Gaussian kernels
         self.linear_layer_1 = nn.Linear(num_kernels, num_kernels)
@@ -393,9 +399,9 @@ class SpatialEncoder3d(nn.Module):
         self.gamma_proj = nn.Linear(atom_feat_dim, 1)
         self.beta_proj = nn.Linear(atom_feat_dim, 1)
 
-        # Initialize parameters
-        nn.init.uniform_(self.means, 0, 10)
-        nn.init.uniform_(self.stds, 0, 3)
+        # Deterministic kernel-centre spacing over [0, max_dist]; softplus(0.5413) ≈ 1.0.
+        self.means.data.copy_(torch.linspace(0.0, max_dist, num_kernels))
+        nn.init.constant_(self.raw_stds, 0.5413)
         nn.init.xavier_uniform_(self.gamma_proj.weight)
         nn.init.zeros_(self.gamma_proj.bias)
         nn.init.zeros_(self.beta_proj.weight)
@@ -427,7 +433,7 @@ class SpatialEncoder3d(nn.Module):
 
         # Apply Gaussian basis kernel
         gaussian_kernel = _gaussian(
-            euc_dist, self.means, self.stds.abs() + 1e-2
+            euc_dist, self.means, torch.nn.functional.softplus(self.raw_stds)
         )  # shape: [B, N, N, K]
 
         # Linear projection
@@ -465,6 +471,7 @@ class BiasedMultiHeadAttention(nn.Module):
         self.out_proj = nn.Linear(embed_dim, embed_dim)
 
         self.attn_dropout = nn.Dropout(dropout)
+        self.out_dropout = nn.Dropout(dropout)
 
     def forward(
         self,
@@ -500,15 +507,23 @@ class BiasedMultiHeadAttention(nn.Module):
             attn_bias = attn_bias.permute(0, 3, 1, 2)
             attn_scores = attn_scores + attn_bias
 
-        # Apply mask if provided
+        # Apply mask if provided (safe-softmax: also zero out fully-padded
+        # query rows before softmax to avoid NaN gradients through WV / WO).
+        query_mask: torch.Tensor | None = None
         if attn_mask is not None:
             # attn_mask: [batch, seq] (True for valid positions)
-            # Create 2D mask: [batch, 1, 1, seq] for broadcasting
-            mask_2d = attn_mask.unsqueeze(1).unsqueeze(2)
-            attn_scores = attn_scores.masked_fill(~mask_2d, float("-inf"))
+            key_mask = attn_mask.unsqueeze(1).unsqueeze(2)  # [B, 1, 1, seq]
+            query_mask = attn_mask.unsqueeze(1).unsqueeze(-1)  # [B, 1, seq, 1]
+            attn_scores = attn_scores.masked_fill(~key_mask, float("-inf"))
+            # For rows where all keys are masked (fully-padded queries),
+            # replace the entire row with a finite constant so softmax
+            # returns a valid (uniform) distribution instead of NaN.
+            attn_scores = attn_scores.masked_fill(~query_mask, 0.0)
 
         # Softmax and dropout
         attn_weights = torch.softmax(attn_scores, dim=-1)
+        if query_mask is not None:
+            attn_weights = attn_weights.masked_fill(~query_mask, 0.0)
         attn_weights = self.attn_dropout(attn_weights)
 
         # Apply attention to values
@@ -517,5 +532,6 @@ class BiasedMultiHeadAttention(nn.Module):
         # Reshape and project output
         out = out.transpose(1, 2).contiguous().view(batch_size, seq_len, self.embed_dim)
         out = self.out_proj(out)
+        out = self.out_dropout(out)
 
         return out

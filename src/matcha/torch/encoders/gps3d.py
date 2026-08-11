@@ -13,6 +13,9 @@ from matcha.nn.layers import (
     LnBnDr,
     SpatialEncoder3d,
 )
+from matcha.utils.logging import get_default_logger
+
+_LOGGER = get_default_logger(__name__)
 
 
 @EncoderRegistry.register()
@@ -31,14 +34,17 @@ class GPS3D(BaseGraphEncoder, HyperparametersMixin):
     for saving its hyperparameters.
 
     References:
-    - https://arxiv.org/abs/2210.01765 (Uni-Mol: One Transformer Can Understand Both 2D & 3D Molecular Data)
-    - https://arxiv.org/abs/2205.12454 (GPS)
-    - https://arxiv.org/abs/2102.09844 (EGNN)
+    - https://arxiv.org/abs/2205.12454 (GPS: General, Powerful, Scalable Graph Transformer)
+    - https://arxiv.org/abs/2210.01765 §3.2 (Uni-Mol: Gaussian Basis Kernel spatial encoding)
 
     It is intended to be used inside a :class:`BaseClassicModel` instance.
 
     :param int num_layers: number of message passing layers
-    :param int atom_input_dim: number of input atom features from GraphFeaturizer
+    :param int atom_input_dim: number of input atom features after positional
+        encoding concatenation (used by the atom projection)
+    :param int raw_atom_input_dim: number of raw input atom features from the
+        featurizer, before positional encoding concatenation (used by the 3D
+        spatial encoder to compute γ/β from the pre-PE features)
     :param int bond_input_dim: number of input bond features from GraphFeaturizer
     :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
     :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
@@ -56,6 +62,7 @@ class GPS3D(BaseGraphEncoder, HyperparametersMixin):
         self,
         num_layers: int,
         atom_input_dim: int,
+        raw_atom_input_dim: int,
         bond_input_dim: int,
         atom_hidden_dim: int,
         num_heads: int,
@@ -75,8 +82,17 @@ class GPS3D(BaseGraphEncoder, HyperparametersMixin):
         super().__init__(laplacian_k, rwse_k, elstatic_k, distmat_k, rrwp_k)
         # Snap num_heads to the largest divisor of atom_hidden_dim that is <= num_heads,
         # so HPO can freely sample both values without causing a shape mismatch.
+        requested_num_heads = num_heads
         while num_heads > 1 and atom_hidden_dim % num_heads != 0:
             num_heads -= 1
+        if num_heads != requested_num_heads:
+            _LOGGER.warning(
+                "GPS3D: num_heads=%d does not divide atom_hidden_dim=%d; "
+                "snapping to num_heads=%d.",
+                requested_num_heads,
+                atom_hidden_dim,
+                num_heads,
+            )
         self.save_hyperparameters()
         self.layers = nn.ModuleList()
         for _ in range(num_layers):
@@ -102,9 +118,11 @@ class GPS3D(BaseGraphEncoder, HyperparametersMixin):
             LnBnDr(atom_hidden_dim, atom_hidden_dim, dropout, None, None),
         )
 
-        # 3D Spatial Encoder using Gaussian Basis Kernels
+        # 3D Spatial Encoder using Gaussian Basis Kernels.
+        # γ/β are computed from the raw pre-PE atom features (per Uni-Mol §3.2),
+        # not from the projected hidden features.
         self.dist3d_encoder = SpatialEncoder3d(
-            num_kernels, num_heads, atom_feat_dim=atom_hidden_dim
+            num_kernels, num_heads, atom_feat_dim=raw_atom_input_dim
         )
 
         self._parse_jk(jk)
@@ -119,19 +137,24 @@ class GPS3D(BaseGraphEncoder, HyperparametersMixin):
 
         :return torch.Tensor: learned representation
         """
+        # Capture the raw pre-PE, pre-projection atom features. `_process_graph_batch`
+        # clones `batch.x` before concatenating positional encodings onto its return
+        # value, so `graph.x` itself remains the raw featurizer output.
+        raw_atom_feats = graph.x
         g, atom_feats, bond_feats, graph_id = self._process_graph_batch(graph)
         all_atom_feats = []
         atom_feats = self.atom_projection(atom_feats)
         bond_feats = self.bond_projection(bond_feats)
 
-        # Convert coordinates and atom features to dense batch format for 3D spatial encoding
-        # coords: [num_atoms, 3] -> coords_dense: [batch_size, max_nodes, 3]
+        # Convert coordinates and raw atom features to dense batch format for 3D
+        # spatial encoding. coords: [num_atoms, 3] -> [batch_size, max_nodes, 3];
+        # raw_atom_feats: [num_atoms, raw_atom_input_dim] -> [batch_size, max_nodes, raw_atom_input_dim].
         coords_dense, _ = to_dense_batch(coords, graph_id)
-        atom_feats_dense, _ = to_dense_batch(atom_feats, graph_id)
+        raw_atom_feats_dense, _ = to_dense_batch(raw_atom_feats, graph_id)
 
-        # Compute 3D spatial encoding bias
+        # Compute 3D spatial encoding bias from coords + raw pre-PE features.
         # Output shape: [batch_size, max_nodes, max_nodes, num_heads]
-        dist_bias = self.dist3d_encoder(coords_dense, atom_feats_dense)
+        dist_bias = self.dist3d_encoder(coords_dense, raw_atom_feats_dense)
 
         for layer in self.layers:
             atom_feats, bond_feats = layer(

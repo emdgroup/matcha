@@ -17,6 +17,9 @@ from matcha.nn.layers import (
     BiasedMultiHeadAttention,
     from_dense_batch,
 )
+from matcha.utils.logging import get_default_logger
+
+_LOGGER = get_default_logger(__name__)
 
 
 class MPNNPlusConv(nn.Module):
@@ -24,7 +27,10 @@ class MPNNPlusConv(nn.Module):
 
     GPS++ style message passing layer that updates both node and edge features.
     Uses variance-preserving aggregation for better gradient flow.
-    No internal normalization - relies on pre-norm pattern in GPSBlock.
+    No internal normalization - relies on pre-norm pattern in GPSBlock. Returns
+    pure deltas (no internal residual) so that GPSBlock can provide a single,
+    symmetric skip connection over both the message-passing and attention
+    branches.
 
     Reference: https://arxiv.org/abs/2212.02229
 
@@ -107,7 +113,7 @@ class MPNNPlusConv(nn.Module):
         :param torch.Tensor x: Node features [num_nodes, in_dim]
         :param torch.Tensor edge_index: Edge indices [2, num_edges]
         :param torch.Tensor edge_attr: Edge features [num_edges, in_dim_edges]
-        :return tuple: Updated node and edge features
+        :return tuple: Node and edge deltas (no internal residual)
         """
         senders = edge_index[0]
         receivers = edge_index[1]
@@ -138,7 +144,7 @@ class MPNNPlusConv(nn.Module):
         node_input = torch.cat([agg_to_receivers, agg_to_senders, x], dim=-1)
         x_new = self.node_model(node_input)
 
-        return x + x_new, edge_attr + edge_attr_new
+        return x_new, edge_attr_new
 
 
 class GPSBlock(nn.Module):
@@ -191,6 +197,7 @@ class GPSBlock(nn.Module):
 
         # Layer norms - pre-norm pattern
         self.norm1_local = LayerRegistry[norm](atom_feats)
+        self.norm1_edge = LayerRegistry[norm](edge_feats)
         self.norm1_global = LayerRegistry[norm](atom_feats)
         self.norm2 = LayerRegistry[norm](atom_feats)
 
@@ -220,23 +227,26 @@ class GPSBlock(nn.Module):
         :param torch.Tensor dist_bias: Distance bias for attention or None
         :return tuple: Updated node and edge features
         """
-        # Store input for residual
+        # Store inputs for residuals
         h_in = feat
+        edge_in = edge_feat
 
-        # Local message passing branch
-        h_local = self.norm1_local(h_in)
-        h_local, edge_feat = self.mp(h_local, graph.edge_index, edge_feat)
+        # Local message passing branch (pre-norm nodes + edges)
+        h_local_in = self.norm1_local(h_in)
+        edge_local_in = self.norm1_edge(edge_in)
+        h_local_delta, edge_delta = self.mp(h_local_in, graph.edge_index, edge_local_in)
 
-        # Global attention branch
+        # Global attention branch (pre-norm nodes)
         h_global = self.norm1_global(h_in)
         h_global_dense, mask = to_dense_batch(h_global, graph_id)
 
         # Apply attention
         h_global_dense = self.att(h_global_dense, attn_bias=dist_bias, attn_mask=mask)
-        h_global = from_dense_batch(h_global_dense, graph_id)
+        h_global_delta = from_dense_batch(h_global_dense, graph_id)
 
-        # Combine local and global with input skip connection
-        h = h_in + h_local + h_global
+        # Combine both branches with single symmetric skip over pre-normed inputs
+        h = h_in + h_local_delta + h_global_delta
+        edge_feat = edge_in + edge_delta
 
         # Feed-forward with residual
         h_ffn = self.norm2(h)
@@ -271,7 +281,7 @@ class GPS(BaseGraphEncoder, HyperparametersMixin):
     :param int atom_hidden_dim: number of hidden atom (and bond) features in message passing layers
     :param int num_heads: number of attention heads, must divide atom_hidden_dim evenly
     :param int expansion_k: expansion factor for the feed-forward network in GPSBlock
-    :param float | None distance_k: Upper bound for the shortest path distance to encode
+    :param int | None distance_k: Upper bound for the shortest path distance to encode
     :param str activation: activation function to be used in all layers
     :param float dropout: dropout noise level
     :param str | None norm: which norm to use inside LnBnDr layers
@@ -288,7 +298,7 @@ class GPS(BaseGraphEncoder, HyperparametersMixin):
         atom_hidden_dim: int,
         num_heads: int,
         expansion_k: int,
-        distance_k: float | None,
+        distance_k: int | None,
         activation: str,
         dropout: float,
         norm: str | None,
@@ -303,8 +313,17 @@ class GPS(BaseGraphEncoder, HyperparametersMixin):
         super().__init__(laplacian_k, rwse_k, elstatic_k, distmat_k, rrwp_k)
         # Snap num_heads to the largest divisor of atom_hidden_dim that is <= num_heads,
         # so HPO can freely sample both values without causing a shape mismatch.
+        requested_num_heads = num_heads
         while num_heads > 1 and atom_hidden_dim % num_heads != 0:
             num_heads -= 1
+        if num_heads != requested_num_heads:
+            _LOGGER.warning(
+                "GPS: num_heads=%d does not divide atom_hidden_dim=%d; "
+                "snapping to num_heads=%d.",
+                requested_num_heads,
+                atom_hidden_dim,
+                num_heads,
+            )
         self.save_hyperparameters()
         self.layers = nn.ModuleList()
         for _ in range(num_layers):
@@ -354,6 +373,12 @@ class GPS(BaseGraphEncoder, HyperparametersMixin):
         if self.dist_encoder is not None and hasattr(g, "spd") and g.spd is not None:
             dist_bias = self.dist_encoder(g.spd)
         else:
+            if self.dist_encoder is not None:
+                _LOGGER.warning(
+                    "GPS: distance_k is set but graph.spd is missing; "
+                    "distance bias will be skipped. Ensure the datamodule "
+                    "is configured with compute_distances=True."
+                )
             dist_bias = None
 
         for layer in self.layers:
