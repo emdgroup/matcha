@@ -4,6 +4,7 @@ import torch
 from torch import nn
 from torch_geometric.data import Batch, Data
 
+from matcha.nn.layers import BiasedMultiHeadAttention
 from matcha.torch.encoders.gps import GPS, GPSBlock, MPNNPlusConv
 
 # ---------------------------------------------------------------------------
@@ -115,8 +116,13 @@ def _chain_edge_index(n: int) -> torch.Tensor:
 # ---------------------------------------------------------------------------
 
 
-def test_mpnn_node_residual():
-    """With zeroed node_model weights, MPNNPlusConv node output equals input."""
+def test_mpnn_node_pure_delta():
+    """With zeroed node_model weights, MPNNPlusConv node delta is zero.
+
+    MPNNPlusConv returns pure deltas (no internal residual); the outer
+    GPSBlock provides the single symmetric skip over both MP and attention
+    branches.
+    """
     mpnn = _make_mpnn()
     for p in mpnn.node_model.parameters():
         nn.init.zeros_(p)
@@ -127,16 +133,16 @@ def test_mpnn_node_residual():
     edge_attr = torch.randn(edge_index.size(1), _EDGE_FEATS)
 
     with torch.no_grad():
-        x_out, _ = mpnn(x, edge_index, edge_attr)
+        x_delta, _ = mpnn(x, edge_index, edge_attr)
 
-    assert torch.allclose(x_out, x, atol=1e-6), (
-        f"Node output should equal input when node_model is zeroed; "
-        f"max diff = {(x_out - x).abs().max():.2e}"
+    assert torch.allclose(x_delta, torch.zeros_like(x), atol=1e-6), (
+        f"Node delta should be zero when node_model is zeroed; "
+        f"max abs = {x_delta.abs().max():.2e}"
     )
 
 
-def test_mpnn_edge_residual():
-    """With zeroed edge_model weights, MPNNPlusConv edge output equals edge input."""
+def test_mpnn_edge_pure_delta():
+    """With zeroed edge_model weights, MPNNPlusConv edge delta is zero."""
     mpnn = _make_mpnn()
     for p in mpnn.edge_model.parameters():
         nn.init.zeros_(p)
@@ -147,11 +153,11 @@ def test_mpnn_edge_residual():
     edge_attr = torch.randn(edge_index.size(1), _EDGE_FEATS)
 
     with torch.no_grad():
-        _, edge_out = mpnn(x, edge_index, edge_attr)
+        _, edge_delta = mpnn(x, edge_index, edge_attr)
 
-    assert torch.allclose(edge_out, edge_attr, atol=1e-6), (
-        f"Edge output should equal input when edge_model is zeroed; "
-        f"max diff = {(edge_out - edge_attr).abs().max():.2e}"
+    assert torch.allclose(edge_delta, torch.zeros_like(edge_attr), atol=1e-6), (
+        f"Edge delta should be zero when edge_model is zeroed; "
+        f"max abs = {edge_delta.abs().max():.2e}"
     )
 
 
@@ -212,6 +218,48 @@ def test_gpsblock_gradient_flow():
     assert feat.grad.abs().sum() > 0, (
         "Gradient is all-zero — skip connection not contributing"
     )
+
+
+def test_biased_mha_fully_padded_query_row_no_nan_grads():
+    """A fully-padded query row must not produce NaN gradients through WV/WO.
+
+    When ``to_dense_batch`` pads uneven batches, some query rows are entirely
+    masked. The naive softmax(−inf, ..., −inf) → NaN would propagate through
+    the value projection and the output projection during backward. The
+    safe-softmax path in ``BiasedMultiHeadAttention`` replaces those rows with
+    a finite constant, so no NaN gradients should appear.
+    """
+    torch.manual_seed(0)
+    embed_dim = 16
+    num_heads = 4
+    batch_size = 2
+    seq_len = 5
+
+    mha = BiasedMultiHeadAttention(embed_dim, num_heads, dropout=0.0)
+    mha.train()
+
+    x = torch.randn(batch_size, seq_len, embed_dim, requires_grad=True)
+
+    # Second graph is fully padded — all query rows are invalid.
+    attn_mask = torch.tensor(
+        [
+            [True, True, True, False, False],  # graph 0: 3 real nodes
+            [False, False, False, False, False],  # graph 1: all padded
+        ]
+    )
+
+    out = mha(x, attn_bias=None, attn_mask=attn_mask)
+    loss = out.sum()
+    loss.backward()
+
+    for name, p in mha.named_parameters():
+        assert p.grad is not None, f"No gradient reached {name}"
+        assert not torch.isnan(p.grad).any(), (
+            f"NaN gradient in {name} — safe-softmax did not protect fully-"
+            f"padded query rows."
+        )
+    assert x.grad is not None, "No gradient reached input x"
+    assert not torch.isnan(x.grad).any(), "NaN gradient in input x"
 
 
 def test_gps_encoder_forward_shape():

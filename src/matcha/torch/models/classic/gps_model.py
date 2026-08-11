@@ -41,8 +41,8 @@ class GPSModel(BaseClassicModel, HyperparametersMixin):
     :param str enc_jk: jumping knowledge strategy, defaults to 'last'
     :param str | None enc_norm: normalisation type, defaults to 'layer'
     :param int enc_num_heads: number of attention heads, defaults to 8
-    :param int enc_expansion_k: local MPNN expansion factor, defaults to 1
-    :param int | None enc_distance_k: shortest-path distance clipping, defaults to None
+    :param int enc_expansion_k: local MPNN expansion factor, defaults to 2
+    :param int | None enc_distance_k: shortest-path distance clipping, defaults to 5
     :param str enc_readout: graph-level readout strategy, defaults to 'vpa'
     :param str enc_activation: activation function in the encoder, defaults to 'swish'
     :param float enc_dropout: dropout rate in the encoder, defaults to 0.2
@@ -76,8 +76,8 @@ class GPSModel(BaseClassicModel, HyperparametersMixin):
         enc_jk: str = "last",
         enc_norm: str | None = "layer",
         enc_num_heads: int = 8,
-        enc_expansion_k: int = 1,
-        enc_distance_k: int | None = None,
+        enc_expansion_k: int = 2,
+        enc_distance_k: int | None = 5,
         enc_readout: str = "vpa",
         enc_activation: str = "swish",
         enc_dropout: float = 0.2,

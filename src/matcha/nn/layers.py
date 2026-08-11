@@ -465,6 +465,7 @@ class BiasedMultiHeadAttention(nn.Module):
         self.out_proj = nn.Linear(embed_dim, embed_dim)
 
         self.attn_dropout = nn.Dropout(dropout)
+        self.out_dropout = nn.Dropout(dropout)
 
     def forward(
         self,
@@ -500,15 +501,23 @@ class BiasedMultiHeadAttention(nn.Module):
             attn_bias = attn_bias.permute(0, 3, 1, 2)
             attn_scores = attn_scores + attn_bias
 
-        # Apply mask if provided
+        # Apply mask if provided (safe-softmax: also zero out fully-padded
+        # query rows before softmax to avoid NaN gradients through WV / WO).
+        query_mask: torch.Tensor | None = None
         if attn_mask is not None:
             # attn_mask: [batch, seq] (True for valid positions)
-            # Create 2D mask: [batch, 1, 1, seq] for broadcasting
-            mask_2d = attn_mask.unsqueeze(1).unsqueeze(2)
-            attn_scores = attn_scores.masked_fill(~mask_2d, float("-inf"))
+            key_mask = attn_mask.unsqueeze(1).unsqueeze(2)  # [B, 1, 1, seq]
+            query_mask = attn_mask.unsqueeze(1).unsqueeze(-1)  # [B, 1, seq, 1]
+            attn_scores = attn_scores.masked_fill(~key_mask, float("-inf"))
+            # For rows where all keys are masked (fully-padded queries),
+            # replace the entire row with a finite constant so softmax
+            # returns a valid (uniform) distribution instead of NaN.
+            attn_scores = attn_scores.masked_fill(~query_mask, 0.0)
 
         # Softmax and dropout
         attn_weights = torch.softmax(attn_scores, dim=-1)
+        if query_mask is not None:
+            attn_weights = attn_weights.masked_fill(~query_mask, 0.0)
         attn_weights = self.attn_dropout(attn_weights)
 
         # Apply attention to values
@@ -517,5 +526,6 @@ class BiasedMultiHeadAttention(nn.Module):
         # Reshape and project output
         out = out.transpose(1, 2).contiguous().view(batch_size, seq_len, self.embed_dim)
         out = self.out_proj(out)
+        out = self.out_dropout(out)
 
         return out

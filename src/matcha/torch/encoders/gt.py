@@ -12,6 +12,9 @@ from lightning.pytorch.core.mixins import HyperparametersMixin
 from matcha.torch.encoders.base_encoder import EncoderRegistry
 from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder
 from matcha.nn.layers import LnBnDr, SpatialEncoder, from_dense_batch
+from matcha.utils.logging import get_default_logger
+
+_LOGGER = get_default_logger(__name__)
 
 
 class GTConv(nn.Module):
@@ -23,7 +26,6 @@ class GTConv(nn.Module):
     Features (inspired by EGT - arXiv:2108.03348):
     - Distance bias: applied to ALL node pairs (enables global attention based on graph distance)
     - Edge bias: applied only to CONNECTED nodes (encodes bond features into attention)
-    - Logit clipping: clamps attention logits to [-5, 5] for numerical stability
     """
 
     def __init__(
@@ -38,10 +40,11 @@ class GTConv(nn.Module):
     ):
         super().__init__()
 
-        # Snap num_heads to the largest divisor of hidden_dim that is <= num_heads,
-        # so HPO can freely sample both values without causing a shape mismatch.
-        while num_heads > 1 and hidden_dim % num_heads != 0:
-            num_heads -= 1
+        if hidden_dim % num_heads != 0:
+            raise ValueError(
+                f"hidden_dim ({hidden_dim}) must be divisible by "
+                f"num_heads ({num_heads})."
+            )
 
         self.num_heads = num_heads
         self.hidden_dim = hidden_dim
@@ -92,6 +95,9 @@ class GTConv(nn.Module):
         edge_attr: Optional[torch.Tensor],
         graph_id: torch.Tensor,
         dist_bias: Optional[torch.Tensor] = None,
+        edge_graph_ids: Optional[torch.Tensor] = None,
+        local_src: Optional[torch.Tensor] = None,
+        local_dst: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """Forward pass through the GT convolution layer.
 
@@ -101,10 +107,18 @@ class GTConv(nn.Module):
         :param torch.Tensor graph_id: Graph assignment for each node [N] (long tensor).
         :param torch.Tensor | None dist_bias: Distance bias for all node pairs
             [B, max_nodes, max_nodes, num_heads], or None.
+        :param torch.Tensor | None edge_graph_ids: Optional precomputed graph id
+            for each edge [E]. Computed from ``edge_index`` and ``graph_id`` when
+            not provided (pass precomputed values to avoid redoing the work per
+            layer).
+        :param torch.Tensor | None local_src: Optional precomputed local source
+            index for each edge [E]. Computed inline when not provided.
+        :param torch.Tensor | None local_dst: Optional precomputed local
+            destination index for each edge [E]. Computed inline when not
+            provided.
         :returns: Updated node features [N, node_in_dim].
         :rtype: torch.Tensor
         """
-        # Ensure graph_id is long type
         if graph_id.dtype != torch.long:
             graph_id = graph_id.long()
 
@@ -144,28 +158,22 @@ class GTConv(nn.Module):
             # dist_bias: [B, max_nodes, max_nodes, H] -> [B, H, max_nodes, max_nodes]
             attn_logits = attn_logits + dist_bias.permute(0, 3, 1, 2)
 
-        # Compute local indices for edges (needed for edge bias)
+        # Add edge bias at connected node positions only
         if self.edge_in_dim is not None and edge_attr is not None:
-            src, dst = edge_index
-            edge_graph_ids = graph_id[src]
+            if edge_graph_ids is None or local_src is None or local_dst is None:
+                src, dst = edge_index
+                edge_graph_ids = graph_id[src]
+                num_nodes_per_graph = torch.bincount(graph_id, minlength=B)
+                node_offsets = torch.cat(
+                    [
+                        torch.zeros(1, device=graph_id.device, dtype=torch.long),
+                        torch.cumsum(num_nodes_per_graph[:-1], dim=0),
+                    ]
+                )
+                local_src = src - node_offsets[edge_graph_ids]
+                local_dst = dst - node_offsets[edge_graph_ids]
 
-            # Compute local indices within each graph
-            num_nodes_per_graph = torch.bincount(graph_id, minlength=B)
-            node_offsets = torch.cat(
-                [
-                    torch.zeros(1, device=graph_id.device, dtype=torch.long),
-                    torch.cumsum(num_nodes_per_graph[:-1], dim=0),
-                ]
-            )
-            local_src = src - node_offsets[edge_graph_ids]
-            local_dst = dst - node_offsets[edge_graph_ids]
-
-            # Extract unbiased attention logits for connected node pairs: [E, H]
-            # attn_logits_unbiased: [B, H, max_nodes, max_nodes]
-
-            # Add edge bias to attention logits at edge positions only
             edge_bias = self.WE_logits(edge_attr)  # [E, H]
-            attn_logits = attn_logits.clone()
             attn_logits[
                 edge_graph_ids.unsqueeze(1).expand(-1, self.num_heads),
                 torch.arange(self.num_heads, device=x.device)
@@ -175,13 +183,21 @@ class GTConv(nn.Module):
                 local_dst.unsqueeze(1).expand(-1, self.num_heads),
             ] += edge_bias
 
-        # Apply padding mask (set padded positions to -inf)
-        attn_mask = mask.unsqueeze(1).unsqueeze(2)  # [B, 1, 1, max_nodes]
-        attn_logits = attn_logits.masked_fill(~attn_mask, float("-inf"))
+        # Safe-softmax: mask keys on padded positions AND zero out logits for
+        # fully-padded query rows to avoid NaN gradients through WV / WO.
+        key_mask = mask.unsqueeze(1).unsqueeze(2)  # [B, 1, 1, max_nodes]
+        query_mask = mask.unsqueeze(1).unsqueeze(-1)  # [B, 1, max_nodes, 1]
+        attn_logits = attn_logits.masked_fill(~key_mask, float("-inf"))
+        # For rows where all keys are masked (fully-padded queries), replace
+        # the entire row with a finite constant so softmax returns a valid
+        # (uniform) distribution instead of NaN.
+        attn_logits = attn_logits.masked_fill(~query_mask, 0.0)
 
         # Softmax and dropout
         attn_weights = torch.softmax(attn_logits, dim=-1)
-        attn_weights = attn_weights.masked_fill(~attn_mask, 0.0)
+        # Zero out weights for fully-padded query rows (their outputs get
+        # discarded by from_dense_batch anyway).
+        attn_weights = attn_weights.masked_fill(~query_mask, 0.0)
         attn_weights = self.attn_dropout(attn_weights)
 
         # Apply attention to values: [B, H, max_nodes, Dh]
@@ -221,7 +237,7 @@ class GT(BaseGraphEncoder, HyperparametersMixin):
     for saving its hyperparameters.
 
     References:
-    - Graph Transformer: https://arxiv.org/abs/2012.09699
+    - Edge-augmented Graph Transformer (EGT): https://arxiv.org/abs/2108.03348
     - GPS: https://arxiv.org/abs/2205.12454
 
     It is intended to be used inside a :class:`BaseClassicModel` instance.
@@ -261,12 +277,19 @@ class GT(BaseGraphEncoder, HyperparametersMixin):
         super().__init__(laplacian_k, rwse_k, elstatic_k, distmat_k, rrwp_k)
         # Snap num_heads to the largest divisor of atom_hidden_dim that is <= num_heads,
         # so HPO can freely sample both values without causing a shape mismatch.
+        requested_num_heads = num_heads
         while num_heads > 1 and atom_hidden_dim % num_heads != 0:
             num_heads -= 1
+        if num_heads != requested_num_heads:
+            _LOGGER.warning(
+                "GT: num_heads=%d does not divide atom_hidden_dim=%d; "
+                "snapping to num_heads=%d.",
+                requested_num_heads,
+                atom_hidden_dim,
+                num_heads,
+            )
 
         self.save_hyperparameters()
-        self.num_heads = num_heads
-        self.expansion_k = expansion_k
 
         # Input projections (similar to GPS)
         self.atom_projection = nn.Sequential(
@@ -308,7 +331,14 @@ class GT(BaseGraphEncoder, HyperparametersMixin):
         :param Batch graph: batched PyG graph with spd attribute [batch_size, max_nodes, max_nodes]
         :return torch.Tensor | None: distance bias [batch_size, max_nodes, max_nodes, num_heads] or None
         """
-        if self.dist_encoder is None or not hasattr(graph, "spd") or graph.spd is None:
+        if self.dist_encoder is None:
+            return None
+        if not hasattr(graph, "spd") or graph.spd is None:
+            _LOGGER.warning(
+                "GT: distance_k is set but graph.spd is missing; distance "
+                "bias will be skipped. Ensure the datamodule is configured "
+                "with compute_distances=True."
+            )
             return None
 
         # Encode distances: [batch_size, max_nodes, max_nodes] -> [batch_size, max_nodes, max_nodes, num_heads]
@@ -322,6 +352,9 @@ class GT(BaseGraphEncoder, HyperparametersMixin):
         """
         g, atom_feats, bond_feats, graph_id = self._process_graph_batch(graph)
 
+        if graph_id.dtype != torch.long:
+            graph_id = graph_id.long()
+
         # Project input features to hidden dimension
         atom_feats = self.atom_projection(atom_feats)
         bond_feats = self.bond_projection(bond_feats)
@@ -329,12 +362,38 @@ class GT(BaseGraphEncoder, HyperparametersMixin):
         # Get distance bias for ALL node pairs
         dist_bias = self._get_distance_bias(g)
 
+        # Precompute per-edge local indices once — these are pure functions of
+        # graph_id and edge_index and do not change across layers.
+        edge_graph_ids: torch.Tensor | None = None
+        local_src: torch.Tensor | None = None
+        local_dst: torch.Tensor | None = None
+        if bond_feats is not None and g.edge_index is not None:
+            src, dst = g.edge_index
+            edge_graph_ids = graph_id[src]
+            batch_size = int(graph_id.max().item()) + 1 if graph_id.numel() > 0 else 0
+            num_nodes_per_graph = torch.bincount(graph_id, minlength=batch_size)
+            node_offsets = torch.cat(
+                [
+                    torch.zeros(1, device=graph_id.device, dtype=torch.long),
+                    torch.cumsum(num_nodes_per_graph[:-1], dim=0),
+                ]
+            )
+            local_src = src - node_offsets[edge_graph_ids]
+            local_dst = dst - node_offsets[edge_graph_ids]
+
         all_atom_feats = []
 
         # Pass through GTConv stack with distance bias
         for layer in self.layers:
             atom_feats = layer(
-                atom_feats, g.edge_index, bond_feats, graph_id, dist_bias=dist_bias
+                atom_feats,
+                g.edge_index,
+                bond_feats,
+                graph_id,
+                dist_bias=dist_bias,
+                edge_graph_ids=edge_graph_ids,
+                local_src=local_src,
+                local_dst=local_dst,
             )
             all_atom_feats.append(atom_feats)
 
