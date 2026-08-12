@@ -7,6 +7,7 @@ from torch import Tensor
 from torch_geometric.data import Batch
 from torch_geometric.nn import MessagePassing
 from torch_geometric.typing import Adj, OptTensor, Size
+from torch_geometric.utils import scatter
 
 from matcha.torch.encoders.base_encoder import EncoderRegistry
 from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder
@@ -82,7 +83,10 @@ class EGNN_Sparse(MessagePassing):
     :param bool update_coors: Whether to update coordinates
     :param float dropout: Dropout rate
     :param float | None coor_weights_clamp_value: Clamp value for coordinate weights
-    :param str aggr: Aggregation method ('add', 'mean', 'max')
+    :param str aggr: Feature aggregation method ('add', 'mean', 'max')
+    :param str coord_aggr: Coordinate-update aggregation method ('add', 'mean', 'max').
+        Decoupled from ``aggr`` because the reference paper (Satorras et al.)
+        aggregates coord updates with a mean while feature updates can use sum.
     """
 
     def __init__(
@@ -100,10 +104,14 @@ class EGNN_Sparse(MessagePassing):
         dropout: float = 0.0,
         coor_weights_clamp_value: float | None = None,
         aggr: str = "add",
+        coord_aggr: str = "mean",
         **kwargs,
     ):
         assert aggr in {"add", "sum", "max", "mean"}, (
             "Aggregation must be a valid option"
+        )
+        assert coord_aggr in {"add", "sum", "max", "mean"}, (
+            "Coordinate aggregation must be a valid option"
         )
         assert update_feats or update_coors, (
             "Must update either features, coordinates, or both"
@@ -121,6 +129,7 @@ class EGNN_Sparse(MessagePassing):
         self.update_coors = update_coors
         self.update_feats = update_feats
         self.coor_weights_clamp_value = coor_weights_clamp_value
+        self.coord_aggr = coord_aggr
 
         self.edge_input_dim = (
             (fourier_features * 2) + edge_attr_dim + 1 + (feats_dim * 2)
@@ -172,6 +181,14 @@ class EGNN_Sparse(MessagePassing):
         )
 
         self.apply(self._init_weights)
+
+        # Re-init the final coord-MLP linear with a small gain so the coord
+        # update starts near-identity, matching the reference E_GCL implementation.
+        # (Without this, default-Xavier init on this output is a known instability
+        # in `EGNN_Sparse`.)
+        if self.coors_mlp is not None:
+            nn.init.xavier_uniform_(self.coors_mlp[-1].weight, gain=1e-3)
+            nn.init.zeros_(self.coors_mlp[-1].bias)
 
     def _init_weights(self, module):
         if isinstance(module, nn.Linear):
@@ -251,7 +268,17 @@ class EGNN_Sparse(MessagePassing):
             # Normalize if needed
             rel_coors = self.coors_norm(kwargs["rel_coors"])
 
-            mhat_i = self.aggregate(coor_wij * rel_coors, **aggr_kwargs)
+            # Coord aggregation is decoupled from feature aggregation:
+            # the paper (Satorras et al.) uses mean here while feature updates
+            # commonly use sum. Bypass `self.aggregate` (which is tied to
+            # `self.aggr`) and reduce with the configured `coord_aggr` instead.
+            mhat_i = scatter(
+                coor_wij * rel_coors,
+                aggr_kwargs["index"],
+                dim=0,
+                dim_size=aggr_kwargs.get("dim_size"),
+                reduce=self.coord_aggr,
+            )
             coors_out = kwargs["coors"] + mhat_i
         else:
             coors_out = kwargs["coors"]
@@ -307,6 +334,9 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
     :param bool update_coors: whether to update coordinates during message passing
     :param str activation: activation function to be used in projection layers
     :param float dropout: dropout noise level for projection layers
+    :param float coor_weights_clamp_value: symmetric clamp on the per-edge
+        coordinate weight before aggregation. Matches the paper's
+        ``torch.clamp(min=-100, max=100)`` behaviour when set to ``100.0``.
     :param str jk: jumping knowledge strategy to use when returning molecular
         representations after forward pass
     :param str readout: readout function to aggregate all atom representations
@@ -326,6 +356,7 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
         update_coors: bool,
         activation: str,
         dropout: float,
+        coor_weights_clamp_value: float,
         jk: str,
         readout: str,
         laplacian_k: int,
@@ -365,14 +396,14 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
                     update_feats=True,
                     update_coors=update_coors,
                     dropout=dropout,
-                    coor_weights_clamp_value=None,
+                    coor_weights_clamp_value=coor_weights_clamp_value,
                     aggr="add",
+                    coord_aggr="mean",
                 )
             )
 
         self._parse_jk(jk)
         self._parse_readout(readout)
-        self.dropout_layer = nn.Dropout(dropout)
 
     @property
     def fp_dim(self) -> int:
@@ -398,7 +429,6 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
             coords, feats = layer(
                 coords, feats, g.edge_index, edge_attr=bond_feats, batch=graph_id
             )
-            feats = self.dropout_layer(feats)
             all_atom_feats.append(feats)
 
         # Apply jumping knowledge

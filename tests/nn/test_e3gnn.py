@@ -3,7 +3,7 @@
 import torch
 from torch_geometric.data import Batch, Data
 
-from matcha.torch.encoders.e3gnn import E3GNN
+from matcha.torch.encoders.e3gnn import E3GNN, EGNN_Sparse
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -28,6 +28,7 @@ def _make_encoder(dropout: float = 0.0) -> E3GNN:
         update_coors=True,
         activation="relu",
         dropout=dropout,
+        coor_weights_clamp_value=100.0,
         jk="last",
         readout="mean",
         laplacian_k=0,
@@ -96,3 +97,48 @@ def test_eval_mode_determinism():
         out2 = encoder(batch, coords)
 
     assert torch.equal(out1, out2), "Eval-mode outputs are not bit-identical"
+
+
+def test_coord_update_magnitude_bounded():
+    """Coordinate updates stay small with paper defaults (clamp + mean + small init).
+
+    Regression net for the Stage 1 bundle: clamp=100 + mean coord aggregation +
+    coors_mlp last-layer init with gain=1e-3. Any of these silently reverting
+    (e.g. clamp=None, aggr='add' on a high-degree graph, default-Xavier init)
+    lets per-atom coord deltas blow up on a dense graph.
+    """
+    torch.manual_seed(0)
+    layer = EGNN_Sparse(
+        feats_dim=_ATOM_HIDDEN_DIM,
+        edge_attr_dim=0,
+        m_dim=_M_DIM,
+        fourier_features=0,
+        soft_edge=False,
+        norm_feats=False,
+        norm_coors=False,
+        update_feats=True,
+        update_coors=True,
+        dropout=0.0,
+        coor_weights_clamp_value=100.0,
+        aggr="add",
+        coord_aggr="mean",
+    )
+    layer.eval()
+
+    # High per-node degree: fully connected 6-atom graph, both directions.
+    n_atoms = 6
+    edge_index = torch.combinations(torch.arange(n_atoms), r=2).t()
+    edge_index = torch.cat([edge_index, edge_index.flip(0)], dim=1)
+    coords = torch.randn(n_atoms, 3)
+    feats = torch.randn(n_atoms, _ATOM_HIDDEN_DIM)
+
+    with torch.no_grad():
+        coords_out, _ = layer(coords, feats, edge_index)
+
+    delta = (coords_out - coords).norm(dim=-1)
+    assert torch.isfinite(delta).all(), "Coord update is non-finite"
+    # gain=1e-3 init keeps the initial update near-identity; anything above
+    # this ceiling means the near-identity guarantee has regressed.
+    assert delta.max().item() < 1.0, (
+        f"Max per-atom coord delta {delta.max().item():.3e} exceeds expected bound"
+    )
