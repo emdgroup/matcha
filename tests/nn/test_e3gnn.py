@@ -29,6 +29,7 @@ def _make_encoder(dropout: float = 0.0) -> E3GNN:
         activation="relu",
         dropout=dropout,
         coor_weights_clamp_value=100.0,
+        norm_coors_scale_init=1e-2,
         jk="last",
         readout="mean",
         laplacian_k=0,

@@ -1,5 +1,7 @@
 """E(n) Equivariant Graph Neural Network (E3GNN) encoder for 3D molecular conformers."""
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 from lightning.pytorch.core.mixins import HyperparametersMixin
@@ -19,16 +21,19 @@ def exists(val):
     return val is not None
 
 
-def fourier_encode_dist(x, num_encodings=4, include_self=True):
-    """Fourier-encode scalar distances into multi-scale sinusoidal features.
+def fourier_encode_dist(squared_dist, num_encodings=4, include_self=True):
+    """Fourier-encode squared distances into multi-scale sinusoidal features.
 
-    :param torch.Tensor x: Distance values to encode.
+    Callers pass the per-edge squared distance ``(r_j - r_i).pow(2).sum(-1)``;
+    no square root is taken inside this function.
+
+    :param torch.Tensor squared_dist: Squared distance values to encode.
     :param int num_encodings: Number of frequency scales (powers of 2).
-    :param bool include_self: Whether to concatenate the original distance values.
+    :param bool include_self: Whether to concatenate the original squared-distance values.
     :returns: Fourier-encoded features.
     :rtype: torch.Tensor
     """
-    x = x.unsqueeze(-1)
+    x = squared_dist.unsqueeze(-1)
     device, dtype, orig_x = x.device, x.dtype, x
     scales = 2 ** torch.arange(num_encodings, device=device, dtype=dtype)
     x = x / scales
@@ -129,6 +134,10 @@ class EGNN_Sparse(MessagePassing):
         self.update_coors = update_coors
         self.update_feats = update_feats
         self.coor_weights_clamp_value = coor_weights_clamp_value
+        # Cache aggr strings for our overrides of `aggregate()` -- avoids
+        # depending on the PyG-normalized `self.aggr` (which may be an
+        # `Aggregation` object rather than a string in newer PyG versions).
+        self.feat_aggr = aggr
         self.coord_aggr = coord_aggr
 
         self.edge_input_dim = (
@@ -235,71 +244,77 @@ class EGNN_Sparse(MessagePassing):
             edge_attr=edge_attr_feats,
             coors=coors,
             rel_coors=rel_coors,
-            batch=batch,
         )
         return coors_out, hidden_out
 
-    def message(self, x_i: Tensor, x_j: Tensor, edge_attr: Tensor) -> Tensor:
-        """Create messages from neighboring nodes."""
+    def message(
+        self,
+        x_i: Tensor,
+        x_j: Tensor,
+        edge_attr: Tensor,
+        rel_coors: Tensor,
+    ) -> Tensor:
+        """Compute per-edge messages and coord deltas, packed into one tensor.
+
+        The last three columns hold the per-edge weighted coord delta; the
+        preceding ``m_dim`` columns hold the feature message (already
+        soft-edge weighted when ``self.soft_edge`` is enabled). :meth:`aggregate`
+        splits them and reduces each half with its own aggregation.
+        """
         m_ij = self.edge_mlp(torch.cat([x_i, x_j, edge_attr], dim=-1))
-        return m_ij
 
-    def propagate(self, edge_index: Adj, size: Size = None, **kwargs):
-        """Propagate messages with coordinate updates."""
-        size = self._check_input(edge_index, size)
-        coll_dict = self._collect(self._user_args, edge_index, size, kwargs)
-        msg_kwargs = self.inspector.collect_param_data("message", coll_dict)
-        aggr_kwargs = self.inspector.collect_param_data("aggregate", coll_dict)
-        update_kwargs = self.inspector.collect_param_data("update", coll_dict)
-
-        # Get messages
-        m_ij = self.message(**msg_kwargs)
-
-        # Update coordinates if specified
         if self.update_coors:
             coor_wij = self.coors_mlp(m_ij)
-            # Clamp if arg is set
             if self.coor_weights_clamp_value is not None:
                 coor_wij = coor_wij.clamp(
                     min=-self.coor_weights_clamp_value,
                     max=self.coor_weights_clamp_value,
                 )
-
-            # Normalize if needed
-            rel_coors = self.coors_norm(kwargs["rel_coors"])
-
-            # Coord aggregation is decoupled from feature aggregation:
-            # the paper (Satorras et al.) uses mean here while feature updates
-            # commonly use sum. Bypass `self.aggregate` (which is tied to
-            # `self.aggr`) and reduce with the configured `coord_aggr` instead.
-            mhat_i = scatter(
-                coor_wij * rel_coors,
-                aggr_kwargs["index"],
-                dim=0,
-                dim_size=aggr_kwargs.get("dim_size"),
-                reduce=self.coord_aggr,
-            )
-            coors_out = kwargs["coors"] + mhat_i
+            coord_delta = coor_wij * self.coors_norm(rel_coors)
         else:
-            coors_out = kwargs["coors"]
+            coord_delta = m_ij.new_zeros((m_ij.size(0), 3))
 
-        # Update features if specified
+        if self.soft_edge and self.update_feats:
+            m_ij = m_ij * self.edge_weight(m_ij)
+
+        return torch.cat([m_ij, coord_delta], dim=-1)
+
+    def aggregate(
+        self,
+        inputs: Tensor,
+        index: Tensor,
+        ptr: OptTensor = None,
+        dim_size: Optional[int] = None,
+    ) -> Tensor:
+        """Reduce feature messages with ``feat_aggr`` and coord deltas with ``coord_aggr``.
+
+        Decoupled per-half reduction is why we need this override -- PyG's
+        default aggregate applies a single reduction to the whole tensor.
+        """
+        m_part = inputs[..., : self.m_dim]
+        coord_part = inputs[..., self.m_dim :]
+        m_i = scatter(m_part, index, dim=0, dim_size=dim_size, reduce=self.feat_aggr)
+        mhat_i = scatter(
+            coord_part, index, dim=0, dim_size=dim_size, reduce=self.coord_aggr
+        )
+        return torch.cat([m_i, mhat_i], dim=-1)
+
+    def update(
+        self, aggr_out: Tensor, x: Tensor, coors: Tensor
+    ) -> tuple[Tensor, Tensor]:
+        """Split the aggregated output into feature and coord halves and finalize."""
+        m_i = aggr_out[..., : self.m_dim]
+        mhat_i = aggr_out[..., self.m_dim :]
+
+        coors_out = coors + mhat_i if self.update_coors else coors
+
         if self.update_feats:
-            # Weight the edges if arg is passed
-            if self.soft_edge:
-                m_ij = m_ij * self.edge_weight(m_ij)
-            m_i = self.aggregate(m_ij, **aggr_kwargs)
-
-            hidden_feats = (
-                self.node_norm(kwargs["x"]) if self.node_norm else kwargs["x"]
-            )
-            hidden_out = self.node_mlp(torch.cat([hidden_feats, m_i], dim=-1))
-            hidden_out = kwargs["x"] + hidden_out
+            hidden_feats = self.node_norm(x) if self.node_norm else x
+            hidden_out = x + self.node_mlp(torch.cat([hidden_feats, m_i], dim=-1))
         else:
-            hidden_out = kwargs["x"]
+            hidden_out = x
 
-        # Return tuple
-        return self.update((hidden_out, coors_out), **update_kwargs)
+        return hidden_out, coors_out
 
 
 @EncoderRegistry.register()
@@ -337,6 +352,9 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
     :param float coor_weights_clamp_value: symmetric clamp on the per-edge
         coordinate weight before aggregation. Matches the paper's
         ``torch.clamp(min=-100, max=100)`` behaviour when set to ``100.0``.
+    :param float norm_coors_scale_init: initial value of the learnable scale
+        parameter inside :class:`CoorsNorm` when ``norm_coors=True``. Only
+        used when coordinate normalization is enabled.
     :param str jk: jumping knowledge strategy to use when returning molecular
         representations after forward pass
     :param str readout: readout function to aggregate all atom representations
@@ -357,6 +375,7 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
         activation: str,
         dropout: float,
         coor_weights_clamp_value: float,
+        norm_coors_scale_init: float,
         jk: str,
         readout: str,
         laplacian_k: int,
@@ -374,10 +393,14 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
         )
         self.save_hyperparameters()
 
-        # Input projection: atom features -> hidden features
+        # Input projection: atom features -> hidden features.
+        # Second stage is a plain Linear+Dropout -- writing it as
+        # LnBnDr(dim, dim, dropout, None, None) previously suggested there was
+        # a norm/activation involved when there wasn't.
         self.atom_projection = nn.Sequential(
             LnBnDr(atom_input_dim, atom_hidden_dim, dropout, activation, "batch"),
-            LnBnDr(atom_hidden_dim, atom_hidden_dim, dropout, None, None),
+            nn.Linear(atom_hidden_dim, atom_hidden_dim),
+            nn.Dropout(dropout),
         )
 
         # Message passing layers (EGNN_Sparse)
@@ -392,7 +415,7 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
                     soft_edge=soft_edge,
                     norm_feats=norm_feats,
                     norm_coors=norm_coors,
-                    norm_coors_scale_init=1e-2,
+                    norm_coors_scale_init=norm_coors_scale_init,
                     update_feats=True,
                     update_coors=update_coors,
                     dropout=dropout,

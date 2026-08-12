@@ -85,6 +85,7 @@ class E3GNNMixin(BaseDataModel):
     enc_norm_coors: bool
     enc_update_coors: bool
     enc_coor_weights_clamp_value: float
+    enc_norm_coors_scale_init: float
     enc_jk: str
 
 
