@@ -34,13 +34,16 @@ Module Contents
 
 .. py:function:: exists(val)
 
-.. py:function:: fourier_encode_dist(x, num_encodings=4, include_self=True)
+.. py:function:: fourier_encode_dist(squared_dist, num_encodings=4, include_self=True)
 
-   Fourier-encode scalar distances into multi-scale sinusoidal features.
+   Fourier-encode squared distances into multi-scale sinusoidal features.
 
-   :param torch.Tensor x: Distance values to encode.
+   Callers pass the per-edge squared distance ``(r_j - r_i).pow(2).sum(-1)``;
+   no square root is taken inside this function.
+
+   :param torch.Tensor squared_dist: Squared distance values to encode.
    :param int num_encodings: Number of frequency scales (powers of 2).
-   :param bool include_self: Whether to concatenate the original distance values.
+   :param bool include_self: Whether to concatenate the original squared-distance values.
    :returns: Fourier-encoded features.
    :rtype: torch.Tensor
 
@@ -78,7 +81,7 @@ Module Contents
    .. py:method:: forward(coors)
 
 
-.. py:class:: EGNN_Sparse(feats_dim: int, edge_attr_dim: int = 0, m_dim: int = 16, fourier_features: int = 0, soft_edge: bool = False, norm_feats: bool = False, norm_coors: bool = False, norm_coors_scale_init: float = 0.01, update_feats: bool = True, update_coors: bool = True, dropout: float = 0.0, coor_weights_clamp_value: float | None = None, aggr: str = 'add', **kwargs)
+.. py:class:: EGNN_Sparse(feats_dim: int, edge_attr_dim: int = 0, m_dim: int = 16, fourier_features: int = 0, soft_edge: bool = False, norm_feats: bool = False, norm_coors: bool = False, norm_coors_scale_init: float = 0.01, update_feats: bool = True, update_coors: bool = True, dropout: float = 0.0, coor_weights_clamp_value: float | None = None, aggr: str = 'add', coord_aggr: str = 'mean', **kwargs)
 
    Bases: :py:obj:`torch_geometric.nn.MessagePassing`
 
@@ -102,7 +105,10 @@ Module Contents
    :param bool update_coors: Whether to update coordinates
    :param float dropout: Dropout rate
    :param float | None coor_weights_clamp_value: Clamp value for coordinate weights
-   :param str aggr: Aggregation method ('add', 'mean', 'max')
+   :param str aggr: Feature aggregation method ('add', 'mean', 'max')
+   :param str coord_aggr: Coordinate-update aggregation method ('add', 'mean', 'max').
+       Decoupled from ``aggr`` because the reference paper (Satorras et al.)
+       aggregates coord updates with a mean while feature updates can use sum.
 
 
    .. py:attribute:: fourier_features
@@ -148,6 +154,16 @@ Module Contents
 
 
 
+   .. py:attribute:: feat_aggr
+      :value: 'add'
+
+
+
+   .. py:attribute:: coord_aggr
+      :value: 'mean'
+
+
+
    .. py:attribute:: edge_input_dim
 
 
@@ -187,19 +203,33 @@ Module Contents
 
 
 
-   .. py:method:: message(x_i: torch.Tensor, x_j: torch.Tensor, edge_attr: torch.Tensor) -> torch.Tensor
+   .. py:method:: message(x_i: torch.Tensor, x_j: torch.Tensor, edge_attr: torch.Tensor, rel_coors: torch.Tensor) -> torch.Tensor
 
-      Create messages from neighboring nodes.
+      Compute per-edge messages and coord deltas, packed into one tensor.
 
-
-
-   .. py:method:: propagate(edge_index: torch_geometric.typing.Adj, size: torch_geometric.typing.Size = None, **kwargs)
-
-      Propagate messages with coordinate updates.
-
+      The last three columns hold the per-edge weighted coord delta; the
+      preceding ``m_dim`` columns hold the feature message (already
+      soft-edge weighted when ``self.soft_edge`` is enabled). :meth:`aggregate`
+      splits them and reduces each half with its own aggregation.
 
 
-.. py:class:: E3GNN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, m_dim: int, fourier_features: int, soft_edge: bool, norm_feats: bool, norm_coors: bool, update_coors: bool, activation: str, dropout: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+
+   .. py:method:: aggregate(inputs: torch.Tensor, index: torch.Tensor, ptr: torch_geometric.typing.OptTensor = None, dim_size: Optional[int] = None) -> torch.Tensor
+
+      Reduce feature messages with ``feat_aggr`` and coord deltas with ``coord_aggr``.
+
+      Decoupled per-half reduction is why we need this override -- PyG's
+      default aggregate applies a single reduction to the whole tensor.
+
+
+
+   .. py:method:: update(aggr_out: torch.Tensor, x: torch.Tensor, coors: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]
+
+      Split the aggregated output into feature and coord halves and finalize.
+
+
+
+.. py:class:: E3GNN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, m_dim: int, fourier_features: int, soft_edge: bool, norm_feats: bool, norm_coors: bool, update_coors: bool, activation: str, dropout: float, coor_weights_clamp_value: float, norm_coors_scale_init: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
 
    Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -234,6 +264,12 @@ Module Contents
    :param bool update_coors: whether to update coordinates during message passing
    :param str activation: activation function to be used in projection layers
    :param float dropout: dropout noise level for projection layers
+   :param float coor_weights_clamp_value: symmetric clamp on the per-edge
+       coordinate weight before aggregation. Matches the paper's
+       ``torch.clamp(min=-100, max=100)`` behaviour when set to ``100.0``.
+   :param float norm_coors_scale_init: initial value of the learnable scale
+       parameter inside :class:`CoorsNorm` when ``norm_coors=True``. Only
+       used when coordinate normalization is enabled.
    :param str jk: jumping knowledge strategy to use when returning molecular
        representations after forward pass
    :param str readout: readout function to aggregate all atom representations
@@ -243,9 +279,6 @@ Module Contents
 
 
    .. py:attribute:: layers
-
-
-   .. py:attribute:: dropout_layer
 
 
    .. py:property:: fp_dim

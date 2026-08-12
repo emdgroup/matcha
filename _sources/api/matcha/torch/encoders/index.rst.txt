@@ -234,7 +234,7 @@ Package Contents
 
 
 
-.. py:class:: E3GNN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, m_dim: int, fourier_features: int, soft_edge: bool, norm_feats: bool, norm_coors: bool, update_coors: bool, activation: str, dropout: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
+.. py:class:: E3GNN(num_layers: int, atom_input_dim: int, bond_input_dim: int, atom_hidden_dim: int, m_dim: int, fourier_features: int, soft_edge: bool, norm_feats: bool, norm_coors: bool, update_coors: bool, activation: str, dropout: float, coor_weights_clamp_value: float, norm_coors_scale_init: float, jk: str, readout: str, laplacian_k: int, rwse_k: int, elstatic_k: int, distmat_k: int, rrwp_k: int)
 
    Bases: :py:obj:`matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -269,6 +269,12 @@ Package Contents
    :param bool update_coors: whether to update coordinates during message passing
    :param str activation: activation function to be used in projection layers
    :param float dropout: dropout noise level for projection layers
+   :param float coor_weights_clamp_value: symmetric clamp on the per-edge
+       coordinate weight before aggregation. Matches the paper's
+       ``torch.clamp(min=-100, max=100)`` behaviour when set to ``100.0``.
+   :param float norm_coors_scale_init: initial value of the learnable scale
+       parameter inside :class:`CoorsNorm` when ``norm_coors=True``. Only
+       used when coordinate normalization is enabled.
    :param str jk: jumping knowledge strategy to use when returning molecular
        representations after forward pass
    :param str readout: readout function to aggregate all atom representations
@@ -278,9 +284,6 @@ Package Contents
 
 
    .. py:attribute:: layers
-
-
-   .. py:attribute:: dropout_layer
 
 
    .. py:property:: fp_dim

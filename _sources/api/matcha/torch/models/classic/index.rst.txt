@@ -429,7 +429,7 @@ Package Contents
    .. py:attribute:: encoder
 
 
-.. py:class:: E3GNNModel(additional_mol_features_dim: int = 0, enc_num_layers: int = 3, enc_atom_input_dim: int = 44, enc_bond_input_dim: int = 14, enc_atom_hidden_dim: int = 128, enc_m_dim: int = 16, enc_fourier_features: int = 4, enc_soft_edge: bool = False, enc_norm_feats: bool = True, enc_norm_coors: bool = True, enc_update_coors: bool = True, enc_jk: str = 'last', enc_readout: str = 'vpa', enc_activation: str = 'swish', enc_dropout: float = 0.2, enc_laplacian_k: int = 10, enc_rwse_k: int = 20, enc_elstatic_k: int = 0, enc_distmat_k: int = 0, enc_rrwp_k: int = 0, pred_hidden_dims: list[int] = [512, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50})
+.. py:class:: E3GNNModel(additional_mol_features_dim: int = 0, enc_num_layers: int = 3, enc_atom_input_dim: int = 44, enc_bond_input_dim: int = 14, enc_atom_hidden_dim: int = 128, enc_m_dim: int = 16, enc_fourier_features: int = 4, enc_soft_edge: bool = False, enc_norm_feats: bool = True, enc_norm_coors: bool = True, enc_update_coors: bool = True, enc_coor_weights_clamp_value: float = 100.0, enc_norm_coors_scale_init: float = 0.01, enc_jk: str = 'last', enc_readout: str = 'vpa', enc_activation: str = 'swish', enc_dropout: float = 0.2, enc_laplacian_k: int = 10, enc_rwse_k: int = 20, enc_elstatic_k: int = 0, enc_distmat_k: int = 0, enc_rrwp_k: int = 0, pred_hidden_dims: list[int] = [512, 256], pred_task_head_dims: list[int] | None = None, pred_activation: str = 'swish', pred_dropout: float = 0.2, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50})
 
    Bases: :py:obj:`matcha.torch.models.classic.base_classic_model.BaseClassicModel`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -468,6 +468,12 @@ Package Contents
    :param bool enc_norm_feats: whether to normalise node features, defaults to True
    :param bool enc_norm_coors: whether to normalise coordinate updates, defaults to True
    :param bool enc_update_coors: whether to update coordinates, defaults to True
+   :param float enc_coor_weights_clamp_value: symmetric clamp on per-edge
+       coordinate weights (paper's ``torch.clamp(min=-100, max=100)``),
+       defaults to 100.0
+   :param float enc_norm_coors_scale_init: initial value of the learnable
+       scale parameter inside :class:`CoorsNorm` when ``enc_norm_coors=True``,
+       defaults to 1e-2
    :param str enc_jk: jumping knowledge strategy, defaults to 'last'
    :param str enc_readout: graph-level readout strategy, defaults to 'vpa'
    :param str enc_activation: activation function in the encoder, defaults to 'swish'

@@ -137,6 +137,12 @@
 <span class="sd">    :param bool enc_norm_feats: whether to normalise node features, defaults to True</span>
 <span class="sd">    :param bool enc_norm_coors: whether to normalise coordinate updates, defaults to True</span>
 <span class="sd">    :param bool enc_update_coors: whether to update coordinates, defaults to True</span>
+<span class="sd">    :param float enc_coor_weights_clamp_value: symmetric clamp on per-edge</span>
+<span class="sd">        coordinate weights (paper&#39;s ``torch.clamp(min=-100, max=100)``),</span>
+<span class="sd">        defaults to 100.0</span>
+<span class="sd">    :param float enc_norm_coors_scale_init: initial value of the learnable</span>
+<span class="sd">        scale parameter inside :class:`CoorsNorm` when ``enc_norm_coors=True``,</span>
+<span class="sd">        defaults to 1e-2</span>
 <span class="sd">    :param str enc_jk: jumping knowledge strategy, defaults to &#39;last&#39;</span>
 <span class="sd">    :param str enc_readout: graph-level readout strategy, defaults to &#39;vpa&#39;</span>
 <span class="sd">    :param str enc_activation: activation function in the encoder, defaults to &#39;swish&#39;</span>
@@ -174,6 +180,8 @@
         <span class="n">enc_norm_feats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">enc_norm_coors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">enc_update_coors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">enc_coor_weights_clamp_value</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">100.0</span><span class="p">,</span>
+        <span class="n">enc_norm_coors_scale_init</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">1e-2</span><span class="p">,</span>
         <span class="n">enc_jk</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;last&quot;</span><span class="p">,</span>
         <span class="n">enc_readout</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;vpa&quot;</span><span class="p">,</span>
         <span class="n">enc_activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;swish&quot;</span><span class="p">,</span>
@@ -219,6 +227,8 @@
             <span class="n">update_coors</span><span class="o">=</span><span class="n">enc_update_coors</span><span class="p">,</span>
             <span class="n">activation</span><span class="o">=</span><span class="n">enc_activation</span><span class="p">,</span>
             <span class="n">dropout</span><span class="o">=</span><span class="n">enc_dropout</span><span class="p">,</span>
+            <span class="n">coor_weights_clamp_value</span><span class="o">=</span><span class="n">enc_coor_weights_clamp_value</span><span class="p">,</span>
+            <span class="n">norm_coors_scale_init</span><span class="o">=</span><span class="n">enc_norm_coors_scale_init</span><span class="p">,</span>
             <span class="n">jk</span><span class="o">=</span><span class="n">enc_jk</span><span class="p">,</span>
             <span class="n">readout</span><span class="o">=</span><span class="n">enc_readout</span><span class="p">,</span>
             <span class="n">laplacian_k</span><span class="o">=</span><span class="n">enc_laplacian_k</span><span class="p">,</span>
