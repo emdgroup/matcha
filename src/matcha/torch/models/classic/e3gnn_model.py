@@ -46,6 +46,12 @@ class E3GNNModel(BaseClassicModel, HyperparametersMixin):
     :param bool enc_norm_feats: whether to normalise node features, defaults to True
     :param bool enc_norm_coors: whether to normalise coordinate updates, defaults to True
     :param bool enc_update_coors: whether to update coordinates, defaults to True
+    :param float enc_coor_weights_clamp_value: symmetric clamp on per-edge
+        coordinate weights (paper's ``torch.clamp(min=-100, max=100)``),
+        defaults to 100.0
+    :param float enc_norm_coors_scale_init: initial value of the learnable
+        scale parameter inside :class:`CoorsNorm` when ``enc_norm_coors=True``,
+        defaults to 1e-2
     :param str enc_jk: jumping knowledge strategy, defaults to 'last'
     :param str enc_readout: graph-level readout strategy, defaults to 'vpa'
     :param str enc_activation: activation function in the encoder, defaults to 'swish'
@@ -83,6 +89,8 @@ class E3GNNModel(BaseClassicModel, HyperparametersMixin):
         enc_norm_feats: bool = True,
         enc_norm_coors: bool = True,
         enc_update_coors: bool = True,
+        enc_coor_weights_clamp_value: float = 100.0,
+        enc_norm_coors_scale_init: float = 1e-2,
         enc_jk: str = "last",
         enc_readout: str = "vpa",
         enc_activation: str = "swish",
@@ -128,6 +136,8 @@ class E3GNNModel(BaseClassicModel, HyperparametersMixin):
             update_coors=enc_update_coors,
             activation=enc_activation,
             dropout=enc_dropout,
+            coor_weights_clamp_value=enc_coor_weights_clamp_value,
+            norm_coors_scale_init=enc_norm_coors_scale_init,
             jk=enc_jk,
             readout=enc_readout,
             laplacian_k=enc_laplacian_k,
