@@ -23,6 +23,8 @@
       <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
       <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../../../../../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../../../../../genindex.html" />
     <link rel="search" title="Search" href="../../../../../search.html" /> 
@@ -89,13 +91,16 @@
              
   <section id="module-matcha.torch.predictors.snn">
 <span id="matcha-torch-predictors-snn"></span><h1>matcha.torch.predictors.snn<a class="headerlink" href="#module-matcha.torch.predictors.snn" title="Link to this heading"></a></h1>
-<p>Self-Normalizing Neural Network (SNN) predictor head with parallel MultiLn layers.</p>
+<p>Self-Normalizing Neural Network (SNN) predictor with TabM BatchEnsemble layers.</p>
 <section id="classes">
 <h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
 <tbody>
-<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.torch.predictors.snn.SNN" title="matcha.torch.predictors.snn.SNN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SNN</span></code></a></p></td>
-<td><p>Self-Normalizing Neural Network (SNN) utility class.</p></td>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.torch.predictors.snn.BatchEnsembleLinear" title="matcha.torch.predictors.snn.BatchEnsembleLinear"><code class="xref py py-obj docutils literal notranslate"><span class="pre">BatchEnsembleLinear</span></code></a></p></td>
+<td><p>Parameter-efficient TabM-style BatchEnsemble linear layer.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.torch.predictors.snn.SNN" title="matcha.torch.predictors.snn.SNN"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SNN</span></code></a></p></td>
+<td><p>Self-Normalizing Neural Network (SNN) predictor with TabM BatchEnsemble.</p></td>
 </tr>
 </tbody>
 </table>
@@ -103,27 +108,158 @@
 <section id="module-contents">
 <h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
 <dl class="py class">
-<dt class="sig sig-object py" id="matcha.torch.predictors.snn.SNN">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.predictors.snn.</span></span><span class="sig-name descname"><span class="pre">SNN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_endpoints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_parallel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#SNN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.SNN" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference internal" href="../base_predictor/index.html#matcha.torch.predictors.base_predictor.BasePredictor" title="matcha.torch.predictors.base_predictor.BasePredictor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.torch.predictors.base_predictor.BasePredictor</span></code></a></p>
-<p>Self-Normalizing Neural Network (SNN) utility class.</p>
-<p>SNNs use SELU activations and AlphaDropout to maintain self-normalizing properties,
-as described in the paper “Self-Normalizing Neural Networks” (<a class="reference external" href="https://arxiv.org/abs/1706.02515">https://arxiv.org/abs/1706.02515</a>).</p>
-<p>This implementation uses MultiLn layers for parallel computation and averages
-the outputs across the num_parallel dimension for ensemble-like behavior.</p>
-<p>It inherits from <a class="reference internal" href="../base_predictor/index.html#matcha.torch.predictors.base_predictor.BasePredictor" title="matcha.torch.predictors.base_predictor.BasePredictor"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasePredictor</span></code></a> for common routines (e.g. forward pass).</p>
-<p>It is intended to be used inside a <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseClassicModel</span></code> instance.</p>
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.predictors.snn.</span></span><span class="sig-name descname"><span class="pre">BatchEnsembleLinear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_parallel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">first_layer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bias</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#BatchEnsembleLinear"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Parameter-efficient TabM-style BatchEnsemble linear layer.</p>
+<p>Factorizes <code class="docutils literal notranslate"><span class="pre">k</span></code> parallel linear layers as a single shared weight
+<code class="docutils literal notranslate"><span class="pre">W</span></code> of shape <code class="docutils literal notranslate"><span class="pre">(out,</span> <span class="pre">in)</span></code> plus per-member rank-1 adapters
+<code class="docutils literal notranslate"><span class="pre">R</span></code> of shape <code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">in)</span></code> and <code class="docutils literal notranslate"><span class="pre">S</span></code> of shape <code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">out)</span></code>, and an optional
+per-member bias of shape <code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">1,</span> <span class="pre">out)</span></code>. For a member <code class="docutils literal notranslate"><span class="pre">i</span></code> and input row
+<code class="docutils literal notranslate"><span class="pre">x</span></code>, the layer computes:</p>
+<div class="math notranslate nohighlight">
+\[l_i(x) = \bigl((x \odot R_i)\, W^{\top}\bigr) \odot S_i + B_i,\]</div>
+<p>which reduces the parameter cost of a naive parallel ensemble from
+<code class="docutils literal notranslate"><span class="pre">k</span> <span class="pre">*</span> <span class="pre">in</span> <span class="pre">*</span> <span class="pre">out</span></code> to <code class="docutils literal notranslate"><span class="pre">in</span> <span class="pre">*</span> <span class="pre">out</span> <span class="pre">+</span> <span class="pre">k*(in</span> <span class="pre">+</span> <span class="pre">out)</span> <span class="pre">+</span> <span class="pre">k*out</span></code> (bias).</p>
+<p>The layer accepts either a 2D input <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">in)</span></code> — internally
+broadcast to <code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">batch,</span> <span class="pre">in)</span></code> — or a 3D input <code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">batch,</span> <span class="pre">in)</span></code>.
+Output is always <code class="docutils literal notranslate"><span class="pre">(k,</span> <span class="pre">batch,</span> <span class="pre">out)</span></code>.</p>
+<p>Initialization follows the TabM recipe:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">W</span></code> — LeCun-normal (Kaiming-normal with <code class="docutils literal notranslate"><span class="pre">mode='fan_in'</span></code>, <code class="docutils literal notranslate"><span class="pre">nonlinearity='linear'</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">R</span></code> — random Rademacher <code class="docutils literal notranslate"><span class="pre">\pm</span> <span class="pre">1</span></code> when <code class="docutils literal notranslate"><span class="pre">first_layer=True</span></code> to
+diversify the <code class="docutils literal notranslate"><span class="pre">k</span></code> submodels at initialization; deterministic <code class="docutils literal notranslate"><span class="pre">1</span></code>
+otherwise. Without the first-layer Rademacher init, all <code class="docutils literal notranslate"><span class="pre">k</span></code> branches
+collapse to identical outputs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">S</span></code> — deterministic <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">bias</span></code> — <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
+</ul>
+<p>Paper (TabM): Gorishniy et al. 2024, <a class="reference external" href="https://arxiv.org/abs/2410.24210">arXiv:2410.24210</a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>input_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – input feature dimensionality</p></li>
-<li><p><strong>hidden_dims</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – shape of hidden layers in the predictor.
-If None, goes directly from input to output.</p></li>
-<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – dropout rate between all layers (uses AlphaDropout)</p></li>
-<li><p><strong>num_endpoints</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of endpoints (if multitasking) or classes
-(if classification) to predict</p></li>
-<li><p><strong>num_parallel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of parallel heads in MultiLn layers (default: 8)</p></li>
+<li><p><strong>in_features</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Input feature dimensionality.</p></li>
+<li><p><strong>out_features</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Output feature dimensionality.</p></li>
+<li><p><strong>num_parallel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of parallel ensemble members <code class="docutils literal notranslate"><span class="pre">k</span></code>.</p></li>
+<li><p><strong>first_layer</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – If True, initialize <code class="docutils literal notranslate"><span class="pre">R</span></code> with Rademacher
+<code class="docutils literal notranslate"><span class="pre">\pm</span> <span class="pre">1</span></code> values to diversify the submodels; else initialize to <code class="docutils literal notranslate"><span class="pre">1</span></code>.</p></li>
+<li><p><strong>bias</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>) – Whether to include a per-member bias term.</p></li>
 </ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.in_features">
+<span class="sig-name descname"><span class="pre">in_features</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.in_features" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.out_features">
+<span class="sig-name descname"><span class="pre">out_features</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.out_features" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.num_parallel">
+<span class="sig-name descname"><span class="pre">num_parallel</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.num_parallel" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.first_layer">
+<span class="sig-name descname"><span class="pre">first_layer</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">False</span></em><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.first_layer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.weight">
+<span class="sig-name descname"><span class="pre">weight</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.R">
+<span class="sig-name descname"><span class="pre">R</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.R" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.S">
+<span class="sig-name descname"><span class="pre">S</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.S" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.reset_parameters">
+<span class="sig-name descname"><span class="pre">reset_parameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#BatchEnsembleLinear.reset_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.reset_parameters" title="Link to this definition"></a></dt>
+<dd><p>Apply the TabM init recipe to <code class="docutils literal notranslate"><span class="pre">W</span></code>, <code class="docutils literal notranslate"><span class="pre">R</span></code>, <code class="docutils literal notranslate"><span class="pre">S</span></code>, and bias.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.num_extra_parameters">
+<span class="sig-name descname"><span class="pre">num_extra_parameters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#BatchEnsembleLinear.num_extra_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.num_extra_parameters" title="Link to this definition"></a></dt>
+<dd><p>Return the number of per-member (non-shared) parameters.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.extra_repr">
+<span class="sig-name descname"><span class="pre">extra_repr</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#BatchEnsembleLinear.extra_repr"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.extra_repr" title="Link to this definition"></a></dt>
+<dd><p>Return the extra representation of the module.</p>
+<p>To print customized extra information, you should re-implement
+this method in your own modules. Both single-line and multi-line
+strings are acceptable.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.BatchEnsembleLinear.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#BatchEnsembleLinear.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.BatchEnsembleLinear.forward" title="Link to this definition"></a></dt>
+<dd><p>Run the BatchEnsemble forward pass.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>x</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Input tensor of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">in_features)</span></code>
+or <code class="docutils literal notranslate"><span class="pre">(num_parallel,</span> <span class="pre">batch,</span> <span class="pre">in_features)</span></code>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Output tensor of shape <code class="docutils literal notranslate"><span class="pre">(num_parallel,</span> <span class="pre">batch,</span> <span class="pre">out_features)</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">x</span></code> is neither 2D nor 3D.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.SNN">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.predictors.snn.</span></span><span class="sig-name descname"><span class="pre">SNN</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_dims</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_endpoints</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_parallel</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">8</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#SNN"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.SNN" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base_predictor/index.html#matcha.torch.predictors.base_predictor.BasePredictor" title="matcha.torch.predictors.base_predictor.BasePredictor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.torch.predictors.base_predictor.BasePredictor</span></code></a></p>
+<p>Self-Normalizing Neural Network (SNN) predictor with TabM BatchEnsemble.</p>
+<p>Combines the self-normalizing recipe (SELU + AlphaDropout) from Klambauer
+et al. 2017 with the parameter-efficient BatchEnsemble factorization from
+TabM (Gorishniy et al. 2024): each linear layer is a <a class="reference internal" href="#matcha.torch.predictors.snn.BatchEnsembleLinear" title="matcha.torch.predictors.snn.BatchEnsembleLinear"><code class="xref py py-class docutils literal notranslate"><span class="pre">BatchEnsembleLinear</span></code></a>
+with a shared weight <code class="docutils literal notranslate"><span class="pre">W</span></code> and per-member rank-1 adapters <code class="docutils literal notranslate"><span class="pre">R</span></code>, <code class="docutils literal notranslate"><span class="pre">S</span></code> plus
+per-member bias. Outputs from the <code class="docutils literal notranslate"><span class="pre">num_parallel</span></code> ensemble members are
+averaged along the leading dimension at the end of <a class="reference internal" href="#matcha.torch.predictors.snn.SNN.forward" title="matcha.torch.predictors.snn.SNN.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a> and
+(for a body with hidden layers) at the end of <a class="reference internal" href="#matcha.torch.predictors.snn.SNN.encode" title="matcha.torch.predictors.snn.SNN.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">encode()</span></code></a>.</p>
+<p>Papers:</p>
+<ul class="simple">
+<li><p>Klambauer et al. 2017, <a class="reference external" href="https://arxiv.org/abs/1706.02515">arXiv:1706.02515</a>.</p></li>
+<li><p>Gorishniy et al. 2024, <a class="reference external" href="https://arxiv.org/abs/2410.24210">arXiv:2410.24210</a>.</p></li>
+</ul>
+<p>It inherits from <a class="reference internal" href="../base_predictor/index.html#matcha.torch.predictors.base_predictor.BasePredictor" title="matcha.torch.predictors.base_predictor.BasePredictor"><code class="xref py py-class docutils literal notranslate"><span class="pre">BasePredictor</span></code></a> for common routines and is intended
+to be used inside a <code class="xref py py-class docutils literal notranslate"><span class="pre">BaseClassicModel</span></code> instance.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>input_dim</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – input feature dimensionality.</p></li>
+<li><p><strong>hidden_dims</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>]</em>) – shape of hidden layers in the predictor.
+If <code class="docutils literal notranslate"><span class="pre">None</span></code> or empty, goes directly from input to output.</p></li>
+<li><p><strong>num_endpoints</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of endpoints (if multitasking) or classes
+(if classification) to predict.</p></li>
+<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – dropout rate applied between layers (uses AlphaDropout).</p></li>
+<li><p><strong>num_parallel</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – number of parallel ensemble members <code class="docutils literal notranslate"><span class="pre">k</span></code> (default: 8).
+Must be <code class="docutils literal notranslate"><span class="pre">&gt;=</span> <span class="pre">2</span></code>; use the MLP predictor for the single-model case.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">num_parallel</span> <span class="pre">&lt;=</span> <span class="pre">1</span></code>.</p>
 </dd>
 </dl>
 <dl class="py attribute">
@@ -131,17 +267,28 @@ If None, goes directly from input to output.</p></li>
 <span class="sig-name descname"><span class="pre">num_parallel</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">8</span></em><a class="headerlink" href="#matcha.torch.predictors.snn.SNN.num_parallel" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.SNN.layers">
+<span class="sig-name descname"><span class="pre">layers</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.SNN.layers" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.predictors.snn.SNN.post">
+<span class="sig-name descname"><span class="pre">post</span></span><a class="headerlink" href="#matcha.torch.predictors.snn.SNN.post" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 <dl class="py method">
 <dt class="sig sig-object py" id="matcha.torch.predictors.snn.SNN.encode">
 <span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/predictors/snn.html#SNN.encode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.predictors.snn.SNN.encode" title="Link to this definition"></a></dt>
 <dd><p>Extract the latent representation from all layers except the last.</p>
-<p>Averages across the <code class="docutils literal notranslate"><span class="pre">num_parallel</span></code> dimension.</p>
+<p>Averages across the <code class="docutils literal notranslate"><span class="pre">num_parallel</span></code> dimension when a hidden body is
+present; otherwise returns the raw input.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>mol_features</strong> – input tensor of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">input_dim)</span></code>.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>averaged latent representation of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">hidden_dims[-1])</span></code>.</p>
+<dd class="field-even"><p>averaged latent representation of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">latent_dim)</span></code>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>

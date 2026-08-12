@@ -5,7 +5,7 @@ matcha.torch.predictors.snn
 
 .. autoapi-nested-parse::
 
-   Self-Normalizing Neural Network (SNN) predictor head with parallel MultiLn layers.
+   Self-Normalizing Neural Network (SNN) predictor with TabM BatchEnsemble layers.
 
 
 
@@ -14,40 +14,147 @@ Classes
 
 .. autoapisummary::
 
+   matcha.torch.predictors.snn.BatchEnsembleLinear
    matcha.torch.predictors.snn.SNN
 
 
 Module Contents
 ---------------
 
+.. py:class:: BatchEnsembleLinear(in_features: int, out_features: int, num_parallel: int, *, first_layer: bool = False, bias: bool = True)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Parameter-efficient TabM-style BatchEnsemble linear layer.
+
+   Factorizes ``k`` parallel linear layers as a single shared weight
+   ``W`` of shape ``(out, in)`` plus per-member rank-1 adapters
+   ``R`` of shape ``(k, in)`` and ``S`` of shape ``(k, out)``, and an optional
+   per-member bias of shape ``(k, 1, out)``. For a member ``i`` and input row
+   ``x``, the layer computes:
+
+   .. math::
+
+       l_i(x) = \bigl((x \odot R_i)\, W^{\top}\bigr) \odot S_i + B_i,
+
+   which reduces the parameter cost of a naive parallel ensemble from
+   ``k * in * out`` to ``in * out + k*(in + out) + k*out`` (bias).
+
+   The layer accepts either a 2D input ``(batch, in)`` — internally
+   broadcast to ``(k, batch, in)`` — or a 3D input ``(k, batch, in)``.
+   Output is always ``(k, batch, out)``.
+
+   Initialization follows the TabM recipe:
+
+   - ``W`` — LeCun-normal (Kaiming-normal with ``mode='fan_in'``, ``nonlinearity='linear'``).
+   - ``R`` — random Rademacher ``\pm 1`` when ``first_layer=True`` to
+     diversify the ``k`` submodels at initialization; deterministic ``1``
+     otherwise. Without the first-layer Rademacher init, all ``k`` branches
+     collapse to identical outputs.
+   - ``S`` — deterministic ``1``.
+   - ``bias`` — ``0``.
+
+   Paper (TabM): Gorishniy et al. 2024, `arXiv:2410.24210
+   <https://arxiv.org/abs/2410.24210>`_.
+
+   :param int in_features: Input feature dimensionality.
+   :param int out_features: Output feature dimensionality.
+   :param int num_parallel: Number of parallel ensemble members ``k``.
+   :param bool first_layer: If True, initialize ``R`` with Rademacher
+       ``\pm 1`` values to diversify the submodels; else initialize to ``1``.
+   :param bool bias: Whether to include a per-member bias term.
+
+
+   .. py:attribute:: in_features
+
+
+   .. py:attribute:: out_features
+
+
+   .. py:attribute:: num_parallel
+
+
+   .. py:attribute:: first_layer
+      :value: False
+
+
+
+   .. py:attribute:: weight
+
+
+   .. py:attribute:: R
+
+
+   .. py:attribute:: S
+
+
+   .. py:method:: reset_parameters() -> None
+
+      Apply the TabM init recipe to ``W``, ``R``, ``S``, and bias.
+
+
+
+   .. py:method:: num_extra_parameters() -> int
+
+      Return the number of per-member (non-shared) parameters.
+
+
+
+   .. py:method:: extra_repr() -> str
+
+      Return the extra representation of the module.
+
+      To print customized extra information, you should re-implement
+      this method in your own modules. Both single-line and multi-line
+      strings are acceptable.
+
+
+
+   .. py:method:: forward(x: torch.Tensor) -> torch.Tensor
+
+      Run the BatchEnsemble forward pass.
+
+      :param torch.Tensor x: Input tensor of shape ``(batch, in_features)``
+          or ``(num_parallel, batch, in_features)``.
+      :returns: Output tensor of shape ``(num_parallel, batch, out_features)``.
+      :rtype: torch.Tensor
+      :raises ValueError: If ``x`` is neither 2D nor 3D.
+
+
+
 .. py:class:: SNN(input_dim: int, hidden_dims: list[int] | None, num_endpoints: int, dropout: float, num_parallel: int = 8)
 
    Bases: :py:obj:`matcha.torch.predictors.base_predictor.BasePredictor`
 
 
-   Self-Normalizing Neural Network (SNN) utility class.
+   Self-Normalizing Neural Network (SNN) predictor with TabM BatchEnsemble.
 
-   SNNs use SELU activations and AlphaDropout to maintain self-normalizing properties,
-   as described in the paper "Self-Normalizing Neural Networks" (https://arxiv.org/abs/1706.02515).
+   Combines the self-normalizing recipe (SELU + AlphaDropout) from Klambauer
+   et al. 2017 with the parameter-efficient BatchEnsemble factorization from
+   TabM (Gorishniy et al. 2024): each linear layer is a :class:`BatchEnsembleLinear`
+   with a shared weight ``W`` and per-member rank-1 adapters ``R``, ``S`` plus
+   per-member bias. Outputs from the ``num_parallel`` ensemble members are
+   averaged along the leading dimension at the end of :meth:`forward` and
+   (for a body with hidden layers) at the end of :meth:`encode`.
 
-   This implementation uses MultiLn layers for parallel computation and averages
-   the outputs across the num_parallel dimension for ensemble-like behavior.
+   Papers:
 
-   It inherits from :class:`.BasePredictor` for common routines (e.g. forward pass).
+   - Klambauer et al. 2017, `arXiv:1706.02515 <https://arxiv.org/abs/1706.02515>`_.
+   - Gorishniy et al. 2024, `arXiv:2410.24210 <https://arxiv.org/abs/2410.24210>`_.
 
-   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   It inherits from :class:`.BasePredictor` for common routines and is intended
+   to be used inside a :class:`BaseClassicModel` instance.
 
-   :param int input_dim: input feature dimensionality
-
+   :param int input_dim: input feature dimensionality.
    :param list[int] hidden_dims: shape of hidden layers in the predictor.
-       If None, goes directly from input to output.
-
-   :param float dropout: dropout rate between all layers (uses AlphaDropout)
-
+       If ``None`` or empty, goes directly from input to output.
    :param int num_endpoints: number of endpoints (if multitasking) or classes
-       (if classification) to predict
-
-   :param int num_parallel: number of parallel heads in MultiLn layers (default: 8)
+       (if classification) to predict.
+   :param float dropout: dropout rate applied between layers (uses AlphaDropout).
+   :param int num_parallel: number of parallel ensemble members ``k`` (default: 8).
+       Must be ``>= 2``; use the MLP predictor for the single-model case.
+   :raises ValueError: If ``num_parallel <= 1``.
 
 
    .. py:attribute:: num_parallel
@@ -55,14 +162,21 @@ Module Contents
 
 
 
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: post
+
+
    .. py:method:: encode(mol_features: torch.Tensor) -> torch.Tensor
 
       Extract the latent representation from all layers except the last.
 
-      Averages across the ``num_parallel`` dimension.
+      Averages across the ``num_parallel`` dimension when a hidden body is
+      present; otherwise returns the raw input.
 
       :param mol_features: input tensor of shape ``(batch, input_dim)``.
-      :returns: averaged latent representation of shape ``(batch, hidden_dims[-1])``.
+      :returns: averaged latent representation of shape ``(batch, latent_dim)``.
       :rtype: torch.Tensor
 
 

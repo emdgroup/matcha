@@ -66,29 +66,33 @@ Package Contents
    Bases: :py:obj:`matcha.torch.predictors.base_predictor.BasePredictor`
 
 
-   Self-Normalizing Neural Network (SNN) utility class.
+   Self-Normalizing Neural Network (SNN) predictor with TabM BatchEnsemble.
 
-   SNNs use SELU activations and AlphaDropout to maintain self-normalizing properties,
-   as described in the paper "Self-Normalizing Neural Networks" (https://arxiv.org/abs/1706.02515).
+   Combines the self-normalizing recipe (SELU + AlphaDropout) from Klambauer
+   et al. 2017 with the parameter-efficient BatchEnsemble factorization from
+   TabM (Gorishniy et al. 2024): each linear layer is a :class:`BatchEnsembleLinear`
+   with a shared weight ``W`` and per-member rank-1 adapters ``R``, ``S`` plus
+   per-member bias. Outputs from the ``num_parallel`` ensemble members are
+   averaged along the leading dimension at the end of :meth:`forward` and
+   (for a body with hidden layers) at the end of :meth:`encode`.
 
-   This implementation uses MultiLn layers for parallel computation and averages
-   the outputs across the num_parallel dimension for ensemble-like behavior.
+   Papers:
 
-   It inherits from :class:`.BasePredictor` for common routines (e.g. forward pass).
+   - Klambauer et al. 2017, `arXiv:1706.02515 <https://arxiv.org/abs/1706.02515>`_.
+   - Gorishniy et al. 2024, `arXiv:2410.24210 <https://arxiv.org/abs/2410.24210>`_.
 
-   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   It inherits from :class:`.BasePredictor` for common routines and is intended
+   to be used inside a :class:`BaseClassicModel` instance.
 
-   :param int input_dim: input feature dimensionality
-
+   :param int input_dim: input feature dimensionality.
    :param list[int] hidden_dims: shape of hidden layers in the predictor.
-       If None, goes directly from input to output.
-
-   :param float dropout: dropout rate between all layers (uses AlphaDropout)
-
+       If ``None`` or empty, goes directly from input to output.
    :param int num_endpoints: number of endpoints (if multitasking) or classes
-       (if classification) to predict
-
-   :param int num_parallel: number of parallel heads in MultiLn layers (default: 8)
+       (if classification) to predict.
+   :param float dropout: dropout rate applied between layers (uses AlphaDropout).
+   :param int num_parallel: number of parallel ensemble members ``k`` (default: 8).
+       Must be ``>= 2``; use the MLP predictor for the single-model case.
+   :raises ValueError: If ``num_parallel <= 1``.
 
 
    .. py:attribute:: num_parallel
@@ -96,14 +100,21 @@ Package Contents
 
 
 
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: post
+
+
    .. py:method:: encode(mol_features: torch.Tensor) -> torch.Tensor
 
       Extract the latent representation from all layers except the last.
 
-      Averages across the ``num_parallel`` dimension.
+      Averages across the ``num_parallel`` dimension when a hidden body is
+      present; otherwise returns the raw input.
 
       :param mol_features: input tensor of shape ``(batch, input_dim)``.
-      :returns: averaged latent representation of shape ``(batch, hidden_dims[-1])``.
+      :returns: averaged latent representation of shape ``(batch, latent_dim)``.
       :rtype: torch.Tensor
 
 
