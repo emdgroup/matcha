@@ -6,6 +6,125 @@ from matcha.torch.predictors.base_predictor import BasePredictor, PredictorRegis
 from matcha.nn.layers import MultiLn
 
 
+class BatchEnsembleLinear(nn.Module):
+    """Parameter-efficient TabM-style BatchEnsemble linear layer.
+
+    Factorizes ``k`` parallel linear layers as a single shared weight
+    ``W`` of shape ``(out, in)`` plus per-member rank-1 adapters
+    ``R`` of shape ``(k, in)`` and ``S`` of shape ``(k, out)``, and an optional
+    per-member bias of shape ``(k, 1, out)``. For a member ``i`` and input row
+    ``x``, the layer computes:
+
+    .. math::
+
+        l_i(x) = \\bigl((x \\odot R_i)\\, W^{\\top}\\bigr) \\odot S_i + B_i,
+
+    which reduces the parameter cost of a naive parallel ensemble from
+    ``k * in * out`` to ``in * out + k*(in + out) + k*out`` (bias).
+
+    The layer accepts either a 2D input ``(batch, in)`` — internally
+    broadcast to ``(k, batch, in)`` — or a 3D input ``(k, batch, in)``.
+    Output is always ``(k, batch, out)``.
+
+    Initialization follows the TabM recipe:
+
+    - ``W`` — LeCun-normal (Kaiming-normal with ``mode='fan_in'``, ``nonlinearity='linear'``).
+    - ``R`` — random Rademacher ``\\pm 1`` when ``first_layer=True`` to
+      diversify the ``k`` submodels at initialization; deterministic ``1``
+      otherwise. Without the first-layer Rademacher init, all ``k`` branches
+      collapse to identical outputs.
+    - ``S`` — deterministic ``1``.
+    - ``bias`` — ``0``.
+
+    Paper (TabM): Gorishniy et al. 2024, `arXiv:2410.24210
+    <https://arxiv.org/abs/2410.24210>`_.
+
+    :param int in_features: Input feature dimensionality.
+    :param int out_features: Output feature dimensionality.
+    :param int num_parallel: Number of parallel ensemble members ``k``.
+    :param bool first_layer: If True, initialize ``R`` with Rademacher
+        ``\\pm 1`` values to diversify the submodels; else initialize to ``1``.
+    :param bool bias: Whether to include a per-member bias term.
+    """
+
+    def __init__(
+        self,
+        in_features: int,
+        out_features: int,
+        num_parallel: int,
+        *,
+        first_layer: bool = False,
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.in_features = in_features
+        self.out_features = out_features
+        self.num_parallel = num_parallel
+        self.first_layer = first_layer
+
+        self.weight = nn.Parameter(torch.empty(out_features, in_features))
+        self.R = nn.Parameter(torch.empty(num_parallel, in_features))
+        self.S = nn.Parameter(torch.empty(num_parallel, out_features))
+        if bias:
+            self.bias = nn.Parameter(torch.empty(num_parallel, 1, out_features))
+        else:
+            self.register_parameter("bias", None)
+
+        self.reset_parameters()
+
+    def reset_parameters(self) -> None:
+        """Apply the TabM init recipe to ``W``, ``R``, ``S``, and bias."""
+        nn.init.kaiming_normal_(self.weight, mode="fan_in", nonlinearity="linear")
+        if self.first_layer:
+            with torch.no_grad():
+                signs = torch.randint(
+                    0, 2, self.R.shape, dtype=self.R.dtype, device=self.R.device
+                )
+                self.R.copy_(signs * 2 - 1)
+        else:
+            nn.init.ones_(self.R)
+        nn.init.ones_(self.S)
+        if self.bias is not None:
+            nn.init.zeros_(self.bias)
+
+    def num_extra_parameters(self) -> int:
+        """Return the number of per-member (non-shared) parameters."""
+        n = self.R.numel() + self.S.numel()
+        if self.bias is not None:
+            n += self.bias.numel()
+        return n
+
+    def extra_repr(self) -> str:
+        return (
+            f"in_features={self.in_features}, out_features={self.out_features}, "
+            f"num_parallel={self.num_parallel}, first_layer={self.first_layer}, "
+            f"bias={self.bias is not None}"
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Run the BatchEnsemble forward pass.
+
+        :param torch.Tensor x: Input tensor of shape ``(batch, in_features)``
+            or ``(num_parallel, batch, in_features)``.
+        :returns: Output tensor of shape ``(num_parallel, batch, out_features)``.
+        :rtype: torch.Tensor
+        :raises ValueError: If ``x`` is neither 2D nor 3D.
+        """
+        if x.dim() == 2:
+            x = x.unsqueeze(0).expand(self.num_parallel, -1, -1)
+        elif x.dim() != 3:
+            raise ValueError(
+                f"BatchEnsembleLinear expects input of shape (batch, in) or "
+                f"(num_parallel, batch, in); got tensor of dim {x.dim()}."
+            )
+        # x: (k, batch, in); R: (k, in) -> (k, 1, in); S: (k, out) -> (k, 1, out)
+        out = (x * self.R.unsqueeze(1)) @ self.weight.t()
+        out = out * self.S.unsqueeze(1)
+        if self.bias is not None:
+            out = out + self.bias
+        return out
+
+
 @PredictorRegistry.register()
 class SNN(BasePredictor):
     """Self-Normalizing Neural Network (SNN) utility class.
