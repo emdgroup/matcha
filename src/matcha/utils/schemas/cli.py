@@ -272,6 +272,7 @@ class PrepareDatasets(BaseDataModel):
 
     files: list[str]
     task_type: list[str]
+    sparse: bool = True
 
 
 class PrepareMetadata(BaseDataModel):

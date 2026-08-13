@@ -17,7 +17,7 @@ COMMANDS = {
     "autotune": "matcha.cli.autotune",
     "stitch": "matcha.cli.stitch",
     "summarize": "matcha.cli.summarize",
-    "prepare_sparse_dataset": "matcha.cli.prepare_sparse_dataset",
+    "prepare_dataset": "matcha.cli.prepare_dataset",
     "pretrain_multitask": "matcha.cli.pretrain_multitask",
     "pretrain_encoder": "matcha.cli.pretrain_encoder",
 }
