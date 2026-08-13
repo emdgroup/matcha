@@ -1,5 +1,5 @@
 from matcha.utils.schemas.base import BaseDataModel
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import model_validator
 
 ### Base classes ###
@@ -427,11 +427,14 @@ class CLIPretrainMultitaskInputModel(BaseDataModel):
 class EncoderPretrainDataset(BaseDataModel):
     """Dataset config for encoder pretraining.
 
-    Supports two modes:
+    Supports three modes:
     - **MLM**: only ``train_smiles`` and ``val_smiles`` parquet paths are needed.
     - **Graph pretraining**: additionally requires ``train_y_graph``, ``val_y_graph``
       (npz with key ``descriptors``), ``train_y_node``, ``val_y_node``
       (npz files for node-level targets), and ``task_type`` = ``"graph"``.
+    - **Graph3D pretraining**: same requirements as ``graph``, plus
+      ``train_coords`` / ``val_coords`` npz files carrying precomputed
+      per-molecule 3D atomic coordinates; ``task_type`` = ``"graph3d"``.
 
     Node-level target files (``train_y_node``, ``val_y_node``) use a packed
     flat + offsets layout::
@@ -439,15 +442,50 @@ class EncoderPretrainDataset(BaseDataModel):
         np.savez_compressed("node_y.npz",
                             flat=np.concatenate(list_of_arrays),
                             offsets=np.cumsum([0] + [len(a) for a in list_of_arrays]))
+
+    Coordinate files (``train_coords``, ``val_coords``) use the same packing,
+    with ``flat`` shaped ``(total_atoms, 3)`` and ``offsets`` of length
+    ``N + 1``. Each molecule slice becomes an ``(A_i, 3)`` ``float32`` array.
     """
 
-    task_type: str  # "mlm" or "graph"
+    task_type: Literal["mlm", "graph", "graph3d"]
     train_smiles: str
     val_smiles: str
     train_y_graph: Optional[str] = None
     val_y_graph: Optional[str] = None
     train_y_node: Optional[str] = None
     val_y_node: Optional[str] = None
+    train_coords: Optional[str] = None
+    val_coords: Optional[str] = None
+
+    @model_validator(mode="after")
+    def _check_task_type_requirements(self) -> "EncoderPretrainDataset":
+        if self.task_type == "graph3d":
+            missing = [
+                name
+                for name, value in {
+                    "train_y_graph": self.train_y_graph,
+                    "val_y_graph": self.val_y_graph,
+                    "train_y_node": self.train_y_node,
+                    "val_y_node": self.val_y_node,
+                    "train_coords": self.train_coords,
+                    "val_coords": self.val_coords,
+                }.items()
+                if value is None
+            ]
+            if missing:
+                raise ValueError(
+                    "task_type='graph3d' requires all four label paths "
+                    "(train_y_graph, val_y_graph, train_y_node, val_y_node) "
+                    "plus train_coords and val_coords. Missing: "
+                    f"{sorted(missing)}"
+                )
+        else:  # "mlm" or "graph"
+            if self.train_coords is not None or self.val_coords is not None:
+                raise ValueError(
+                    "train_coords / val_coords are only valid when task_type='graph3d'."
+                )
+        return self
 
 
 class EncoderPretrainGraphDatamodule(BaseDataModel):

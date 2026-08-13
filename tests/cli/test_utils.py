@@ -9,7 +9,12 @@ split method because it operates only on a split's test arrays.
 import numpy as np
 import pytest
 
-from matcha.cli.utils import bootstrap_metrics, get_splits
+from matcha.cli.utils import (
+    _load_coords_npz,
+    _load_npz_list,
+    bootstrap_metrics,
+    get_splits,
+)
 from matcha.utils.metrics import process_regression
 from matcha.utils.schemas.cli import Split
 
@@ -168,3 +173,120 @@ class TestBootstrapIndependence:
             scores = bootstrap_metrics(mean_metric, 5, 0.8, y, preds)
             assert len(scores) == 5
             assert all(isinstance(s, dict) for s in scores)
+
+
+# =========================================================================
+# _load_npz_list — flat + offsets round-trip
+# =========================================================================
+
+
+class TestLoadNpzList:
+    """Legacy variable-length packing loader (used for node-level labels)."""
+
+    def test_round_trip_1d(self, tmp_path):
+        arrs = [
+            np.array([1.0, 2.0]),
+            np.array([3.0, 4.0, 5.0]),
+            np.array([6.0]),
+        ]
+        flat = np.concatenate(arrs)
+        offsets = np.cumsum([0] + [len(a) for a in arrs])
+        path = tmp_path / "y_node.npz"
+        np.savez_compressed(path, flat=flat, offsets=offsets)
+
+        loaded = _load_npz_list(str(path))
+        assert len(loaded) == len(arrs)
+        for got, want in zip(loaded, arrs):
+            np.testing.assert_array_equal(got, want)
+
+
+# =========================================================================
+# _load_coords_npz — happy path + four startup guards
+# =========================================================================
+
+
+def _write_coords_npz(path, flat, offsets):
+    np.savez_compressed(path, flat=flat, offsets=offsets)
+
+
+class TestLoadCoordsNpz:
+    """Guard rails on the coords npz on-disk layout.
+
+    Uses the same ``flat + offsets`` packing as node-level labels, but the
+    loader enforces stricter shape/monotonicity invariants so we fail fast
+    at CLI startup instead of deep inside featurize().
+    """
+
+    def _make_valid(self, tmp_path, atom_counts=(3, 4, 2)):
+        rng = np.random.default_rng(0)
+        flat = rng.standard_normal((sum(atom_counts), 3)).astype(np.float64)
+        offsets = np.cumsum([0] + list(atom_counts)).astype(np.int64)
+        path = tmp_path / "coords.npz"
+        _write_coords_npz(path, flat, offsets)
+        return path, flat, offsets, atom_counts
+
+    def test_happy_path_round_trip(self, tmp_path):
+        path, flat, offsets, atom_counts = self._make_valid(tmp_path)
+        loaded = _load_coords_npz(str(path))
+        assert len(loaded) == len(atom_counts)
+        for i, (arr, count) in enumerate(zip(loaded, atom_counts)):
+            assert arr.shape == (count, 3)
+            assert arr.dtype == np.float32
+            np.testing.assert_allclose(
+                arr, flat[offsets[i] : offsets[i + 1]].astype(np.float32)
+            )
+
+    def test_returns_float32(self, tmp_path):
+        path, _, _, _ = self._make_valid(tmp_path)
+        loaded = _load_coords_npz(str(path))
+        assert all(a.dtype == np.float32 for a in loaded)
+
+    def test_rejects_flat_1d(self, tmp_path):
+        path = tmp_path / "bad_ndim.npz"
+        _write_coords_npz(
+            path,
+            flat=np.zeros(9, dtype=np.float32),
+            offsets=np.array([0, 3, 6, 9], dtype=np.int64),
+        )
+        with pytest.raises(AssertionError, match="flat.ndim"):
+            _load_coords_npz(str(path))
+
+    def test_rejects_wrong_last_dim(self, tmp_path):
+        path = tmp_path / "bad_shape.npz"
+        _write_coords_npz(
+            path,
+            flat=np.zeros((9, 2), dtype=np.float32),
+            offsets=np.array([0, 3, 6, 9], dtype=np.int64),
+        )
+        with pytest.raises(AssertionError, match=r"flat\.shape\[1\]"):
+            _load_coords_npz(str(path))
+
+    def test_rejects_non_monotonic_offsets(self, tmp_path):
+        path = tmp_path / "non_monotonic.npz"
+        _write_coords_npz(
+            path,
+            flat=np.zeros((9, 3), dtype=np.float32),
+            offsets=np.array([0, 6, 3, 9], dtype=np.int64),
+        )
+        with pytest.raises(AssertionError, match="monotonic"):
+            _load_coords_npz(str(path))
+
+    def test_rejects_offsets_last_mismatch(self, tmp_path):
+        path = tmp_path / "offset_mismatch.npz"
+        _write_coords_npz(
+            path,
+            flat=np.zeros((9, 3), dtype=np.float32),
+            offsets=np.array([0, 3, 6, 8], dtype=np.int64),
+        )
+        with pytest.raises(AssertionError, match="offsets"):
+            _load_coords_npz(str(path))
+
+    def test_rejects_offsets_2d(self, tmp_path):
+        path = tmp_path / "offsets_2d.npz"
+        _write_coords_npz(
+            path,
+            flat=np.zeros((9, 3), dtype=np.float32),
+            offsets=np.array([[0, 3], [6, 9]], dtype=np.int64),
+        )
+        with pytest.raises(AssertionError, match="offsets.ndim"):
+            _load_coords_npz(str(path))

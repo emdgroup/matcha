@@ -178,7 +178,23 @@ For 3D architectures also add a **classic ↔ pretraining datamodule parity test
 
 No sklearn wiring is required — the pretraining path never goes through an sklearn estimator.
 
-**CLI caveat (2D vs 3D).** `pretrain_encoder` dispatches the *model* through `PretrainingModelRegistry`, but the graph branch (`cli/pretrain_encoder.py::_run_graph_pretraining`) hardcodes the 2D `GraphPretrainingDataModule` and its schema (`EncoderPretrainGraphDatamodule`) has no field to load per-molecule coordinates. A new 2D pretraining model is CLI-runnable as soon as it lands in `PretrainingModelRegistry`. A new 3D pretraining model (like `E3GNNPretraining`) is **not** CLI-runnable — it can only be driven from the Python API today. Wiring 3D pretraining into the CLI is a separate change: extend `EncoderPretrainDataset` with `train_coords` / `val_coords` npz keys, add a `task_type: "graph3d"` branch to `main()`, and dispatch to `Graph3DPretrainingDataModule` (registered as `"graph3d_pretraining"`) instead of `GraphPretrainingDataModule`.
+**CLI wiring (2D and 3D).** Both `pretrain_encoder` and `pretrain_multitask` accept precomputed per-molecule 3D conformers via a shared flat + offsets npz layout — the datamodules deliberately never run ETKDG, so coordinates must be supplied upfront.
+
+- **`pretrain_encoder`** — `EncoderPretrainDataset.task_type` is `Literal["mlm", "graph", "graph3d"]`. The `graph3d` branch (`cli/pretrain_encoder.py::_run_graph3d_pretraining`) dispatches to `Graph3DPretrainingDataModule` (registered as `"graph3d_pretraining"`) and requires `train_coords` / `val_coords` alongside the four `y_graph` / `y_node` npz files. The schema rejects a `graph3d` config missing any of those six paths, and rejects coords supplied under `mlm` / `graph`. See `cli/example_configs/pretrain_encoder_graph3d.yaml` for a runnable example.
+- **`pretrain_multitask`** — coords are discovered *by convention* from the dataset directory: if `{dataset_dir}/train_coords.npz` and `{dataset_dir}/val_coords.npz` exist, they are loaded and passed to `OnTheFlyDataModule.set_data(..., train_coords=..., val_coords=...)`. There is no schema field to opt in — dropping the two files in the prepared dataset directory is the switch. When the resolved multitask architecture uses a 3D-capable base datamodule (one whose `generate_features` accepts a `coords` kwarg), the wrapper forwards them via `base.generate_features(..., coords=..., n_jobs=1)`. When the base is 2D-only, coords are silently dropped and a single `logging.warning` is emitted (stdlib logger, not `warnings.warn` — pytest's `filterwarnings=error` would trip on the latter). Absence of the coord files is byte-identical to the pre-issue-29 behavior.
+- **Coord npz layout.** Both CLIs read the same on-disk shape as `train_y_node` / `val_y_node`:
+
+  ```python
+  np.savez_compressed(
+      "train_coords.npz",
+      flat=flat,        # (total_atoms, 3) float
+      offsets=offsets,  # (N + 1,) int, monotonic non-decreasing, offsets[-1] == flat.shape[0]
+  )
+  ```
+
+  `cli.utils._load_coords_npz` performs startup assertions (`flat.ndim == 2`, `flat.shape[1] == 3`, offsets monotonic, `offsets[-1] == flat.shape[0]`) so malformed inputs fail at CLI parse time rather than at featurize time.
+
+Rows in `train_coords` / `val_coords` must align 1-to-1 with the SMILES parquet in the same split. Downstream reordering to the canonical-SMILES atom order is handled inside `Graph3DPretrainingDataModule.featurize` — user-supplied rows should follow the original SMILES atom order.
 
 ---
 

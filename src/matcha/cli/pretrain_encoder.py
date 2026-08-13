@@ -44,7 +44,7 @@ from matcha.utils.schemas.cli import (
     EncoderPretrainMLMDatamodule,
     PretrainTraining,
 )
-from matcha.cli.utils import save_config_as_yaml
+from matcha.cli.utils import _load_coords_npz, _load_npz_list, save_config_as_yaml
 from matcha.torch.models.pretraining import PretrainingModelRegistry
 from matcha import __version__
 
@@ -82,34 +82,19 @@ def _load_npz_array(path: str, key: str = "descriptors") -> np.ndarray:
     return np.load(path)[key]
 
 
-def _load_npz_list(path: str) -> list[np.ndarray]:
-    """Load a list of variable-length arrays from a packed npz file.
-
-    Expected on-disk layout (``flat`` + ``offsets``)::
-
-        np.savez_compressed("node_y.npz", flat=<concatenated>, offsets=<cumulative>)
-
-    where ``offsets`` has length ``N + 1`` and ``flat`` has shape
-    ``(total_items,)`` or ``(total_items, D)``.
-    """
-    data = np.load(path)
-    flat = data["flat"]
-    offsets = data["offsets"]
-    return [flat[offsets[i] : offsets[i + 1]] for i in range(len(offsets) - 1)]
-
-
 def _filter_node_label_mismatches(
     smiles: list[str],
     y_graph: np.ndarray,
     y_node: list[np.ndarray],
     logger,
     split_name: str = "data",
-) -> tuple[list[str], np.ndarray, list[np.ndarray]]:
+    coords: list[np.ndarray] | None = None,
+) -> tuple[list[str], np.ndarray, list[np.ndarray], list[np.ndarray] | None]:
     """Drop molecules whose atom-level labels don't match the canonical atom count.
 
     Compares the number of rows in each ``y_node[i]`` against the number of
     heavy atoms in the canonical form of the SMILES.  Entries that fail the
-    check (wrong row count) are removed from all three arrays so downstream
+    check (wrong row count) are removed from all supplied arrays so downstream
     datamodules never see them.
 
     :param smiles: list of SMILES strings
@@ -117,7 +102,10 @@ def _filter_node_label_mismatches(
     :param y_node: list of N arrays, each ``(A_i, T)``
     :param logger: logger instance
     :param split_name: label used in the log message (e.g. "train", "val")
-    :return: filtered (smiles, y_graph, y_node)
+    :param coords: optional list of N arrays of shape ``(A_i, 3)`` filtered by
+        the same ``keep`` mask.  When ``None``, the fourth tuple element is
+        ``None``.
+    :return: filtered (smiles, y_graph, y_node, coords)
     """
     keep: list[int] = []
     for i, smi in enumerate(smiles):
@@ -145,7 +133,8 @@ def _filter_node_label_mismatches(
     filtered_smiles = [smiles[i] for i in keep]
     filtered_y_graph = y_graph[keep]
     filtered_y_node = [y_node[i] for i in keep]
-    return filtered_smiles, filtered_y_graph, filtered_y_node
+    filtered_coords = [coords[i] for i in keep] if coords is not None else None
+    return filtered_smiles, filtered_y_graph, filtered_y_node, filtered_coords
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -153,11 +142,32 @@ def _filter_node_label_mismatches(
 # ──────────────────────────────────────────────────────────────────────
 
 
-def _run_graph_pretraining(cfg: CLIEncoderPretrainInputModel, logger):
-    """Train a graph pretraining model (node + graph multi-task)."""
-    from matcha.datamodules.pretraining.graph_pretraining_datamodule import (
-        GraphPretrainingDataModule,
-    )
+def _run_graph_pretraining_generic(
+    cfg: CLIEncoderPretrainInputModel,
+    logger,
+    *,
+    dm_cls,
+    coords_loader=None,
+):
+    """Shared build path for 2D and 3D graph encoder pretraining.
+
+    Loads SMILES + graph/node labels (and optionally coords), filters out
+    mismatched atom counts, instantiates ``dm_cls`` from the typed
+    :class:`EncoderPretrainGraphDatamodule` config, and wraps it in the
+    :class:`OnTheFlyGraphPretrainingDataModule` streaming wrapper.
+
+    :param cfg: Validated CLI configuration.
+    :param logger: Logger instance for progress messages.
+    :param dm_cls: Concrete base datamodule class — e.g.
+        :class:`GraphPretrainingDataModule` for 2D or
+        :class:`Graph3DPretrainingDataModule` for 3D.
+    :param coords_loader: Optional callable ``(path) -> list[np.ndarray]``
+        used to load per-split coordinate npz files.  When supplied,
+        ``cfg.dataset.train_coords`` and ``cfg.dataset.val_coords`` are
+        loaded and threaded through featurization; the schema guarantees
+        both paths are present when this branch is entered.
+    :returns: ``(base_dm, otf_dm)`` ready for training.
+    """
     from matcha.datamodules.pretraining.on_the_fly_graph_pretraining_datamodule import (
         OnTheFlyGraphPretrainingDataModule,
     )
@@ -169,37 +179,43 @@ def _run_graph_pretraining(cfg: CLIEncoderPretrainInputModel, logger):
     train_smiles = _load_smiles(ds.train_smiles)
     train_y_graph = _load_npz_array(ds.train_y_graph)
     train_y_node = _load_npz_list(ds.train_y_node)
+    train_coords = coords_loader(ds.train_coords) if coords_loader is not None else None
     logger.info(f"  train: {len(train_smiles)} molecules")
 
     logger.info("Loading validation data…")
     val_smiles = _load_smiles(ds.val_smiles)
     val_y_graph = _load_npz_array(ds.val_y_graph)
     val_y_node = _load_npz_list(ds.val_y_node)
+    val_coords = coords_loader(ds.val_coords) if coords_loader is not None else None
     logger.info(f"  val:   {len(val_smiles)} molecules")
 
     # Resolve datamodule config (use typed defaults when omitted)
     dm_cfg = EncoderPretrainGraphDatamodule(**(cfg.model.datamodule or {}))
 
     # Filter out molecules with mismatched atom-level labels upfront
-    train_smiles, train_y_graph, train_y_node = _filter_node_label_mismatches(
-        train_smiles,
-        train_y_graph,
-        train_y_node,
-        logger,
-        split_name="train",
+    train_smiles, train_y_graph, train_y_node, train_coords = (
+        _filter_node_label_mismatches(
+            train_smiles,
+            train_y_graph,
+            train_y_node,
+            logger,
+            split_name="train",
+            coords=train_coords,
+        )
     )
-    val_smiles, val_y_graph, val_y_node = _filter_node_label_mismatches(
+    val_smiles, val_y_graph, val_y_node, val_coords = _filter_node_label_mismatches(
         val_smiles,
         val_y_graph,
         val_y_node,
         logger,
         split_name="val",
+        coords=val_coords,
     )
     logger.info(f"  after filtering: train={len(train_smiles)}, val={len(val_smiles)}")
 
     # Build base datamodule from typed config
     dm_kwargs = dm_cfg.model_dump()
-    base_dm = GraphPretrainingDataModule(**dm_kwargs)
+    base_dm = dm_cls(**dm_kwargs)
 
     # Optional: fit datamodule on a sample for any stateful components
     if cfg.pipe.fit_datamodule_size is not None:
@@ -208,14 +224,26 @@ def _run_graph_pretraining(cfg: CLIEncoderPretrainInputModel, logger):
         sample_mols = [Chem.MolFromSmiles(train_smiles[i]) for i in idx]
         sample_y_graph = train_y_graph[idx]
         sample_y_node = [train_y_node[i] for i in idx]
-        base_dm.featurize(sample_mols, sample_y_graph, sample_y_node, is_training=True)
+        if train_coords is not None:
+            sample_coords = [train_coords[i] for i in idx]
+            base_dm.featurize(
+                sample_mols,
+                sample_y_graph,
+                sample_y_node,
+                coords=sample_coords,
+                is_training=True,
+            )
+        else:
+            base_dm.featurize(
+                sample_mols, sample_y_graph, sample_y_node, is_training=True
+            )
 
     # On-the-fly wrapper
     otf_dm = OnTheFlyGraphPretrainingDataModule(
         base=base_dm,
         num_workers=cfg.pipe.dataloader_num_workers,
     )
-    otf_dm.set_data(
+    set_data_kwargs = dict(
         train_smiles=train_smiles,
         train_y_graph=train_y_graph,
         train_y_node=train_y_node,
@@ -223,10 +251,40 @@ def _run_graph_pretraining(cfg: CLIEncoderPretrainInputModel, logger):
         val_y_graph=val_y_graph,
         val_y_node=val_y_node,
     )
+    if train_coords is not None:
+        set_data_kwargs["train_coords"] = train_coords
+    if val_coords is not None:
+        set_data_kwargs["val_coords"] = val_coords
+    otf_dm.set_data(**set_data_kwargs)
     otf_dm.setup(stage="fit")
     otf_dm.params.batch_size = dm_cfg.batch_size
 
     return base_dm, otf_dm
+
+
+def _run_graph_pretraining(cfg: CLIEncoderPretrainInputModel, logger):
+    """Train a 2D graph pretraining model (node + graph multi-task)."""
+    from matcha.datamodules.pretraining.graph_pretraining_datamodule import (
+        GraphPretrainingDataModule,
+    )
+
+    return _run_graph_pretraining_generic(
+        cfg, logger, dm_cls=GraphPretrainingDataModule
+    )
+
+
+def _run_graph3d_pretraining(cfg: CLIEncoderPretrainInputModel, logger):
+    """Train a 3D graph pretraining model with user-supplied atomic coordinates."""
+    from matcha.datamodules.pretraining.graph_3d_pretraining_datamodule import (
+        Graph3DPretrainingDataModule,
+    )
+
+    return _run_graph_pretraining_generic(
+        cfg,
+        logger,
+        dm_cls=Graph3DPretrainingDataModule,
+        coords_loader=_load_coords_npz,
+    )
 
 
 def _run_mlm_pretraining(cfg: CLIEncoderPretrainInputModel, logger):
@@ -390,10 +448,16 @@ def _save_artifacts(
 def main(cfg=None) -> None:
     """Run encoder pretraining (MLM or graph multi-task) from a YAML configuration.
 
-    Supports two pretraining modes controlled by ``dataset.task_type``:
+    Supports three pretraining modes controlled by ``dataset.task_type``:
 
     - **mlm**: Masked language modelling over SMILES strings.
-    - **graph**: Supervised node-level and graph-level multi-task objectives.
+    - **graph**: Supervised node-level and graph-level multi-task objectives
+      on 2D molecular graphs.
+    - **graph3d**: Same as ``graph`` but with user-supplied precomputed 3D
+      atomic coordinates (``train_coords`` / ``val_coords`` npz files) routed
+      through to a 3D-capable base datamodule such as
+      :class:`Graph3DPretrainingDataModule` for architectures like
+      :class:`E3GNNPretraining`.
 
     Trains the encoder with Lightning, optionally using DDP for multi-GPU
     training, and saves artifacts (encoder checkpoint, configs, manifest)
@@ -406,7 +470,7 @@ def main(cfg=None) -> None:
     """
     if cfg is None:
         parser = argparse.ArgumentParser(
-            description="Pretrain an encoder (MLM or graph multi-task)"
+            description="Pretrain an encoder (MLM, graph, or graph3d)"
         )
         parser.add_argument(
             "--config",
@@ -439,11 +503,14 @@ def main(cfg=None) -> None:
     task_type = cfg.dataset.task_type.lower()
     if task_type == "graph":
         base_dm, otf_dm = _run_graph_pretraining(cfg, logger)
+    elif task_type == "graph3d":
+        base_dm, otf_dm = _run_graph3d_pretraining(cfg, logger)
     elif task_type == "mlm":
         base_dm, otf_dm = _run_mlm_pretraining(cfg, logger)
     else:
         raise ValueError(
-            f"Unknown dataset.task_type '{task_type}'. Expected 'mlm' or 'graph'."
+            f"Unknown dataset.task_type '{task_type}'. "
+            "Expected 'mlm', 'graph', or 'graph3d'."
         )
 
     # ── Build model ───────────────────────────────────────────────────
@@ -456,7 +523,7 @@ def main(cfg=None) -> None:
 
     # For graph models, broadcast positional-encoding keys from the
     # datamodule config into the model constructor (as ``enc_<key>``).
-    if task_type == "graph":
+    if task_type in ("graph", "graph3d"):
         dm_cfg = EncoderPretrainGraphDatamodule(**(cfg.model.datamodule or {}))
         for key in _GRAPH_DM_KEYS_BROADCAST_TO_MODEL:
             enc_key = f"enc_{key}"
