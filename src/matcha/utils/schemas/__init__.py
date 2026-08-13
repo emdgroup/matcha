@@ -33,6 +33,7 @@ from matcha.utils.schemas.datamodules import (
     GraphDataModuleInputModel,
     GraphPretrainingDataModuleInputModel,
     Graph3DDataModuleInputModel,
+    Graph3DPretrainingDataModuleInputModel,
     CLMDataModuleInputModel,
     CombinedDataModuleInputModel,
 )
@@ -84,6 +85,7 @@ __all__ = [
     "GraphDataModuleInputModel",
     "GraphPretrainingDataModuleInputModel",
     "Graph3DDataModuleInputModel",
+    "Graph3DPretrainingDataModuleInputModel",
     "CLMDataModuleInputModel",
     "CombinedDataModuleInputModel",
     # Sklearn API

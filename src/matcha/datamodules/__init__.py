@@ -66,6 +66,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
         "matcha.datamodules.pretraining.graph_pretraining_datamodule",
         "GraphPretrainingDataModule",
     ),
+    "Graph3DPretrainingDataModule": (
+        "matcha.datamodules.pretraining.graph_3d_pretraining_datamodule",
+        "Graph3DPretrainingDataModule",
+    ),
     "OnTheFlyGraphPretrainingDataModule": (
         "matcha.datamodules.pretraining.on_the_fly_graph_pretraining_datamodule",
         "OnTheFlyGraphPretrainingDataModule",
@@ -105,6 +109,7 @@ __all__ = [
     "OnTheFlyDataModule",
     "OnTheFlyMLMDataModule",
     "GraphPretrainingDataModule",
+    "Graph3DPretrainingDataModule",
     "OnTheFlyGraphPretrainingDataModule",
     # Utilities
     "CombinedStackDataset",
