@@ -1,152 +1,13 @@
 """GPS pretraining model for self-supervised learning on graphs."""
 
-from typing import Any
-
-import torch
-from torch import nn
-from torch_geometric.data import Batch
-from lightning.pytorch.core.mixins import HyperparametersMixin
-
+from matcha.torch.encoders.gps import GPS
 from matcha.torch.models.pretraining.base_graph_pretraining import (
     BaseGraphPretrainingModel,
 )
 from matcha.torch.models.pretraining.base_pretraining_model import (
     PretrainingModelRegistry,
 )
-from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder
-from matcha.torch.encoders.gps import GPSBlock
-from matcha.nn.layers import LnBnDr, SpatialEncoder
 from matcha.datamodules.classic.graph_datamodule import ATOM_FEAT_DIM, BOND_FEAT_DIM
-
-
-class GPSPretrainingEncoder(BaseGraphEncoder, HyperparametersMixin):
-    """GPS encoder variant that returns node embeddings for pretraining.
-
-    This encoder outputs node-level embeddings that can be used for both
-    node-level and graph-level pretraining tasks.
-
-    :param int num_layers: Number of GPS blocks
-    :param int atom_input_dim: Number of input atom features
-    :param int bond_input_dim: Number of input bond features
-    :param int atom_hidden_dim: Hidden dimension for atom features
-    :param int num_heads: Number of attention heads
-    :param int expansion_k: FFN expansion factor
-    :param int | None distance_k: Maximum distance for spatial encoding
-    :param str activation: Activation function name
-    :param float dropout: Dropout rate
-    :param str | None norm: Normalization type
-    :param str jk: Jumping knowledge strategy
-    :param str readout: Readout function for graph-level aggregation
-    :param int laplacian_k: Laplacian positional encoding dimension
-    :param int rwse_k: Random walk structural encoding dimension
-    :param int elstatic_k: Electrostatic encoding dimension
-    :param int distmat_k: Distance matrix encoding dimension
-    :param int rrwp_k: Relative random walk probability dimension
-    """
-
-    def __init__(
-        self,
-        num_layers: int,
-        atom_input_dim: int,
-        bond_input_dim: int,
-        atom_hidden_dim: int,
-        num_heads: int,
-        expansion_k: int,
-        distance_k: int | None,
-        activation: str,
-        dropout: float,
-        norm: str | None,
-        jk: str,
-        readout: str,
-        laplacian_k: int,
-        rwse_k: int,
-        elstatic_k: int,
-        distmat_k: int,
-        rrwp_k: int,
-    ):
-        super().__init__(
-            laplacian_k,
-            rwse_k,
-            elstatic_k,
-            distmat_k,
-            rrwp_k,
-        )
-        self.save_hyperparameters()
-
-        self.layers = nn.ModuleList()
-        for _ in range(num_layers):
-            self.layers.append(
-                GPSBlock(
-                    atom_hidden_dim,
-                    atom_hidden_dim,
-                    dropout,
-                    norm,
-                    activation,
-                    num_heads,
-                    expansion_k,
-                    distance_k,
-                )
-            )
-
-        self.atom_projection = nn.Sequential(
-            LnBnDr(atom_input_dim, atom_hidden_dim, dropout, activation, norm),
-            LnBnDr(atom_hidden_dim, atom_hidden_dim, dropout, None, None),
-        )
-        self.bond_projection = nn.Sequential(
-            LnBnDr(bond_input_dim, atom_hidden_dim, dropout, activation, norm),
-            LnBnDr(atom_hidden_dim, atom_hidden_dim, dropout, None, None),
-        )
-
-        if distance_k is not None:
-            self.dist_encoder = SpatialEncoder(distance_k, num_heads)
-        else:
-            self.dist_encoder = None
-
-        self._parse_jk(jk)
-        self._parse_readout(readout)
-
-    def forward(self, graph: Batch) -> torch.Tensor:
-        """Forward pass returning graph-level embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Graph-level embeddings [batch_size, hidden_dim]
-        """
-        node_embeddings, g = self.forward_nodes(graph)
-        return self.readout(g, node_embeddings)
-
-    def forward_nodes(self, graph: Batch) -> tuple[torch.Tensor, Batch]:
-        """Forward pass returning node-level embeddings (JK-merged).
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (node_embeddings, processed_graph)
-        """
-        all_atom_feats, g = self.forward_nodes_per_layer(graph)
-        final_atom_feats = self._run_jk(all_atom_feats)
-        return final_atom_feats, g
-
-    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
-        """Forward pass returning per-layer node embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        g, atom_feats, bond_feats, graph_id = self._process_graph_batch(graph)
-        all_atom_feats = []
-        atom_feats = self.atom_projection(atom_feats)
-        bond_feats = self.bond_projection(bond_feats)
-
-        if self.dist_encoder is not None and hasattr(g, "spd") and g.spd is not None:
-            dist_bias = self.dist_encoder(g.spd)
-        else:
-            dist_bias = None
-
-        for layer in self.layers:
-            atom_feats, bond_feats = layer(
-                g, atom_feats, bond_feats, graph_id, dist_bias
-            )
-            all_atom_feats.append(atom_feats)
-
-        return all_atom_feats, g
 
 
 @PretrainingModelRegistry.register()
@@ -297,7 +158,7 @@ class GPSPretraining(BaseGraphPretrainingModel):
         self._parse_train_config()
 
     def _build_encoder(self):
-        """Build the GPS encoder."""
+        """Build the canonical GPS encoder shared with the classic path."""
         atom_input_dim = (
             self.hparams["enc_atom_input_dim"]
             + self.hparams["enc_laplacian_k"]
@@ -307,7 +168,7 @@ class GPSPretraining(BaseGraphPretrainingModel):
         )
         edge_input_dim = self.hparams["enc_bond_input_dim"] + self.hparams["enc_rrwp_k"]
 
-        self.encoder = GPSPretrainingEncoder(
+        self.encoder = GPS(
             num_layers=self.hparams["enc_num_layers"],
             atom_input_dim=atom_input_dim,
             bond_input_dim=edge_input_dim,
@@ -326,14 +187,3 @@ class GPSPretraining(BaseGraphPretrainingModel):
             distmat_k=self.hparams["enc_distmat_k"],
             rrwp_k=self.hparams["enc_rrwp_k"],
         )
-
-    def _get_per_layer_embeddings(
-        self, batch: dict[str, Any]
-    ) -> tuple[list[torch.Tensor], Batch]:
-        """Extract per-layer node embeddings from GPS encoder.
-
-        :param batch: Input batch containing 'graph' key
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        graph = batch["graph"]
-        return self.encoder.forward_nodes_per_layer(graph)

@@ -35,8 +35,10 @@ class BaseGraphPretrainingModel(BasePretrainingModel, HyperparametersMixin):
     The model does **not** reconstruct its own input atom features.
 
     Subclasses must implement:
-        - _build_encoder(): Build the graph encoder
-        - _get_node_embeddings(): Extract node-level embeddings from encoder
+        - _build_encoder(): Build the graph encoder. The encoder must be a
+          :class:`BaseGraphEncoder` subclass; per-layer node embeddings are
+          then read from ``self.encoder.forward_nodes_per_layer`` — pretraining
+          models do not implement their own layer stack.
 
     :param int num_node_targets: Number of node-level prediction targets
     :param int num_graph_targets: Number of graph-level prediction targets
@@ -161,11 +163,14 @@ class BaseGraphPretrainingModel(BasePretrainingModel, HyperparametersMixin):
         """Build the graph encoder. Must set self.encoder."""
         pass
 
-    @abstractmethod
     def _get_per_layer_embeddings(
         self, batch: dict[str, Any]
     ) -> tuple[list[torch.Tensor], Batch]:
         """Extract per-layer node embeddings from the encoder.
+
+        Delegates to :meth:`BaseGraphEncoder.forward_nodes_per_layer` so the
+        pretraining path consumes the canonical encoder's layer stack rather
+        than re-implementing it.
 
         :param batch: Input batch containing graph data
         :return: Tuple of (per_layer_embeddings, processed_graph)
@@ -173,7 +178,7 @@ class BaseGraphPretrainingModel(BasePretrainingModel, HyperparametersMixin):
               one per encoder layer
             - processed_graph: PyG Batch object for accessing batch assignment
         """
-        pass
+        return self.encoder.forward_nodes_per_layer(batch["graph"])
 
     def _build_prediction_head(
         self,

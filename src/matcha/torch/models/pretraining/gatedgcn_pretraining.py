@@ -1,126 +1,13 @@
 """GatedGCN pretraining model for self-supervised learning on graphs."""
 
-from typing import Any
-
-import torch
-from torch.nn import ModuleList
-from torch_geometric.data import Batch
-from lightning.pytorch.core.mixins import HyperparametersMixin
-
+from matcha.torch.encoders.gatedgcn import GatedGCN
 from matcha.torch.models.pretraining.base_graph_pretraining import (
     BaseGraphPretrainingModel,
 )
 from matcha.torch.models.pretraining.base_pretraining_model import (
     PretrainingModelRegistry,
 )
-from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder
-from matcha.torch.encoders.gatedgcn import GatedGCNConv
 from matcha.datamodules.classic.graph_datamodule import ATOM_FEAT_DIM, BOND_FEAT_DIM
-
-
-class GatedGCNPretrainingEncoder(BaseGraphEncoder, HyperparametersMixin):
-    """GatedGCN encoder variant that returns node embeddings for pretraining.
-
-    This encoder outputs node-level embeddings that can be used for both
-    node-level and graph-level pretraining tasks.
-
-    :param int num_layers: Number of message passing layers
-    :param int atom_input_dim: Number of input atom features
-    :param int bond_input_dim: Number of input bond features
-    :param int atom_hidden_dim: Hidden dimension for atom features
-    :param str activation: Activation function name
-    :param float dropout: Dropout rate
-    :param str | None norm: Normalization type
-    :param str jk: Jumping knowledge strategy
-    :param str readout: Readout function for graph-level aggregation
-    :param int laplacian_k: Laplacian positional encoding dimension
-    :param int rwse_k: Random walk structural encoding dimension
-    :param int elstatic_k: Electrostatic encoding dimension
-    :param int distmat_k: Distance matrix encoding dimension
-    :param int rrwp_k: Relative random walk probability dimension
-    """
-
-    def __init__(
-        self,
-        num_layers: int,
-        atom_input_dim: int,
-        bond_input_dim: int,
-        atom_hidden_dim: int,
-        activation: str,
-        dropout: float,
-        norm: str | None,
-        jk: str,
-        readout: str,
-        laplacian_k: int,
-        rwse_k: int,
-        elstatic_k: int,
-        distmat_k: int,
-        rrwp_k: int,
-    ):
-        super().__init__(
-            laplacian_k,
-            rwse_k,
-            elstatic_k,
-            distmat_k,
-            rrwp_k,
-        )
-        self.save_hyperparameters()
-        self._parse_jk(jk)
-        self._parse_readout(readout)
-
-        self.layers = ModuleList()
-        self.norm_type = norm
-
-        for i in range(num_layers):
-            in_channels = atom_input_dim if i == 0 else atom_hidden_dim
-            edge_dim = bond_input_dim if i == 0 else atom_hidden_dim
-            self.layers.append(
-                GatedGCNConv(
-                    in_channels=in_channels,
-                    out_channels=atom_hidden_dim,
-                    edge_dim=edge_dim,
-                    out_edge_dim=atom_hidden_dim,
-                    activation=activation,
-                    dropout=dropout,
-                    norm=norm,
-                )
-            )
-
-    def forward(self, graph: Batch) -> torch.Tensor:
-        """Forward pass returning graph-level embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Graph-level embeddings [batch_size, hidden_dim]
-        """
-        node_embeddings, g = self.forward_nodes(graph)
-        return self.readout(g, node_embeddings)
-
-    def forward_nodes(self, graph: Batch) -> tuple[torch.Tensor, Batch]:
-        """Forward pass returning node-level embeddings (JK-merged).
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (node_embeddings, processed_graph)
-        """
-        all_atom_feats, g = self.forward_nodes_per_layer(graph)
-        final_atom_feats = self._run_jk(all_atom_feats)
-        return final_atom_feats, g
-
-    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
-        """Forward pass returning per-layer node embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        g, atom_feats, bond_feats, _ = self._process_graph_batch(graph)
-        all_atom_feats = []
-
-        for layer in self.layers:
-            atom_feats, bond_feats = layer(
-                atom_feats, g.edge_index, bond_feats, batch=g.batch
-            )
-            all_atom_feats.append(atom_feats)
-
-        return all_atom_feats, g
 
 
 @PretrainingModelRegistry.register()
@@ -263,7 +150,7 @@ class GatedGCNPretraining(BaseGraphPretrainingModel):
         self._parse_train_config()
 
     def _build_encoder(self):
-        """Build the GatedGCN encoder."""
+        """Build the canonical GatedGCN encoder shared with the classic path."""
         atom_input_dim = (
             self.hparams["enc_atom_input_dim"]
             + self.hparams["enc_laplacian_k"]
@@ -273,7 +160,7 @@ class GatedGCNPretraining(BaseGraphPretrainingModel):
         )
         edge_input_dim = self.hparams["enc_bond_input_dim"] + self.hparams["enc_rrwp_k"]
 
-        self.encoder = GatedGCNPretrainingEncoder(
+        self.encoder = GatedGCN(
             num_layers=self.hparams["enc_num_layers"],
             atom_input_dim=atom_input_dim,
             bond_input_dim=edge_input_dim,
@@ -289,14 +176,3 @@ class GatedGCNPretraining(BaseGraphPretrainingModel):
             distmat_k=self.hparams["enc_distmat_k"],
             rrwp_k=self.hparams["enc_rrwp_k"],
         )
-
-    def _get_per_layer_embeddings(
-        self, batch: dict[str, Any]
-    ) -> tuple[list[torch.Tensor], Batch]:
-        """Extract per-layer node embeddings from GatedGCN encoder.
-
-        :param batch: Input batch containing 'graph' key
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        graph = batch["graph"]
-        return self.encoder.forward_nodes_per_layer(graph)

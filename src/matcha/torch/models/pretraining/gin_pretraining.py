@@ -4,151 +4,14 @@ Jointly predicts user-provided atom-level and molecule-level labels via a
 shared GIN encoder with separate prediction heads.
 """
 
-from typing import Any
-
-import torch
-from torch import nn
-from torch_geometric.data import Batch
-from torch_geometric.nn import GINEConv
-from lightning.pytorch.core.mixins import HyperparametersMixin
-
+from matcha.torch.encoders.gin import GIN
 from matcha.torch.models.pretraining.base_graph_pretraining import (
     BaseGraphPretrainingModel,
 )
 from matcha.torch.models.pretraining.base_pretraining_model import (
     PretrainingModelRegistry,
 )
-from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder
-from matcha.nn.layers import LnBnDr, LayerRegistry
 from matcha.datamodules.classic.graph_datamodule import ATOM_FEAT_DIM, BOND_FEAT_DIM
-
-
-class GINPretrainingEncoder(BaseGraphEncoder, HyperparametersMixin):
-    """GIN encoder variant that returns node embeddings for pretraining.
-
-    This encoder outputs node-level embeddings that can be used for both
-    node-level and graph-level pretraining tasks.
-
-    :param int num_layers: Number of message passing layers
-    :param int atom_input_dim: Number of input atom features
-    :param int bond_input_dim: Number of input bond features
-    :param int atom_hidden_dim: Hidden dimension for atom features
-    :param str activation: Activation function name
-    :param str aggregation: Aggregation function for message passing
-    :param float dropout: Dropout rate
-    :param str | None norm: Normalization type
-    :param str jk: Jumping knowledge strategy
-    :param str readout: Readout function for graph-level aggregation
-    :param int laplacian_k: Laplacian positional encoding dimension
-    :param int rwse_k: Random walk structural encoding dimension
-    :param int elstatic_k: Electrostatic encoding dimension
-    :param int distmat_k: Distance matrix encoding dimension
-    :param int rrwp_k: Relative random walk probability dimension
-    """
-
-    def __init__(
-        self,
-        num_layers: int,
-        atom_input_dim: int,
-        bond_input_dim: int,
-        atom_hidden_dim: int,
-        activation: str,
-        aggregation: str,
-        dropout: float,
-        norm: str | None,
-        jk: str,
-        readout: str,
-        laplacian_k: int,
-        rwse_k: int,
-        elstatic_k: int,
-        distmat_k: int,
-        rrwp_k: int,
-    ):
-        super().__init__(
-            laplacian_k,
-            rwse_k,
-            elstatic_k,
-            distmat_k,
-            rrwp_k,
-        )
-        self.save_hyperparameters()
-        self.layers = nn.ModuleList()
-        self.norms = nn.ModuleList()
-        self.norm_type = norm
-        start_dim = atom_input_dim
-
-        for _ in range(num_layers):
-            mlp = nn.Sequential(
-                LnBnDr(
-                    start_dim,
-                    atom_hidden_dim * 2,
-                    dropout=dropout,
-                    activation=activation,
-                    norm=None,
-                ),
-                LnBnDr(
-                    atom_hidden_dim * 2,
-                    atom_hidden_dim,
-                    dropout=dropout,
-                    activation=None,
-                    norm=None,
-                ),
-            )
-            self.layers.append(
-                GINEConv(
-                    nn=mlp,
-                    edge_dim=bond_input_dim,
-                    aggr=aggregation,
-                )
-            )
-            if norm is not None and norm != "none":
-                self.norms.append(LayerRegistry[norm](atom_hidden_dim))
-            else:
-                self.norms.append(nn.Identity())
-            start_dim = atom_hidden_dim
-
-        self._parse_jk(jk)
-        self._parse_readout(readout)
-
-    def forward(self, graph: Batch) -> torch.Tensor:
-        """Forward pass returning graph-level embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Graph-level embeddings [batch_size, hidden_dim]
-        """
-        node_embeddings, g = self.forward_nodes(graph)
-        return self.readout(g, node_embeddings)
-
-    def forward_nodes(self, graph: Batch) -> tuple[torch.Tensor, Batch]:
-        """Forward pass returning node-level embeddings (JK-merged).
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (node_embeddings, processed_graph)
-        """
-        all_atom_feats, g = self.forward_nodes_per_layer(graph)
-        final_atom_feats = self._run_jk(all_atom_feats)
-        return final_atom_feats, g
-
-    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
-        """Forward pass returning per-layer node embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        g, feats, efeats, _ = self._process_graph_batch(graph)
-        all_atom_feats = []
-
-        for layer, norm in zip(self.layers, self.norms):
-            feats = layer(feats, g.edge_index, efeats)
-            if self.norm_type == "graph":
-                feats = norm(feats, g.batch)
-            else:
-                feats = norm(feats)
-            if all_atom_feats != []:
-                feats = feats + all_atom_feats[-1]
-            all_atom_feats.append(feats)
-
-        return all_atom_feats, g
 
 
 @PretrainingModelRegistry.register()
@@ -188,6 +51,12 @@ class GINPretraining(BaseGraphPretrainingModel):
     :param str enc_readout: Readout function, defaults to 'vpa'
     :param str enc_activation: Activation function, defaults to 'swish'
     :param float enc_dropout: Dropout rate, defaults to 0.2
+    :param float enc_eps: Initial value of the ``eps`` term in ``GINEConv``,
+        defaults to 0.0 (matches PyG default and preserves the pre-unification
+        pretraining behaviour).
+    :param bool enc_train_eps: Whether to learn ``eps`` as a parameter,
+        defaults to False (matches PyG default and preserves the
+        pre-unification pretraining behaviour).
     :param list[int] node_head_dims: Hidden dims for shared node prediction head
     :param list[int] graph_head_dims: Hidden dims for shared graph prediction head
     :param list[int] node_task_head_dims: Per-task hidden dims for node head
@@ -228,6 +97,8 @@ class GINPretraining(BaseGraphPretrainingModel):
         enc_elstatic_k: int = 0,
         enc_distmat_k: int = 0,
         enc_rrwp_k: int = 20,
+        enc_eps: float = 0.0,
+        enc_train_eps: bool = False,
         enc_node_encoder_depth: int | None = None,
         node_head_dims: list[int] | None = None,
         graph_head_dims: list[int] | None = None,
@@ -298,7 +169,7 @@ class GINPretraining(BaseGraphPretrainingModel):
         self._parse_train_config()
 
     def _build_encoder(self):
-        """Build the GIN encoder."""
+        """Build the canonical GIN encoder shared with the classic path."""
         atom_input_dim = (
             self.hparams["enc_atom_input_dim"]
             + self.hparams["enc_laplacian_k"]
@@ -308,7 +179,7 @@ class GINPretraining(BaseGraphPretrainingModel):
         )
         edge_input_dim = self.hparams["enc_bond_input_dim"] + self.hparams["enc_rrwp_k"]
 
-        self.encoder = GINPretrainingEncoder(
+        self.encoder = GIN(
             num_layers=self.hparams["enc_num_layers"],
             atom_input_dim=atom_input_dim,
             bond_input_dim=edge_input_dim,
@@ -324,15 +195,6 @@ class GINPretraining(BaseGraphPretrainingModel):
             elstatic_k=self.hparams["enc_elstatic_k"],
             distmat_k=self.hparams["enc_distmat_k"],
             rrwp_k=self.hparams["enc_rrwp_k"],
+            eps=self.hparams["enc_eps"],
+            train_eps=self.hparams["enc_train_eps"],
         )
-
-    def _get_per_layer_embeddings(
-        self, batch: dict[str, Any]
-    ) -> tuple[list[torch.Tensor], Batch]:
-        """Extract per-layer node embeddings from GIN encoder.
-
-        :param batch: Input batch containing 'graph' key
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        graph = batch["graph"]
-        return self.encoder.forward_nodes_per_layer(graph)

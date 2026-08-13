@@ -70,6 +70,21 @@ class RoFormer(BaseEncoder, HyperparametersMixin):
         self._fp_dim = self.model.config.hidden_size
         self.layers = self.model.encoder.layer
 
+    def forward_tokens(self, token_ids: torch.Tensor) -> torch.Tensor:
+        """Encode tokenized SMILES into per-token contextual embeddings.
+
+        Consumed by both the classic path (which takes the [CLS] slice via
+        :meth:`forward`) and the MLM pretraining path (which keeps the full
+        sequence output).
+
+        :param torch.Tensor token_ids: Batched token IDs [batch_size, seq_len].
+        :returns: Per-token embeddings [batch_size, seq_len, hidden_dim].
+        :rtype: torch.Tensor
+        """
+        attention_mask = (token_ids != 0).long()
+        out = self.model(token_ids, attention_mask=attention_mask)
+        return out.last_hidden_state
+
     def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
         """Encode tokenized SMILES into a fixed-size molecular representation.
 
@@ -79,9 +94,4 @@ class RoFormer(BaseEncoder, HyperparametersMixin):
         :returns: Learned molecular representation [batch_size, hidden_dim].
         :rtype: torch.Tensor
         """
-        attention_mask = (token_ids != 0).long()
-        out = self.model(token_ids, attention_mask=attention_mask)
-        last_hidden_state = out.last_hidden_state
-        last_hidden_state = last_hidden_state[:, 0, :]
-
-        return last_hidden_state
+        return self.forward_tokens(token_ids)[:, 0, :]

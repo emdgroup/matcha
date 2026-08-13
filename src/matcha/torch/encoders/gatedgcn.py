@@ -263,13 +263,13 @@ class GatedGCN(BaseGraphEncoder, HyperparametersMixin):
                 )
             )
 
-    def forward(self, graph: Batch) -> torch.Tensor:
-        """Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
-        processing.
+    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
+        """Run GatedGCN message passing and return one node-feature tensor per layer.
 
-        :param Batch graph: batched PyG graph from the dataloader
-
-        :return torch.Tensor: learned representation
+        :param Batch graph: Batched PyG graph from the dataloader.
+        :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has length
+            ``num_layers``; each entry has shape ``[num_nodes, atom_hidden_dim]``.
+        :rtype: tuple[list[torch.Tensor], Batch]
         """
         g, atom_feats, bond_feats, _ = self._process_graph_batch(graph)
         all_atom_feats = []
@@ -280,6 +280,4 @@ class GatedGCN(BaseGraphEncoder, HyperparametersMixin):
             )
             all_atom_feats.append(atom_feats)
 
-        final_atom_feats = self._run_jk(all_atom_feats)
-
-        return self.readout(g, final_atom_feats)
+        return all_atom_feats, g

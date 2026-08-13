@@ -1,143 +1,13 @@
 """AttentiveFP pretraining model for self-supervised learning on graphs."""
 
-from typing import Any
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from torch_geometric.data import Batch
-from torch_geometric.nn import GATv2Conv
-from torch.nn import GRUCell
-from lightning.pytorch.core.mixins import HyperparametersMixin
-
+from matcha.torch.encoders.attentivefp import AttentiveFP
 from matcha.torch.models.pretraining.base_graph_pretraining import (
     BaseGraphPretrainingModel,
 )
 from matcha.torch.models.pretraining.base_pretraining_model import (
     PretrainingModelRegistry,
 )
-from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder
-from matcha.torch.encoders.attentivefp import GATEConv
 from matcha.datamodules.classic.graph_datamodule import ATOM_FEAT_DIM, BOND_FEAT_DIM
-
-
-class AttentiveFPPretrainingEncoder(BaseGraphEncoder, HyperparametersMixin):
-    """AttentiveFP encoder variant that returns node embeddings for pretraining.
-
-    This encoder outputs node-level embeddings that can be used for both
-    node-level and graph-level pretraining tasks.
-
-    :param int num_layers: Number of message passing layers
-    :param int atom_input_dim: Number of input atom features
-    :param int bond_input_dim: Number of input bond features
-    :param int atom_hidden_dim: Hidden dimension for atom features
-    :param float dropout: Dropout rate
-    :param str readout: Readout function for graph-level aggregation
-    :param str jk: Jumping knowledge strategy
-    :param int laplacian_k: Laplacian positional encoding dimension
-    :param int rwse_k: Random walk structural encoding dimension
-    :param int elstatic_k: Electrostatic encoding dimension
-    :param int distmat_k: Distance matrix encoding dimension
-    :param int rrwp_k: Relative random walk probability dimension
-    """
-
-    def __init__(
-        self,
-        num_layers: int,
-        atom_input_dim: int,
-        bond_input_dim: int,
-        atom_hidden_dim: int,
-        dropout: float,
-        readout: str,
-        jk: str,
-        laplacian_k: int,
-        rwse_k: int,
-        elstatic_k: int,
-        distmat_k: int,
-        rrwp_k: int,
-    ):
-        super().__init__(
-            laplacian_k,
-            rwse_k,
-            elstatic_k,
-            distmat_k,
-            rrwp_k,
-        )
-        self.save_hyperparameters()
-        self._parse_jk(jk)
-        self._parse_readout(readout)
-        self.dropout = dropout
-
-        # Initial atom embedding layer
-        self.atom_projection = nn.Linear(atom_input_dim, atom_hidden_dim)
-
-        # Initial context layer with edge features (GATEConv + GRU)
-        self.gate_conv = GATEConv(
-            atom_hidden_dim, atom_hidden_dim, bond_input_dim, dropout
-        )
-        self.gru = GRUCell(atom_hidden_dim, atom_hidden_dim)
-
-        # Subsequent GNN layers (GATConv + GRU)
-        self.layers = nn.ModuleList()
-        for _ in range(num_layers - 1):
-            conv = GATv2Conv(
-                atom_hidden_dim,
-                atom_hidden_dim,
-                dropout=dropout,
-                add_self_loops=False,
-                negative_slope=0.01,
-            )
-            gru = GRUCell(atom_hidden_dim, atom_hidden_dim)
-            self.layers.append(nn.ModuleList([conv, gru]))
-
-    def forward(self, graph: Batch) -> torch.Tensor:
-        """Forward pass returning graph-level embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Graph-level embeddings [batch_size, hidden_dim]
-        """
-        node_embeddings, g = self.forward_nodes(graph)
-        return self.readout(g, node_embeddings)
-
-    def forward_nodes(self, graph: Batch) -> tuple[torch.Tensor, Batch]:
-        """Forward pass returning node-level embeddings (JK-merged).
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (node_embeddings, processed_graph)
-        """
-        all_atom_feats, g = self.forward_nodes_per_layer(graph)
-        final_atom_feats = self._run_jk(all_atom_feats)
-        return final_atom_feats, g
-
-    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
-        """Forward pass returning per-layer node embeddings.
-
-        :param graph: Batched PyG graph
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        g, atom_feats, bond_feats, _ = self._process_graph_batch(graph)
-        all_atom_feats = []
-
-        # Initial atom embedding
-        x = self.atom_projection(atom_feats)
-
-        # Initial context with edge features
-        h = F.elu_(self.gate_conv(x, g.edge_index, bond_feats))
-        h = F.dropout(h, p=self.dropout, training=self.training)
-        x = self.gru(h, x).relu_()
-        all_atom_feats.append(x)
-
-        # Subsequent GNN layers
-        for conv, gru in self.layers:
-            h = conv(x, g.edge_index)
-            h = F.elu(h)
-            h = F.dropout(h, p=self.dropout, training=self.training)
-            x = gru(h, x).relu()
-            if all_atom_feats != []:
-                x = x + all_atom_feats[-1]
-            all_atom_feats.append(x)
-
-        return all_atom_feats, g
 
 
 @PretrainingModelRegistry.register()
@@ -278,7 +148,7 @@ class AttentiveFPPretraining(BaseGraphPretrainingModel):
         self._parse_train_config()
 
     def _build_encoder(self):
-        """Build the AttentiveFP encoder."""
+        """Build the canonical AttentiveFP encoder shared with the classic path."""
         atom_input_dim = (
             self.hparams["enc_atom_input_dim"]
             + self.hparams["enc_laplacian_k"]
@@ -288,7 +158,7 @@ class AttentiveFPPretraining(BaseGraphPretrainingModel):
         )
         edge_input_dim = self.hparams["enc_bond_input_dim"] + self.hparams["enc_rrwp_k"]
 
-        self.encoder = AttentiveFPPretrainingEncoder(
+        self.encoder = AttentiveFP(
             num_layers=self.hparams["enc_num_layers"],
             atom_input_dim=atom_input_dim,
             bond_input_dim=edge_input_dim,
@@ -302,14 +172,3 @@ class AttentiveFPPretraining(BaseGraphPretrainingModel):
             distmat_k=self.hparams["enc_distmat_k"],
             rrwp_k=self.hparams["enc_rrwp_k"],
         )
-
-    def _get_per_layer_embeddings(
-        self, batch: dict[str, Any]
-    ) -> tuple[list[torch.Tensor], Batch]:
-        """Extract per-layer node embeddings from AttentiveFP encoder.
-
-        :param batch: Input batch containing 'graph' key
-        :return: Tuple of (per_layer_embeddings, processed_graph)
-        """
-        graph = batch["graph"]
-        return self.encoder.forward_nodes_per_layer(graph)
