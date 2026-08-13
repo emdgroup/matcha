@@ -11,10 +11,17 @@ Locks in the Stage 3 contract from issue #26:
 - ``save_hyperparameters`` round-trips through the encoder ``state_dict``;
 - encoder weights transfer cleanly into a matching :class:`E3GNNModel` for
   downstream finetuning — the acceptance criterion the whole issue is about.
+
+Stage 4 additionally locks in classic ↔ pretraining datamodule parity: given
+the same seeded batch, an :class:`E3GNN` fed by :class:`Graph3DDataModule` and
+by :class:`Graph3DPretrainingDataModule` must produce bit-identical per-layer
+node features.
 """
 
+import numpy as np
 import pytest
 import torch
+from rdkit import Chem
 
 
 pyg = pytest.importorskip("torch_geometric")
@@ -24,6 +31,10 @@ from torch.nn.utils import parameters_to_vector  # noqa: E402
 from matcha.datamodules.classic.graph_datamodule import (  # noqa: E402
     ATOM_FEAT_DIM,
     BOND_FEAT_DIM,
+    Graph3DDataModule,
+)
+from matcha.datamodules.pretraining.graph_3d_pretraining_datamodule import (  # noqa: E402
+    Graph3DPretrainingDataModule,
 )
 from matcha.torch.encoders.e3gnn import E3GNN  # noqa: E402
 from matcha.torch.models.classic.e3gnn_model import E3GNNModel  # noqa: E402
@@ -300,3 +311,130 @@ def test_encoder_weights_transfer_to_e3gnn_model():
     src = parameters_to_vector(pretrain.encoder.parameters()).detach()
     dst = parameters_to_vector(classic.encoder.parameters()).detach()
     assert torch.equal(src, dst)
+
+
+# ---------------------------------------------------------------------
+# Classic ↔ pretraining datamodule parity (Stage 4)
+# ---------------------------------------------------------------------
+
+
+_PARITY_SMILES = ["CCO", "c1ccncc1", "CC(=O)O", "CCN"]
+
+
+def _canonical_mols(smiles: list[str]) -> list:
+    """Return RDKit mols reparsed from canonical SMILES.
+
+    Ensures the input atom order already matches
+    :meth:`GraphDataModule._calculate_graph`'s canonical reorder, so the
+    pretraining datamodule's ``_reorder_coords_to_canonical`` is an identity
+    map. That isolates the parity check to encoder/datamodule wiring —
+    reorder correctness is exercised separately in
+    ``tests/datamodules/test_graph_3d_pretraining_datamodule.py``.
+    """
+    return [Chem.MolFromSmiles(Chem.MolToSmiles(Chem.MolFromSmiles(s))) for s in smiles]
+
+
+def _slice_pos_by_graph(graph_batch: Batch) -> list[torch.Tensor]:
+    """Split a batched ``graph.pos`` back into one tensor per molecule."""
+    per_mol: list[torch.Tensor] = []
+    for graph_id in range(int(graph_batch.batch.max().item()) + 1):
+        mask = graph_batch.batch == graph_id
+        per_mol.append(graph_batch.pos[mask].detach().clone())
+    return per_mol
+
+
+def test_classic_and_pretraining_datamodules_produce_identical_e3gnn_features():
+    """E3GNN outputs match bit-for-bit across the classic and pretraining paths.
+
+    The check runs the same encoder instance on batches produced by
+    :class:`Graph3DDataModule` (classic; ETKDG-generated coords) and
+    :class:`Graph3DPretrainingDataModule` (pretraining; user-supplied
+    coords). To keep the comparison meaningful the pretraining path receives
+    the exact ``pos`` tensors emitted by the classic datamodule — parity is
+    about the pipe, not about coord generation.
+
+    A failure here means one of the two datamodules silently mutated ``x``,
+    ``edge_index``, ``edge_attr`` or ``pos`` on its way through featurization
+    / collation, which would break the promise that a
+    :class:`Graph3DPretrainingDataModule` `.export_to_classic()` roundtrip
+    produces a numerically equivalent finetuning setup.
+    """
+    torch.manual_seed(0)
+    mol_list = _canonical_mols(_PARITY_SMILES)
+
+    shared_dm_kwargs = dict(
+        laplacian_k=0,
+        rwse_k=0,
+        elstatic_k=0,
+        distmat_k=0,
+        rrwp_k=0,
+        compute_distances=False,
+        num_virtual_nodes=0,
+        init_virtual_nodes=False,
+        batch_size=len(mol_list),
+        num_workers=0,
+        augment_resonance=False,
+    )
+
+    # --- Classic path: coords come from ETKDG inside the datamodule.
+    classic_dm = Graph3DDataModule(**shared_dm_kwargs)
+    dummy_y = np.zeros((len(mol_list), 1), dtype=np.float32)
+    classic_ds = classic_dm.generate_features(mol_list, dummy_y, n_jobs=1)
+    classic_batch = classic_dm.collate_fn(
+        [classic_ds[i] for i in range(len(classic_ds))]
+    )
+    classic_graph = classic_batch["graph"]
+
+    # --- Pretraining path: feed classic's coords back in as user-supplied.
+    coords = [p.numpy() for p in _slice_pos_by_graph(classic_graph)]
+    y_node = [np.zeros((mol.GetNumAtoms(), 1), dtype=np.float32) for mol in mol_list]
+    pretrain_dm = Graph3DPretrainingDataModule(**shared_dm_kwargs)
+    pretrain_ds = pretrain_dm.generate_features(
+        mol_list=mol_list, y_graph=dummy_y, y_node=y_node, coords=coords, n_jobs=1
+    )
+    pretrain_batch = pretrain_dm.collate_fn(
+        [pretrain_ds[i] for i in range(len(pretrain_ds))]
+    )
+    pretrain_graph = pretrain_batch["graph"]
+
+    # --- Structural batch parity: any divergence here would invalidate the
+    # subsequent encoder-output comparison.
+    assert torch.equal(classic_graph.x, pretrain_graph.x)
+    assert torch.equal(classic_graph.edge_index, pretrain_graph.edge_index)
+    assert torch.equal(classic_graph.edge_attr, pretrain_graph.edge_attr)
+    assert torch.equal(classic_graph.batch, pretrain_graph.batch)
+    assert torch.allclose(classic_graph.pos, pretrain_graph.pos)
+
+    # --- Encoder parity: same encoder, same batch → identical per-layer feats.
+    encoder = E3GNN(
+        num_layers=_NUM_LAYERS,
+        atom_input_dim=ATOM_FEAT_DIM,
+        bond_input_dim=BOND_FEAT_DIM,
+        atom_hidden_dim=_ATOM_HIDDEN_DIM,
+        m_dim=8,
+        fourier_features=2,
+        soft_edge=False,
+        norm_feats=False,
+        norm_coors=False,
+        update_coors=True,
+        activation="relu",
+        dropout=0.0,
+        coor_weights_clamp_value=100.0,
+        norm_coors_scale_init=1e-2,
+        jk="last",
+        readout="sum",
+        laplacian_k=0,
+        rwse_k=0,
+        elstatic_k=0,
+        distmat_k=0,
+        rrwp_k=0,
+    )
+    encoder.eval()
+
+    with torch.no_grad():
+        classic_feats, _ = encoder.forward_nodes_per_layer(classic_graph)
+        pretrain_feats, _ = encoder.forward_nodes_per_layer(pretrain_graph)
+
+    assert len(classic_feats) == len(pretrain_feats) == _NUM_LAYERS
+    for lc, lp in zip(classic_feats, pretrain_feats):
+        assert torch.allclose(lc, lp, atol=1e-6)

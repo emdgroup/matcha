@@ -26,12 +26,16 @@ from matcha.datamodules.classic.graph_datamodule import (  # noqa: E402
 from matcha.torch.models.classic.attentivefp_model import (  # noqa: E402
     AttentiveFPModel,
 )
+from matcha.torch.models.classic.e3gnn_model import E3GNNModel  # noqa: E402
 from matcha.torch.models.classic.gatedgcn_model import GatedGCNModel  # noqa: E402
 from matcha.torch.models.classic.gin_model import GINModel  # noqa: E402
 from matcha.torch.models.classic.gps_model import GPSModel  # noqa: E402
 from matcha.torch.models.classic.gt_model import GTModel  # noqa: E402
 from matcha.torch.models.pretraining.attentivefp_pretraining import (  # noqa: E402
     AttentiveFPPretraining,
+)
+from matcha.torch.models.pretraining.e3gnn_pretraining import (  # noqa: E402
+    E3GNNPretraining,
 )
 from matcha.torch.models.pretraining.gatedgcn_pretraining import (  # noqa: E402
     GatedGCNPretraining,
@@ -119,11 +123,32 @@ _ARCHITECTURES = [
         dict(),
         id="attentivefp",
     ),
+    pytest.param(
+        E3GNNModel,
+        E3GNNPretraining,
+        dict(
+            enc_activation="relu",
+            enc_m_dim=8,
+            enc_fourier_features=2,
+            enc_soft_edge=False,
+            enc_norm_feats=False,
+            enc_norm_coors=False,
+            enc_update_coors=True,
+            enc_coor_weights_clamp_value=100.0,
+            enc_norm_coors_scale_init=1e-2,
+        ),
+        id="e3gnn",
+    ),
 ]
 
 
 def _make_batch(batch_size: int = 2, n_nodes_per_graph: int = 3) -> Batch:
-    """Small PyG batch with realistic atom/bond feature dimensions."""
+    """Small PyG batch with realistic atom/bond feature dimensions.
+
+    Every graph carries ``pos`` (3D coords) so the batch is valid input for
+    :class:`E3GNN` alongside the 2D encoders — the latter ignore ``pos``, so
+    attaching it unconditionally keeps the parametrization one-shape-fits-all.
+    """
     graphs = []
     for _ in range(batch_size):
         src = list(range(n_nodes_per_graph - 1)) + list(range(1, n_nodes_per_graph))
@@ -134,6 +159,7 @@ def _make_batch(batch_size: int = 2, n_nodes_per_graph: int = 3) -> Batch:
                 x=torch.randn(n_nodes_per_graph, ATOM_FEAT_DIM),
                 edge_index=edge_index,
                 edge_attr=torch.randn(edge_index.size(1), BOND_FEAT_DIM),
+                pos=torch.randn(n_nodes_per_graph, 3),
             )
         )
     return Batch.from_data_list(graphs)
