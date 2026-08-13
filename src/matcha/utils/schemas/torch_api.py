@@ -97,10 +97,52 @@ class GPS3DInputModel(ClassicMatchaModel, GraphMixin, GPS3DMixin):
     torch_type: Literal["gps3d"] = "gps3d"
 
 
+class GPS3DPretrainingInputModel(
+    PretrainingMatchaModel, GraphMixin, GraphPretrainingMixin, GPS3DMixin
+):
+    """Schema for the 3D-aware GPS graph transformer pretraining configuration.
+
+    Combines the graph encoder surface (:class:`GraphMixin`) with
+    GPS3D-specific spatial-encoding parameters (:class:`GPS3DMixin`) and
+    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).
+
+    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from
+    :class:`GraphMixin` but unused by pretraining models — the joint node /
+    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /
+    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default
+    to ``None`` here so pretraining callers do not need to pass them.
+    """
+
+    torch_type: Literal["gps3d_pretraining"] = "gps3d_pretraining"
+    pred_hidden_dims: list[int] | None = None
+    pred_task_head_dims: list[int] | None = None
+
+
 class GT3DInputModel(ClassicMatchaModel, GraphMixin, GT3DMixin):
     """Schema for the 3D Graph Transformer model configuration."""
 
     torch_type: Literal["gt3d"] = "gt3d"
+
+
+class GT3DPretrainingInputModel(
+    PretrainingMatchaModel, GraphMixin, GraphPretrainingMixin, GT3DMixin
+):
+    """Schema for the 3D-aware Graph Transformer pretraining configuration.
+
+    Combines the graph encoder surface (:class:`GraphMixin`) with
+    GT3D-specific spatial-encoding parameters (:class:`GT3DMixin`) and
+    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).
+
+    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from
+    :class:`GraphMixin` but unused by pretraining models — the joint node /
+    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /
+    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default
+    to ``None`` here so pretraining callers do not need to pass them.
+    """
+
+    torch_type: Literal["gt3d_pretraining"] = "gt3d_pretraining"
+    pred_hidden_dims: list[int] | None = None
+    pred_task_head_dims: list[int] | None = None
 
 
 class GTInputModel(ClassicMatchaModel, GraphMixin, GTMixin):
@@ -182,8 +224,10 @@ TorchModel = (
     | E3GNNPretrainingInputModel
     | GPSInputModel
     | GPS3DInputModel
+    | GPS3DPretrainingInputModel
     | GTInputModel
     | GT3DInputModel
+    | GT3DPretrainingInputModel
     | ChempropInputModel
     | CNNInputModel
     | RNNInputModel

@@ -1,6 +1,6 @@
-# ── Example config: 3D graph encoder pretraining (E3GNNPretraining) ───
+# ── Example config: 3D graph encoder pretraining ─────────────────────
 #
-# Pretrain an E(n)-equivariant GNN encoder with supervised node-level and
+# Pretrain a 3D-aware GNN encoder with supervised node-level and
 # graph-level multi-task objectives on 3D molecular graphs. Requires
 # precomputed per-molecule 3D atomic coordinates supplied as npz files in
 # the same ``flat + offsets`` layout used by ``train_y_node`` /
@@ -23,6 +23,23 @@ dataset:
   val_coords: /path/to/pretraining/data/val_coords.npz
 
 model:
+  # Choose one of the three 3D pretraining architectures below. All three
+  # consume the same batches from ``Graph3DPretrainingDataModule`` and read
+  # coordinates from ``graph.pos``. Their encoder ``enc_*`` surfaces differ:
+  #
+  #   • E3GNNPretraining — E(n)-equivariant message passing with coordinate
+  #     updates. Extra enc_* keys: enc_m_dim, enc_fourier_features,
+  #     enc_soft_edge, enc_norm_feats, enc_norm_coors, enc_update_coors,
+  #     enc_coor_weights_clamp_value, enc_norm_coors_scale_init.
+  #   • GPS3DPretraining — GPS transformer with 3D Gaussian-basis-kernel
+  #     spatial encoding. Extra enc_* keys: enc_num_heads, enc_num_kernels,
+  #     enc_expansion_k, enc_norm.
+  #   • GT3DPretraining — Graph Transformer with 3D Gaussian-basis-kernel
+  #     spatial encoding. Extra enc_* keys: enc_num_heads, enc_num_kernels,
+  #     enc_expansion_k (no enc_norm).
+  #
+  # The example below shows E3GNNPretraining; swap ``architecture`` and the
+  # matching enc_* block to use GPS3DPretraining or GT3DPretraining instead.
   architecture: E3GNNPretraining
 
   # Neural-network constructor args only (passed directly to the model).
@@ -33,10 +50,17 @@ model:
     num_graph_targets: 9
     enc_num_layers: 3
     enc_atom_hidden_dim: 128
+    # ── E3GNNPretraining-specific ───────────────────────────────────
     enc_m_dim: 16
     enc_fourier_features: 4
     enc_update_coors: true
     enc_norm_coors: true
+    # ── GPS3DPretraining / GT3DPretraining alternative block ────────
+    # enc_num_heads: 8
+    # enc_num_kernels: 128
+    # enc_expansion_k: 2
+    # enc_norm: layer         # GPS3DPretraining only
+    # ────────────────────────────────────────────────────────────────
     enc_jk: concat
     enc_readout: vpa
     enc_activation: swish
