@@ -156,6 +156,33 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.GradNormLoss" title="matcha.nn.losses.GradNormLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GradNormLoss</span></code></a></p></td>
 <td><p>Implementation of GradNorm for adaptive loss balancing in multitask learning.</p></td>
 </tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p></td>
+<td><p>Wrap a per-element loss and randomly mask a fraction of entries each step.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutMSELoss" title="matcha.nn.losses.DropoutMSELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutMSELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with MSE as the inner loss.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutMAELoss" title="matcha.nn.losses.DropoutMAELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutMAELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with MAE as the inner loss.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutHuberLoss" title="matcha.nn.losses.DropoutHuberLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutHuberLoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with Huber as the inner loss.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutSmoothL1Loss" title="matcha.nn.losses.DropoutSmoothL1Loss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutSmoothL1Loss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with Smooth L1 as the inner loss.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutBCELoss" title="matcha.nn.losses.DropoutBCELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutBCELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with BCE-with-logits as the inner loss.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutFocalBCELoss" title="matcha.nn.losses.DropoutFocalBCELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutFocalBCELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with focal BCE as the inner loss.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutPoly1BCELoss" title="matcha.nn.losses.DropoutPoly1BCELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutPoly1BCELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with Poly1 BCE as the inner loss.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.nn.losses.DropoutWeightedBCELoss" title="matcha.nn.losses.DropoutWeightedBCELoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutWeightedBCELoss</span></code></a></p></td>
+<td><p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with weighted BCE as the inner loss.</p></td>
+</tr>
 </tbody>
 </table>
 </section>
@@ -578,6 +605,123 @@ training for GradNorm weight updates.</p></li>
 <dd><p>Reset the initial losses for a fresh start of GradNorm tracking.</p>
 </dd></dl>
 
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">loss_fn</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'mse'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dropout</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Wrap a per-element loss and randomly mask a fraction of entries each step.</p>
+<p>Intended as a regularizer for multi-endpoint pretraining (e.g. predicting many
+molecular descriptors at once): randomly dropping a fraction of labels from the
+loss on every forward pass discourages overfitting to any single endpoint.</p>
+<p>Reference: <a class="reference external" href="https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py">https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py</a></p>
+<p>The inner loss is instantiated with <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code> so masking happens
+before reduction. The dropout mask is resampled every forward and composes
+with the existing NaN mask (NaN targets are always excluded, as in
+<a class="reference internal" href="#matcha.nn.losses.MultitaskLoss" title="matcha.nn.losses.MultitaskLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultitaskLoss</span></code></a>). In <code class="docutils literal notranslate"><span class="pre">eval()</span></code> mode the wrapper reduces to a plain
+NaN-masked mean of the inner loss, regardless of <code class="docutils literal notranslate"><span class="pre">dropout</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>loss_fn</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Alias of the inner per-element loss (resolved via
+<a class="reference internal" href="#matcha.nn.losses.LossRegistry" title="matcha.nn.losses.LossRegistry"><code class="xref py py-class docutils literal notranslate"><span class="pre">LossRegistry</span></code></a>). Defaults to <code class="docutils literal notranslate"><span class="pre">&quot;mse&quot;</span></code>.</p></li>
+<li><p><strong>dropout</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Fraction of non-NaN entries to drop from the loss on
+each training forward pass. Must satisfy <code class="docutils literal notranslate"><span class="pre">0.0</span> <span class="pre">&lt;=</span> <span class="pre">dropout</span> <span class="pre">&lt;</span> <span class="pre">1.0</span></code>.</p></li>
+<li><p><strong>seed</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> or </em><em>None</em>) – Optional integer seed for a private <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.Generator.html#torch.Generator" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.Generator</span></code></a>.
+When set, the mask trajectory is reproducible across runs and does not
+perturb the ambient torch RNG. When <code class="docutils literal notranslate"><span class="pre">None</span></code> (default), masks are drawn
+from the ambient RNG (like <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Dropout.html#torch.nn.Dropout" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.Dropout</span></code></a>).</p></li>
+<li><p><strong>kwargs</strong> – Extra keyword arguments forwarded to the inner loss constructor.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutLoss.dropout">
+<span class="sig-name descname"><span class="pre">dropout</span></span><a class="headerlink" href="#matcha.nn.losses.DropoutLoss.dropout" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutLoss.loss">
+<span class="sig-name descname"><span class="pre">loss</span></span><a class="headerlink" href="#matcha.nn.losses.DropoutLoss.loss" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutLoss.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">outputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">targets</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutLoss.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutLoss.forward" title="Link to this definition"></a></dt>
+<dd><dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Predictions of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks)</span></code>.</p></li>
+<li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Targets of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks)</span></code>; NaN
+marks missing entries and is always excluded from the loss.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Scalar loss averaged across kept (non-NaN, non-dropped) entries.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutMSELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutMSELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutMSELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutMSELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with MSE as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutMAELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutMAELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutMAELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutMAELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with MAE as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutHuberLoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutHuberLoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutHuberLoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutHuberLoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with Huber as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutSmoothL1Loss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutSmoothL1Loss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutSmoothL1Loss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutSmoothL1Loss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with Smooth L1 as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutBCELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutBCELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutBCELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutBCELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with BCE-with-logits as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutFocalBCELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutFocalBCELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutFocalBCELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutFocalBCELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with focal BCE as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutPoly1BCELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutPoly1BCELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutPoly1BCELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutPoly1BCELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with Poly1 BCE as the inner loss.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.nn.losses.DropoutWeightedBCELoss">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.nn.losses.</span></span><span class="sig-name descname"><span class="pre">DropoutWeightedBCELoss</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../_modules/matcha/nn/losses.html#DropoutWeightedBCELoss"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.nn.losses.DropoutWeightedBCELoss" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a></p>
+<p><a class="reference internal" href="#matcha.nn.losses.DropoutLoss" title="matcha.nn.losses.DropoutLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">DropoutLoss</span></code></a> with weighted BCE as the inner loss.</p>
 </dd></dl>
 
 </section>

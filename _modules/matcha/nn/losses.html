@@ -737,6 +737,186 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">initial_losses</span> <span class="o">=</span> <span class="kc">None</span></div>
 </div>
 
+
+
+<div class="viewcode-block" id="DropoutLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrap a per-element loss and randomly mask a fraction of entries each step.</span>
+
+<span class="sd">    Intended as a regularizer for multi-endpoint pretraining (e.g. predicting many</span>
+<span class="sd">    molecular descriptors at once): randomly dropping a fraction of labels from the</span>
+<span class="sd">    loss on every forward pass discourages overfitting to any single endpoint.</span>
+
+<span class="sd">    Reference: https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py</span>
+
+<span class="sd">    The inner loss is instantiated with ``reduction=&quot;none&quot;`` so masking happens</span>
+<span class="sd">    before reduction. The dropout mask is resampled every forward and composes</span>
+<span class="sd">    with the existing NaN mask (NaN targets are always excluded, as in</span>
+<span class="sd">    :class:`MultitaskLoss`). In ``eval()`` mode the wrapper reduces to a plain</span>
+<span class="sd">    NaN-masked mean of the inner loss, regardless of ``dropout``.</span>
+
+<span class="sd">    :param str loss_fn: Alias of the inner per-element loss (resolved via</span>
+<span class="sd">        :class:`LossRegistry`). Defaults to ``&quot;mse&quot;``.</span>
+<span class="sd">    :param float dropout: Fraction of non-NaN entries to drop from the loss on</span>
+<span class="sd">        each training forward pass. Must satisfy ``0.0 &lt;= dropout &lt; 1.0``.</span>
+<span class="sd">    :param seed: Optional integer seed for a private :class:`torch.Generator`.</span>
+<span class="sd">        When set, the mask trajectory is reproducible across runs and does not</span>
+<span class="sd">        perturb the ambient torch RNG. When ``None`` (default), masks are drawn</span>
+<span class="sd">        from the ambient RNG (like :class:`torch.nn.Dropout`).</span>
+<span class="sd">    :type seed: int or None</span>
+<span class="sd">    :param kwargs: Extra keyword arguments forwarded to the inner loss constructor.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
+        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
+        <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">dropout</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;dropout must lie in [0.0, 1.0), got </span><span class="si">{</span><span class="n">dropout</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="n">seed</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_generator</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">inner_cls</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">]</span>
+        <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span>
+            <span class="n">inner_cls</span><span class="p">,</span>
+            <span class="p">(</span><span class="n">MultitaskLoss</span><span class="p">,</span> <span class="n">MultiLoss</span><span class="p">,</span> <span class="n">BoundedLoss</span><span class="p">,</span> <span class="n">GradNormLoss</span><span class="p">,</span> <span class="n">DropoutLoss</span><span class="p">),</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;DropoutLoss cannot wrap another wrapper loss &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(got </span><span class="si">{</span><span class="n">inner_cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">). Wrap a per-element loss &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(e.g. &#39;mse&#39;, &#39;mae&#39;, &#39;bce&#39;, &#39;focal-bce&#39;) instead.&quot;</span>
+            <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">inner_cls</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DropoutLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.</span>
+<span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN</span>
+<span class="sd">            marks missing entries and is always excluded from the loss.</span>
+<span class="sd">        :returns: Scalar loss averaged across kept (non-NaN, non-dropped) entries.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">targets</span><span class="p">[</span><span class="n">nan_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="n">losses</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">targets</span><span class="p">)</span>
+        <span class="n">keep_mask</span> <span class="o">=</span> <span class="o">~</span><span class="n">nan_mask</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">&gt;</span> <span class="mf">0.0</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_generator</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="n">losses</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_generator</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_seed</span><span class="p">)</span>
+            <span class="n">keep_from_dropout</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">torch</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span>
+                    <span class="n">losses</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                    <span class="n">device</span><span class="o">=</span><span class="n">losses</span><span class="o">.</span><span class="n">device</span><span class="p">,</span>
+                    <span class="n">generator</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_generator</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="o">&gt;=</span> <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span>
+            <span class="p">)</span>
+            <span class="n">keep_mask</span> <span class="o">=</span> <span class="n">keep_mask</span> <span class="o">&amp;</span> <span class="n">keep_from_dropout</span>
+
+        <span class="n">losses</span> <span class="o">=</span> <span class="n">losses</span> <span class="o">*</span> <span class="n">keep_mask</span>
+        <span class="k">return</span> <span class="n">losses</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">keep_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="DropoutMSELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutMSELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-mse&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutMSELoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with MSE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DropoutMAELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutMAELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-mae&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutMAELoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with MAE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mae&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DropoutHuberLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutHuberLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-huber&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutHuberLoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with Huber as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;huber&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DropoutSmoothL1Loss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutSmoothL1Loss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-smoothl1&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutSmoothL1Loss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with Smooth L1 as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;smoothl1&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DropoutBCELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutBCELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutBCELoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with BCE-with-logits as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;bce&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DropoutFocalBCELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutFocalBCELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-focal-bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutFocalBCELoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with focal BCE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;focal-bce&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DropoutPoly1BCELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutPoly1BCELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-poly1-bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutPoly1BCELoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with Poly1 BCE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;poly1-bce&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="DropoutWeightedBCELoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.DropoutWeightedBCELoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-weighted-bce&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutWeightedBCELoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with weighted BCE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;weighted-bce&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
+
 </pre></div>
 
            </div>

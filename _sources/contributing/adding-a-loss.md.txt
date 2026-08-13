@@ -91,3 +91,75 @@ Two touches:
 - [ ] Forward-pass test class covering shape + at least one numeric check, resolving through `LossRegistry[alias]`.
 - [ ] `uv run pytest tests/nn/test_losses.py` passes.
 - [ ] Codecov PR check stays green — new lines are covered and total coverage doesn't drop (see `CONTRIBUTING.md` → Testing).
+
+---
+
+## Wrapper losses
+
+Some losses don't stand alone — they take an existing per-element loss and transform it (clip predictions to a valid range, randomly mask a fraction of entries, etc.). Use this pattern when the new loss is fundamentally *composed* of another registered loss rather than a distinct formula. Examples in the codebase: `BoundedLoss` and its `bounded-*` aliases, `DropoutLoss` and its `dropout-*` aliases.
+
+### Two-tier structure
+
+Wrappers ship as a generic base plus one concrete subclass per supported inner loss:
+
+- A **base class** (e.g. `BoundedLoss`, `DropoutLoss`) accepts a `loss_fn="<alias>"` argument and resolves the inner loss through `LossRegistry`.
+- **Concrete subclasses** (`BoundedMSELoss`, `DropoutMSELoss`, ...) hard-wire the inner alias and register their own kebab-case alias (`bounded-mse`, `dropout-mse`, ...). Each is three lines.
+
+The concrete aliases are what YAML configs and pydantic schemas normally reference — `loss_fn: dropout-mse` is more discoverable than `loss_fn: dropout` + `loss_args: {loss_fn: mse}`.
+
+### The `reduction="none"` requirement
+
+The wrapper needs per-element access to mask entries before reduction, so it instantiates the inner loss with `reduction="none"` internally. Any loss you want to wrap must therefore accept `reduction="none"` and return a tensor shaped like `targets`. This is the same requirement `MultitaskLoss` and `MultiLoss` impose.
+
+### The wrapper-nesting rule
+
+Wrappers must reject other wrappers as their inner loss. Nested wrappers combine masks in ways that are semantically ambiguous (whose mask wins? do fractions compose multiplicatively?) and would explode the alias surface combinatorially (`dropout-bounded-mse`?). The check is class-based against the wrapper family:
+
+```python
+# src/matcha/nn/losses.py — inside DropoutLoss.__init__
+inner_cls = LossRegistry[loss_fn]
+if issubclass(
+    inner_cls,
+    (MultitaskLoss, MultiLoss, BoundedLoss, GradNormLoss, DropoutLoss),
+):
+    raise ValueError(
+        f"DropoutLoss cannot wrap another wrapper loss (got {inner_cls.__name__})."
+    )
+```
+
+Use `issubclass` on the resolved class (not `isinstance` on the constructed instance), so the check fires before the inner loss's `__init__` is called with the wrapper's `reduction="none"` kwarg — most wrappers don't accept that kwarg and would raise `TypeError` first, hiding the real reason for the rejection.
+
+### `DropoutLoss` — seed semantics
+
+`DropoutLoss` accepts an optional `seed: int | None`. When set, the wrapper builds a private `torch.Generator` (created lazily on the loss tensor's device on the first training forward) and draws its masks from that generator. The consequences:
+
+- **Reproducibility.** Two `DropoutLoss(..., seed=42)` instances produce identical mask trajectories over identical inputs.
+- **RNG isolation.** The private generator does not perturb the ambient torch RNG — weight initialization, data loader shuffling, and any other `torch.rand*` call outside the wrapper are unaffected.
+- **`seed=None` (default).** Falls back to the ambient torch RNG, matching `torch.nn.Dropout` semantics.
+- **Not persisted in `state_dict`.** The generator state resets on checkpoint reload, so the mask trajectory restarts. This matches `nn.Dropout` and is intentional — mask trajectories are training-time nuisance state, not model parameters.
+- **DDP.** All workers seeded identically will draw identical masks. If you want per-worker mask diversity, offset by rank at construction time (e.g. `seed=42 + rank`).
+
+### Reference
+
+The random-dropout-MSE technique in descriptor pretraining is described in Jackson Burns's "how to train your chemeleon" repo: <https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py>.
+
+### Code snippet — concrete alias registration
+
+```python
+# src/matcha/nn/losses.py
+@LossRegistry.register(alias="dropout-mse")
+class DropoutMSELoss(DropoutLoss):
+    """:class:`DropoutLoss` with MSE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="mse", **kwargs)
+```
+
+Config usage:
+
+```yaml
+loss_fn: dropout-mse
+loss_args:
+  dropout: 0.2
+  seed: 42
+```

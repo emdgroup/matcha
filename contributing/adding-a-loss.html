@@ -63,6 +63,15 @@
 <li class="toctree-l2"><a class="reference internal" href="#add-the-loss-class">1. Add the loss class</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#tests-tests-nn-test-losses-py">2. Tests — <code class="docutils literal notranslate"><span class="pre">tests/nn/test_losses.py</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#checklist">Checklist</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wrapper-losses">Wrapper losses</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#two-tier-structure">Two-tier structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-reduction-none-requirement">The <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code> requirement</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#the-wrapper-nesting-rule">The wrapper-nesting rule</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dropoutloss-seed-semantics"><code class="docutils literal notranslate"><span class="pre">DropoutLoss</span></code> — seed semantics</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reference">Reference</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#code-snippet-concrete-alias-registration">Code snippet — concrete alias registration</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -188,6 +197,74 @@
 <li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">tests/nn/test_losses.py</span></code> passes.</p></li>
 <li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Codecov PR check stays green — new lines are covered and total coverage doesn’t drop (see <code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code> → Testing).</p></li>
 </ul>
+</section>
+<hr class="docutils" />
+<section id="wrapper-losses">
+<h2>Wrapper losses<a class="headerlink" href="#wrapper-losses" title="Link to this heading"></a></h2>
+<p>Some losses don’t stand alone — they take an existing per-element loss and transform it (clip predictions to a valid range, randomly mask a fraction of entries, etc.). Use this pattern when the new loss is fundamentally <em>composed</em> of another registered loss rather than a distinct formula. Examples in the codebase: <code class="docutils literal notranslate"><span class="pre">BoundedLoss</span></code> and its <code class="docutils literal notranslate"><span class="pre">bounded-*</span></code> aliases, <code class="docutils literal notranslate"><span class="pre">DropoutLoss</span></code> and its <code class="docutils literal notranslate"><span class="pre">dropout-*</span></code> aliases.</p>
+<section id="two-tier-structure">
+<h3>Two-tier structure<a class="headerlink" href="#two-tier-structure" title="Link to this heading"></a></h3>
+<p>Wrappers ship as a generic base plus one concrete subclass per supported inner loss:</p>
+<ul class="simple">
+<li><p>A <strong>base class</strong> (e.g. <code class="docutils literal notranslate"><span class="pre">BoundedLoss</span></code>, <code class="docutils literal notranslate"><span class="pre">DropoutLoss</span></code>) accepts a <code class="docutils literal notranslate"><span class="pre">loss_fn=&quot;&lt;alias&gt;&quot;</span></code> argument and resolves the inner loss through <code class="docutils literal notranslate"><span class="pre">LossRegistry</span></code>.</p></li>
+<li><p><strong>Concrete subclasses</strong> (<code class="docutils literal notranslate"><span class="pre">BoundedMSELoss</span></code>, <code class="docutils literal notranslate"><span class="pre">DropoutMSELoss</span></code>, …) hard-wire the inner alias and register their own kebab-case alias (<code class="docutils literal notranslate"><span class="pre">bounded-mse</span></code>, <code class="docutils literal notranslate"><span class="pre">dropout-mse</span></code>, …). Each is three lines.</p></li>
+</ul>
+<p>The concrete aliases are what YAML configs and pydantic schemas normally reference — <code class="docutils literal notranslate"><span class="pre">loss_fn:</span> <span class="pre">dropout-mse</span></code> is more discoverable than <code class="docutils literal notranslate"><span class="pre">loss_fn:</span> <span class="pre">dropout</span></code> + <code class="docutils literal notranslate"><span class="pre">loss_args:</span> <span class="pre">{loss_fn:</span> <span class="pre">mse}</span></code>.</p>
+</section>
+<section id="the-reduction-none-requirement">
+<h3>The <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code> requirement<a class="headerlink" href="#the-reduction-none-requirement" title="Link to this heading"></a></h3>
+<p>The wrapper needs per-element access to mask entries before reduction, so it instantiates the inner loss with <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code> internally. Any loss you want to wrap must therefore accept <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code> and return a tensor shaped like <code class="docutils literal notranslate"><span class="pre">targets</span></code>. This is the same requirement <code class="docutils literal notranslate"><span class="pre">MultitaskLoss</span></code> and <code class="docutils literal notranslate"><span class="pre">MultiLoss</span></code> impose.</p>
+</section>
+<section id="the-wrapper-nesting-rule">
+<h3>The wrapper-nesting rule<a class="headerlink" href="#the-wrapper-nesting-rule" title="Link to this heading"></a></h3>
+<p>Wrappers must reject other wrappers as their inner loss. Nested wrappers combine masks in ways that are semantically ambiguous (whose mask wins? do fractions compose multiplicatively?) and would explode the alias surface combinatorially (<code class="docutils literal notranslate"><span class="pre">dropout-bounded-mse</span></code>?). The check is class-based against the wrapper family:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/matcha/nn/losses.py — inside DropoutLoss.__init__</span>
+<span class="n">inner_cls</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">]</span>
+<span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span>
+    <span class="n">inner_cls</span><span class="p">,</span>
+    <span class="p">(</span><span class="n">MultitaskLoss</span><span class="p">,</span> <span class="n">MultiLoss</span><span class="p">,</span> <span class="n">BoundedLoss</span><span class="p">,</span> <span class="n">GradNormLoss</span><span class="p">,</span> <span class="n">DropoutLoss</span><span class="p">),</span>
+<span class="p">):</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;DropoutLoss cannot wrap another wrapper loss (got </span><span class="si">{</span><span class="n">inner_cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">).&quot;</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">issubclass</span></code> on the resolved class (not <code class="docutils literal notranslate"><span class="pre">isinstance</span></code> on the constructed instance), so the check fires before the inner loss’s <code class="docutils literal notranslate"><span class="pre">__init__</span></code> is called with the wrapper’s <code class="docutils literal notranslate"><span class="pre">reduction=&quot;none&quot;</span></code> kwarg — most wrappers don’t accept that kwarg and would raise <code class="docutils literal notranslate"><span class="pre">TypeError</span></code> first, hiding the real reason for the rejection.</p>
+</section>
+<section id="dropoutloss-seed-semantics">
+<h3><code class="docutils literal notranslate"><span class="pre">DropoutLoss</span></code> — seed semantics<a class="headerlink" href="#dropoutloss-seed-semantics" title="Link to this heading"></a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">DropoutLoss</span></code> accepts an optional <code class="docutils literal notranslate"><span class="pre">seed:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span></code>. When set, the wrapper builds a private <code class="docutils literal notranslate"><span class="pre">torch.Generator</span></code> (created lazily on the loss tensor’s device on the first training forward) and draws its masks from that generator. The consequences:</p>
+<ul class="simple">
+<li><p><strong>Reproducibility.</strong> Two <code class="docutils literal notranslate"><span class="pre">DropoutLoss(...,</span> <span class="pre">seed=42)</span></code> instances produce identical mask trajectories over identical inputs.</p></li>
+<li><p><strong>RNG isolation.</strong> The private generator does not perturb the ambient torch RNG — weight initialization, data loader shuffling, and any other <code class="docutils literal notranslate"><span class="pre">torch.rand*</span></code> call outside the wrapper are unaffected.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">seed=None</span></code> (default).</strong> Falls back to the ambient torch RNG, matching <code class="docutils literal notranslate"><span class="pre">torch.nn.Dropout</span></code> semantics.</p></li>
+<li><p><strong>Not persisted in <code class="docutils literal notranslate"><span class="pre">state_dict</span></code>.</strong> The generator state resets on checkpoint reload, so the mask trajectory restarts. This matches <code class="docutils literal notranslate"><span class="pre">nn.Dropout</span></code> and is intentional — mask trajectories are training-time nuisance state, not model parameters.</p></li>
+<li><p><strong>DDP.</strong> All workers seeded identically will draw identical masks. If you want per-worker mask diversity, offset by rank at construction time (e.g. <code class="docutils literal notranslate"><span class="pre">seed=42</span> <span class="pre">+</span> <span class="pre">rank</span></code>).</p></li>
+</ul>
+</section>
+<section id="reference">
+<h3>Reference<a class="headerlink" href="#reference" title="Link to this heading"></a></h3>
+<p>The random-dropout-MSE technique in descriptor pretraining is described in Jackson Burns’s “how to train your chemeleon” repo: <a class="reference external" href="https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py">https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py</a>.</p>
+</section>
+<section id="code-snippet-concrete-alias-registration">
+<h3>Code snippet — concrete alias registration<a class="headerlink" href="#code-snippet-concrete-alias-registration" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/matcha/nn/losses.py</span>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;dropout-mse&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">DropoutMSELoss</span><span class="p">(</span><span class="n">DropoutLoss</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;:class:`DropoutLoss` with MSE as the inner loss.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;mse&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Config usage:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">loss_fn</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dropout-mse</span>
+<span class="nt">loss_args</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">dropout</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.2</span>
+<span class="w">  </span><span class="nt">seed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">42</span>
+</pre></div>
+</div>
+</section>
 </section>
 </section>
 

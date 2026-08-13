@@ -39,6 +39,15 @@ Classes
    matcha.nn.losses.CrossEntropyLoss
    matcha.nn.losses.WeightedBCELoss
    matcha.nn.losses.GradNormLoss
+   matcha.nn.losses.DropoutLoss
+   matcha.nn.losses.DropoutMSELoss
+   matcha.nn.losses.DropoutMAELoss
+   matcha.nn.losses.DropoutHuberLoss
+   matcha.nn.losses.DropoutSmoothL1Loss
+   matcha.nn.losses.DropoutBCELoss
+   matcha.nn.losses.DropoutFocalBCELoss
+   matcha.nn.losses.DropoutPoly1BCELoss
+   matcha.nn.losses.DropoutWeightedBCELoss
 
 
 Module Contents
@@ -394,5 +403,116 @@ Module Contents
 
       Reset the initial losses for a fresh start of GradNorm tracking.
 
+
+
+.. py:class:: DropoutLoss(loss_fn: str = 'mse', dropout: float = 0.0, seed: int | None = None, **kwargs)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Wrap a per-element loss and randomly mask a fraction of entries each step.
+
+   Intended as a regularizer for multi-endpoint pretraining (e.g. predicting many
+   molecular descriptors at once): randomly dropping a fraction of labels from the
+   loss on every forward pass discourages overfitting to any single endpoint.
+
+   Reference: https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py
+
+   The inner loss is instantiated with ``reduction="none"`` so masking happens
+   before reduction. The dropout mask is resampled every forward and composes
+   with the existing NaN mask (NaN targets are always excluded, as in
+   :class:`MultitaskLoss`). In ``eval()`` mode the wrapper reduces to a plain
+   NaN-masked mean of the inner loss, regardless of ``dropout``.
+
+   :param str loss_fn: Alias of the inner per-element loss (resolved via
+       :class:`LossRegistry`). Defaults to ``"mse"``.
+   :param float dropout: Fraction of non-NaN entries to drop from the loss on
+       each training forward pass. Must satisfy ``0.0 <= dropout < 1.0``.
+   :param seed: Optional integer seed for a private :class:`torch.Generator`.
+       When set, the mask trajectory is reproducible across runs and does not
+       perturb the ambient torch RNG. When ``None`` (default), masks are drawn
+       from the ambient RNG (like :class:`torch.nn.Dropout`).
+   :type seed: int or None
+   :param kwargs: Extra keyword arguments forwarded to the inner loss constructor.
+
+
+   .. py:attribute:: dropout
+
+
+   .. py:attribute:: loss
+
+
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.
+      :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
+          marks missing entries and is always excluded from the loss.
+      :returns: Scalar loss averaged across kept (non-NaN, non-dropped) entries.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: DropoutMSELoss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with MSE as the inner loss.
+
+
+.. py:class:: DropoutMAELoss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with MAE as the inner loss.
+
+
+.. py:class:: DropoutHuberLoss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with Huber as the inner loss.
+
+
+.. py:class:: DropoutSmoothL1Loss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with Smooth L1 as the inner loss.
+
+
+.. py:class:: DropoutBCELoss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with BCE-with-logits as the inner loss.
+
+
+.. py:class:: DropoutFocalBCELoss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with focal BCE as the inner loss.
+
+
+.. py:class:: DropoutPoly1BCELoss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with Poly1 BCE as the inner loss.
+
+
+.. py:class:: DropoutWeightedBCELoss(**kwargs)
+
+   Bases: :py:obj:`DropoutLoss`
+
+
+   :class:`DropoutLoss` with weighted BCE as the inner loss.
 
 
