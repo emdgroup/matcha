@@ -30,7 +30,7 @@ from matcha.utils.schemas.cli import (
     CLIPretrainMultitaskInputModel,
     PretrainTraining,
 )
-from matcha.cli.utils import save_config_as_yaml
+from matcha.cli.utils import _load_coords_npz, save_config_as_yaml
 from matcha.datamodules.pretraining.on_the_fly_datamodule import OnTheFlyDataModule
 from matcha import __version__
 
@@ -199,16 +199,36 @@ def main(cfg=None) -> None:
         ds.dataset_dir, "task_metadata.json"
     )
 
+    # Auto-discover per-molecule 3D coords packed as flat + offsets under the
+    # dataset directory. When present, coords are threaded to the on-the-fly
+    # wrapper, which forwards them to base.generate_features(..., coords=...)
+    # if the base datamodule accepts a coords kwarg. Otherwise they are
+    # silently dropped with a one-shot logger warning (see OnTheFlyDataModule).
+    train_coords_path = os.path.join(ds.dataset_dir, "train_coords.npz")
+    val_coords_path = os.path.join(ds.dataset_dir, "val_coords.npz")
+    train_coords = (
+        _load_coords_npz(train_coords_path)
+        if os.path.isfile(train_coords_path)
+        else None
+    )
+    val_coords = (
+        _load_coords_npz(val_coords_path) if os.path.isfile(val_coords_path) else None
+    )
+
     # load data
     logger.info(msg="Loading train data")
     train_mols = pd.read_parquet(train_smiles_path).SMILES.tolist()
     train_y = sp.load_npz(train_tasks_path)
     logger.info(f"Training set size: {len(train_mols)}")
+    if train_coords is not None:
+        logger.info(f"Loaded train coords: {train_coords_path}")
 
     logger.info(msg="Loading validation data")
     val_mols = pd.read_parquet(val_smiles_path).SMILES.tolist()
     val_y = sp.load_npz(val_tasks_path)
     logger.info(f"Validation set size: {len(val_mols)}")
+    if val_coords is not None:
+        logger.info(f"Loaded val coords: {val_coords_path}")
 
     metadata = load_json(task_metadata_path)
 
@@ -303,9 +323,16 @@ def main(cfg=None) -> None:
         base=datamodule, num_workers=cfg.pipe.dataloader_num_workers
     )
 
-    # Set raw data instead of pre-computing features
+    # Set raw data instead of pre-computing features. Coords are passed
+    # unconditionally — the wrapper handles ``None`` and the signature probe
+    # inside collate_fn decides whether to forward them to the base.
     on_the_fly_datamodule.set_data(
-        train_smiles=train_mols, train_y=train_y, val_smiles=val_mols, val_y=val_y
+        train_smiles=train_mols,
+        train_y=train_y,
+        val_smiles=val_mols,
+        val_y=val_y,
+        train_coords=train_coords,
+        val_coords=val_coords,
     )
 
     # Use the OnTheFly datamodule for training
