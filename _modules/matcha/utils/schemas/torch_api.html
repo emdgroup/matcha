@@ -211,12 +211,60 @@
 
 
 
+<div class="viewcode-block" id="GPS3DPretrainingInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/torch_api/index.html#matcha.utils.schemas.GPS3DPretrainingInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GPS3DPretrainingInputModel</span><span class="p">(</span>
+    <span class="n">PretrainingMatchaModel</span><span class="p">,</span> <span class="n">GraphMixin</span><span class="p">,</span> <span class="n">GraphPretrainingMixin</span><span class="p">,</span> <span class="n">GPS3DMixin</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for the 3D-aware GPS graph transformer pretraining configuration.</span>
+
+<span class="sd">    Combines the graph encoder surface (:class:`GraphMixin`) with</span>
+<span class="sd">    GPS3D-specific spatial-encoding parameters (:class:`GPS3DMixin`) and</span>
+<span class="sd">    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).</span>
+
+<span class="sd">    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from</span>
+<span class="sd">    :class:`GraphMixin` but unused by pretraining models — the joint node /</span>
+<span class="sd">    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /</span>
+<span class="sd">    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default</span>
+<span class="sd">    to ``None`` here so pretraining callers do not need to pass them.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">torch_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;gps3d_pretraining&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;gps3d_pretraining&quot;</span>
+    <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+
 <div class="viewcode-block" id="GT3DInputModel">
 <a class="viewcode-back" href="../../../../api/matcha/utils/schemas/torch_api/index.html#matcha.utils.schemas.GT3DInputModel">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">GT3DInputModel</span><span class="p">(</span><span class="n">ClassicMatchaModel</span><span class="p">,</span> <span class="n">GraphMixin</span><span class="p">,</span> <span class="n">GT3DMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for the 3D Graph Transformer model configuration.&quot;&quot;&quot;</span>
 
     <span class="n">torch_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;gt3d&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;gt3d&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="GT3DPretrainingInputModel">
+<a class="viewcode-back" href="../../../../api/matcha/utils/schemas/torch_api/index.html#matcha.utils.schemas.GT3DPretrainingInputModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">GT3DPretrainingInputModel</span><span class="p">(</span>
+    <span class="n">PretrainingMatchaModel</span><span class="p">,</span> <span class="n">GraphMixin</span><span class="p">,</span> <span class="n">GraphPretrainingMixin</span><span class="p">,</span> <span class="n">GT3DMixin</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for the 3D-aware Graph Transformer pretraining configuration.</span>
+
+<span class="sd">    Combines the graph encoder surface (:class:`GraphMixin`) with</span>
+<span class="sd">    GT3D-specific spatial-encoding parameters (:class:`GT3DMixin`) and</span>
+<span class="sd">    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).</span>
+
+<span class="sd">    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from</span>
+<span class="sd">    :class:`GraphMixin` but unused by pretraining models — the joint node /</span>
+<span class="sd">    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /</span>
+<span class="sd">    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default</span>
+<span class="sd">    to ``None`` here so pretraining callers do not need to pass them.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">torch_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;gt3d_pretraining&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;gt3d_pretraining&quot;</span>
+    <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
 
@@ -326,8 +374,10 @@
     <span class="o">|</span> <span class="n">E3GNNPretrainingInputModel</span>
     <span class="o">|</span> <span class="n">GPSInputModel</span>
     <span class="o">|</span> <span class="n">GPS3DInputModel</span>
+    <span class="o">|</span> <span class="n">GPS3DPretrainingInputModel</span>
     <span class="o">|</span> <span class="n">GTInputModel</span>
     <span class="o">|</span> <span class="n">GT3DInputModel</span>
+    <span class="o">|</span> <span class="n">GT3DPretrainingInputModel</span>
     <span class="o">|</span> <span class="n">ChempropInputModel</span>
     <span class="o">|</span> <span class="n">CNNInputModel</span>
     <span class="o">|</span> <span class="n">RNNInputModel</span>

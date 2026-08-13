@@ -9,7 +9,7 @@ Pretraining in MATCHA is a self-supervised, CLI-only path. Unlike classic superv
 Two reference implementations to copy from:
 
 - **2D case** — `GINPretraining` (`src/matcha/torch/models/pretraining/gin_pretraining.py`) + `GraphPretrainingDataModule` (`src/matcha/datamodules/pretraining/graph_pretraining_datamodule.py`).
-- **3D case** — `E3GNNPretraining` (`src/matcha/torch/models/pretraining/e3gnn_pretraining.py`) + `Graph3DPretrainingDataModule` (`src/matcha/datamodules/pretraining/graph_3d_pretraining_datamodule.py`). Coordinates ride on `graph.pos` — no separate collate key.
+- **3D case** — `E3GNNPretraining`, `GPS3DPretraining`, `GT3DPretraining` (`src/matcha/torch/models/pretraining/{e3gnn,gps3d,gt3d}_pretraining.py`) + `Graph3DPretrainingDataModule` (`src/matcha/datamodules/pretraining/graph_3d_pretraining_datamodule.py`). Coordinates ride on `graph.pos` — no separate collate key.
 
 A new pretraining model touches four layers, in this order:
 
