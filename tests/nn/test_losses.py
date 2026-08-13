@@ -41,6 +41,14 @@ class TestLossRegistryKeys:
         "weighted-bce",
         "gradnorm",
         "dropout",
+        "dropout-mse",
+        "dropout-mae",
+        "dropout-huber",
+        "dropout-smoothl1",
+        "dropout-bce",
+        "dropout-focal-bce",
+        "dropout-poly1-bce",
+        "dropout-weighted-bce",
     ]
 
     @pytest.mark.parametrize("key", EXPECTED_KEYS)
@@ -617,3 +625,45 @@ class TestDropoutLoss:
     def test_rejects_nested_wrappers(self, alias):
         with pytest.raises(ValueError):
             DropoutLoss(loss_fn=alias)
+
+
+# ===================================================================
+# DropoutLoss registry aliases
+# ===================================================================
+
+
+class TestDropoutAliases:
+    ALIASES = [
+        "dropout-mse",
+        "dropout-mae",
+        "dropout-huber",
+        "dropout-smoothl1",
+        "dropout-bce",
+        "dropout-focal-bce",
+        "dropout-poly1-bce",
+        "dropout-weighted-bce",
+    ]
+    BCE_ALIASES = {
+        "dropout-bce",
+        "dropout-focal-bce",
+        "dropout-poly1-bce",
+        "dropout-weighted-bce",
+    }
+
+    @pytest.mark.parametrize("key", ALIASES)
+    def test_instantiation(self, key):
+        loss_fn = LossRegistry[key](dropout=0.1)
+        assert loss_fn is not None
+        assert isinstance(loss_fn, DropoutLoss)
+
+    @pytest.mark.parametrize("key", ALIASES)
+    def test_forward(self, key):
+        loss_fn = LossRegistry[key](dropout=0.1)
+        preds = torch.randn(8, 1)
+        if key in self.BCE_ALIASES:
+            targets = torch.randint(0, 2, (8, 1)).float()
+        else:
+            targets = torch.randn(8, 1)
+        loss = loss_fn(preds, targets)
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)

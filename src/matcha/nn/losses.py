@@ -658,3 +658,67 @@ class DropoutLoss(nn.Module):
 
         losses = losses * keep_mask
         return losses.sum() / (keep_mask.sum() + 1e-8)
+
+
+@LossRegistry.register(alias="dropout-mse")
+class DropoutMSELoss(DropoutLoss):
+    """:class:`DropoutLoss` with MSE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="mse", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-mae")
+class DropoutMAELoss(DropoutLoss):
+    """:class:`DropoutLoss` with MAE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="mae", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-huber")
+class DropoutHuberLoss(DropoutLoss):
+    """:class:`DropoutLoss` with Huber as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="huber", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-smoothl1")
+class DropoutSmoothL1Loss(DropoutLoss):
+    """:class:`DropoutLoss` with Smooth L1 as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="smoothl1", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-bce")
+class DropoutBCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with BCE-with-logits as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="bce", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-focal-bce")
+class DropoutFocalBCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with focal BCE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="focal-bce", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-poly1-bce")
+class DropoutPoly1BCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with Poly1 BCE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="poly1-bce", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-weighted-bce")
+class DropoutWeightedBCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with weighted BCE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="weighted-bce", **kwargs)
