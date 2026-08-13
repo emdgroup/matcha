@@ -7,6 +7,11 @@ to ``True`` so existing configs keep validating.
 
 Stage 2 covers the dense-mode preparation helpers as pure functions,
 before they are wired into ``main()`` in stage 3.
+
+Stage 3 covers the ``main()`` wiring: both sparse and dense branches
+produce the expected on-disk artifacts (with suffixed filenames), the
+``storage_mode`` field is stamped into ``task_metadata.json``, and the
+two modes agree numerically on the same input.
 """
 
 import logging
@@ -14,15 +19,18 @@ import logging
 import numpy as np
 import pandas as pd
 import pytest
+import scipy.sparse as sp
 
 from matcha.cli import COMMANDS
 from matcha.cli.prepare_dataset import (
     apply_dense_scaling,
     compute_dense_scaling_stats,
     create_validation_set_dense,
+    main as prepare_dataset_main,
     merge_datasets_streaming_dense,
 )
 from matcha.utils.schemas.cli import PrepareDatasets
+from matcha.utils.serialization import load_json
 
 
 @pytest.fixture()
@@ -274,3 +282,193 @@ class TestCreateValidationSetDense:
             logger=stub_logger,
         )
         assert val_mol_df["smiles"].tolist() == val_mol_df_again["smiles"].tolist()
+
+
+# ---------------------------------------------------------------------------
+# Stage 3 — main() integration tests
+# ---------------------------------------------------------------------------
+
+
+def _write_prepare_fixture(
+    tmp_path,
+    *,
+    include_nans: bool = False,
+):
+    """Write a small two-file fixture for ``prepare_dataset`` and return the input paths.
+
+    Both files share the ``smiles`` merge column so we exercise the union of
+    compounds and the file-to-task wiring in a single call.
+    """
+    file_a = tmp_path / "file_a.csv"
+    file_b = tmp_path / "file_b.csv"
+
+    reg_a = [1.0, 2.0, 3.0, 4.0] if not include_nans else [1.0, np.nan, 3.0, 4.0]
+    reg_b = [10.0, 20.0, 30.0] if not include_nans else [10.0, 20.0, np.nan]
+
+    pd.DataFrame(
+        {
+            "smiles": ["CCO", "CCC", "CCCC", "CCCCC"],
+            "reg_a": reg_a,
+        }
+    ).to_csv(file_a, index=False)
+    pd.DataFrame(
+        {
+            "smiles": ["CCO", "CCCC", "CCCCCC"],
+            "reg_b": reg_b,
+        }
+    ).to_csv(file_b, index=False)
+
+    return str(file_a), str(file_b)
+
+
+def _make_prepare_cfg(files, output, *, sparse: bool) -> dict:
+    """Build a runnable ``CLIPrepareInputModel``-shaped dict for the fixture."""
+    return {
+        "datasets": {
+            "files": list(files),
+            "task_type": ["regression"] * len(files),
+            "sparse": sparse,
+        },
+        "metadata": {"merge_col": "smiles", "tag_to_add": "v1"},
+        "validation": {"min_compounds": 1, "sampling_rate": 0.2, "seed": 42},
+        "output": str(output),
+    }
+
+
+class TestPrepareMainEndToEnd:
+    """``main()`` writes the right artifacts and metadata for both modes."""
+
+    def test_prepare_sparse_end_to_end(self, tmp_path):
+        files = _write_prepare_fixture(tmp_path)
+        out_dir = tmp_path / "out_sparse"
+        cfg = _make_prepare_cfg(files, out_dir, sparse=True)
+
+        prepare_dataset_main(cfg)
+
+        assert (out_dir / "train_tasks_sparse.npz").exists()
+        assert (out_dir / "val_tasks_sparse.npz").exists()
+        assert (out_dir / "train_molecules.parquet").exists()
+        assert (out_dir / "val_molecules.parquet").exists()
+        assert (out_dir / "datacard.json").exists()
+        # No dense filenames leak into the sparse branch.
+        assert not (out_dir / "train_tasks_dense.npy").exists()
+        assert not (out_dir / "val_tasks_dense.npy").exists()
+
+        metadata = load_json(str(out_dir / "task_metadata.json"))
+        assert metadata["storage_mode"] == "sparse"
+
+        # Artifact loads via scipy.sparse without further coaxing.
+        train = sp.load_npz(str(out_dir / "train_tasks_sparse.npz"))
+        assert sp.issparse(train)
+        assert train.dtype == np.float32
+
+    def test_prepare_dense_end_to_end(self, tmp_path):
+        files = _write_prepare_fixture(tmp_path)
+        out_dir = tmp_path / "out_dense"
+        cfg = _make_prepare_cfg(files, out_dir, sparse=False)
+
+        prepare_dataset_main(cfg)
+
+        assert (out_dir / "train_tasks_dense.npy").exists()
+        assert (out_dir / "val_tasks_dense.npy").exists()
+        assert (out_dir / "train_molecules.parquet").exists()
+        assert (out_dir / "val_molecules.parquet").exists()
+        assert (out_dir / "datacard.json").exists()
+        # No sparse filenames leak into the dense branch.
+        assert not (out_dir / "train_tasks_sparse.npz").exists()
+        assert not (out_dir / "val_tasks_sparse.npz").exists()
+
+        metadata = load_json(str(out_dir / "task_metadata.json"))
+        assert metadata["storage_mode"] == "dense"
+
+        train = np.load(str(out_dir / "train_tasks_dense.npy"), allow_pickle=False)
+        val = np.load(str(out_dir / "val_tasks_dense.npy"), allow_pickle=False)
+        assert train.ndim == 2
+        assert train.dtype == np.float32
+        assert val.dtype == np.float32
+
+    def test_prepare_dense_with_nan_inputs(self, tmp_path):
+        files = _write_prepare_fixture(tmp_path, include_nans=True)
+        out_dir = tmp_path / "out_dense_nan"
+        cfg = _make_prepare_cfg(files, out_dir, sparse=False)
+
+        prepare_dataset_main(cfg)
+
+        train = np.load(str(out_dir / "train_tasks_dense.npy"), allow_pickle=False)
+        val = np.load(str(out_dir / "val_tasks_dense.npy"), allow_pickle=False)
+
+        # NaN entries survive the round-trip. The fixture injects explicit NaN
+        # cells in both files plus compounds that appear in only one file, so
+        # the union of train + val must contain NaN in both columns. Which of
+        # the two splits carries which NaN depends on the validation seed, so
+        # assert on the union rather than per-split.
+        total_nan_per_col = np.isnan(train).sum(axis=0) + np.isnan(val).sum(axis=0)
+        assert (total_nan_per_col > 0).all()
+
+        # Union of train + val rows equals the total number of unique compounds
+        # discovered across both input files (4 + 3 - 2 shared = 5).
+        assert train.shape[0] + val.shape[0] == 5
+        assert train.shape[1] == 2
+
+    def test_prepare_sparse_and_dense_same_semantics(self, tmp_path):
+        files = _write_prepare_fixture(tmp_path)
+        sparse_out = tmp_path / "out_sparse_cmp"
+        dense_out = tmp_path / "out_dense_cmp"
+
+        prepare_dataset_main(_make_prepare_cfg(files, sparse_out, sparse=True))
+        prepare_dataset_main(_make_prepare_cfg(files, dense_out, sparse=False))
+
+        sparse_meta = load_json(str(sparse_out / "task_metadata.json"))
+        dense_meta = load_json(str(dense_out / "task_metadata.json"))
+
+        # Task ordering and column-type inventory are identical.
+        assert sparse_meta["task_columns"] == dense_meta["task_columns"]
+        assert sparse_meta["column_to_task_type"] == dense_meta["column_to_task_type"]
+
+        # Scaling statistics from the same underlying data must agree (both
+        # helpers exclude missing entries; sparse via non-zero data, dense via
+        # ``np.nanmean``/``np.nanstd``).
+        sparse_stats = sparse_meta["scaling_stats"]
+        dense_stats = dense_meta["scaling_stats"]
+        assert set(sparse_stats) == set(dense_stats)
+        for key in sparse_stats:
+            assert sparse_stats[key]["mean"] == pytest.approx(
+                dense_stats[key]["mean"], rel=1e-5, abs=1e-5
+            )
+            assert sparse_stats[key]["std"] == pytest.approx(
+                dense_stats[key]["std"], rel=1e-5, abs=1e-5
+            )
+
+        # Non-missing entries agree after de-scaling. Compare via the sparse
+        # matrix's raw ``col.data`` rather than a densified view — the latter
+        # would misclassify a value that scaled to exactly 0.0 as "missing".
+        train_sparse = sp.load_npz(str(sparse_out / "train_tasks_sparse.npz"))
+        train_dense = np.load(
+            str(dense_out / "train_tasks_dense.npy"), allow_pickle=False
+        )
+
+        # Sparse and dense pipelines both sort compounds alphabetically and
+        # share the same validation seed, so the train molecule ordering matches
+        # row-for-row across the two artifacts.
+        sparse_mols = pd.read_parquet(sparse_out / "train_molecules.parquet")
+        dense_mols = pd.read_parquet(dense_out / "train_molecules.parquet")
+        assert sparse_mols["smiles"].tolist() == dense_mols["smiles"].tolist()
+
+        for task_idx in range(train_dense.shape[1]):
+            stats = dense_stats[str(task_idx)]
+
+            dense_col = train_dense[:, task_idx]
+            finite = ~np.isnan(dense_col)
+            dense_original = dense_col[finite] * stats["std"] + stats["mean"]
+
+            sparse_col_data = train_sparse.getcol(task_idx).data
+            sparse_original = sparse_col_data * stats["std"] + stats["mean"]
+
+            # Both modes surface the same non-missing count and values.
+            assert finite.sum() == len(sparse_original)
+            np.testing.assert_allclose(
+                np.sort(dense_original),
+                np.sort(sparse_original),
+                rtol=1e-5,
+                atol=1e-5,
+            )

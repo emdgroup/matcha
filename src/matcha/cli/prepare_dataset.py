@@ -1,9 +1,23 @@
-"""CLI command for preparing sparse multi-task datasets for pretraining.
+"""CLI command for preparing multi-task datasets for pretraining.
 
-Merges multiple parquet files into a single sparse matrix (compounds x tasks),
-creates train/validation splits, applies standard scaling to regression tasks,
-and saves the result in an efficient npz + parquet format consumed by the
-``pretrain_multitask`` command.
+Merges multiple parquet/CSV files into a single (compounds x tasks) label
+matrix, creates train/validation splits, applies standard scaling to
+regression tasks, and saves the result in a parquet + labels format consumed
+by the ``pretrain_multitask`` command.
+
+Two storage modes are supported and selected via ``datasets.sparse``:
+
+* ``sparse=True`` (default) — labels are stored as ``scipy.sparse`` CSR
+  matrices (``train_tasks_sparse.npz`` / ``val_tasks_sparse.npz``). Missing
+  entries are represented by omission and classification zeros are remapped
+  to ``-1`` so they survive the sparse round-trip.
+* ``sparse=False`` — labels are stored as dense ``float32`` arrays
+  (``train_tasks_dense.npy`` / ``val_tasks_dense.npy``). Missing entries are
+  ``NaN`` and classification values pass through as ``0``/``1`` unchanged.
+
+The storage mode is written into ``task_metadata.json`` under
+``storage_mode`` so downstream commands can dispatch on the artifact layout
+without a user-visible flag.
 """
 
 import os
@@ -628,7 +642,13 @@ def generate_datacard_sparse(
 
 
 def main(cfg=None) -> None:
-    """Main function to process datasets according to config."""
+    """Main function to process datasets according to config.
+
+    Branches on ``cfg.datasets.sparse`` to emit either sparse ``.npz`` CSR
+    label artifacts or dense ``.npy`` label arrays. ``task_metadata.json``
+    records the choice under ``storage_mode`` so the pretraining command can
+    dispatch without a user-visible flag.
+    """
 
     if cfg is None:
         parser = argparse.ArgumentParser(description="Prepare datasets for pretraining")
@@ -649,77 +669,165 @@ def main(cfg=None) -> None:
 
     # Extract task types from config
     task_types = [x for x in cfg.datasets.task_type]
+    storage_mode = "sparse" if cfg.datasets.sparse else "dense"
+    logger.info(f"Preparing dataset in {storage_mode} mode")
 
-    # Build sparse matrix sequentially
-    (
-        mol_df,
-        sparse_matrix,
-        task_cols,
-        column_to_task_type,
-        task_to_file,
-        file_to_tasks,
-    ) = merge_datasets_streaming_sparse(
-        cfg.datasets.files,
-        cfg.metadata.merge_col,
-        task_types,
-        cfg.metadata.tag_to_add,
-        logger,
-    )
-
-    # Create validation set with sparse data
-    train_mol_df, val_mol_df, train_sparse, val_sparse = create_validation_set_sparse(
-        mol_df,
-        sparse_matrix,
-        task_cols,
-        cfg.validation.min_compounds,
-        cfg.validation.sampling_rate,
-        cfg.validation.seed,
-        logger,
-    )
-
-    # Apply standard scaling to regression tasks
-    logger.info("Applying standard scaling to regression tasks...")
-
-    # Identify regression task indices
-    regression_task_indices = [
-        i
-        for i, col in enumerate(task_cols)
-        if column_to_task_type.get(col) == "regression"
-    ]
-
-    scaling_stats = {}
-    if regression_task_indices:
-        logger.info(
-            f"Computing scaling statistics for {len(regression_task_indices)} regression tasks"
+    if cfg.datasets.sparse:
+        (
+            mol_df,
+            sparse_matrix,
+            task_cols,
+            column_to_task_type,
+            task_to_file,
+            file_to_tasks,
+        ) = merge_datasets_streaming_sparse(
+            cfg.datasets.files,
+            cfg.metadata.merge_col,
+            task_types,
+            cfg.metadata.tag_to_add,
+            logger,
         )
 
-        # Compute scaling statistics from training set
-        scaling_stats = compute_sparse_scaling_stats(
-            train_sparse, regression_task_indices, logger
+        (
+            train_mol_df,
+            val_mol_df,
+            train_sparse,
+            val_sparse,
+        ) = create_validation_set_sparse(
+            mol_df,
+            sparse_matrix,
+            task_cols,
+            cfg.validation.min_compounds,
+            cfg.validation.sampling_rate,
+            cfg.validation.seed,
+            logger,
         )
 
-        # Apply scaling to both train and validation sets
-        train_sparse = apply_sparse_scaling(train_sparse, scaling_stats, logger)
-        val_sparse = apply_sparse_scaling(val_sparse, scaling_stats, logger)
+        # Apply standard scaling to regression tasks
+        logger.info("Applying standard scaling to regression tasks...")
+        regression_task_indices = [
+            i
+            for i, col in enumerate(task_cols)
+            if column_to_task_type.get(col) == "regression"
+        ]
+
+        scaling_stats: Dict[int, Dict[str, float]] = {}
+        if regression_task_indices:
+            logger.info(
+                f"Computing scaling statistics for {len(regression_task_indices)} regression tasks"
+            )
+            scaling_stats = compute_sparse_scaling_stats(
+                train_sparse, regression_task_indices, logger
+            )
+            train_sparse = apply_sparse_scaling(train_sparse, scaling_stats, logger)
+            val_sparse = apply_sparse_scaling(val_sparse, scaling_stats, logger)
+        else:
+            logger.info("No regression tasks found, skipping scaling")
+
+        train_mol_path = os.path.join(cfg.output, "train_molecules.parquet")
+        val_mol_path = os.path.join(cfg.output, "val_molecules.parquet")
+        train_tasks_path = os.path.join(cfg.output, "train_tasks_sparse.npz")
+        val_tasks_path = os.path.join(cfg.output, "val_tasks_sparse.npz")
+
+        logger.info("Saving outputs...")
+        train_mol_df.to_parquet(train_mol_path, index=False)
+        val_mol_df.to_parquet(val_mol_path, index=False)
+
+        # Convert sparse matrices to fp32 before saving for memory efficiency
+        train_sparse.data = train_sparse.data.astype(np.float32)
+        val_sparse.data = val_sparse.data.astype(np.float32)
+
+        sp.save_npz(train_tasks_path, train_sparse)
+        sp.save_npz(val_tasks_path, val_sparse)
+
+        datacard = generate_datacard_sparse(
+            train_mol_df,
+            val_mol_df,
+            train_sparse,
+            val_sparse,
+            task_cols,
+            column_to_task_type,
+            cfg.datasets.files,
+            file_to_tasks,
+            logger,
+        )
     else:
-        logger.info("No regression tasks found, skipping scaling")
+        (
+            mol_df,
+            dense_matrix,
+            task_cols,
+            column_to_task_type,
+            task_to_file,
+            file_to_tasks,
+        ) = merge_datasets_streaming_dense(
+            cfg.datasets.files,
+            cfg.metadata.merge_col,
+            task_types,
+            cfg.metadata.tag_to_add,
+            logger,
+        )
 
-    # Save outputs in sparse format
-    train_mol_path = os.path.join(cfg.output, "train_molecules.parquet")
-    val_mol_path = os.path.join(cfg.output, "val_molecules.parquet")
-    train_sparse_path = os.path.join(cfg.output, "train_tasks.npz")
-    val_sparse_path = os.path.join(cfg.output, "val_tasks.npz")
+        (
+            train_mol_df,
+            val_mol_df,
+            train_dense,
+            val_dense,
+        ) = create_validation_set_dense(
+            mol_df,
+            dense_matrix,
+            task_cols,
+            cfg.validation.min_compounds,
+            cfg.validation.sampling_rate,
+            cfg.validation.seed,
+            logger,
+        )
 
-    logger.info("Saving outputs...")
-    train_mol_df.to_parquet(train_mol_path, index=False)
-    val_mol_df.to_parquet(val_mol_path, index=False)
+        logger.info("Applying standard scaling to regression tasks...")
+        regression_task_indices = [
+            i
+            for i, col in enumerate(task_cols)
+            if column_to_task_type.get(col) == "regression"
+        ]
 
-    # Convert sparse matrices to fp32 before saving for memory efficiency
-    train_sparse.data = train_sparse.data.astype(np.float32)
-    val_sparse.data = val_sparse.data.astype(np.float32)
+        scaling_stats = {}
+        if regression_task_indices:
+            logger.info(
+                f"Computing scaling statistics for {len(regression_task_indices)} regression tasks"
+            )
+            scaling_stats = compute_dense_scaling_stats(
+                train_dense, regression_task_indices, logger
+            )
+            train_dense = apply_dense_scaling(train_dense, scaling_stats, logger)
+            val_dense = apply_dense_scaling(val_dense, scaling_stats, logger)
+        else:
+            logger.info("No regression tasks found, skipping scaling")
 
-    sp.save_npz(train_sparse_path, train_sparse)
-    sp.save_npz(val_sparse_path, val_sparse)
+        train_mol_path = os.path.join(cfg.output, "train_molecules.parquet")
+        val_mol_path = os.path.join(cfg.output, "val_molecules.parquet")
+        train_tasks_path = os.path.join(cfg.output, "train_tasks_dense.npy")
+        val_tasks_path = os.path.join(cfg.output, "val_tasks_dense.npy")
+
+        logger.info("Saving outputs...")
+        train_mol_df.to_parquet(train_mol_path, index=False)
+        val_mol_df.to_parquet(val_mol_path, index=False)
+
+        train_dense = train_dense.astype(np.float32, copy=False)
+        val_dense = val_dense.astype(np.float32, copy=False)
+
+        np.save(train_tasks_path, train_dense, allow_pickle=False)
+        np.save(val_tasks_path, val_dense, allow_pickle=False)
+
+        datacard = generate_datacard_dense(
+            train_mol_df,
+            val_mol_df,
+            train_dense,
+            val_dense,
+            task_cols,
+            column_to_task_type,
+            cfg.datasets.files,
+            file_to_tasks,
+            logger,
+        )
 
     # Create task name to index mapping for convenience
     task_name_to_index = {task_name: idx for idx, task_name in enumerate(task_cols)}
@@ -733,7 +841,6 @@ def main(cfg=None) -> None:
         for filename, tasks in file_to_tasks.items()
     }
 
-    # Save metadata
     metadata = {
         "task_columns": task_cols,
         "column_to_task_type": column_to_task_type,
@@ -742,26 +849,14 @@ def main(cfg=None) -> None:
         "task_name_to_index": task_name_to_index,
         "merge_col": cfg.metadata.merge_col,
         "scaling_stats": scaling_stats,
+        "storage_mode": storage_mode,
     }
     save_json(os.path.join(cfg.output, "task_metadata.json"), metadata)
-
-    # Generate datacard
-    datacard = generate_datacard_sparse(
-        train_mol_df,
-        val_mol_df,
-        train_sparse,
-        val_sparse,
-        task_cols,
-        column_to_task_type,
-        cfg.datasets.files,
-        file_to_tasks,
-        logger,
-    )
 
     save_json(os.path.join(cfg.output, "datacard.json"), datacard)
     save_config_as_yaml(cfg, f"{cfg.output}/cfg.yaml")
 
-    logger.info("Sparse data preparation completed successfully")
+    logger.info(f"{storage_mode.capitalize()} data preparation completed successfully")
     logger.info(f"Saved {len(task_cols)} tasks")
 
 

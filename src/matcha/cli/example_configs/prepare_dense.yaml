@@ -1,0 +1,31 @@
+# ── Example config: Prepare dense multi-task dataset for pretraining ──
+#
+# Merges parquet/CSV files into a dense ``float32`` label array consumed by
+# the ``pretrain_multitask`` command. Missing entries are represented as NaN
+# and classification values pass through as 0/1 unchanged. Use this variant
+# when the underlying label matrix is largely populated (e.g. ≥90%), where
+# sparse-format overhead outweighs the storage savings. For sparse output,
+# see ``prepare.yaml``.
+#
+# Usage:
+#   matcha prepare_dataset --config prepare_dense.yaml
+
+datasets:
+  files:
+    - /path/to/data/dataset_a.parquet
+    - /path/to/data/dataset_b.parquet
+  task_type:
+    - regression
+    - regression
+  sparse: false
+
+metadata:
+  merge_col: SMILES
+  tag_to_add: PRETRAIN
+
+validation:
+  min_compounds: 10
+  sampling_rate: 0.001
+  seed: 42
+
+output: /path/to/pretraining/data
