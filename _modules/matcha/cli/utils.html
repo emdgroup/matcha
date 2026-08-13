@@ -404,6 +404,70 @@
     <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
         <span class="n">yaml</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">cfg_dict</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">default_flow_style</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">sort_keys</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_npz_list</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a list of variable-length arrays from a packed npz file.</span>
+
+<span class="sd">    Expected on-disk layout (``flat`` + ``offsets``)::</span>
+
+<span class="sd">        np.savez_compressed(&quot;node_y.npz&quot;, flat=&lt;concatenated&gt;, offsets=&lt;cumulative&gt;)</span>
+
+<span class="sd">    where ``offsets`` has length ``N + 1`` and ``flat`` has shape</span>
+<span class="sd">    ``(total_items,)`` or ``(total_items, D)``.</span>
+
+<span class="sd">    :param path: Path to the packed ``.npz`` file.</span>
+<span class="sd">    :returns: A list of ``N`` numpy arrays reconstructed from the flat buffer.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">flat</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;flat&quot;</span><span class="p">]</span>
+    <span class="n">offsets</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;offsets&quot;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">flat</span><span class="p">[</span><span class="n">offsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">:</span> <span class="n">offsets</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_load_coords_npz</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load per-molecule 3D coordinates from a packed npz file.</span>
+
+<span class="sd">    Uses the same ``flat + offsets`` layout as :func:`_load_npz_list` but</span>
+<span class="sd">    with two additional invariants: ``flat`` is a 2D array of shape</span>
+<span class="sd">    ``(total_atoms, 3)`` and each molecule&#39;s slice becomes an</span>
+<span class="sd">    ``(A_i, 3)`` ``float32`` array.</span>
+
+<span class="sd">    Startup guards raise ``AssertionError`` on malformed inputs, so the CLI</span>
+<span class="sd">    fails fast before featurization is ever attempted:</span>
+
+<span class="sd">    - ``flat.ndim == 2``</span>
+<span class="sd">    - ``flat.shape[1] == 3``</span>
+<span class="sd">    - ``offsets.ndim == 1``</span>
+<span class="sd">    - ``offsets`` is monotonic non-decreasing</span>
+<span class="sd">    - ``offsets[-1] == flat.shape[0]``</span>
+
+<span class="sd">    :param path: Path to the packed ``.npz`` file.</span>
+<span class="sd">    :returns: A list of ``N`` ``float32`` arrays, each of shape ``(A_i, 3)``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="n">flat</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;flat&quot;</span><span class="p">]</span>
+    <span class="n">offsets</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;offsets&quot;</span><span class="p">]</span>
+
+    <span class="k">assert</span> <span class="n">flat</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">2</span><span class="p">,</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;coords npz &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: expected flat.ndim == 2, got </span><span class="si">{</span><span class="n">flat</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="n">flat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="mi">3</span><span class="p">,</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;coords npz &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: expected flat.shape[1] == 3, got </span><span class="si">{</span><span class="n">flat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="n">offsets</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">,</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;coords npz &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: expected offsets.ndim == 1, got </span><span class="si">{</span><span class="n">offsets</span><span class="o">.</span><span class="n">ndim</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">bool</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="mi">0</span><span class="p">)),</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;coords npz &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: offsets must be monotonic non-decreasing&quot;</span>
+    <span class="p">)</span>
+    <span class="k">assert</span> <span class="nb">int</span><span class="p">(</span><span class="n">offsets</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span> <span class="o">==</span> <span class="n">flat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;coords npz &#39;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">&#39;: offsets[-1]=</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">offsets</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span><span class="si">}</span><span class="s2"> does not match &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;flat.shape[0]=</span><span class="si">{</span><span class="n">flat</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span>
+
+    <span class="n">flat32</span> <span class="o">=</span> <span class="n">flat</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">flat32</span><span class="p">[</span><span class="n">offsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">:</span> <span class="n">offsets</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
 </pre></div>
 
            </div>

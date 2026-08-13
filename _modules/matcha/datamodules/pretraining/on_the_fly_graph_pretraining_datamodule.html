@@ -117,6 +117,10 @@
 <span class="sd">    :param smiles: list of SMILES strings</span>
 <span class="sd">    :param y_graph: array ``(N, G)`` of molecule-level targets</span>
 <span class="sd">    :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets</span>
+<span class="sd">    :param coords: optional list of N arrays, each ``(A_i, 3)`` of per-atom</span>
+<span class="sd">        3D coordinates in the input mol&#39;s atom order. When set, the wrapper</span>
+<span class="sd">        forwards it to the base datamodule&#39;s ``generate_features(coords=...)``</span>
+<span class="sd">        at batch collation time (e.g. for 3D pretraining).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -124,22 +128,27 @@
         <span class="n">smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
         <span class="n">y_graph</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
         <span class="n">y_node</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
+        <span class="n">coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">smiles</span> <span class="o">=</span> <span class="n">smiles</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">y_graph</span> <span class="o">=</span> <span class="n">y_graph</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">y_node</span> <span class="o">=</span> <span class="n">y_node</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the number of samples.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">smiles</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">idx</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a dict with ``smiles``, ``y_graph``, and ``y_node`` for the given index.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">{</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a dict with ``smiles``, ``y_graph``, ``y_node`` (and ``coords`` when set) for the given index.&quot;&quot;&quot;</span>
+        <span class="n">item</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;smiles&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">smiles</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span>
             <span class="s2">&quot;y_graph&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_graph</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span>
             <span class="s2">&quot;y_node&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">y_node</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span>
-        <span class="p">}</span></div>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">item</span><span class="p">[</span><span class="s2">&quot;coords&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">coords</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">item</span></div>
 
 
 
@@ -236,6 +245,10 @@
         <span class="n">predict_smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">predict_y_graph</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">predict_y_node</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">train_coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">val_coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">test_coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">predict_coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Set raw data for each split.</span>
 
@@ -251,6 +264,10 @@
 <span class="sd">        :param predict_smiles: prediction SMILES</span>
 <span class="sd">        :param predict_y_graph: prediction molecule-level labels</span>
 <span class="sd">        :param predict_y_node: prediction atom-level labels</span>
+<span class="sd">        :param train_coords: optional training per-atom 3D coordinates</span>
+<span class="sd">        :param val_coords: optional validation per-atom 3D coordinates</span>
+<span class="sd">        :param test_coords: optional test per-atom 3D coordinates</span>
+<span class="sd">        :param predict_coords: optional prediction per-atom 3D coordinates</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="p">(</span>
             <span class="n">train_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -258,7 +275,7 @@
             <span class="ow">and</span> <span class="n">train_y_node</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_raw_train</span> <span class="o">=</span> <span class="n">OnTheFlyGraphPretrainingDataset</span><span class="p">(</span>
-                <span class="n">train_smiles</span><span class="p">,</span> <span class="n">train_y_graph</span><span class="p">,</span> <span class="n">train_y_node</span>
+                <span class="n">train_smiles</span><span class="p">,</span> <span class="n">train_y_graph</span><span class="p">,</span> <span class="n">train_y_node</span><span class="p">,</span> <span class="n">train_coords</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span>
             <span class="n">val_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -266,7 +283,7 @@
             <span class="ow">and</span> <span class="n">val_y_node</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_raw_val</span> <span class="o">=</span> <span class="n">OnTheFlyGraphPretrainingDataset</span><span class="p">(</span>
-                <span class="n">val_smiles</span><span class="p">,</span> <span class="n">val_y_graph</span><span class="p">,</span> <span class="n">val_y_node</span>
+                <span class="n">val_smiles</span><span class="p">,</span> <span class="n">val_y_graph</span><span class="p">,</span> <span class="n">val_y_node</span><span class="p">,</span> <span class="n">val_coords</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span>
             <span class="n">test_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -274,7 +291,7 @@
             <span class="ow">and</span> <span class="n">test_y_node</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_raw_test</span> <span class="o">=</span> <span class="n">OnTheFlyGraphPretrainingDataset</span><span class="p">(</span>
-                <span class="n">test_smiles</span><span class="p">,</span> <span class="n">test_y_graph</span><span class="p">,</span> <span class="n">test_y_node</span>
+                <span class="n">test_smiles</span><span class="p">,</span> <span class="n">test_y_graph</span><span class="p">,</span> <span class="n">test_y_node</span><span class="p">,</span> <span class="n">test_coords</span>
             <span class="p">)</span>
         <span class="k">if</span> <span class="p">(</span>
             <span class="n">predict_smiles</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
@@ -282,7 +299,7 @@
             <span class="ow">and</span> <span class="n">predict_y_node</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
         <span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_raw_predict</span> <span class="o">=</span> <span class="n">OnTheFlyGraphPretrainingDataset</span><span class="p">(</span>
-                <span class="n">predict_smiles</span><span class="p">,</span> <span class="n">predict_y_graph</span><span class="p">,</span> <span class="n">predict_y_node</span>
+                <span class="n">predict_smiles</span><span class="p">,</span> <span class="n">predict_y_graph</span><span class="p">,</span> <span class="n">predict_y_node</span><span class="p">,</span> <span class="n">predict_coords</span>
             <span class="p">)</span></div>
 
 
@@ -297,29 +314,56 @@
 
 <span class="sd">        Converts SMILES to molecules, delegates to the base datamodule&#39;s</span>
 <span class="sd">        :meth:`generate_features`, then reshapes into the dict format</span>
-<span class="sd">        expected by :class:`BaseGraphPretrainingModel`.</span>
+<span class="sd">        expected by :class:`BaseGraphPretrainingModel`. When batch items</span>
+<span class="sd">        carry per-atom ``coords`` (e.g. for 3D pretraining), they are</span>
+<span class="sd">        forwarded to the base as ``generate_features(..., coords=...)``.</span>
 
-<span class="sd">        :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``</span>
+<span class="sd">        :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``,</span>
+<span class="sd">            and optionally ``coords``</span>
 <span class="sd">        :return: dict with ``graph``, ``y_node``, ``y_graph``</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">has_coords</span> <span class="o">=</span> <span class="s2">&quot;coords&quot;</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
         <span class="n">mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;smiles&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
         <span class="n">y_graph</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;y_graph&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="n">y_node</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;y_node&quot;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;coords&quot;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">has_coords</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
 
         <span class="c1"># Filter out invalid molecules</span>
-        <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">yg</span><span class="p">,</span> <span class="n">yn</span><span class="p">)</span> <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">yg</span><span class="p">,</span> <span class="n">yn</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">y_graph</span><span class="p">,</span> <span class="n">y_node</span><span class="p">)</span> <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-        <span class="p">]</span>
+        <span class="k">if</span> <span class="n">coords</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">yg</span><span class="p">,</span> <span class="n">yn</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">yg</span><span class="p">,</span> <span class="n">yn</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">y_graph</span><span class="p">,</span> <span class="n">y_node</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">valid</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="p">(</span><span class="n">m</span><span class="p">,</span> <span class="n">yg</span><span class="p">,</span> <span class="n">yn</span><span class="p">,</span> <span class="n">ci</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">m</span><span class="p">,</span> <span class="n">yg</span><span class="p">,</span> <span class="n">yn</span><span class="p">,</span> <span class="n">ci</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">y_graph</span><span class="p">,</span> <span class="n">y_node</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">m</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="p">]</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">valid</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;No valid molecules in batch&quot;</span><span class="p">)</span>
 
-        <span class="n">mols</span><span class="p">,</span> <span class="n">y_graph_arr</span><span class="p">,</span> <span class="n">y_node_list</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">valid</span><span class="p">)</span>
-        <span class="n">mols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span>
-        <span class="n">y_graph_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">y_graph_arr</span><span class="p">)</span>
-        <span class="n">y_node_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">y_node_list</span><span class="p">)</span>
+        <span class="n">mols_v</span><span class="p">,</span> <span class="n">y_graph_v</span><span class="p">,</span> <span class="n">y_node_v</span><span class="p">,</span> <span class="n">coords_v</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">valid</span><span class="p">)</span>
+        <span class="n">mols</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mols_v</span><span class="p">)</span>
+        <span class="n">y_graph_arr</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">y_graph_v</span><span class="p">)</span>
+        <span class="n">y_node_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">y_node_v</span><span class="p">)</span>
+        <span class="n">coords_list</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">coords_v</span><span class="p">)</span> <span class="k">if</span> <span class="n">has_coords</span> <span class="k">else</span> <span class="kc">None</span>
 
         <span class="c1"># Generate features using the base datamodule then apply fitted scalers</span>
-        <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">y_graph_arr</span><span class="p">,</span> <span class="n">y_node_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">coords_list</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+                <span class="n">mols</span><span class="p">,</span> <span class="n">y_graph_arr</span><span class="p">,</span> <span class="n">y_node_list</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span>
+                <span class="n">mols</span><span class="p">,</span> <span class="n">y_graph_arr</span><span class="p">,</span> <span class="n">y_node_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span>
+            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">base</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
 
         <span class="c1"># Convert StackDataset to list-of-dicts and delegate to base collate</span>

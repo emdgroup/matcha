@@ -121,7 +121,7 @@
     <span class="n">CLIPretrainMultitaskInputModel</span><span class="p">,</span>
     <span class="n">PretrainTraining</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.cli.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">save_config_as_yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.cli.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">_load_coords_npz</span><span class="p">,</span> <span class="n">save_config_as_yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.on_the_fly_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">OnTheFlyDataModule</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
 
@@ -292,16 +292,36 @@
         <span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;task_metadata.json&quot;</span>
     <span class="p">)</span>
 
+    <span class="c1"># Auto-discover per-molecule 3D coords packed as flat + offsets under the</span>
+    <span class="c1"># dataset directory. When present, coords are threaded to the on-the-fly</span>
+    <span class="c1"># wrapper, which forwards them to base.generate_features(..., coords=...)</span>
+    <span class="c1"># if the base datamodule accepts a coords kwarg. Otherwise they are</span>
+    <span class="c1"># silently dropped with a one-shot logger warning (see OnTheFlyDataModule).</span>
+    <span class="n">train_coords_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;train_coords.npz&quot;</span><span class="p">)</span>
+    <span class="n">val_coords_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;val_coords.npz&quot;</span><span class="p">)</span>
+    <span class="n">train_coords</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_load_coords_npz</span><span class="p">(</span><span class="n">train_coords_path</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">train_coords_path</span><span class="p">)</span>
+        <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+    <span class="n">val_coords</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_load_coords_npz</span><span class="p">(</span><span class="n">val_coords_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">val_coords_path</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="p">)</span>
+
     <span class="c1"># load data</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s2">&quot;Loading train data&quot;</span><span class="p">)</span>
     <span class="n">train_mols</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">train_smiles_path</span><span class="p">)</span><span class="o">.</span><span class="n">SMILES</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
     <span class="n">train_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">train_tasks_path</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Training set size: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_mols</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">train_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded train coords: </span><span class="si">{</span><span class="n">train_coords_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s2">&quot;Loading validation data&quot;</span><span class="p">)</span>
     <span class="n">val_mols</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">val_smiles_path</span><span class="p">)</span><span class="o">.</span><span class="n">SMILES</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
     <span class="n">val_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">val_tasks_path</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation set size: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">val_mols</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">val_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded val coords: </span><span class="si">{</span><span class="n">val_coords_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="n">metadata</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">task_metadata_path</span><span class="p">)</span>
 
@@ -396,9 +416,16 @@
         <span class="n">base</span><span class="o">=</span><span class="n">datamodule</span><span class="p">,</span> <span class="n">num_workers</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">dataloader_num_workers</span>
     <span class="p">)</span>
 
-    <span class="c1"># Set raw data instead of pre-computing features</span>
+    <span class="c1"># Set raw data instead of pre-computing features. Coords are passed</span>
+    <span class="c1"># unconditionally — the wrapper handles ``None`` and the signature probe</span>
+    <span class="c1"># inside collate_fn decides whether to forward them to the base.</span>
     <span class="n">on_the_fly_datamodule</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span>
-        <span class="n">train_smiles</span><span class="o">=</span><span class="n">train_mols</span><span class="p">,</span> <span class="n">train_y</span><span class="o">=</span><span class="n">train_y</span><span class="p">,</span> <span class="n">val_smiles</span><span class="o">=</span><span class="n">val_mols</span><span class="p">,</span> <span class="n">val_y</span><span class="o">=</span><span class="n">val_y</span>
+        <span class="n">train_smiles</span><span class="o">=</span><span class="n">train_mols</span><span class="p">,</span>
+        <span class="n">train_y</span><span class="o">=</span><span class="n">train_y</span><span class="p">,</span>
+        <span class="n">val_smiles</span><span class="o">=</span><span class="n">val_mols</span><span class="p">,</span>
+        <span class="n">val_y</span><span class="o">=</span><span class="n">val_y</span><span class="p">,</span>
+        <span class="n">train_coords</span><span class="o">=</span><span class="n">train_coords</span><span class="p">,</span>
+        <span class="n">val_coords</span><span class="o">=</span><span class="n">val_coords</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># Use the OnTheFly datamodule for training</span>

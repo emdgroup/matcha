@@ -208,7 +208,7 @@ Package Contents
 
 
 
-   .. py:method:: set_data(train_smiles: list[str] = None, train_y: numpy.ndarray = None, val_smiles: list[str] = None, val_y: numpy.ndarray = None, test_smiles: list[str] = None, test_y: numpy.ndarray = None, predict_smiles: list[str] = None, predict_y: numpy.ndarray = None)
+   .. py:method:: set_data(train_smiles: list[str] = None, train_y: numpy.ndarray = None, val_smiles: list[str] = None, val_y: numpy.ndarray = None, test_smiles: list[str] = None, test_y: numpy.ndarray = None, predict_smiles: list[str] = None, predict_y: numpy.ndarray = None, train_coords: list[numpy.ndarray] | None = None, val_coords: list[numpy.ndarray] | None = None, test_coords: list[numpy.ndarray] | None = None, predict_coords: list[numpy.ndarray] | None = None)
 
       Set the raw data for each split.
 
@@ -220,6 +220,10 @@ Package Contents
       :param test_y: test labels (sparse matrix)
       :param predict_smiles: prediction SMILES
       :param predict_y: prediction labels (optional, defaults to zeros)
+      :param train_coords: optional training per-atom 3D coordinates
+      :param val_coords: optional validation per-atom 3D coordinates
+      :param test_coords: optional test per-atom 3D coordinates
+      :param predict_coords: optional prediction per-atom 3D coordinates
 
 
 
@@ -229,9 +233,15 @@ Package Contents
 
       Converts SMILES to molecules, applies label encoding (sparse to dense,
       replacing 0 with NaN and -1 with 0), then delegates to the base
-      datamodule's feature generation and collation.
+      datamodule's feature generation and collation. When batch items carry
+      a ``coords`` field, the wrapper probes the base's ``generate_features``
+      signature once (cached) and forwards coords via ``coords=`` if
+      accepted. Otherwise coords are silently dropped and a single
+      ``logging.warning`` is emitted so the pytest ``filterwarnings=error``
+      gate is not tripped.
 
-      :param batch: list of dicts with ``smiles`` and ``y`` keys
+      :param batch: list of dicts with ``smiles``, ``y``, and optionally
+          ``coords`` keys
       :return: collated batch dict from the base datamodule
 
 
@@ -269,7 +279,7 @@ Package Contents
 
 
 
-.. py:class:: OnTheFlyDataset(smiles: list[str], y: numpy.ndarray)
+.. py:class:: OnTheFlyDataset(smiles: list[str], y: numpy.ndarray, coords: list[numpy.ndarray] | None = None)
 
    Dataset that stores raw SMILES and labels for on-the-fly featurization.
 
@@ -278,12 +288,22 @@ Package Contents
 
    :param smiles: list of SMILES strings
    :param y: label array, typically a sparse matrix of shape ``(N, T)``
+   :param coords: optional list of N arrays, each ``(A_i, 3)`` of per-atom
+       3D coordinates. When set, the wrapper forwards it to the base
+       datamodule's ``generate_features(coords=...)`` at collation time
+       (if the base accepts it) — otherwise it is silently dropped with a
+       one-shot warning.
 
 
    .. py:attribute:: smiles
 
 
    .. py:attribute:: y
+
+
+   .. py:attribute:: coords
+      :value: None
+
 
 
 .. py:class:: OnTheFlyMLMDataModule(base: matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule, num_workers: int = 0, **kwargs)
@@ -746,7 +766,7 @@ Package Contents
 
 
 
-   .. py:method:: set_data(train_smiles: list[str] | None = None, train_y_graph: numpy.ndarray | None = None, train_y_node: list[numpy.ndarray] | None = None, val_smiles: list[str] | None = None, val_y_graph: numpy.ndarray | None = None, val_y_node: list[numpy.ndarray] | None = None, test_smiles: list[str] | None = None, test_y_graph: numpy.ndarray | None = None, test_y_node: list[numpy.ndarray] | None = None, predict_smiles: list[str] | None = None, predict_y_graph: numpy.ndarray | None = None, predict_y_node: list[numpy.ndarray] | None = None)
+   .. py:method:: set_data(train_smiles: list[str] | None = None, train_y_graph: numpy.ndarray | None = None, train_y_node: list[numpy.ndarray] | None = None, val_smiles: list[str] | None = None, val_y_graph: numpy.ndarray | None = None, val_y_node: list[numpy.ndarray] | None = None, test_smiles: list[str] | None = None, test_y_graph: numpy.ndarray | None = None, test_y_node: list[numpy.ndarray] | None = None, predict_smiles: list[str] | None = None, predict_y_graph: numpy.ndarray | None = None, predict_y_node: list[numpy.ndarray] | None = None, train_coords: list[numpy.ndarray] | None = None, val_coords: list[numpy.ndarray] | None = None, test_coords: list[numpy.ndarray] | None = None, predict_coords: list[numpy.ndarray] | None = None)
 
       Set raw data for each split.
 
@@ -762,6 +782,10 @@ Package Contents
       :param predict_smiles: prediction SMILES
       :param predict_y_graph: prediction molecule-level labels
       :param predict_y_node: prediction atom-level labels
+      :param train_coords: optional training per-atom 3D coordinates
+      :param val_coords: optional validation per-atom 3D coordinates
+      :param test_coords: optional test per-atom 3D coordinates
+      :param predict_coords: optional prediction per-atom 3D coordinates
 
 
 
@@ -771,9 +795,12 @@ Package Contents
 
       Converts SMILES to molecules, delegates to the base datamodule's
       :meth:`generate_features`, then reshapes into the dict format
-      expected by :class:`BaseGraphPretrainingModel`.
+      expected by :class:`BaseGraphPretrainingModel`. When batch items
+      carry per-atom ``coords`` (e.g. for 3D pretraining), they are
+      forwarded to the base as ``generate_features(..., coords=...)``.
 
-      :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``
+      :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``,
+          and optionally ``coords``
       :return: dict with ``graph``, ``y_node``, ``y_graph``
 
 
@@ -827,7 +854,7 @@ Package Contents
 
 
 
-.. py:class:: OnTheFlyGraphPretrainingDataset(smiles: list[str], y_graph: numpy.ndarray, y_node: list[numpy.ndarray])
+.. py:class:: OnTheFlyGraphPretrainingDataset(smiles: list[str], y_graph: numpy.ndarray, y_node: list[numpy.ndarray], coords: list[numpy.ndarray] | None = None)
 
    Dataset that stores raw SMILES with molecule-level and atom-level labels.
 
@@ -837,6 +864,10 @@ Package Contents
    :param smiles: list of SMILES strings
    :param y_graph: array ``(N, G)`` of molecule-level targets
    :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets
+   :param coords: optional list of N arrays, each ``(A_i, 3)`` of per-atom
+       3D coordinates in the input mol's atom order. When set, the wrapper
+       forwards it to the base datamodule's ``generate_features(coords=...)``
+       at batch collation time (e.g. for 3D pretraining).
 
 
    .. py:attribute:: smiles
@@ -846,5 +877,10 @@ Package Contents
 
 
    .. py:attribute:: y_node
+
+
+   .. py:attribute:: coords
+      :value: None
+
 
 

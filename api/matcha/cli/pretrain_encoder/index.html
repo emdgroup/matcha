@@ -124,10 +124,16 @@ directly via <code class="docutils literal notranslate"><span class="pre">origin
 <dt class="sig sig-object py" id="matcha.cli.pretrain_encoder.main">
 <span class="sig-prename descclassname"><span class="pre">matcha.cli.pretrain_encoder.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/pretrain_encoder.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.pretrain_encoder.main" title="Link to this definition"></a></dt>
 <dd><p>Run encoder pretraining (MLM or graph multi-task) from a YAML configuration.</p>
-<p>Supports two pretraining modes controlled by <code class="docutils literal notranslate"><span class="pre">dataset.task_type</span></code>:</p>
+<p>Supports three pretraining modes controlled by <code class="docutils literal notranslate"><span class="pre">dataset.task_type</span></code>:</p>
 <ul class="simple">
 <li><p><strong>mlm</strong>: Masked language modelling over SMILES strings.</p></li>
-<li><p><strong>graph</strong>: Supervised node-level and graph-level multi-task objectives.</p></li>
+<li><p><strong>graph</strong>: Supervised node-level and graph-level multi-task objectives
+on 2D molecular graphs.</p></li>
+<li><p><strong>graph3d</strong>: Same as <code class="docutils literal notranslate"><span class="pre">graph</span></code> but with user-supplied precomputed 3D
+atomic coordinates (<code class="docutils literal notranslate"><span class="pre">train_coords</span></code> / <code class="docutils literal notranslate"><span class="pre">val_coords</span></code> npz files) routed
+through to a 3D-capable base datamodule such as
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Graph3DPretrainingDataModule</span></code> for architectures like
+<code class="xref py py-class docutils literal notranslate"><span class="pre">E3GNNPretraining</span></code>.</p></li>
 </ul>
 <p>Trains the encoder with Lightning, optionally using DDP for multi-GPU
 training, and saves artifacts (encoder checkpoint, configs, manifest)

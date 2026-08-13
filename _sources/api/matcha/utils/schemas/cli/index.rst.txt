@@ -1168,11 +1168,14 @@ Module Contents
 
    Dataset config for encoder pretraining.
 
-   Supports two modes:
+   Supports three modes:
    - **MLM**: only ``train_smiles`` and ``val_smiles`` parquet paths are needed.
    - **Graph pretraining**: additionally requires ``train_y_graph``, ``val_y_graph``
      (npz with key ``descriptors``), ``train_y_node``, ``val_y_node``
      (npz files for node-level targets), and ``task_type`` = ``"graph"``.
+   - **Graph3D pretraining**: same requirements as ``graph``, plus
+     ``train_coords`` / ``val_coords`` npz files carrying precomputed
+     per-molecule 3D atomic coordinates; ``task_type`` = ``"graph3d"``.
 
    Node-level target files (``train_y_node``, ``val_y_node``) use a packed
    flat + offsets layout::
@@ -1181,9 +1184,13 @@ Module Contents
                            flat=np.concatenate(list_of_arrays),
                            offsets=np.cumsum([0] + [len(a) for a in list_of_arrays]))
 
+   Coordinate files (``train_coords``, ``val_coords``) use the same packing,
+   with ``flat`` shaped ``(total_atoms, 3)`` and ``offsets`` of length
+   ``N + 1``. Each molecule slice becomes an ``(A_i, 3)`` ``float32`` array.
+
 
    .. py:attribute:: task_type
-      :type:  str
+      :type:  Literal['mlm', 'graph', 'graph3d']
 
 
    .. py:attribute:: train_smiles
@@ -1213,6 +1220,18 @@ Module Contents
 
 
    .. py:attribute:: val_y_node
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: train_coords
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: val_coords
       :type:  Optional[str]
       :value: None
 

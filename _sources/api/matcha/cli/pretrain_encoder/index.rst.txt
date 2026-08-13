@@ -42,10 +42,16 @@ Module Contents
 
    Run encoder pretraining (MLM or graph multi-task) from a YAML configuration.
 
-   Supports two pretraining modes controlled by ``dataset.task_type``:
+   Supports three pretraining modes controlled by ``dataset.task_type``:
 
    - **mlm**: Masked language modelling over SMILES strings.
-   - **graph**: Supervised node-level and graph-level multi-task objectives.
+   - **graph**: Supervised node-level and graph-level multi-task objectives
+     on 2D molecular graphs.
+   - **graph3d**: Same as ``graph`` but with user-supplied precomputed 3D
+     atomic coordinates (``train_coords`` / ``val_coords`` npz files) routed
+     through to a 3D-capable base datamodule such as
+     :class:`Graph3DPretrainingDataModule` for architectures like
+     :class:`E3GNNPretraining`.
 
    Trains the encoder with Lightning, optionally using DDP for multi-GPU
    training, and saves artifacts (encoder checkpoint, configs, manifest)

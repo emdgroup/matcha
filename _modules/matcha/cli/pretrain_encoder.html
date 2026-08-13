@@ -135,7 +135,7 @@
     <span class="n">EncoderPretrainMLMDatamodule</span><span class="p">,</span>
     <span class="n">PretrainTraining</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.cli.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">save_config_as_yaml</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.cli.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">_load_coords_npz</span><span class="p">,</span> <span class="n">_load_npz_list</span><span class="p">,</span> <span class="n">save_config_as_yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.pretraining</span><span class="w"> </span><span class="kn">import</span> <span class="n">PretrainingModelRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
 
@@ -173,34 +173,19 @@
     <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)[</span><span class="n">key</span><span class="p">]</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_load_npz_list</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a list of variable-length arrays from a packed npz file.</span>
-
-<span class="sd">    Expected on-disk layout (``flat`` + ``offsets``)::</span>
-
-<span class="sd">        np.savez_compressed(&quot;node_y.npz&quot;, flat=&lt;concatenated&gt;, offsets=&lt;cumulative&gt;)</span>
-
-<span class="sd">    where ``offsets`` has length ``N + 1`` and ``flat`` has shape</span>
-<span class="sd">    ``(total_items,)`` or ``(total_items, D)``.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-    <span class="n">flat</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;flat&quot;</span><span class="p">]</span>
-    <span class="n">offsets</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;offsets&quot;</span><span class="p">]</span>
-    <span class="k">return</span> <span class="p">[</span><span class="n">flat</span><span class="p">[</span><span class="n">offsets</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="p">:</span> <span class="n">offsets</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">offsets</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)]</span>
-
-
 <span class="k">def</span><span class="w"> </span><span class="nf">_filter_node_label_mismatches</span><span class="p">(</span>
     <span class="n">smiles</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
     <span class="n">y_graph</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="n">y_node</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span>
     <span class="n">logger</span><span class="p">,</span>
     <span class="n">split_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;data&quot;</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]]:</span>
+    <span class="n">coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Drop molecules whose atom-level labels don&#39;t match the canonical atom count.</span>
 
 <span class="sd">    Compares the number of rows in each ``y_node[i]`` against the number of</span>
 <span class="sd">    heavy atoms in the canonical form of the SMILES.  Entries that fail the</span>
-<span class="sd">    check (wrong row count) are removed from all three arrays so downstream</span>
+<span class="sd">    check (wrong row count) are removed from all supplied arrays so downstream</span>
 <span class="sd">    datamodules never see them.</span>
 
 <span class="sd">    :param smiles: list of SMILES strings</span>
@@ -208,7 +193,10 @@
 <span class="sd">    :param y_node: list of N arrays, each ``(A_i, T)``</span>
 <span class="sd">    :param logger: logger instance</span>
 <span class="sd">    :param split_name: label used in the log message (e.g. &quot;train&quot;, &quot;val&quot;)</span>
-<span class="sd">    :return: filtered (smiles, y_graph, y_node)</span>
+<span class="sd">    :param coords: optional list of N arrays of shape ``(A_i, 3)`` filtered by</span>
+<span class="sd">        the same ``keep`` mask.  When ``None``, the fourth tuple element is</span>
+<span class="sd">        ``None``.</span>
+<span class="sd">    :return: filtered (smiles, y_graph, y_node, coords)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">keep</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">smi</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">smiles</span><span class="p">):</span>
@@ -236,7 +224,8 @@
     <span class="n">filtered_smiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">smiles</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span>
     <span class="n">filtered_y_graph</span> <span class="o">=</span> <span class="n">y_graph</span><span class="p">[</span><span class="n">keep</span><span class="p">]</span>
     <span class="n">filtered_y_node</span> <span class="o">=</span> <span class="p">[</span><span class="n">y_node</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span>
-    <span class="k">return</span> <span class="n">filtered_smiles</span><span class="p">,</span> <span class="n">filtered_y_graph</span><span class="p">,</span> <span class="n">filtered_y_node</span>
+    <span class="n">filtered_coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">coords</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">keep</span><span class="p">]</span> <span class="k">if</span> <span class="n">coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">filtered_smiles</span><span class="p">,</span> <span class="n">filtered_y_graph</span><span class="p">,</span> <span class="n">filtered_y_node</span><span class="p">,</span> <span class="n">filtered_coords</span>
 
 
 <span class="c1"># ──────────────────────────────────────────────────────────────────────</span>
@@ -244,11 +233,32 @@
 <span class="c1"># ──────────────────────────────────────────────────────────────────────</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_run_graph_pretraining</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">CLIEncoderPretrainInputModel</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a graph pretraining model (node + graph multi-task).&quot;&quot;&quot;</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.graph_pretraining_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-        <span class="n">GraphPretrainingDataModule</span><span class="p">,</span>
-    <span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_graph_pretraining_generic</span><span class="p">(</span>
+    <span class="n">cfg</span><span class="p">:</span> <span class="n">CLIEncoderPretrainInputModel</span><span class="p">,</span>
+    <span class="n">logger</span><span class="p">,</span>
+    <span class="o">*</span><span class="p">,</span>
+    <span class="n">dm_cls</span><span class="p">,</span>
+    <span class="n">coords_loader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+<span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Shared build path for 2D and 3D graph encoder pretraining.</span>
+
+<span class="sd">    Loads SMILES + graph/node labels (and optionally coords), filters out</span>
+<span class="sd">    mismatched atom counts, instantiates ``dm_cls`` from the typed</span>
+<span class="sd">    :class:`EncoderPretrainGraphDatamodule` config, and wraps it in the</span>
+<span class="sd">    :class:`OnTheFlyGraphPretrainingDataModule` streaming wrapper.</span>
+
+<span class="sd">    :param cfg: Validated CLI configuration.</span>
+<span class="sd">    :param logger: Logger instance for progress messages.</span>
+<span class="sd">    :param dm_cls: Concrete base datamodule class — e.g.</span>
+<span class="sd">        :class:`GraphPretrainingDataModule` for 2D or</span>
+<span class="sd">        :class:`Graph3DPretrainingDataModule` for 3D.</span>
+<span class="sd">    :param coords_loader: Optional callable ``(path) -&gt; list[np.ndarray]``</span>
+<span class="sd">        used to load per-split coordinate npz files.  When supplied,</span>
+<span class="sd">        ``cfg.dataset.train_coords`` and ``cfg.dataset.val_coords`` are</span>
+<span class="sd">        loaded and threaded through featurization; the schema guarantees</span>
+<span class="sd">        both paths are present when this branch is entered.</span>
+<span class="sd">    :returns: ``(base_dm, otf_dm)`` ready for training.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
     <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.on_the_fly_graph_pretraining_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
         <span class="n">OnTheFlyGraphPretrainingDataModule</span><span class="p">,</span>
     <span class="p">)</span>
@@ -260,37 +270,43 @@
     <span class="n">train_smiles</span> <span class="o">=</span> <span class="n">_load_smiles</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">train_smiles</span><span class="p">)</span>
     <span class="n">train_y_graph</span> <span class="o">=</span> <span class="n">_load_npz_array</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">train_y_graph</span><span class="p">)</span>
     <span class="n">train_y_node</span> <span class="o">=</span> <span class="n">_load_npz_list</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">train_y_node</span><span class="p">)</span>
+    <span class="n">train_coords</span> <span class="o">=</span> <span class="n">coords_loader</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">train_coords</span><span class="p">)</span> <span class="k">if</span> <span class="n">coords_loader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  train: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_smiles</span><span class="p">)</span><span class="si">}</span><span class="s2"> molecules&quot;</span><span class="p">)</span>
 
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Loading validation data…&quot;</span><span class="p">)</span>
     <span class="n">val_smiles</span> <span class="o">=</span> <span class="n">_load_smiles</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">val_smiles</span><span class="p">)</span>
     <span class="n">val_y_graph</span> <span class="o">=</span> <span class="n">_load_npz_array</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">val_y_graph</span><span class="p">)</span>
     <span class="n">val_y_node</span> <span class="o">=</span> <span class="n">_load_npz_list</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">val_y_node</span><span class="p">)</span>
+    <span class="n">val_coords</span> <span class="o">=</span> <span class="n">coords_loader</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">val_coords</span><span class="p">)</span> <span class="k">if</span> <span class="n">coords_loader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  val:   </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">val_smiles</span><span class="p">)</span><span class="si">}</span><span class="s2"> molecules&quot;</span><span class="p">)</span>
 
     <span class="c1"># Resolve datamodule config (use typed defaults when omitted)</span>
     <span class="n">dm_cfg</span> <span class="o">=</span> <span class="n">EncoderPretrainGraphDatamodule</span><span class="p">(</span><span class="o">**</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">datamodule</span> <span class="ow">or</span> <span class="p">{}))</span>
 
     <span class="c1"># Filter out molecules with mismatched atom-level labels upfront</span>
-    <span class="n">train_smiles</span><span class="p">,</span> <span class="n">train_y_graph</span><span class="p">,</span> <span class="n">train_y_node</span> <span class="o">=</span> <span class="n">_filter_node_label_mismatches</span><span class="p">(</span>
-        <span class="n">train_smiles</span><span class="p">,</span>
-        <span class="n">train_y_graph</span><span class="p">,</span>
-        <span class="n">train_y_node</span><span class="p">,</span>
-        <span class="n">logger</span><span class="p">,</span>
-        <span class="n">split_name</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span>
+    <span class="n">train_smiles</span><span class="p">,</span> <span class="n">train_y_graph</span><span class="p">,</span> <span class="n">train_y_node</span><span class="p">,</span> <span class="n">train_coords</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_filter_node_label_mismatches</span><span class="p">(</span>
+            <span class="n">train_smiles</span><span class="p">,</span>
+            <span class="n">train_y_graph</span><span class="p">,</span>
+            <span class="n">train_y_node</span><span class="p">,</span>
+            <span class="n">logger</span><span class="p">,</span>
+            <span class="n">split_name</span><span class="o">=</span><span class="s2">&quot;train&quot;</span><span class="p">,</span>
+            <span class="n">coords</span><span class="o">=</span><span class="n">train_coords</span><span class="p">,</span>
+        <span class="p">)</span>
     <span class="p">)</span>
-    <span class="n">val_smiles</span><span class="p">,</span> <span class="n">val_y_graph</span><span class="p">,</span> <span class="n">val_y_node</span> <span class="o">=</span> <span class="n">_filter_node_label_mismatches</span><span class="p">(</span>
+    <span class="n">val_smiles</span><span class="p">,</span> <span class="n">val_y_graph</span><span class="p">,</span> <span class="n">val_y_node</span><span class="p">,</span> <span class="n">val_coords</span> <span class="o">=</span> <span class="n">_filter_node_label_mismatches</span><span class="p">(</span>
         <span class="n">val_smiles</span><span class="p">,</span>
         <span class="n">val_y_graph</span><span class="p">,</span>
         <span class="n">val_y_node</span><span class="p">,</span>
         <span class="n">logger</span><span class="p">,</span>
         <span class="n">split_name</span><span class="o">=</span><span class="s2">&quot;val&quot;</span><span class="p">,</span>
+        <span class="n">coords</span><span class="o">=</span><span class="n">val_coords</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  after filtering: train=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_smiles</span><span class="p">)</span><span class="si">}</span><span class="s2">, val=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">val_smiles</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="c1"># Build base datamodule from typed config</span>
     <span class="n">dm_kwargs</span> <span class="o">=</span> <span class="n">dm_cfg</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
-    <span class="n">base_dm</span> <span class="o">=</span> <span class="n">GraphPretrainingDataModule</span><span class="p">(</span><span class="o">**</span><span class="n">dm_kwargs</span><span class="p">)</span>
+    <span class="n">base_dm</span> <span class="o">=</span> <span class="n">dm_cls</span><span class="p">(</span><span class="o">**</span><span class="n">dm_kwargs</span><span class="p">)</span>
 
     <span class="c1"># Optional: fit datamodule on a sample for any stateful components</span>
     <span class="k">if</span> <span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">fit_datamodule_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -299,14 +315,26 @@
         <span class="n">sample_mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">train_smiles</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">]</span>
         <span class="n">sample_y_graph</span> <span class="o">=</span> <span class="n">train_y_graph</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
         <span class="n">sample_y_node</span> <span class="o">=</span> <span class="p">[</span><span class="n">train_y_node</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">]</span>
-        <span class="n">base_dm</span><span class="o">.</span><span class="n">featurize</span><span class="p">(</span><span class="n">sample_mols</span><span class="p">,</span> <span class="n">sample_y_graph</span><span class="p">,</span> <span class="n">sample_y_node</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">train_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sample_coords</span> <span class="o">=</span> <span class="p">[</span><span class="n">train_coords</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">idx</span><span class="p">]</span>
+            <span class="n">base_dm</span><span class="o">.</span><span class="n">featurize</span><span class="p">(</span>
+                <span class="n">sample_mols</span><span class="p">,</span>
+                <span class="n">sample_y_graph</span><span class="p">,</span>
+                <span class="n">sample_y_node</span><span class="p">,</span>
+                <span class="n">coords</span><span class="o">=</span><span class="n">sample_coords</span><span class="p">,</span>
+                <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">base_dm</span><span class="o">.</span><span class="n">featurize</span><span class="p">(</span>
+                <span class="n">sample_mols</span><span class="p">,</span> <span class="n">sample_y_graph</span><span class="p">,</span> <span class="n">sample_y_node</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
 
     <span class="c1"># On-the-fly wrapper</span>
     <span class="n">otf_dm</span> <span class="o">=</span> <span class="n">OnTheFlyGraphPretrainingDataModule</span><span class="p">(</span>
         <span class="n">base</span><span class="o">=</span><span class="n">base_dm</span><span class="p">,</span>
         <span class="n">num_workers</span><span class="o">=</span><span class="n">cfg</span><span class="o">.</span><span class="n">pipe</span><span class="o">.</span><span class="n">dataloader_num_workers</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="n">otf_dm</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span>
+    <span class="n">set_data_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span>
         <span class="n">train_smiles</span><span class="o">=</span><span class="n">train_smiles</span><span class="p">,</span>
         <span class="n">train_y_graph</span><span class="o">=</span><span class="n">train_y_graph</span><span class="p">,</span>
         <span class="n">train_y_node</span><span class="o">=</span><span class="n">train_y_node</span><span class="p">,</span>
@@ -314,10 +342,40 @@
         <span class="n">val_y_graph</span><span class="o">=</span><span class="n">val_y_graph</span><span class="p">,</span>
         <span class="n">val_y_node</span><span class="o">=</span><span class="n">val_y_node</span><span class="p">,</span>
     <span class="p">)</span>
+    <span class="k">if</span> <span class="n">train_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">set_data_kwargs</span><span class="p">[</span><span class="s2">&quot;train_coords&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">train_coords</span>
+    <span class="k">if</span> <span class="n">val_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">set_data_kwargs</span><span class="p">[</span><span class="s2">&quot;val_coords&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">val_coords</span>
+    <span class="n">otf_dm</span><span class="o">.</span><span class="n">set_data</span><span class="p">(</span><span class="o">**</span><span class="n">set_data_kwargs</span><span class="p">)</span>
     <span class="n">otf_dm</span><span class="o">.</span><span class="n">setup</span><span class="p">(</span><span class="n">stage</span><span class="o">=</span><span class="s2">&quot;fit&quot;</span><span class="p">)</span>
     <span class="n">otf_dm</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">batch_size</span> <span class="o">=</span> <span class="n">dm_cfg</span><span class="o">.</span><span class="n">batch_size</span>
 
     <span class="k">return</span> <span class="n">base_dm</span><span class="p">,</span> <span class="n">otf_dm</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_graph_pretraining</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">CLIEncoderPretrainInputModel</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a 2D graph pretraining model (node + graph multi-task).&quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.graph_pretraining_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+        <span class="n">GraphPretrainingDataModule</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_run_graph_pretraining_generic</span><span class="p">(</span>
+        <span class="n">cfg</span><span class="p">,</span> <span class="n">logger</span><span class="p">,</span> <span class="n">dm_cls</span><span class="o">=</span><span class="n">GraphPretrainingDataModule</span>
+    <span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_graph3d_pretraining</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">CLIEncoderPretrainInputModel</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Train a 3D graph pretraining model with user-supplied atomic coordinates.&quot;&quot;&quot;</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.graph_3d_pretraining_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+        <span class="n">Graph3DPretrainingDataModule</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">_run_graph_pretraining_generic</span><span class="p">(</span>
+        <span class="n">cfg</span><span class="p">,</span>
+        <span class="n">logger</span><span class="p">,</span>
+        <span class="n">dm_cls</span><span class="o">=</span><span class="n">Graph3DPretrainingDataModule</span><span class="p">,</span>
+        <span class="n">coords_loader</span><span class="o">=</span><span class="n">_load_coords_npz</span><span class="p">,</span>
+    <span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_run_mlm_pretraining</span><span class="p">(</span><span class="n">cfg</span><span class="p">:</span> <span class="n">CLIEncoderPretrainInputModel</span><span class="p">,</span> <span class="n">logger</span><span class="p">):</span>
@@ -483,10 +541,16 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run encoder pretraining (MLM or graph multi-task) from a YAML configuration.</span>
 
-<span class="sd">    Supports two pretraining modes controlled by ``dataset.task_type``:</span>
+<span class="sd">    Supports three pretraining modes controlled by ``dataset.task_type``:</span>
 
 <span class="sd">    - **mlm**: Masked language modelling over SMILES strings.</span>
-<span class="sd">    - **graph**: Supervised node-level and graph-level multi-task objectives.</span>
+<span class="sd">    - **graph**: Supervised node-level and graph-level multi-task objectives</span>
+<span class="sd">      on 2D molecular graphs.</span>
+<span class="sd">    - **graph3d**: Same as ``graph`` but with user-supplied precomputed 3D</span>
+<span class="sd">      atomic coordinates (``train_coords`` / ``val_coords`` npz files) routed</span>
+<span class="sd">      through to a 3D-capable base datamodule such as</span>
+<span class="sd">      :class:`Graph3DPretrainingDataModule` for architectures like</span>
+<span class="sd">      :class:`E3GNNPretraining`.</span>
 
 <span class="sd">    Trains the encoder with Lightning, optionally using DDP for multi-GPU</span>
 <span class="sd">    training, and saves artifacts (encoder checkpoint, configs, manifest)</span>
@@ -499,7 +563,7 @@
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">cfg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">parser</span> <span class="o">=</span> <span class="n">argparse</span><span class="o">.</span><span class="n">ArgumentParser</span><span class="p">(</span>
-            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Pretrain an encoder (MLM or graph multi-task)&quot;</span>
+            <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Pretrain an encoder (MLM, graph, or graph3d)&quot;</span>
         <span class="p">)</span>
         <span class="n">parser</span><span class="o">.</span><span class="n">add_argument</span><span class="p">(</span>
             <span class="s2">&quot;--config&quot;</span><span class="p">,</span>
@@ -532,11 +596,14 @@
     <span class="n">task_type</span> <span class="o">=</span> <span class="n">cfg</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">task_type</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">task_type</span> <span class="o">==</span> <span class="s2">&quot;graph&quot;</span><span class="p">:</span>
         <span class="n">base_dm</span><span class="p">,</span> <span class="n">otf_dm</span> <span class="o">=</span> <span class="n">_run_graph_pretraining</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
+    <span class="k">elif</span> <span class="n">task_type</span> <span class="o">==</span> <span class="s2">&quot;graph3d&quot;</span><span class="p">:</span>
+        <span class="n">base_dm</span><span class="p">,</span> <span class="n">otf_dm</span> <span class="o">=</span> <span class="n">_run_graph3d_pretraining</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">task_type</span> <span class="o">==</span> <span class="s2">&quot;mlm&quot;</span><span class="p">:</span>
         <span class="n">base_dm</span><span class="p">,</span> <span class="n">otf_dm</span> <span class="o">=</span> <span class="n">_run_mlm_pretraining</span><span class="p">(</span><span class="n">cfg</span><span class="p">,</span> <span class="n">logger</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;Unknown dataset.task_type &#39;</span><span class="si">{</span><span class="n">task_type</span><span class="si">}</span><span class="s2">&#39;. Expected &#39;mlm&#39; or &#39;graph&#39;.&quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Unknown dataset.task_type &#39;</span><span class="si">{</span><span class="n">task_type</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+            <span class="s2">&quot;Expected &#39;mlm&#39;, &#39;graph&#39;, or &#39;graph3d&#39;.&quot;</span>
         <span class="p">)</span>
 
     <span class="c1"># ── Build model ───────────────────────────────────────────────────</span>
@@ -549,7 +616,7 @@
 
     <span class="c1"># For graph models, broadcast positional-encoding keys from the</span>
     <span class="c1"># datamodule config into the model constructor (as ``enc_&lt;key&gt;``).</span>
-    <span class="k">if</span> <span class="n">task_type</span> <span class="o">==</span> <span class="s2">&quot;graph&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">task_type</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;graph&quot;</span><span class="p">,</span> <span class="s2">&quot;graph3d&quot;</span><span class="p">):</span>
         <span class="n">dm_cfg</span> <span class="o">=</span> <span class="n">EncoderPretrainGraphDatamodule</span><span class="p">(</span><span class="o">**</span><span class="p">(</span><span class="n">cfg</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">datamodule</span> <span class="ow">or</span> <span class="p">{}))</span>
         <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">_GRAPH_DM_KEYS_BROADCAST_TO_MODEL</span><span class="p">:</span>
             <span class="n">enc_key</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;enc_</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span>

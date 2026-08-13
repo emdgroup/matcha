@@ -89,7 +89,7 @@
              
   <h1>Source code for matcha.utils.schemas.cli</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModel</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">model_validator</span>
 
 <span class="c1">### Base classes ###</span>
@@ -633,11 +633,14 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">EncoderPretrainDataset</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataset config for encoder pretraining.</span>
 
-<span class="sd">    Supports two modes:</span>
+<span class="sd">    Supports three modes:</span>
 <span class="sd">    - **MLM**: only ``train_smiles`` and ``val_smiles`` parquet paths are needed.</span>
 <span class="sd">    - **Graph pretraining**: additionally requires ``train_y_graph``, ``val_y_graph``</span>
 <span class="sd">      (npz with key ``descriptors``), ``train_y_node``, ``val_y_node``</span>
 <span class="sd">      (npz files for node-level targets), and ``task_type`` = ``&quot;graph&quot;``.</span>
+<span class="sd">    - **Graph3D pretraining**: same requirements as ``graph``, plus</span>
+<span class="sd">      ``train_coords`` / ``val_coords`` npz files carrying precomputed</span>
+<span class="sd">      per-molecule 3D atomic coordinates; ``task_type`` = ``&quot;graph3d&quot;``.</span>
 
 <span class="sd">    Node-level target files (``train_y_node``, ``val_y_node``) use a packed</span>
 <span class="sd">    flat + offsets layout::</span>
@@ -645,15 +648,50 @@
 <span class="sd">        np.savez_compressed(&quot;node_y.npz&quot;,</span>
 <span class="sd">                            flat=np.concatenate(list_of_arrays),</span>
 <span class="sd">                            offsets=np.cumsum([0] + [len(a) for a in list_of_arrays]))</span>
+
+<span class="sd">    Coordinate files (``train_coords``, ``val_coords``) use the same packing,</span>
+<span class="sd">    with ``flat`` shaped ``(total_atoms, 3)`` and ``offsets`` of length</span>
+<span class="sd">    ``N + 1``. Each molecule slice becomes an ``(A_i, 3)`` ``float32`` array.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">task_type</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># &quot;mlm&quot; or &quot;graph&quot;</span>
+    <span class="n">task_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;mlm&quot;</span><span class="p">,</span> <span class="s2">&quot;graph&quot;</span><span class="p">,</span> <span class="s2">&quot;graph3d&quot;</span><span class="p">]</span>
     <span class="n">train_smiles</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">val_smiles</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">train_y_graph</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">val_y_graph</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">train_y_node</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">val_y_node</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+    <span class="n">val_y_node</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">train_coords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">val_coords</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_task_type_requirements</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;EncoderPretrainDataset&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">task_type</span> <span class="o">==</span> <span class="s2">&quot;graph3d&quot;</span><span class="p">:</span>
+            <span class="n">missing</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">name</span>
+                <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">{</span>
+                    <span class="s2">&quot;train_y_graph&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_y_graph</span><span class="p">,</span>
+                    <span class="s2">&quot;val_y_graph&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_y_graph</span><span class="p">,</span>
+                    <span class="s2">&quot;train_y_node&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_y_node</span><span class="p">,</span>
+                    <span class="s2">&quot;val_y_node&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_y_node</span><span class="p">,</span>
+                    <span class="s2">&quot;train_coords&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_coords</span><span class="p">,</span>
+                    <span class="s2">&quot;val_coords&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_coords</span><span class="p">,</span>
+                <span class="p">}</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;task_type=&#39;graph3d&#39; requires all four label paths &quot;</span>
+                    <span class="s2">&quot;(train_y_graph, val_y_graph, train_y_node, val_y_node) &quot;</span>
+                    <span class="s2">&quot;plus train_coords and val_coords. Missing: &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>  <span class="c1"># &quot;mlm&quot; or &quot;graph&quot;</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">val_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;train_coords / val_coords are only valid when task_type=&#39;graph3d&#39;.&quot;</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 
 
