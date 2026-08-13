@@ -5,73 +5,13 @@ from typing import Any
 import torch
 import torch.nn as nn
 from lightning.pytorch.core.mixins import HyperparametersMixin
-from transformers import AutoModel, RoFormerConfig
 
-from matcha.torch.encoders.base_encoder import BaseEncoder
+from matcha.torch.encoders.roformer import RoFormer
 from matcha.torch.models.pretraining.base_pretraining_model import (
     BasePretrainingModel,
     PretrainingModelRegistry,
 )
 from matcha.nn.layers import LnBnDr
-
-
-class RoFormerMLMEncoder(BaseEncoder, HyperparametersMixin):
-    """RoFormer encoder variant that returns per-token embeddings instead of
-    aggregating to a single CLS token representation.
-
-    This encoder is designed for Masked Language Modeling (MLM) tasks where
-    predictions need to be made for each token position.
-
-    :param int num_characters: Dictionary size (vocabulary size)
-    :param int hidden_dim: Token embedding dimensionality, defaults to 768
-    :param int expansion_dim: Dimensionality inside transformer blocks, defaults to 3072
-    :param int num_heads: Number of attention heads, defaults to 12
-    :param int num_layers: Number of transformer blocks, defaults to 4
-    :param float attention_dropout: Dropout for attention, defaults to 0.1
-    :param float hidden_dropout: Dropout in dense layers, defaults to 0.1
-    """
-
-    def __init__(
-        self,
-        num_characters: int,
-        hidden_dim: int = 768,
-        expansion_dim: int = 3072,
-        num_heads: int = 12,
-        num_layers: int = 4,
-        attention_dropout: float = 0.1,
-        hidden_dropout: float = 0.1,
-    ):
-        super().__init__()
-        self.save_hyperparameters()
-
-        model_config = RoFormerConfig(
-            vocab_size=num_characters,
-            hidden_size=hidden_dim,
-            intermediate_size=expansion_dim,
-            num_hidden_layers=num_layers,
-            num_attention_heads=num_heads,
-            hidden_dropout_prob=hidden_dropout,
-            attention_probs_dropout_prob=attention_dropout,
-            pad_token_id=0,
-            cls_token_id=2,
-            rotary_value=True,
-        )
-
-        self.model = AutoModel.from_config(model_config)
-        self.model_config = model_config
-        self._fp_dim = self.model.config.hidden_size
-        self.layers = self.model.encoder.layer
-
-    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
-        """Forward pass that returns embeddings for ALL tokens.
-
-        :param token_ids: Input token IDs [batch_size, seq_length]
-        :return: Per-token embeddings [batch_size, seq_length, hidden_dim]
-        """
-        attention_mask = (token_ids != 0).long()
-        out = self.model(token_ids, attention_mask=attention_mask)
-        # Return full sequence embeddings instead of just CLS token
-        return out.last_hidden_state
 
 
 @PretrainingModelRegistry.register()
@@ -133,8 +73,9 @@ class RoFormerMLM(BasePretrainingModel, HyperparametersMixin):
         super().__init__()
         self.save_hyperparameters()
 
-        # Build encoder
-        self.encoder = RoFormerMLMEncoder(
+        # Build encoder using the canonical RoFormer; pretraining consumes
+        # per-token embeddings via ``encoder.forward_tokens``.
+        self.encoder = RoFormer(
             num_characters=enc_num_characters,
             hidden_dim=enc_hidden_dim,
             expansion_dim=enc_expansion_dim,
@@ -167,7 +108,7 @@ class RoFormerMLM(BasePretrainingModel, HyperparametersMixin):
         """
         token_ids = batch["token_ids"]
         # Get per-token embeddings: [batch_size, seq_length, hidden_dim]
-        token_embeddings = self.encoder(token_ids)
+        token_embeddings = self.encoder.forward_tokens(token_ids)
         # Predict vocabulary distribution for each token: [batch_size, seq_length, vocab_size]
         logits = self.prediction_head(token_embeddings)
         return logits
@@ -179,7 +120,7 @@ class RoFormerMLM(BasePretrainingModel, HyperparametersMixin):
         :return: Per-token embeddings [batch_size, seq_length, hidden_dim]
         """
         token_ids = batch["token_ids"]
-        return self.encoder(token_ids)
+        return self.encoder.forward_tokens(token_ids)
 
     def training_step(self, batch: dict[str, Any], batch_idx: int) -> torch.Tensor:
         """Training step for MLM.
