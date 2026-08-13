@@ -76,10 +76,19 @@ Ask: "Which architecture do you want to optimize?"
 Ask: "What parameters should stay fixed (not searched)?"
 
 Fixed params go in `model.params`. At minimum, set:
-- `loss_fn` — must match your training objective.
+- `loss_fn` — must match your training objective (see loss options below).
 - `num_endpoints` — number of prediction targets.
 - `label_encoder_params` — endpoint name mapping (if multi-task).
 - `num_epochs` — training epochs per trial (keep lower than full training to save time, e.g. 50).
+
+**Loss options.** `loss_fn` accepts any alias registered in `LossRegistry` — see [`docs/source/contributing/adding-a-loss.md`](../../../docs/source/contributing/adding-a-loss.md) for the authoritative alias list. Common families:
+
+- **Base regression:** `mse`, `mae`, `huber`, `smoothl1`.
+- **Base classification:** `bce`, `focal-bce`, `poly1-bce`, `weighted-bce`.
+- **`bounded-*` family** — respects `<` / `>` bound info on the target so predictions inside the allowed halfspace are not penalized. Aliases: `bounded-mse`, `bounded-mae`, `bounded-huber` (+ `bounded-smoothl1`).
+- **`dropout-*` family** — wraps a per-element loss and resamples a random mask of loss entries every training step, as a regularizer for wide multi-endpoint pretraining. Aliases: `dropout-mse`, `dropout-bce`, `dropout-focal-bce` (+ `dropout-mae`, `dropout-huber`, `dropout-smoothl1`, `dropout-poly1-bce`, `dropout-weighted-bce`). Pass `loss_args: {dropout: <fraction in [0, 1)>}` to control the mask rate.
+
+The chosen alias is held fixed across all Optuna trials — the search does not explore the loss surface. If you want to compare losses, run separate `autotune` jobs.
 
 ### 5. Search budgets
 Ask: "How much compute time can you allocate to HPO?"

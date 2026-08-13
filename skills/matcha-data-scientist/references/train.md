@@ -54,14 +54,27 @@ These go inside `model.params` and are passed to the architecture constructor:
 
 | Field | Type | Description |
 |---|---|---|
-| `loss_fn` | str | Loss function: `"mse"`, `"bounded_mse"`, `"multitask"`, `"cross_entropy"` |
-| `loss_args` | dict | Arguments for the loss (e.g. `{"loss_fn": "bounded_mse"}` for multitask) |
+| `loss_fn` | str | Loss function alias — any `LossRegistry` entry (see [Loss options](#loss-options) below) |
+| `loss_args` | dict | Constructor args for the loss (e.g. `{"loss_fn": "bounded-mse"}` for `multitask`, `{"dropout": 0.1}` for `dropout-*`, `{"gamma": 2.0}` for `focal-bce`) |
 | `num_endpoints` | int | Number of prediction targets |
 | `num_epochs` | int | Training epochs (default varies by architecture) |
 | `batch_size` | int | Batch size |
 | `label_encoder_params` | dict | Maps endpoint index (0-based int) to `{"task_label": "<name>"}` |
 | `feature_list` | list[str] | Descriptor features for tabular models (e.g. `["rdkit_all_descriptors", "ecfp"]`) |
 | `path_to_pretrained` | str | Path to pretrained encoder (for `FinetuningRegressor`/`FinetuningClassifier`) |
+
+---
+
+## Loss options
+
+**Loss options.** `loss_fn` accepts any alias registered in `LossRegistry` — see [`docs/source/contributing/adding-a-loss.md`](../../../docs/source/contributing/adding-a-loss.md) for the authoritative alias list. Common families:
+
+- **Base regression:** `mse`, `mae`, `huber`, `smoothl1`.
+- **Base classification:** `bce`, `focal-bce`, `poly1-bce`, `weighted-bce`.
+- **`bounded-*` family** — respects `<` / `>` bound info on the target so predictions inside the allowed halfspace are not penalized. Aliases: `bounded-mse`, `bounded-mae`, `bounded-huber` (+ `bounded-smoothl1`).
+- **`dropout-*` family** — wraps a per-element loss and resamples a random mask of loss entries every training step, as a regularizer for wide multi-endpoint pretraining. Aliases: `dropout-mse`, `dropout-bce`, `dropout-focal-bce` (+ `dropout-mae`, `dropout-huber`, `dropout-smoothl1`, `dropout-poly1-bce`, `dropout-weighted-bce`). Pass `loss_args: {dropout: <fraction in [0, 1)>}` to control the mask rate.
+
+**Multitask wrapping.** `loss_fn: multitask` composes an inner per-endpoint loss via `loss_args: {loss_fn: <alias>}` (e.g. `bounded-mse` for censored multi-endpoint regression).
 
 ---
 
@@ -163,7 +176,7 @@ model:
   ensemble: 5
   params:
     loss_fn: multitask
-    loss_args: {loss_fn: bounded_mse}
+    loss_args: {loss_fn: bounded-mse}
     num_endpoints: 4
     num_epochs: 50
     label_encoder_params:
@@ -192,6 +205,6 @@ output:
 ## Key Behaviors
 
 - **Finetuning:** Set `architecture: FinetuningRegressor` and include `path_to_pretrained: <encoder_path>` in `model.params`. The encoder must be a checkpoint produced by `pretrain_multitask` or `pretrain_encoder`.
-- **Censored data:** If your dataset has operator columns (e.g., `">"`, `"<"`), set `operator_key` and use `loss_fn: bounded_mse` or `loss_fn: multitask` with `bounded_mse` as the inner loss.
+- **Censored data:** If your dataset has operator columns (e.g., `">"`, `"<"`), set `operator_key` and use `loss_fn: bounded-mse` (or another `bounded-*` alias) or `loss_fn: multitask` with `bounded-mse` as the inner loss via `loss_args: {loss_fn: bounded-mse}`.
 - **Calibration:** Uncertainty calibration requires a held-out calibration set. Set `dataset.calibration.split_ratio: 0.99` to reserve the most-recent 1% of data (sorted by `split_column`).
 - **Quantization:** Set `output.serialization.quantize: true` to reduce model size (may reduce precision slightly).

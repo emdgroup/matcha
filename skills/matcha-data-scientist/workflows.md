@@ -28,8 +28,9 @@ Do I need to compare multiple runs statistically?
 
 Do I want to pretrain a foundation model first?
 ├── Yes, on a large multi-task activity dataset → prepare_dataset → pretrain_multitask → train (FinetuningRegressor)
-├── Yes, self-supervised on SMILES (MLM)       → pretrain_encoder (mlm) → train (FinetuningRegressor)
-├── Yes, self-supervised with QM labels        → pretrain_encoder (graph) → train (FinetuningRegressor)
+├── Yes, self-supervised on SMILES (MLM)        → pretrain_encoder (mlm) → train (FinetuningRegressor)
+├── Yes, self-supervised with QM labels (2D)    → pretrain_encoder (graph) → train (FinetuningRegressor)
+├── Yes, self-supervised with 3D coords         → pretrain_encoder (graph3d) → train (FinetuningRegressor)
 └── No → skip pretraining
 ```
 
@@ -110,7 +111,7 @@ autotune → hpo_output.yaml
 **Commands:** `prepare_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor/Classifier)
 
 1. Run `prepare_dataset` — merge parquet/CSV files into a label matrix. Set `datasets.sparse: true` (default) for a `scipy.sparse.csr_matrix` per split, or `datasets.sparse: false` for a dense `float32` array per split with `NaN` marking missing entries. Choose dense when the underlying matrix is largely populated (e.g. ≥90%).
-2. Run `pretrain_multitask` — train a graph model on the prepared labels. The command auto-detects the storage mode from `task_metadata.json` (`storage_mode: "sparse" | "dense"`); no additional flag is set on the pretraining side.
+2. Run `pretrain_multitask` — train a graph model on the prepared labels. The command auto-detects the storage mode from `task_metadata.json` (`storage_mode: "sparse" | "dense"`); no additional flag is set on the pretraining side. If `{dataset_dir}/train_coords.npz` and `{dataset_dir}/val_coords.npz` are present, they are auto-loaded and threaded into the datamodule for 3D-aware bases (`E3GNNPretraining`, `GPS3DPretraining`, `GT3DPretraining`); with a 2D-only base the coords are silently dropped with a one-shot `logging.warning`. `prepare_dataset` does **not** emit coords — produce the npz files externally. See `references/pretrain-multitask.md § Coords Auto-Discovery` for the file convention and packing layout.
 3. Run `train` — set `model.architecture: FinetuningRegressor` and `model.path_to_pretrained: <pretrain output dir>`.
 
 **Artifact chain:**
@@ -131,7 +132,7 @@ prepare_dataset → train_tasks_{sparse.npz|dense.npy} + val_tasks_{sparse.npz|d
 1. Run `pretrain_encoder` — choose mode:
    - **MLM mode** (`task_type: mlm`): pretrain `RoFormerMLM` on SMILES strings.
    - **Graph mode** (`task_type: graph`): pretrain a 2D graph encoder (`GINPretraining`, `GatedGCNPretraining`, `GPSPretraining`, `GTPretraining`, `AttentiveFPPretraining`) on node/graph targets.
-   - **E3GNN (3D) pretraining is Python-API-only** — the CLI does not plumb per-molecule coordinates through `graph.pos`. See `references/pretrain-encoder.md` for details.
+   - **Graph3D mode** (`task_type: graph3d`): pretrain a 3D-coordinate-aware encoder (`E3GNNPretraining`, `GPS3DPretraining`, `GT3DPretraining`) on node/graph targets with per-atom coordinates. Requires `train_coords` / `val_coords` npz files alongside the four `y_graph` / `y_node` files. See `references/pretrain-encoder.md § Graph3D Mode` for the schema, packing contract, and starter `model.params` per architecture; a runnable example lives at `src/matcha/cli/example_configs/pretrain_encoder_graph3d.yaml`.
 2. Run `train` — set `model.architecture: FinetuningRegressor` and `model.path_to_pretrained: <pretrain output dir>`.
 
 ---
