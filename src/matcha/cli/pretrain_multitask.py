@@ -1,10 +1,14 @@
 """CLI command for multi-task pretraining of neural network models.
 
-Trains a MATCHA neural-network model (e.g. GatedGCN) on a sparse
-multi-task dataset produced by the ``prepare_sparse_dataset`` command.
-Supports multiple loss functions with independent weighting schedules,
-distributed training via DDP, and produces serialized artifacts
-compatible with downstream finetuning.
+Trains a MATCHA neural-network model (e.g. GatedGCN) on a multi-task
+dataset produced by the ``prepare_dataset`` command. Autodetects whether
+the on-disk task labels are stored in sparse (``train_tasks_sparse.npz``)
+or dense (``train_tasks_dense.npy``) form via the ``storage_mode`` field
+in ``task_metadata.json`` and dispatches to the appropriate loader; the
+downstream datamodule collates both layouts to an identical dense tensor
+with ``NaN`` marking missing entries. Supports multiple loss functions
+with independent weighting schedules, distributed training via DDP, and
+produces serialized artifacts compatible with downstream finetuning.
 """
 
 import os
@@ -148,10 +152,11 @@ def _save_artifacts(
 def main(cfg=None) -> None:
     """Run multi-task pretraining from a YAML configuration.
 
-    Loads sparse training/validation data, builds a neural-network model via
-    the scikit-learn registry interface, wraps the datamodule in an on-the-fly
-    featurizer for memory efficiency, trains with Lightning (optionally
-    distributed via DDP), and saves artifacts for downstream finetuning.
+    Loads training/validation data (sparse or dense per ``storage_mode`` in
+    the task metadata), builds a neural-network model via the scikit-learn
+    registry interface, wraps the datamodule in an on-the-fly featurizer
+    for memory efficiency, trains with Lightning (optionally distributed
+    via DDP), and saves artifacts for downstream finetuning.
 
     :param cfg: Pre-parsed configuration object or ``None`` to parse from
         CLI ``--config`` argument. Accepts a
@@ -193,11 +198,26 @@ def main(cfg=None) -> None:
     val_smiles_path = ds.val_smiles or os.path.join(
         ds.dataset_dir, "val_molecules.parquet"
     )
-    train_tasks_path = ds.train_tasks or os.path.join(ds.dataset_dir, "train_tasks.npz")
-    val_tasks_path = ds.val_tasks or os.path.join(ds.dataset_dir, "val_tasks.npz")
     task_metadata_path = ds.task_metadata or os.path.join(
         ds.dataset_dir, "task_metadata.json"
     )
+
+    # Read task metadata first: ``storage_mode`` selects the label loader
+    # and the default artifact filenames. Defaults to sparse for defensive
+    # behaviour on metadata written before the storage_mode field existed.
+    metadata = load_json(task_metadata_path)
+    storage_mode = metadata.get("storage_mode", "sparse")
+
+    if storage_mode == "sparse":
+        default_train_tasks = "train_tasks_sparse.npz"
+        default_val_tasks = "val_tasks_sparse.npz"
+    else:
+        default_train_tasks = "train_tasks_dense.npy"
+        default_val_tasks = "val_tasks_dense.npy"
+    train_tasks_path = ds.train_tasks or os.path.join(
+        ds.dataset_dir, default_train_tasks
+    )
+    val_tasks_path = ds.val_tasks or os.path.join(ds.dataset_dir, default_val_tasks)
 
     # Auto-discover per-molecule 3D coords packed as flat + offsets under the
     # dataset directory. When present, coords are threaded to the on-the-fly
@@ -216,21 +236,25 @@ def main(cfg=None) -> None:
     )
 
     # load data
-    logger.info(msg="Loading train data")
+    logger.info(msg=f"Loading train data (storage_mode={storage_mode})")
     train_mols = pd.read_parquet(train_smiles_path).SMILES.tolist()
-    train_y = sp.load_npz(train_tasks_path)
+    if storage_mode == "sparse":
+        train_y = sp.load_npz(train_tasks_path)
+    else:
+        train_y = np.load(train_tasks_path, mmap_mode="r")
     logger.info(f"Training set size: {len(train_mols)}")
     if train_coords is not None:
         logger.info(f"Loaded train coords: {train_coords_path}")
 
     logger.info(msg="Loading validation data")
     val_mols = pd.read_parquet(val_smiles_path).SMILES.tolist()
-    val_y = sp.load_npz(val_tasks_path)
+    if storage_mode == "sparse":
+        val_y = sp.load_npz(val_tasks_path)
+    else:
+        val_y = np.load(val_tasks_path, mmap_mode="r")
     logger.info(f"Validation set size: {len(val_mols)}")
     if val_coords is not None:
         logger.info(f"Loaded val coords: {val_coords_path}")
-
-    metadata = load_json(task_metadata_path)
 
     logger.info(msg=f"Found {train_y.shape[1]} tasks for training")
     logger.info(msg=f"Found {val_y.shape[1]} tasks for validation")
@@ -305,7 +329,9 @@ def main(cfg=None) -> None:
         sample_smiles = [train_mols[i] for i in sample_indices]
         sample_mols = [Chem.MolFromSmiles(x) for x in sample_smiles]
         sample_y = train_y[sample_indices]
-        train_set = datamodule.generate_features(sample_mols, sample_y.toarray())
+        if sp.issparse(sample_y):
+            sample_y = sample_y.toarray()
+        train_set = datamodule.generate_features(sample_mols, sample_y)
         datamodule.fit(train_set)
 
     # have to adjust num_tokens and remake model accordingly
