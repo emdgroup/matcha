@@ -41,7 +41,12 @@ def _make_encoder(dropout: float = 0.0) -> E3GNN:
 
 
 def _make_batch(n_atoms: int = 4) -> tuple[Batch, torch.Tensor]:
-    """Build a single-molecule PyG batch and separate coordinate tensor."""
+    """Build a single-molecule PyG batch with 3D coords attached to ``pos``.
+
+    ``coords`` is returned alongside so tests that need to perturb the raw
+    tensor (e.g. rotation) can rebuild the batch with the transformed
+    coordinates on ``pos``.
+    """
     edge_index = torch.stack(
         [
             torch.arange(n_atoms - 1),
@@ -51,10 +56,17 @@ def _make_batch(n_atoms: int = 4) -> tuple[Batch, torch.Tensor]:
     )
     # Make undirected
     edge_index = torch.cat([edge_index, edge_index.flip(0)], dim=1)
-    g = Data(x=torch.randn(n_atoms, _ATOM_INPUT_DIM), edge_index=edge_index)
-    batch = Batch.from_data_list([g])
     coords = torch.randn(n_atoms, 3)
+    g = Data(x=torch.randn(n_atoms, _ATOM_INPUT_DIM), edge_index=edge_index, pos=coords)
+    batch = Batch.from_data_list([g])
     return batch, coords
+
+
+def _rebatch_with_coords(batch: Batch, coords: torch.Tensor) -> Batch:
+    """Rebuild ``batch`` with ``pos`` swapped to ``coords`` (single-graph case)."""
+    d = batch.to_data_list()[0]
+    d.pos = coords
+    return Batch.from_data_list([d])
 
 
 # ---------------------------------------------------------------------------
@@ -70,7 +82,7 @@ def test_rotation_invariance():
     batch, coords = _make_batch()
 
     with torch.no_grad():
-        out_orig = encoder(batch, coords)
+        out_orig = encoder(batch)
 
         # Random SO(3) rotation via QR decomposition
         Q, _ = torch.linalg.qr(torch.randn(3, 3))
@@ -78,7 +90,7 @@ def test_rotation_invariance():
             Q[:, 0] = -Q[:, 0]
         coords_rot = (Q @ coords.T).T
 
-        out_rot = encoder(batch, coords_rot)
+        out_rot = encoder(_rebatch_with_coords(batch, coords_rot))
 
     assert out_orig.shape == out_rot.shape
     assert torch.allclose(out_orig, out_rot, atol=1e-5), (
@@ -91,11 +103,11 @@ def test_eval_mode_determinism():
     encoder = _make_encoder(dropout=0.5)
     encoder.eval()
 
-    batch, coords = _make_batch()
+    batch, _ = _make_batch()
 
     with torch.no_grad():
-        out1 = encoder(batch, coords)
-        out2 = encoder(batch, coords)
+        out1 = encoder(batch)
+        out2 = encoder(batch)
 
     assert torch.equal(out1, out2), "Eval-mode outputs are not bit-identical"
 

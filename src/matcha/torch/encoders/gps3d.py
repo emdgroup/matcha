@@ -128,15 +128,30 @@ class GPS3D(BaseGraphEncoder, HyperparametersMixin):
         self._parse_jk(jk)
         self._parse_readout(readout)
 
-    def forward(self, graph: Batch, coords: torch.Tensor) -> torch.Tensor:
-        """Converts a batched PyG graph and 3D coordinates into a (batch_size, fp_dim)
-        tensor for further processing.
+    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
+        """Run 3D-biased GPS message passing and return one node-feature
+        tensor per layer.
 
-        :param Batch graph: batched PyG graph from the dataloader
-        :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader
+        Coordinates are read from ``graph.pos`` (the PyG convention). The
+        3D datamodules (:class:`Graph3DDataModule` and the pretraining
+        counterpart) are responsible for attaching them there before the
+        batch reaches the encoder.
 
-        :return torch.Tensor: learned representation
+        :param Batch graph: Batched PyG graph from the dataloader. Must
+            expose per-node 3D coordinates on ``graph.pos``.
+        :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has
+            length ``num_layers``; each entry has shape
+            ``[num_nodes, atom_hidden_dim]``.
+        :rtype: tuple[list[torch.Tensor], Batch]
+        :raises ValueError: If ``graph.pos`` is not set.
         """
+        coords = getattr(graph, "pos", None)
+        if coords is None:
+            raise ValueError(
+                "GPS3D requires 3D coordinates on graph.pos, but the batch "
+                "has none. Attach per-node coordinates to Data.pos in the "
+                "datamodule (see Graph3DDataModule) before calling the encoder."
+            )
         # Capture the raw pre-PE, pre-projection atom features. `_process_graph_batch`
         # clones `batch.x` before concatenating positional encodings onto its return
         # value, so `graph.x` itself remains the raw featurizer output.
@@ -162,6 +177,4 @@ class GPS3D(BaseGraphEncoder, HyperparametersMixin):
             )
             all_atom_feats.append(atom_feats)
 
-        final_atom_feats = self._run_jk(all_atom_feats)
-
-        return self.readout(g, final_atom_feats)
+        return all_atom_feats, g

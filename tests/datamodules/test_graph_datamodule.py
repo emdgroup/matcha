@@ -287,7 +287,11 @@ class TestGraph3DFeaturize:
         )
         assert isinstance(ds, StackDataset)
 
-    def test_featurize_has_coords(self, small_mol_list, small_regression_y):
+    def test_featurize_attaches_pos(self, small_mol_list, small_regression_y):
+        """Coords ride on ``graph.pos`` — a separate ``coords`` batch key is no
+        longer emitted, since PyG :class:`Batch` auto-concatenates ``pos``
+        alongside ``x``.
+        """
         dm = Graph3DDataModule(
             laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
         )
@@ -295,20 +299,36 @@ class TestGraph3DFeaturize:
             small_mol_list, small_regression_y, is_training=True, n_jobs=1
         )
         item = ds[0]
-        assert "coords" in item
+        assert "coords" not in item
+        assert item["graph"].pos is not None
 
-    def test_coords_shape(self, small_mol_list, small_regression_y):
+    def test_pos_shape(self, small_mol_list, small_regression_y):
         dm = Graph3DDataModule(
             laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
         )
         ds = dm.featurize(
             small_mol_list, small_regression_y, is_training=True, n_jobs=1
         )
-        coords = ds[0]["coords"]
         graph = ds[0]["graph"]
-        # coords should be (num_atoms, 3)
-        assert coords.shape[0] == graph.num_nodes
-        assert coords.shape[1] == 3
+        # graph.pos should be (num_atoms, 3), matching graph.x rows
+        assert graph.pos.shape[0] == graph.num_nodes
+        assert graph.pos.shape[1] == 3
+
+    def test_collate_produces_batched_pos(self, small_mol_list, small_regression_y):
+        """After collation, ``bg.pos`` matches ``bg.x`` on the node dim and
+        the batch dict does not carry a separate ``coords`` tensor.
+        """
+        dm = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+        ds = dm.featurize(
+            small_mol_list, small_regression_y, is_training=True, n_jobs=1
+        )
+        batch = dm.collate_fn([ds[i] for i in range(len(ds))])
+        assert "coords" not in batch
+        bg = batch["graph"]
+        assert bg.pos is not None
+        assert bg.pos.shape == (bg.x.shape[0], 3)
 
 
 class TestGraph3DStateDict:

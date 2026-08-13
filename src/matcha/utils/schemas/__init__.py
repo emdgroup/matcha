@@ -12,6 +12,7 @@ from matcha.utils.schemas.torch_api import (
     MPNNInputModel,
     GatedGCNInputModel,
     E3GNNInputModel,
+    E3GNNPretrainingInputModel,
     GPSInputModel,
     GPS3DInputModel,
     GTInputModel,
@@ -33,6 +34,7 @@ from matcha.utils.schemas.datamodules import (
     GraphDataModuleInputModel,
     GraphPretrainingDataModuleInputModel,
     Graph3DDataModuleInputModel,
+    Graph3DPretrainingDataModuleInputModel,
     CLMDataModuleInputModel,
     CombinedDataModuleInputModel,
 )
@@ -66,6 +68,7 @@ __all__ = [
     "MPNNInputModel",
     "GatedGCNInputModel",
     "E3GNNInputModel",
+    "E3GNNPretrainingInputModel",
     "GPSInputModel",
     "GPS3DInputModel",
     "GTInputModel",
@@ -84,6 +87,7 @@ __all__ = [
     "GraphDataModuleInputModel",
     "GraphPretrainingDataModuleInputModel",
     "Graph3DDataModuleInputModel",
+    "Graph3DPretrainingDataModuleInputModel",
     "CLMDataModuleInputModel",
     "CombinedDataModuleInputModel",
     # Sklearn API

@@ -563,9 +563,28 @@ class Graph3DDataModule(GraphDataModule):
 
         return torch.tensor(coords, dtype=torch.float32)
 
-    def _process_batch_coords(self, mol_batch: list[Mol]) -> list[torch.Tensor]:
-        """Process a batch of molecules in a single process"""
-        return [self._calculate_coords(mol) for mol in mol_batch]
+    def _calculate_graph_with_pos(self, mol: Mol, is_training: bool = True) -> Data:
+        """Build a PyG :class:`Data` for ``mol`` and attach 3D coords to ``pos``.
+
+        Coordinates ride on ``Data.pos`` (the PyG convention) so that
+        :class:`torch_geometric.data.Batch` auto-concatenates them alongside
+        ``x`` and the per-node positional encodings — no parallel ``coords``
+        collate key is needed, and all 3D encoders read the coords from
+        ``graph.pos`` inside their per-layer hook.
+
+        :param Mol mol: molecule to convert.
+        :param bool is_training: forwarded to :meth:`_calculate_graph`
+            (currently unused, kept for signature parity).
+        :returns: PyG :class:`Data` with 3D coordinates attached to ``pos``.
+        :rtype: Data
+        """
+        graph = self._calculate_graph(mol, is_training)
+        graph.pos = self._calculate_coords(mol)
+        return graph
+
+    def _process_batch(self, mol_batch: list[Mol]) -> list[Data]:
+        """Process a batch of molecules in a single process, attaching coords."""
+        return [self._calculate_graph_with_pos(mol, True) for mol in mol_batch]
 
     def generate_features(
         self,
@@ -592,43 +611,8 @@ class Graph3DDataModule(GraphDataModule):
 
         graphs = parallelize(self._process_batch, mol_list, n_jobs)
 
-        coords = parallelize(self._process_batch_coords, mol_list, n_jobs)
-
         y_tensor = torch.tensor(y, dtype=torch.float32)
-        return StackDataset(graph=graphs, coords=coords, y=y_tensor)
-
-    def collate_fn(self, data: list[dict]) -> dict:
-        """Allows batching for 3DGNN datasets.
-
-        Middleman between the output of :method:`featurize` and the actual batch input
-        needed by a graph neural network to train. Reshapes the tuple from :method:`featurize`
-        into the necessary torch tensors for the forward pass. It is meant to be
-        passed to torch.data.DataLoader objects upon construction.
-
-        Example usage:
-        GF = Graph3DDataModulePyG()
-        ...
-        loader = DataLoader(..., collate_fn=GF.collate_fn)
-
-        :param list[dict] data: list of dicts containing PyG graphs, coords and labels
-
-        :return dict: dictionary with batched graph, coords and y tensors
-        """
-        # list of dicts to dict of lists
-        dict_of_lists = {k: [dic[k] for dic in data] for k in data[0]}
-        graph, coords, y = (
-            dict_of_lists["graph"],
-            dict_of_lists["coords"],
-            dict_of_lists["y"],
-        )
-
-        # batch graphs via PyG backend
-        bg = collate_fn_pyg_graph(graph)
-
-        # reshape labels and coords into batch shape
-        y = torch.stack(y, dim=0)
-        coords = torch.cat(coords, dim=0)
-        return {"graph": bg, "coords": coords, "y": y}
+        return StackDataset(graph=graphs, y=y_tensor)
 
     def state_dict(self) -> dict:
         """Utility for MLFlow logging"""

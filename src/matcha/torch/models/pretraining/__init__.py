@@ -21,6 +21,7 @@ from matcha.torch.models.pretraining.gt_pretraining import GTPretraining
 from matcha.torch.models.pretraining.attentivefp_pretraining import (
     AttentiveFPPretraining,
 )
+from matcha.torch.models.pretraining.e3gnn_pretraining import E3GNNPretraining
 
 __all__ = [
     "BasePretrainingModel",
@@ -32,4 +33,5 @@ __all__ = [
     "GPSPretraining",
     "GTPretraining",
     "AttentiveFPPretraining",
+    "E3GNNPretraining",
 ]

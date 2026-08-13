@@ -94,6 +94,17 @@ class GraphPretrainingDataModuleInputModel(GraphDataModuleInputModel):
     scale_y_node: bool = False
 
 
+class Graph3DPretrainingDataModuleInputModel(GraphPretrainingDataModuleInputModel):
+    """Schema for 3D graph pretraining datamodule with user-supplied coordinates.
+
+    Inherits every field from :class:`GraphPretrainingDataModuleInputModel`. The
+    3D variant intentionally omits ``embed_timeout`` — coordinates are supplied
+    by the user, never generated on the fly with ETKDG.
+    """
+
+    datamodule_type: Literal["graph3d_pretraining"] = "graph3d_pretraining"
+
+
 class Graph3DDataModuleInputModel(BaseDataModuleFields):
     """Schema for 3D molecular graph datamodule with conformer generation settings."""
 
@@ -156,6 +167,7 @@ DataModuleModel = (
     | GraphDataModuleInputModel
     | GraphPretrainingDataModuleInputModel
     | Graph3DDataModuleInputModel
+    | Graph3DPretrainingDataModuleInputModel
     | CombinedDataModuleInputModel
     | ChempropDataModuleInputModel
 )

@@ -122,5 +122,5 @@ class TestCombinedStackDatasetGetitems:
 
 class TestCollateFnsRegistry:
     def test_expected_keys_present(self):
-        for key in ["mol_features", "graph", "y", "coords", "token_ids"]:
+        for key in ["mol_features", "graph", "y", "token_ids"]:
             assert key in collate_fns

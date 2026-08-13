@@ -22,11 +22,15 @@ from matcha.datamodules.classic.graph_datamodule import (  # noqa: E402
     BOND_FEAT_DIM,
 )
 from matcha.torch.encoders.attentivefp import AttentiveFP  # noqa: E402
+from matcha.torch.encoders.e3gnn import E3GNN  # noqa: E402
 from matcha.torch.encoders.gatedgcn import GatedGCN  # noqa: E402
 from matcha.torch.encoders.gps import GPS  # noqa: E402
 from matcha.torch.encoders.gt import GT  # noqa: E402
 from matcha.torch.models.pretraining.attentivefp_pretraining import (  # noqa: E402
     AttentiveFPPretraining,
+)
+from matcha.torch.models.pretraining.e3gnn_pretraining import (  # noqa: E402
+    E3GNNPretraining,
 )
 from matcha.torch.models.pretraining.gatedgcn_pretraining import (  # noqa: E402
     GatedGCNPretraining,
@@ -98,6 +102,23 @@ _ARCHITECTURES = [
         dict(enc_jk="last"),
         id="attentivefp",
     ),
+    pytest.param(
+        E3GNNPretraining,
+        E3GNN,
+        dict(
+            enc_activation="relu",
+            enc_jk="last",
+            enc_m_dim=8,
+            enc_fourier_features=2,
+            enc_soft_edge=False,
+            enc_norm_feats=False,
+            enc_norm_coors=False,
+            enc_update_coors=True,
+            enc_coor_weights_clamp_value=100.0,
+            enc_norm_coors_scale_init=1e-2,
+        ),
+        id="e3gnn",
+    ),
 ]
 
 
@@ -109,7 +130,12 @@ def _build_model(model_cls, extra_kwargs):
 
 
 def _make_batch(batch_size: int = 2, n_nodes_per_graph: int = 3):
-    """Minimal batch dict for the pretraining model forward pass."""
+    """Minimal batch dict for the pretraining model forward pass.
+
+    Every graph carries ``pos`` (3D coords) so the batch is valid input for
+    :class:`E3GNN` alongside the 2D encoders — the latter ignore ``pos``, so
+    attaching it unconditionally keeps the fixture one-shape-fits-all.
+    """
     graphs = []
     for _ in range(batch_size):
         src = list(range(n_nodes_per_graph - 1)) + list(range(1, n_nodes_per_graph))
@@ -120,6 +146,7 @@ def _make_batch(batch_size: int = 2, n_nodes_per_graph: int = 3):
                 x=torch.randn(n_nodes_per_graph, ATOM_FEAT_DIM),
                 edge_index=edge_index,
                 edge_attr=torch.randn(edge_index.size(1), BOND_FEAT_DIM),
+                pos=torch.randn(n_nodes_per_graph, 3),
             )
         )
     graph = Batch.from_data_list(graphs)
