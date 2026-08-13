@@ -10,9 +10,9 @@ Pins the structural contract introduced by issue #24: every registered
 The purpose of this file is drift prevention. If a future PR adds a new
 graph encoder subclass and forgets to implement the pretraining hook, the
 enumeration test below will flag it. The 3D variants (``e3gnn``, ``gps3d``,
-``gt3d``) are out of scope for issue #24 and are listed explicitly in
-:data:`_KNOWN_UNMIGRATED_ALIASES` so the exclusion is visible rather than
-silent.
+``gt3d``) share the contract with their 2D counterparts — they read 3D
+coordinates from ``graph.pos`` (attached in the fixture below) rather than
+from a separate positional argument.
 """
 
 import pytest
@@ -25,10 +25,13 @@ from torch_geometric.data import Batch, Data  # noqa: E402
 from matcha.torch.encoders.attentivefp import AttentiveFP  # noqa: E402
 from matcha.torch.encoders.base_encoder import EncoderRegistry  # noqa: E402
 from matcha.torch.encoders.base_graph_encoder import BaseGraphEncoder  # noqa: E402
+from matcha.torch.encoders.e3gnn import E3GNN  # noqa: E402
 from matcha.torch.encoders.gatedgcn import GatedGCN  # noqa: E402
 from matcha.torch.encoders.gin import GIN  # noqa: E402
 from matcha.torch.encoders.gps import GPS  # noqa: E402
+from matcha.torch.encoders.gps3d import GPS3D  # noqa: E402
 from matcha.torch.encoders.gt import GT  # noqa: E402
+from matcha.torch.encoders.gt3d import GT3D  # noqa: E402
 
 
 _NUM_LAYERS = 3
@@ -38,10 +41,10 @@ _ATOM_HIDDEN_DIM = 16
 _NUM_HEADS = 4
 
 
-# 3D variants inherit BaseGraphEncoder but take a coords-taking forward and
-# were explicitly left out of the issue #24 migration. Listed here so their
-# exclusion is documented rather than silently skipped.
-_KNOWN_UNMIGRATED_ALIASES = frozenset({"e3gnn", "gps3d", "gt3d"})
+# Every registered graph encoder is now on the unified contract. Kept as an
+# extensibility hook in case a future encoder is landed intentionally
+# behind the migration (must document why alongside the alias).
+_KNOWN_UNMIGRATED_ALIASES: frozenset[str] = frozenset()
 
 
 # Common encoder kwargs — every migrated encoder accepts these.
@@ -85,6 +88,32 @@ _ENCODER_EXTRAS: dict[type, dict] = {
         distance_k=None,
     ),
     AttentiveFP: dict(),
+    E3GNN: dict(
+        m_dim=8,
+        fourier_features=2,
+        soft_edge=False,
+        norm_feats=False,
+        norm_coors=False,
+        update_coors=True,
+        activation="relu",
+        coor_weights_clamp_value=100.0,
+        norm_coors_scale_init=1e-2,
+    ),
+    GPS3D: dict(
+        raw_atom_input_dim=_ATOM_INPUT_DIM,
+        num_heads=_NUM_HEADS,
+        expansion_k=1,
+        num_kernels=4,
+        activation="relu",
+        norm="adarmsn",
+    ),
+    GT3D: dict(
+        raw_atom_input_dim=_ATOM_INPUT_DIM,
+        num_heads=_NUM_HEADS,
+        expansion_k=1,
+        num_kernels=4,
+        activation="relu",
+    ),
 }
 
 
@@ -94,7 +123,12 @@ def _build_encoder(encoder_cls: type) -> BaseGraphEncoder:
 
 
 def _make_batch(batch_size: int = 2) -> Batch:
-    """Small PyG batch of chain graphs with random node/edge features."""
+    """Small PyG batch of chain graphs with random node/edge features.
+
+    Includes 3D coordinates on ``pos`` so 3D encoders (E3GNN, GPS3D, GT3D)
+    can consume the same fixture as their 2D counterparts. Attaching
+    ``pos`` is harmless for encoders that ignore it.
+    """
     graphs = []
     for _ in range(batch_size):
         n_nodes = 4
@@ -106,6 +140,7 @@ def _make_batch(batch_size: int = 2) -> Batch:
                 x=torch.randn(n_nodes, _ATOM_INPUT_DIM),
                 edge_index=edge_index,
                 edge_attr=torch.randn(edge_index.size(1), _BOND_INPUT_DIM),
+                pos=torch.randn(n_nodes, 3),
             )
         )
     return Batch.from_data_list(graphs)

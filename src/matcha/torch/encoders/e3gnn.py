@@ -433,13 +433,32 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
         """Return fingerprint dimension."""
         return self._fp_dim
 
-    def forward(self, graph: Batch, coords: torch.Tensor) -> torch.Tensor:
-        """Converts a batched PyG graph and 3D coordinates into a learned representation.
+    def forward_nodes_per_layer(
+        self, graph: Batch
+    ) -> tuple[list[torch.Tensor], Batch]:
+        """Run E(n)-equivariant message passing and return one node-feature
+        tensor per layer.
 
-        :param Batch graph: batched PyG graph from the dataloader
-        :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader
-        :return torch.Tensor: learned molecular representation [batch_size, fp_dim]
+        Coordinates are read from ``graph.pos`` (the PyG convention). The
+        3D datamodules (:class:`Graph3DDataModule` and the pretraining
+        counterpart) are responsible for attaching them there before the
+        batch reaches the encoder.
+
+        :param Batch graph: Batched PyG graph from the dataloader. Must
+            expose per-node 3D coordinates on ``graph.pos``.
+        :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has
+            length ``num_layers``; each entry has shape
+            ``[num_nodes, atom_hidden_dim]``.
+        :rtype: tuple[list[torch.Tensor], Batch]
+        :raises ValueError: If ``graph.pos`` is not set.
         """
+        coords = getattr(graph, "pos", None)
+        if coords is None:
+            raise ValueError(
+                "E3GNN requires 3D coordinates on graph.pos, but the batch "
+                "has none. Attach per-node coordinates to Data.pos in the "
+                "datamodule (see Graph3DDataModule) before calling the encoder."
+            )
         g, atom_feats, bond_feats, graph_id = self._process_graph_batch(graph)
 
         # Project atom features to hidden space
@@ -454,7 +473,4 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
             )
             all_atom_feats.append(feats)
 
-        # Apply jumping knowledge
-        final_atom_feats = self._run_jk(all_atom_feats)
-
-        return self.readout(g, final_atom_feats)
+        return all_atom_feats, g

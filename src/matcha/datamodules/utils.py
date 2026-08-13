@@ -81,7 +81,6 @@ collate_fns: dict[str, Callable] = {
     "mol_features": stack,
     "graph": collate_fn_pyg_graph,
     "y": stack,
-    "coords": cat,
     "token_ids": stack,
 }
 
