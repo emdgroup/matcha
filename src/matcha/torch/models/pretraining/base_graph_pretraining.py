@@ -170,9 +170,7 @@ class BaseGraphPretrainingModel(BasePretrainingModel, HyperparametersMixin):
 
         Delegates to :meth:`BaseGraphEncoder.forward_nodes_per_layer` so the
         pretraining path consumes the canonical encoder's layer stack rather
-        than re-implementing it. Subclasses that still wire their own
-        pretraining-specific encoder (pending Stage 2/3 of the unification
-        rollout) may override this until they migrate to canonical encoders.
+        than re-implementing it.
 
         :param batch: Input batch containing graph data
         :return: Tuple of (per_layer_embeddings, processed_graph)
