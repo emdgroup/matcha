@@ -60,8 +60,24 @@ def _pack_coords(counts: list[int], rng: np.random.Generator) -> tuple:
     return flat, offsets
 
 
-def _write_multitask_fixture(dataset_dir: str, *, include_coords: bool) -> None:
-    """Create the minimum on-disk layout ``pretrain_multitask`` expects."""
+def _write_multitask_fixture(
+    dataset_dir: str,
+    *,
+    include_coords: bool,
+    storage_mode: str = "sparse",
+) -> None:
+    """Create the minimum on-disk layout ``pretrain_multitask`` expects.
+
+    ``storage_mode="sparse"`` writes ``train_tasks_sparse.npz`` /
+    ``val_tasks_sparse.npz`` (CSR) with values in ``{-1, 0, 1}`` (the sparse
+    convention: ``0`` doubles as missing, remapped in collate).
+    ``storage_mode="dense"`` writes ``train_tasks_dense.npy`` /
+    ``val_tasks_dense.npy`` with ``NaN`` marking missing entries and classes
+    encoded as ``{0, 1}`` directly.
+    """
+    if storage_mode not in {"sparse", "dense"}:
+        raise ValueError(f"unknown storage_mode: {storage_mode!r}")
+
     os.makedirs(dataset_dir, exist_ok=True)
     rng = np.random.default_rng(0)
 
@@ -72,14 +88,45 @@ def _write_multitask_fixture(dataset_dir: str, *, include_coords: bool) -> None:
         os.path.join(dataset_dir, "val_molecules.parquet")
     )
 
-    train_y = rng.integers(-1, 2, size=(len(_SMILES), _NUM_TASKS)).astype(np.float32)
-    val_y = rng.integers(-1, 2, size=(len(_VAL_SMILES), _NUM_TASKS)).astype(np.float32)
-    sp.save_npz(os.path.join(dataset_dir, "train_tasks.npz"), sp.csr_matrix(train_y))
-    sp.save_npz(os.path.join(dataset_dir, "val_tasks.npz"), sp.csr_matrix(val_y))
+    if storage_mode == "sparse":
+        train_y = rng.integers(-1, 2, size=(len(_SMILES), _NUM_TASKS)).astype(
+            np.float32
+        )
+        val_y = rng.integers(-1, 2, size=(len(_VAL_SMILES), _NUM_TASKS)).astype(
+            np.float32
+        )
+        sp.save_npz(
+            os.path.join(dataset_dir, "train_tasks_sparse.npz"),
+            sp.csr_matrix(train_y),
+        )
+        sp.save_npz(
+            os.path.join(dataset_dir, "val_tasks_sparse.npz"), sp.csr_matrix(val_y)
+        )
+    else:
+        # Dense: entries in {0.0, 1.0, NaN}; NaN marks missing.
+        raw_train = rng.integers(-1, 2, size=(len(_SMILES), _NUM_TASKS)).astype(
+            np.float32
+        )
+        raw_val = rng.integers(-1, 2, size=(len(_VAL_SMILES), _NUM_TASKS)).astype(
+            np.float32
+        )
+        train_y = np.where(raw_train == -1, np.nan, raw_train).astype(np.float32)
+        val_y = np.where(raw_val == -1, np.nan, raw_val).astype(np.float32)
+        np.save(
+            os.path.join(dataset_dir, "train_tasks_dense.npy"),
+            train_y,
+            allow_pickle=False,
+        )
+        np.save(
+            os.path.join(dataset_dir, "val_tasks_dense.npy"),
+            val_y,
+            allow_pickle=False,
+        )
 
     task_metadata = {
         "file_to_tasks": {"regression": list(range(_NUM_TASKS))},
         "task_to_file": {str(i): "regression" for i in range(_NUM_TASKS)},
+        "storage_mode": storage_mode,
     }
     with open(os.path.join(dataset_dir, "task_metadata.json"), "w") as f:
         json.dump(task_metadata, f)
@@ -184,12 +231,15 @@ def stubbed_main(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_coords_forwarded_when_base_accepts(tmp_path, stubbed_main):
+@pytest.mark.parametrize("storage_mode", ["sparse", "dense"])
+def test_coords_forwarded_when_base_accepts(tmp_path, stubbed_main, storage_mode):
     """3-D-capable base + coord files → coords land in base.generate_features."""
     from matcha.cli.pretrain_multitask import main
 
     dataset_dir = tmp_path / "data"
-    _write_multitask_fixture(str(dataset_dir), include_coords=True)
+    _write_multitask_fixture(
+        str(dataset_dir), include_coords=True, storage_mode=storage_mode
+    )
 
     cfg = _build_cfg(str(dataset_dir), str(tmp_path / "out"))
     main(cfg=cfg)
@@ -237,12 +287,17 @@ def test_coords_forwarded_when_base_accepts(tmp_path, stubbed_main):
 # ---------------------------------------------------------------------------
 
 
-def test_coords_dropped_with_warning_on_2d_base(tmp_path, stubbed_main, caplog):
+@pytest.mark.parametrize("storage_mode", ["sparse", "dense"])
+def test_coords_dropped_with_warning_on_2d_base(
+    tmp_path, stubbed_main, caplog, storage_mode
+):
     """2-D base + coord files → single warning and coords never reach the base."""
     from matcha.cli.pretrain_multitask import main
 
     dataset_dir = tmp_path / "data"
-    _write_multitask_fixture(str(dataset_dir), include_coords=True)
+    _write_multitask_fixture(
+        str(dataset_dir), include_coords=True, storage_mode=storage_mode
+    )
 
     cfg = _build_cfg(str(dataset_dir), str(tmp_path / "out"))
     main(cfg=cfg)
@@ -274,12 +329,17 @@ def test_coords_dropped_with_warning_on_2d_base(tmp_path, stubbed_main, caplog):
 # ---------------------------------------------------------------------------
 
 
-def test_no_coord_files_leaves_probe_dormant(tmp_path, stubbed_main, caplog):
+@pytest.mark.parametrize("storage_mode", ["sparse", "dense"])
+def test_no_coord_files_leaves_probe_dormant(
+    tmp_path, stubbed_main, caplog, storage_mode
+):
     """Absent coord files → set_data receives None; probe cache untouched."""
     from matcha.cli.pretrain_multitask import main
 
     dataset_dir = tmp_path / "data"
-    _write_multitask_fixture(str(dataset_dir), include_coords=False)
+    _write_multitask_fixture(
+        str(dataset_dir), include_coords=False, storage_mode=storage_mode
+    )
 
     cfg = _build_cfg(str(dataset_dir), str(tmp_path / "out"))
 

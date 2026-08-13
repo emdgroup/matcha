@@ -272,6 +272,7 @@ class PrepareDatasets(BaseDataModel):
 
     files: list[str]
     task_type: list[str]
+    sparse: bool = True
 
 
 class PrepareMetadata(BaseDataModel):
@@ -369,11 +370,14 @@ class PretrainOutput(BaseDataModel):
 class MultitaskPretrainDataset(BaseDataModel):
     """Dataset config for multitask pretraining.
 
-    ``dataset_dir`` is the base directory produced by the ``prepare`` command.
-    By default, files are resolved relative to that directory using the
-    standard names (``train_molecules.parquet``, ``val_molecules.parquet``,
-    ``train_tasks.npz``, ``val_tasks.npz``, ``task_metadata.json``).
-    Each path can be overridden individually to point at a different location.
+    ``dataset_dir`` is the base directory produced by the ``prepare_dataset``
+    command. By default, files are resolved relative to that directory using
+    the standard names (``train_molecules.parquet``, ``val_molecules.parquet``,
+    the split task label artifact selected by ``task_metadata.storage_mode`` —
+    ``train_tasks_sparse.npz`` / ``val_tasks_sparse.npz`` for sparse mode or
+    ``train_tasks_dense.npy`` / ``val_tasks_dense.npy`` for dense mode — and
+    ``task_metadata.json``). Each path can be overridden individually to point
+    at a different location.
     """
 
     dataset_dir: str

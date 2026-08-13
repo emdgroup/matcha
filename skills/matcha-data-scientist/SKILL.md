@@ -33,7 +33,7 @@ stitch ────────────────────────�
                                                       ▼
 autotune ──► (feeds config_path into) ──► train ──► predict
                                             ▲   │
-              prepare_sparse_dataset        │   │ (parallel)
+                 prepare_dataset            │   │ (parallel)
                         │                  │   ▼
                pretrain_multitask ──────────   evaluate ◄── baseline
                         │                          │
@@ -47,7 +47,7 @@ Key rules:
 - `evaluate` and `baseline` can run in parallel (same dataset, different models).
 - `summarize` aggregates results from `evaluate` and/or `baseline` runs.
 - `predict` requires a fully trained and serialized model from `train`.
-- `prepare_sparse_dataset` must run before `pretrain_multitask` — it produces the sparse matrix files and `task_metadata.json` that multitask pretraining requires.
+- `prepare_dataset` must run before `pretrain_multitask` — it produces the split task label artifacts (sparse `.npz` CSR or dense `.npy`, chosen via `datasets.sparse`) and `task_metadata.json` (with `storage_mode`) that multitask pretraining requires. `pretrain_multitask` auto-detects the storage mode from `task_metadata.json` — no additional flag is set on the pretraining side.
 - `pretrain_multitask` and `pretrain_encoder` both produce an encoder for `train` via `model.architecture: FinetuningRegressor` / `FinetuningClassifier` and `model.path_to_pretrained`.
 
 ---
@@ -73,7 +73,7 @@ Ask the user these questions to determine which commands are needed:
 
 **Step 2b — Pretraining sub-goal** (only if goal = g)
 - "What kind of pretraining?"
-  a. Multi-task pretraining on a large heterogeneous activity dataset → `prepare_sparse_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor/Classifier)
+  a. Multi-task pretraining on a large heterogeneous activity dataset → `prepare_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor/Classifier)
   b. Self-supervised encoder pretraining (MLM on SMILES or node/graph labels) → `pretrain_encoder` → `train` (FinetuningRegressor/Classifier)
 
 **Step 3 — Resources and constraints**
@@ -100,7 +100,7 @@ Before generating any config, use the `Read` tool to load the corresponding file
 | "stitch", "merge datasets", "combine endpoints" | `references/stitch.md` |
 | "summarize", "compare models", "statistical test" | `references/summarize.md` |
 | "baseline", "random forest", "scikit-learn model" | `references/baseline.md` |
-| "prepare pretraining data", "sparse matrix", "merge parquets" | `references/prepare-sparse-dataset.md` |
+| "prepare pretraining data", "sparse matrix", "dense pretraining labels", "merge parquets" | `references/prepare-dataset.md` |
 | "pretrain multitask", "multi-task pretraining", "foundation model" | `references/pretrain-multitask.md` |
 | "pretrain encoder", "MLM pretraining", "graph pretraining", "self-supervised" | `references/pretrain-encoder.md` |
 
@@ -172,7 +172,7 @@ Only proceed after the user explicitly confirms (e.g., "yes", "go ahead", "run i
 | `baseline` | `performance.json`, plots, `cfg.yaml` | `summarize` (`root_dir` or MLflow) |
 | `summarize` | `summary_analysis.json`, HTML reports | End user |
 | `predict` | `output.csv`, `failed.csv`, `cfg.yaml` | End user |
-| `prepare_sparse_dataset` | sparse npz + parquet + `task_metadata.json` | `pretrain_multitask` (`dataset.dataset_dir`) |
+| `prepare_dataset` | split task labels (sparse `.npz` or dense `.npy`) + parquet + `task_metadata.json` (with `storage_mode`) + `datacard.json` | `pretrain_multitask` (`dataset.dataset_dir`) |
 | `pretrain_multitask` | `model.ckpt`, `config/manifest.yaml` | `train` (`model.path_to_pretrained` with FinetuningRegressor/Classifier) |
 | `pretrain_encoder` | `encoder.ckpt`, `model.ckpt`, `config/manifest.yaml` | `train` (`model.path_to_pretrained` with FinetuningRegressor/Classifier) |
 
@@ -187,7 +187,7 @@ For detailed step-by-step instructions, decision trees, artifact chains, and tip
 - **Multi-task full pipeline**: `stitch` → `evaluate` → `summarize`
 - **Model comparison**: `evaluate` + `baseline` → `summarize`
 - **Quick sanity check**: `baseline` only
-- **Foundation model (multitask)**: `prepare_sparse_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor)
+- **Foundation model (multitask)**: `prepare_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor)
 - **Foundation model (encoder)**: `pretrain_encoder` → `train` (FinetuningRegressor)
 
 ---

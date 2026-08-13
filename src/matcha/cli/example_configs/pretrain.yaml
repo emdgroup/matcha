@@ -1,21 +1,27 @@
 # ── Example config: Multitask pretraining ─────────────────────────────
 #
 # Pretrain a GatedGCN model on a multi-task dataset produced by the
-# ``prepare_sparse_dataset`` command.  The config structure mirrors pretrain_encoder
-# configs: model params, datamodule overrides and training settings
-# each live in their own section.
+# ``prepare_dataset`` command.  Sparse (CSR ``.npz``) and dense (``.npy`` with
+# NaN for missing) label artifacts are both supported — the storage mode is
+# auto-detected from ``task_metadata.json`` (``storage_mode``).  The config
+# structure mirrors pretrain_encoder configs: model params, datamodule
+# overrides and training settings each live in their own section.
 #
 # Usage:
 #   python -m matcha.cli.pretrain_multitask --config pretrain.yaml
 
 dataset:
-  # Base directory produced by the ``prepare_sparse_dataset`` command.
+  # Base directory produced by the ``prepare_dataset`` command.
   dataset_dir: /path/to/pretraining/data
-  # Optional per-file overrides (uncomment to point at non-default locations):
+  # Optional per-file overrides (uncomment to point at non-default locations).
+  # ``train_tasks`` / ``val_tasks`` default to the artifact matching
+  # ``task_metadata.storage_mode``:
+  #   sparse mode → train_tasks_sparse.npz / val_tasks_sparse.npz
+  #   dense mode  → train_tasks_dense.npy  / val_tasks_dense.npy
   # train_smiles: /path/to/train_molecules.parquet
   # val_smiles: /path/to/val_molecules.parquet
-  # train_tasks: /path/to/train_tasks.npz
-  # val_tasks: /path/to/val_tasks.npz
+  # train_tasks: /path/to/train_tasks_sparse.npz
+  # val_tasks: /path/to/val_tasks_sparse.npz
   # task_metadata: /path/to/task_metadata.json
 
 model:

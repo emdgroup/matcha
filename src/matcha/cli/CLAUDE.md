@@ -16,7 +16,7 @@ cli/
 ├── stitch.py                     # combine multiple training runs
 ├── summarize.py                  # collate metrics across runs
 ├── statistical_tests.py          # significance tests between models
-├── prepare_sparse_dataset.py     # convert a wide multi-endpoint table to sparse form
+├── prepare_dataset.py            # convert a wide multi-endpoint table to sparse or dense form
 ├── pretrain_encoder.py           # single-task self-supervised pretraining
 ├── pretrain_multitask.py         # multi-task supervised pretraining
 └── example_configs/              # one *.yaml per command — runnable examples
@@ -45,3 +45,12 @@ Every command follows the same skeleton:
 - **`example_configs/` is contract.** Users copy these; keep them minimal and current. If you add a required field, update every affected example.
 - **`load_dataset` handles both CSV and SDF** — don't reinvent the reader per command.
 - Repo-wide pydantic-boundary rule ([`PATTERNS.md`](../../PATTERNS.md) §4) applies: every CLI config is validated by a `CLI*InputModel` at the top of `main()`.
+
+## Multitask pretraining data storage modes
+
+`prepare_dataset` (the sole command name — the previous `prepare_sparse_dataset` name has been dropped, without an alias) emits either a **sparse** CSR artifact or a **dense** `float32` array, controlled by `datasets.sparse` in the input config (default `True` preserves prior behavior):
+
+- **Sparse mode** — writes `train_tasks_sparse.npz` / `val_tasks_sparse.npz`. Classification labels are remapped `0 → -1` at prep time so zero-omission in the CSR encodes "missing" unambiguously; the collate side re-inverts (`0 → NaN`, `-1 → 0`) at batch construction.
+- **Dense mode** — writes `train_tasks_dense.npy` / `val_tasks_dense.npy`. `NaN` marks missing entries directly; classification passes through as `0`/`1` with no remap. Choose this when the underlying label matrix is largely populated and CSR overhead outweighs the storage savings.
+
+Auto-detection contract: `task_metadata.json` carries a `storage_mode: "sparse" | "dense"` field. `pretrain_multitask` reads it up front and dispatches to the right loader and artifact filenames — users do **not** set any additional flag on the pretraining side. Both modes converge on the same `(B, T)` `float32` tensor with `NaN` marking missing at the collate boundary, so loss modules and model heads see an identical batch shape either way.

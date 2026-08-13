@@ -27,7 +27,7 @@ Do I need to compare multiple runs statistically?
 └── No → skip summarize
 
 Do I want to pretrain a foundation model first?
-├── Yes, on a large multi-task activity dataset → prepare_sparse_dataset → pretrain_multitask → train (FinetuningRegressor)
+├── Yes, on a large multi-task activity dataset → prepare_dataset → pretrain_multitask → train (FinetuningRegressor)
 ├── Yes, self-supervised on SMILES (MLM)       → pretrain_encoder (mlm) → train (FinetuningRegressor)
 ├── Yes, self-supervised with QM labels        → pretrain_encoder (graph) → train (FinetuningRegressor)
 └── No → skip pretraining
@@ -107,15 +107,15 @@ autotune → hpo_output.yaml
 
 ## Pattern 7a — Foundation Model via Multitask Pretraining
 
-**Commands:** `prepare_sparse_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor/Classifier)
+**Commands:** `prepare_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor/Classifier)
 
-1. Run `prepare_sparse_dataset` — merge parquet files into a sparse matrix.
-2. Run `pretrain_multitask` — train a graph model on the sparse matrix.
+1. Run `prepare_dataset` — merge parquet/CSV files into a label matrix. Set `datasets.sparse: true` (default) for a `scipy.sparse.csr_matrix` per split, or `datasets.sparse: false` for a dense `float32` array per split with `NaN` marking missing entries. Choose dense when the underlying matrix is largely populated (e.g. ≥90%).
+2. Run `pretrain_multitask` — train a graph model on the prepared labels. The command auto-detects the storage mode from `task_metadata.json` (`storage_mode: "sparse" | "dense"`); no additional flag is set on the pretraining side.
 3. Run `train` — set `model.architecture: FinetuningRegressor` and `model.path_to_pretrained: <pretrain output dir>`.
 
 **Artifact chain:**
 ```
-prepare_sparse_dataset → train_tasks.npz + val_tasks.npz + task_metadata.json
+prepare_dataset → train_tasks_{sparse.npz|dense.npy} + val_tasks_{sparse.npz|dense.npy} + task_metadata.json
                               ↓ (dataset.dataset_dir)
                      pretrain_multitask → model.ckpt + config/manifest.yaml
                                               ↓ (model.path_to_pretrained)
@@ -147,7 +147,7 @@ prepare_sparse_dataset → train_tasks.npz + val_tasks.npz + task_metadata.json
 | `autotune` | `output.optimum.path/output.optimum.filename` | `hpo_output.yaml` |
 | `predict` | `output` (flat path) | `output.csv`, `failed.csv`, `cfg.yaml` |
 | `summarize` | `output_path` | `summary_analysis.json`, HTML plots |
-| `prepare_sparse_dataset` | `output/` | `train_tasks.npz`, `val_tasks.npz`, `task_metadata.json` |
+| `prepare_dataset` | `output/` | Sparse mode: `train_tasks_sparse.npz`, `val_tasks_sparse.npz`. Dense mode: `train_tasks_dense.npy`, `val_tasks_dense.npy`. Both: `train_molecules.parquet`, `val_molecules.parquet`, `task_metadata.json` (with `storage_mode`), `datacard.json` |
 | `pretrain_multitask` | `output.serialization/` | `model.ckpt`, `config/manifest.yaml` |
 | `pretrain_encoder` | `output.serialization/` | `encoder.ckpt`, `model.ckpt`, `config/manifest.yaml` |
 

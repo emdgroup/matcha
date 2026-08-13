@@ -2,7 +2,7 @@
 
 **CLI command:** `matcha pretrain_multitask --config pretrain_multitask.yaml`
 
-Trains a MATCHA neural-network (typically a graph model such as `GatedGCNRegressor`) on a sparse multi-task dataset produced by `matcha prepare_sparse_dataset`. Supports multiple heterogeneous loss functions with independent curriculum weighting schedules, distributed training via DDP, and optional MLflow logging. The resulting checkpoint is consumable by `FinetuningRegressor` / `FinetuningClassifier` in downstream `matcha train` runs.
+Trains a MATCHA neural-network (typically a graph model such as `GatedGCNRegressor`) on a multi-task dataset produced by `matcha prepare_dataset`. Handles both sparse (CSR `.npz`) and dense (`.npy` with `NaN` for missing) label artifacts — the storage mode is auto-detected from `task_metadata.json` (`storage_mode: "sparse" | "dense"`), and users do not need to configure it here. Supports multiple heterogeneous loss functions with independent curriculum weighting schedules, distributed training via DDP, and optional MLflow logging. The resulting checkpoint is consumable by `FinetuningRegressor` / `FinetuningClassifier` in downstream `matcha train` runs.
 
 ---
 
@@ -10,12 +10,12 @@ Trains a MATCHA neural-network (typically a graph model such as `GatedGCNRegress
 
 ```yaml
 dataset:
-  dataset_dir: <str>         # required — output directory from prepare_sparse_dataset
+  dataset_dir: <str>         # required — output directory from prepare_dataset
   # Optional per-file overrides (omit to use defaults resolved from dataset_dir):
   train_smiles: <str>        # default: dataset_dir/train_molecules.parquet
   val_smiles: <str>          # default: dataset_dir/val_molecules.parquet
-  train_tasks: <str>         # default: dataset_dir/train_tasks.npz
-  val_tasks: <str>           # default: dataset_dir/val_tasks.npz
+  train_tasks: <str>         # default: dataset_dir/train_tasks_{sparse.npz|dense.npy} per task_metadata.storage_mode
+  val_tasks: <str>           # default: dataset_dir/val_tasks_{sparse.npz|dense.npy} per task_metadata.storage_mode
   task_metadata: <str>       # default: dataset_dir/task_metadata.json
 
 model:
@@ -72,9 +72,9 @@ output:
 ## Step-by-Step Config Generation
 
 ### 1. Dataset directory
-Ask: "What is the output directory from your `prepare_sparse_dataset` run?"
+Ask: "What is the output directory from your `prepare_dataset` run?"
 
-Set `dataset.dataset_dir`. Individual file paths are resolved automatically unless you need to override them.
+Set `dataset.dataset_dir`. Individual file paths (including the split task label artifact for the correct storage mode) are resolved automatically unless you need to override them.
 
 ### 2. Architecture and model params
 
