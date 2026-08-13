@@ -572,3 +572,153 @@ class GradNormLoss(nn.Module):
     def reset_initial_losses(self) -> None:
         """Reset the initial losses for a fresh start of GradNorm tracking."""
         self.initial_losses = None
+
+
+@LossRegistry.register(alias="dropout")
+class DropoutLoss(nn.Module):
+    """Wrap a per-element loss and randomly mask a fraction of entries each step.
+
+    Intended as a regularizer for multi-endpoint pretraining (e.g. predicting many
+    molecular descriptors at once): randomly dropping a fraction of labels from the
+    loss on every forward pass discourages overfitting to any single endpoint.
+
+    Reference: https://github.com/JacksonBurns/how-to-train-your-chemeleon/blob/main/pretraining/random_dropout_mse.py
+
+    The inner loss is instantiated with ``reduction="none"`` so masking happens
+    before reduction. The dropout mask is resampled every forward and composes
+    with the existing NaN mask (NaN targets are always excluded, as in
+    :class:`MultitaskLoss`). In ``eval()`` mode the wrapper reduces to a plain
+    NaN-masked mean of the inner loss, regardless of ``dropout``.
+
+    :param str loss_fn: Alias of the inner per-element loss (resolved via
+        :class:`LossRegistry`). Defaults to ``"mse"``.
+    :param float dropout: Fraction of non-NaN entries to drop from the loss on
+        each training forward pass. Must satisfy ``0.0 <= dropout < 1.0``.
+    :param seed: Optional integer seed for a private :class:`torch.Generator`.
+        When set, the mask trajectory is reproducible across runs and does not
+        perturb the ambient torch RNG. When ``None`` (default), masks are drawn
+        from the ambient RNG (like :class:`torch.nn.Dropout`).
+    :type seed: int or None
+    :param kwargs: Extra keyword arguments forwarded to the inner loss constructor.
+    """
+
+    def __init__(
+        self,
+        loss_fn: str = "mse",
+        dropout: float = 0.0,
+        seed: int | None = None,
+        **kwargs,
+    ):
+        if not 0.0 <= dropout < 1.0:
+            raise ValueError(f"dropout must lie in [0.0, 1.0), got {dropout}")
+        super().__init__()
+        self.dropout = float(dropout)
+        self._seed = seed
+        self._generator: torch.Generator | None = None
+        inner_cls = LossRegistry[loss_fn]
+        if issubclass(
+            inner_cls,
+            (MultitaskLoss, MultiLoss, BoundedLoss, GradNormLoss, DropoutLoss),
+        ):
+            raise ValueError(
+                f"DropoutLoss cannot wrap another wrapper loss "
+                f"(got {inner_cls.__name__}). Wrap a per-element loss "
+                f"(e.g. 'mse', 'mae', 'bce', 'focal-bce') instead."
+            )
+        self.loss = inner_cls(reduction="none", **kwargs)
+
+    def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.
+        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
+            marks missing entries and is always excluded from the loss.
+        :returns: Scalar loss averaged across kept (non-NaN, non-dropped) entries.
+        :rtype: torch.Tensor
+        """
+        nan_mask = torch.isnan(targets)
+        targets = targets.clone()
+        targets[nan_mask] = 0.0
+
+        losses = self.loss(outputs, targets)
+        keep_mask = ~nan_mask
+
+        if self.training and self.dropout > 0.0:
+            if self._seed is not None and self._generator is None:
+                self._generator = torch.Generator(device=losses.device)
+                self._generator.manual_seed(self._seed)
+            keep_from_dropout = (
+                torch.rand(
+                    losses.shape,
+                    device=losses.device,
+                    generator=self._generator,
+                )
+                >= self.dropout
+            )
+            keep_mask = keep_mask & keep_from_dropout
+
+        losses = losses * keep_mask
+        return losses.sum() / (keep_mask.sum() + 1e-8)
+
+
+@LossRegistry.register(alias="dropout-mse")
+class DropoutMSELoss(DropoutLoss):
+    """:class:`DropoutLoss` with MSE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="mse", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-mae")
+class DropoutMAELoss(DropoutLoss):
+    """:class:`DropoutLoss` with MAE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="mae", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-huber")
+class DropoutHuberLoss(DropoutLoss):
+    """:class:`DropoutLoss` with Huber as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="huber", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-smoothl1")
+class DropoutSmoothL1Loss(DropoutLoss):
+    """:class:`DropoutLoss` with Smooth L1 as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="smoothl1", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-bce")
+class DropoutBCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with BCE-with-logits as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="bce", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-focal-bce")
+class DropoutFocalBCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with focal BCE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="focal-bce", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-poly1-bce")
+class DropoutPoly1BCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with Poly1 BCE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="poly1-bce", **kwargs)
+
+
+@LossRegistry.register(alias="dropout-weighted-bce")
+class DropoutWeightedBCELoss(DropoutLoss):
+    """:class:`DropoutLoss` with weighted BCE as the inner loss."""
+
+    def __init__(self, **kwargs):
+        super().__init__(loss_fn="weighted-bce", **kwargs)
