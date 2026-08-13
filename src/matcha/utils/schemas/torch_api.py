@@ -4,7 +4,9 @@ import pydantic as pyd
 from typing import Annotated, Literal, Sequence
 from matcha.utils.schemas.generic_models import (
     ClassicMatchaModel,
+    PretrainingMatchaModel,
     GraphMixin,
+    GraphPretrainingMixin,
     GINMixin,
     AttentiveFPMixin,
     MPNNMixin,
@@ -66,6 +68,27 @@ class E3GNNInputModel(ClassicMatchaModel, GraphMixin, E3GNNMixin):
     """Schema for the E(3)-equivariant Graph Neural Network model configuration."""
 
     torch_type: Literal["e3gnn"] = "e3gnn"
+
+
+class E3GNNPretrainingInputModel(
+    PretrainingMatchaModel, GraphMixin, GraphPretrainingMixin, E3GNNMixin
+):
+    """Schema for the E(3)-equivariant GNN pretraining model configuration.
+
+    Combines the graph encoder surface (:class:`GraphMixin`) with
+    E3GNN-specific coordinate-update parameters (:class:`E3GNNMixin`) and
+    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).
+
+    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from
+    :class:`GraphMixin` but unused by pretraining models — the joint node /
+    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /
+    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default
+    to ``None`` here so pretraining callers do not need to pass them.
+    """
+
+    torch_type: Literal["e3gnn_pretraining"] = "e3gnn_pretraining"
+    pred_hidden_dims: list[int] | None = None
+    pred_task_head_dims: list[int] | None = None
 
 
 class GPS3DInputModel(ClassicMatchaModel, GraphMixin, GPS3DMixin):
@@ -156,6 +179,7 @@ TorchModel = (
     | MPNNInputModel
     | GatedGCNInputModel
     | E3GNNInputModel
+    | E3GNNPretrainingInputModel
     | GPSInputModel
     | GPS3DInputModel
     | GTInputModel

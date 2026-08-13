@@ -15,6 +15,46 @@ class ClassicMatchaModel(BaseDataModel):
     scheduler_args: dict[str, Any]
 
 
+class PretrainingMatchaModel(BaseDataModel):
+    """Base schema for pretraining models defining shared training parameters.
+
+    Mirrors :class:`ClassicMatchaModel` but drops the classic-only
+    ``additional_mol_features_dim`` and ``num_endpoints`` fields: pretraining
+    models declare their targets via architecture-specific fields
+    (``num_node_targets`` / ``num_graph_targets`` for graph pretraining,
+    ``vocab_size`` for MLM, ...).
+    """
+
+    loss_fn: str
+    loss_args: dict
+    optimizer: str
+    optimizer_args: dict[str, Any]
+    scheduler: str
+    scheduler_args: dict[str, Any]
+
+
+class GraphPretrainingMixin(BaseDataModel):
+    """Mixin schema for graph pretraining models with joint node + graph heads.
+
+    Captures the shared configuration surface of
+    :class:`~matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel`
+    subclasses: node and graph target counts, per-head hidden dims (shared
+    and per-task), loss weighting, per-task logging, and the optional
+    node-encoder-depth split.
+    """
+
+    num_node_targets: int
+    num_graph_targets: int
+    node_head_dims: list[int] | None
+    graph_head_dims: list[int] | None
+    node_task_head_dims: list[int] | None
+    graph_task_head_dims: list[int] | None
+    node_loss_weight: float
+    graph_loss_weight: float
+    per_task_log_every_n_steps: int
+    enc_node_encoder_depth: int | None
+
+
 # ------------------------------------------------------------------------------
 #                               GNNs
 # ------------------------------------------------------------------------------
