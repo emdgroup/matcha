@@ -73,8 +73,9 @@ Ask the user these questions to determine which commands are needed:
 
 **Step 2b — Pretraining sub-goal** (only if goal = g)
 - "What kind of pretraining?"
-  a. Multi-task pretraining on a large heterogeneous activity dataset → `prepare_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor/Classifier)
-  b. Self-supervised encoder pretraining (MLM on SMILES or node/graph labels) → `pretrain_encoder` → `train` (FinetuningRegressor/Classifier)
+  a. Multi-task pretraining on a large heterogeneous activity dataset → `prepare_dataset` → `pretrain_multitask` → `train` (FinetuningRegressor/Classifier). If `{dataset_dir}/train_coords.npz` / `val_coords.npz` are present, they are auto-loaded (silent-drop for 2D-only bases) — see `references/pretrain-multitask.md § Coords Auto-Discovery`.
+  b. Self-supervised encoder pretraining on 2D graphs (MLM on SMILES or node/graph labels) → `pretrain_encoder` (`task_type: mlm` or `graph`) → `train` (FinetuningRegressor/Classifier)
+  c. Self-supervised encoder pretraining on 3D coordinates (`E3GNNPretraining` / `GPS3DPretraining` / `GT3DPretraining` on node/graph labels + per-atom coords) → `pretrain_encoder` (`task_type: graph3d`) → `train` (FinetuningRegressor/Classifier). Requires externally produced coords npz files — see `references/pretrain-encoder.md § Graph3D Mode`.
 
 **Step 3 — Resources and constraints**
 - "How much compute time can you spend?"
@@ -102,7 +103,7 @@ Before generating any config, use the `Read` tool to load the corresponding file
 | "baseline", "random forest", "scikit-learn model" | `references/baseline.md` |
 | "prepare pretraining data", "sparse matrix", "dense pretraining labels", "merge parquets" | `references/prepare-dataset.md` |
 | "pretrain multitask", "multi-task pretraining", "foundation model" | `references/pretrain-multitask.md` |
-| "pretrain encoder", "MLM pretraining", "graph pretraining", "self-supervised" | `references/pretrain-encoder.md` |
+| "pretrain encoder", "MLM pretraining", "graph pretraining", "self-supervised", "graph3d", "3D pretraining", "coordinate-aware", "E3GNN" | `references/pretrain-encoder.md` |
 
 ---
 
