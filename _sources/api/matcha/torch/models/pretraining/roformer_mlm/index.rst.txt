@@ -14,50 +14,11 @@ Classes
 
 .. autoapisummary::
 
-   matcha.torch.models.pretraining.roformer_mlm.RoFormerMLMEncoder
    matcha.torch.models.pretraining.roformer_mlm.RoFormerMLM
 
 
 Module Contents
 ---------------
-
-.. py:class:: RoFormerMLMEncoder(num_characters: int, hidden_dim: int = 768, expansion_dim: int = 3072, num_heads: int = 12, num_layers: int = 4, attention_dropout: float = 0.1, hidden_dropout: float = 0.1)
-
-   Bases: :py:obj:`matcha.torch.encoders.base_encoder.BaseEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
-
-
-   RoFormer encoder variant that returns per-token embeddings instead of
-   aggregating to a single CLS token representation.
-
-   This encoder is designed for Masked Language Modeling (MLM) tasks where
-   predictions need to be made for each token position.
-
-   :param int num_characters: Dictionary size (vocabulary size)
-   :param int hidden_dim: Token embedding dimensionality, defaults to 768
-   :param int expansion_dim: Dimensionality inside transformer blocks, defaults to 3072
-   :param int num_heads: Number of attention heads, defaults to 12
-   :param int num_layers: Number of transformer blocks, defaults to 4
-   :param float attention_dropout: Dropout for attention, defaults to 0.1
-   :param float hidden_dropout: Dropout in dense layers, defaults to 0.1
-
-
-   .. py:attribute:: model
-
-
-   .. py:attribute:: model_config
-
-
-   .. py:attribute:: layers
-
-
-   .. py:method:: forward(token_ids: torch.Tensor) -> torch.Tensor
-
-      Forward pass that returns embeddings for ALL tokens.
-
-      :param token_ids: Input token IDs [batch_size, seq_length]
-      :return: Per-token embeddings [batch_size, seq_length, hidden_dim]
-
-
 
 .. py:class:: RoFormerMLM(enc_num_characters: int, enc_hidden_dim: int = 256, enc_expansion_dim: int = 1024, enc_num_heads: int = 4, enc_num_layers: int = 2, enc_attention_dropout: float = 0.1, enc_hidden_dropout: float = 0.1, pred_hidden_dims: list[int] = [512], pred_activation: str = 'gelu', pred_dropout: float = 0.1, loss_fn: str = 'cross_entropy', loss_args: dict = {}, optimizer: str = 'adamw', optimizer_args: dict = {'lr': 0.0001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50})
 

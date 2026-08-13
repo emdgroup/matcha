@@ -89,185 +89,14 @@
   <h1>Source code for matcha.torch.models.pretraining.gt_pretraining</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;GT (Graph Transformer) pretraining model for self-supervised learning on graphs.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
-
-<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Batch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
-
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.gt</span><span class="w"> </span><span class="kn">import</span> <span class="n">GT</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.pretraining.base_graph_pretraining</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">BaseGraphPretrainingModel</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.pretraining.base_pretraining_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">PretrainingModelRegistry</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_graph_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseGraphEncoder</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.gt</span><span class="w"> </span><span class="kn">import</span> <span class="n">GTConv</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span><span class="p">,</span> <span class="n">SpatialEncoder</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.graph_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">ATOM_FEAT_DIM</span><span class="p">,</span> <span class="n">BOND_FEAT_DIM</span>
-
-
-<div class="viewcode-block" id="GTPretrainingEncoder">
-<a class="viewcode-back" href="../../../../../api/matcha/torch/models/pretraining/gt_pretraining/index.html#matcha.torch.models.pretraining.gt_pretraining.GTPretrainingEncoder">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">GTPretrainingEncoder</span><span class="p">(</span><span class="n">BaseGraphEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;GT encoder variant that returns node embeddings for pretraining.</span>
-
-<span class="sd">    This encoder outputs node-level embeddings that can be used for both</span>
-<span class="sd">    node-level and graph-level pretraining tasks.</span>
-
-<span class="sd">    :param int num_layers: Number of GTConv layers</span>
-<span class="sd">    :param int atom_input_dim: Number of input atom features</span>
-<span class="sd">    :param int bond_input_dim: Number of input bond features</span>
-<span class="sd">    :param int atom_hidden_dim: Hidden dimension for atom features</span>
-<span class="sd">    :param int num_heads: Number of attention heads</span>
-<span class="sd">    :param int expansion_k: FFN expansion factor</span>
-<span class="sd">    :param int | None distance_k: Maximum distance for spatial encoding</span>
-<span class="sd">    :param str activation: Activation function name</span>
-<span class="sd">    :param float dropout: Dropout rate</span>
-<span class="sd">    :param str jk: Jumping knowledge strategy</span>
-<span class="sd">    :param str readout: Readout function for graph-level aggregation</span>
-<span class="sd">    :param int laplacian_k: Laplacian positional encoding dimension</span>
-<span class="sd">    :param int rwse_k: Random walk structural encoding dimension</span>
-<span class="sd">    :param int elstatic_k: Electrostatic encoding dimension</span>
-<span class="sd">    :param int distmat_k: Distance matrix encoding dimension</span>
-<span class="sd">    :param int rrwp_k: Relative random walk probability dimension</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">num_layers</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">atom_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">bond_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">atom_hidden_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">expansion_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">distance_k</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
-        <span class="n">jk</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">readout</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-        <span class="n">laplacian_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">rwse_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">elstatic_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">distmat_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">rrwp_k</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span>
-            <span class="n">laplacian_k</span><span class="p">,</span>
-            <span class="n">rwse_k</span><span class="p">,</span>
-            <span class="n">elstatic_k</span><span class="p">,</span>
-            <span class="n">distmat_k</span><span class="p">,</span>
-            <span class="n">rrwp_k</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Snap num_heads to the largest divisor of atom_hidden_dim that is &lt;= num_heads,</span>
-        <span class="c1"># so HPO can freely sample both values without causing a shape mismatch.</span>
-        <span class="k">while</span> <span class="n">num_heads</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="ow">and</span> <span class="n">atom_hidden_dim</span> <span class="o">%</span> <span class="n">num_heads</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">num_heads</span> <span class="o">-=</span> <span class="mi">1</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">num_heads</span> <span class="o">=</span> <span class="n">num_heads</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">expansion_k</span> <span class="o">=</span> <span class="n">expansion_k</span>
-
-        <span class="c1"># Input projections</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
-            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_input_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">activation</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">bond_projection</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
-            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">bond_input_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="n">activation</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-            <span class="n">LnBnDr</span><span class="p">(</span><span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">atom_hidden_dim</span><span class="p">,</span> <span class="n">dropout</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Stack of GTConv layers</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">ModuleList</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_layers</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="n">GTConv</span><span class="p">(</span>
-                    <span class="n">node_in_dim</span><span class="o">=</span><span class="n">atom_hidden_dim</span><span class="p">,</span>
-                    <span class="n">hidden_dim</span><span class="o">=</span><span class="n">atom_hidden_dim</span><span class="p">,</span>
-                    <span class="n">edge_in_dim</span><span class="o">=</span><span class="n">atom_hidden_dim</span><span class="p">,</span>
-                    <span class="n">num_heads</span><span class="o">=</span><span class="n">num_heads</span><span class="p">,</span>
-                    <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
-                    <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
-                    <span class="n">expansion_k</span><span class="o">=</span><span class="n">expansion_k</span><span class="p">,</span>
-                <span class="p">)</span>
-            <span class="p">)</span>
-
-        <span class="c1"># Spatial encoder for distance bias</span>
-        <span class="k">if</span> <span class="n">distance_k</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="o">=</span> <span class="n">SpatialEncoder</span><span class="p">(</span><span class="n">distance_k</span><span class="p">,</span> <span class="n">num_heads</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_jk</span><span class="p">(</span><span class="n">jk</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_readout</span><span class="p">(</span><span class="n">readout</span><span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_distance_bias</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute distance bias for ALL node pairs from the SPD matrix.</span>
-
-<span class="sd">        :param graph: Batched PyG graph with spd attribute</span>
-<span class="sd">        :return: Distance bias or None</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">graph</span><span class="p">,</span> <span class="s2">&quot;spd&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">graph</span><span class="o">.</span><span class="n">spd</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">dist_encoder</span><span class="p">(</span><span class="n">graph</span><span class="o">.</span><span class="n">spd</span><span class="p">)</span>
-
-<div class="viewcode-block" id="GTPretrainingEncoder.forward">
-<a class="viewcode-back" href="../../../../../api/matcha/torch/models/pretraining/gt_pretraining/index.html#matcha.torch.models.pretraining.gt_pretraining.GTPretrainingEncoder.forward">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass returning graph-level embeddings.</span>
-
-<span class="sd">        :param graph: Batched PyG graph</span>
-<span class="sd">        :return: Graph-level embeddings [batch_size, hidden_dim]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">node_embeddings</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_nodes</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">node_embeddings</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="GTPretrainingEncoder.forward_nodes">
-<a class="viewcode-back" href="../../../../../api/matcha/torch/models/pretraining/gt_pretraining/index.html#matcha.torch.models.pretraining.gt_pretraining.GTPretrainingEncoder.forward_nodes">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">forward_nodes</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">Batch</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass returning node-level embeddings (JK-merged).</span>
-
-<span class="sd">        :param graph: Batched PyG graph</span>
-<span class="sd">        :return: Tuple of (node_embeddings, processed_graph)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">all_atom_feats</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_nodes_per_layer</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-        <span class="n">final_atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_jk</span><span class="p">(</span><span class="n">all_atom_feats</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">final_atom_feats</span><span class="p">,</span> <span class="n">g</span></div>
-
-
-<div class="viewcode-block" id="GTPretrainingEncoder.forward_nodes_per_layer">
-<a class="viewcode-back" href="../../../../../api/matcha/torch/models/pretraining/gt_pretraining/index.html#matcha.torch.models.pretraining.gt_pretraining.GTPretrainingEncoder.forward_nodes_per_layer">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">forward_nodes_per_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">Batch</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass returning per-layer node embeddings.</span>
-
-<span class="sd">        :param graph: Batched PyG graph</span>
-<span class="sd">        :return: Tuple of (per_layer_embeddings, processed_graph)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">g</span><span class="p">,</span> <span class="n">atom_feats</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">graph_id</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_process_graph_batch</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-
-        <span class="c1"># Project input features to hidden dimension</span>
-        <span class="n">atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">atom_projection</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
-        <span class="n">bond_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">bond_projection</span><span class="p">(</span><span class="n">bond_feats</span><span class="p">)</span>
-
-        <span class="c1"># Get distance bias for ALL node pairs</span>
-        <span class="n">dist_bias</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_distance_bias</span><span class="p">(</span><span class="n">g</span><span class="p">)</span>
-
-        <span class="n">all_atom_feats</span> <span class="o">=</span> <span class="p">[]</span>
-
-        <span class="c1"># Pass through GTConv stack with distance bias</span>
-        <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span><span class="p">:</span>
-            <span class="n">atom_feats</span> <span class="o">=</span> <span class="n">layer</span><span class="p">(</span>
-                <span class="n">atom_feats</span><span class="p">,</span> <span class="n">g</span><span class="o">.</span><span class="n">edge_index</span><span class="p">,</span> <span class="n">bond_feats</span><span class="p">,</span> <span class="n">graph_id</span><span class="p">,</span> <span class="n">dist_bias</span><span class="o">=</span><span class="n">dist_bias</span>
-            <span class="p">)</span>
-            <span class="n">all_atom_feats</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">atom_feats</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">all_atom_feats</span><span class="p">,</span> <span class="n">g</span></div>
-</div>
-
 
 
 <div class="viewcode-block" id="GTPretraining">
@@ -418,7 +247,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_train_config</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_encoder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the GT encoder.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the canonical GT encoder shared with the classic path.&quot;&quot;&quot;</span>
         <span class="n">atom_input_dim</span> <span class="o">=</span> <span class="p">(</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_atom_input_dim&quot;</span><span class="p">]</span>
             <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_laplacian_k&quot;</span><span class="p">]</span>
@@ -428,7 +257,7 @@
         <span class="p">)</span>
         <span class="n">edge_input_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_bond_input_dim&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_rrwp_k&quot;</span><span class="p">]</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">GTPretrainingEncoder</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">GT</span><span class="p">(</span>
             <span class="n">num_layers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_num_layers&quot;</span><span class="p">],</span>
             <span class="n">atom_input_dim</span><span class="o">=</span><span class="n">atom_input_dim</span><span class="p">,</span>
             <span class="n">bond_input_dim</span><span class="o">=</span><span class="n">edge_input_dim</span><span class="p">,</span>
@@ -445,18 +274,7 @@
             <span class="n">elstatic_k</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_elstatic_k&quot;</span><span class="p">],</span>
             <span class="n">distmat_k</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_distmat_k&quot;</span><span class="p">],</span>
             <span class="n">rrwp_k</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_rrwp_k&quot;</span><span class="p">],</span>
-        <span class="p">)</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_per_layer_embeddings</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">Batch</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract per-layer node embeddings from GT encoder.</span>
-
-<span class="sd">        :param batch: Input batch containing &#39;graph&#39; key</span>
-<span class="sd">        :return: Tuple of (per_layer_embeddings, processed_graph)</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">graph</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">forward_nodes_per_layer</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span></div>
+        <span class="p">)</span></div>
 
 </pre></div>
 

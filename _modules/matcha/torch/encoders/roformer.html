@@ -161,6 +161,24 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hidden_size</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">layer</span>
 
+<div class="viewcode-block" id="RoFormer.forward_tokens">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/roformer/index.html#matcha.torch.encoders.RoFormer.forward_tokens">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward_tokens</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_ids</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Encode tokenized SMILES into per-token contextual embeddings.</span>
+
+<span class="sd">        Consumed by both the classic path (which takes the [CLS] slice via</span>
+<span class="sd">        :meth:`forward`) and the MLM pretraining path (which keeps the full</span>
+<span class="sd">        sequence output).</span>
+
+<span class="sd">        :param torch.Tensor token_ids: Batched token IDs [batch_size, seq_len].</span>
+<span class="sd">        :returns: Per-token embeddings [batch_size, seq_len, hidden_dim].</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">token_ids</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">last_hidden_state</span></div>
+
+
 <div class="viewcode-block" id="RoFormer.forward">
 <a class="viewcode-back" href="../../../../api/matcha/torch/encoders/roformer/index.html#matcha.torch.encoders.RoFormer.forward">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_ids</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
@@ -172,12 +190,7 @@
 <span class="sd">        :returns: Learned molecular representation [batch_size, hidden_dim].</span>
 <span class="sd">        :rtype: torch.Tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">token_ids</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">)</span>
-        <span class="n">last_hidden_state</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">last_hidden_state</span>
-        <span class="n">last_hidden_state</span> <span class="o">=</span> <span class="n">last_hidden_state</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>
-
-        <span class="k">return</span> <span class="n">last_hidden_state</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_tokens</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span></div>
 </div>
 
 </pre></div>

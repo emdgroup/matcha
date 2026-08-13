@@ -149,6 +149,26 @@ transformer blocks, defaults to 0.1</p></li>
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.encoders.roformer.RoFormer.forward_tokens">
+<span class="sig-name descname"><span class="pre">forward_tokens</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/roformer.html#RoFormer.forward_tokens"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.roformer.RoFormer.forward_tokens" title="Link to this definition"></a></dt>
+<dd><p>Encode tokenized SMILES into per-token contextual embeddings.</p>
+<p>Consumed by both the classic path (which takes the [CLS] slice via
+<a class="reference internal" href="#matcha.torch.encoders.roformer.RoFormer.forward" title="matcha.torch.encoders.roformer.RoFormer.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a>) and the MLM pretraining path (which keeps the full
+sequence output).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>token_ids</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><em>torch.Tensor</em></a>) – Batched token IDs [batch_size, seq_len].</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Per-token embeddings [batch_size, seq_len, hidden_dim].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="matcha.torch.encoders.roformer.RoFormer.forward">
 <span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">token_ids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/roformer.html#RoFormer.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.roformer.RoFormer.forward" title="Link to this definition"></a></dt>
 <dd><p>Encode tokenized SMILES into a fixed-size molecular representation.</p>

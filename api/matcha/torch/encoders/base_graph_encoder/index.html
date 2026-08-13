@@ -113,6 +113,13 @@ is present in children classes.
 The class is just used to automate some tedious processes related to PyTorch Geometric
 (see <a href="#id3"><span class="problematic" id="id4">:method:`process_graph_batch`</span></a>), handle different readout functions and jumping
 knowledge settings.</p>
+<p>Concrete subclasses implement <a class="reference internal" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward_nodes_per_layer()</span></code></a> to produce
+per-layer node embeddings; the shared <a class="reference internal" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a> template method then
+combines them via the configured jumping-knowledge strategy and the readout
+to produce a graph-level embedding. This structural contract is what
+prevents architecture drift between classic and pretraining models — both
+consume the same encoder, and pretraining hooks read the per-layer output
+of the canonical encoder rather than re-implementing the layer stack.</p>
 <dl class="py property">
 <dt class="sig sig-object py" id="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.jk">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">jk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.jk" title="Link to this definition"></a></dt>
@@ -123,6 +130,63 @@ knowledge settings.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
 <dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">forward_nodes_per_layer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch_geometric.data.Batch</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">torch_geometric.data.Batch</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/base_graph_encoder.html#BaseGraphEncoder.forward_nodes_per_layer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer" title="Link to this definition"></a></dt>
+<dd><p>Run message passing and return one node-feature tensor per layer.</p>
+<p>Concrete graph encoders should implement this to expose the
+intermediate node representations produced by every message-passing
+layer. It is the single hook consumed by both the classic path (via
+<a class="reference internal" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a>) and the pretraining path (via
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BaseGraphPretrainingModel</span></code>), so the same layer stack is
+guaranteed to drive both.</p>
+<p>The default implementation raises <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">NotImplementedError</span></code></a> so
+that encoders which have not yet migrated to the shared contract
+(rolled out per-architecture across the issue #24 stages) still work
+on the classic path but fail loudly if the pretraining path is
+wired against them. Once every <a class="reference internal" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseGraphEncoder</span></code></a> subclass
+implements this method, the base can be tightened to
+<code class="docutils literal notranslate"><span class="pre">&#64;abstractmethod</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>graph</strong> (<em>Batch</em>) – Batched PyG graph from the dataloader.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A tuple of <code class="docutils literal notranslate"><span class="pre">(all_atom_feats,</span> <span class="pre">g)</span></code> where <code class="docutils literal notranslate"><span class="pre">all_atom_feats</span></code>
+is a list of length <code class="docutils literal notranslate"><span class="pre">num_layers</span></code> containing node features of
+shape <code class="docutils literal notranslate"><span class="pre">[num_nodes,</span> <span class="pre">atom_hidden_dim]</span></code>, and <code class="docutils literal notranslate"><span class="pre">g</span></code> is the
+(possibly modified) PyG <code class="xref py py-class docutils literal notranslate"><span class="pre">Batch</span></code> used for the readout.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a>], Batch]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">graph</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">torch_geometric.data.Batch</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/torch/encoders/base_graph_encoder.html#BaseGraphEncoder.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward" title="Link to this definition"></a></dt>
+<dd><p>Convert a batched PyG graph into a <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">fp_dim]</span></code> embedding.</p>
+<p>Template method that delegates the layer loop to
+<a class="reference internal" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward_nodes_per_layer()</span></code></a>, combines the per-layer node features
+via the configured jumping-knowledge strategy, and applies the
+readout. Subclasses that have migrated to the shared contract should
+not override this method — override <a class="reference internal" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward_nodes_per_layer()</span></code></a>
+instead. Legacy subclasses may still override <a class="reference internal" href="#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward" title="matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward"><code class="xref py py-meth docutils literal notranslate"><span class="pre">forward()</span></code></a>
+directly until they migrate.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>graph</strong> (<em>Batch</em>) – Batched PyG graph from the dataloader.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Graph-level embedding of shape <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">fp_dim]</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)">torch.Tensor</a></p>
 </dd>
 </dl>
 </dd></dl>

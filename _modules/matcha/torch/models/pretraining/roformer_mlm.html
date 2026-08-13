@@ -94,79 +94,13 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoModel</span><span class="p">,</span> <span class="n">RoFormerConfig</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.base_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseEncoder</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.roformer</span><span class="w"> </span><span class="kn">import</span> <span class="n">RoFormer</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.pretraining.base_pretraining_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">BasePretrainingModel</span><span class="p">,</span>
     <span class="n">PretrainingModelRegistry</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span>
-
-
-<div class="viewcode-block" id="RoFormerMLMEncoder">
-<a class="viewcode-back" href="../../../../../api/matcha/torch/models/pretraining/roformer_mlm/index.html#matcha.torch.models.pretraining.RoFormerMLMEncoder">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">RoFormerMLMEncoder</span><span class="p">(</span><span class="n">BaseEncoder</span><span class="p">,</span> <span class="n">HyperparametersMixin</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;RoFormer encoder variant that returns per-token embeddings instead of</span>
-<span class="sd">    aggregating to a single CLS token representation.</span>
-
-<span class="sd">    This encoder is designed for Masked Language Modeling (MLM) tasks where</span>
-<span class="sd">    predictions need to be made for each token position.</span>
-
-<span class="sd">    :param int num_characters: Dictionary size (vocabulary size)</span>
-<span class="sd">    :param int hidden_dim: Token embedding dimensionality, defaults to 768</span>
-<span class="sd">    :param int expansion_dim: Dimensionality inside transformer blocks, defaults to 3072</span>
-<span class="sd">    :param int num_heads: Number of attention heads, defaults to 12</span>
-<span class="sd">    :param int num_layers: Number of transformer blocks, defaults to 4</span>
-<span class="sd">    :param float attention_dropout: Dropout for attention, defaults to 0.1</span>
-<span class="sd">    :param float hidden_dropout: Dropout in dense layers, defaults to 0.1</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span>
-        <span class="n">num_characters</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-        <span class="n">hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">768</span><span class="p">,</span>
-        <span class="n">expansion_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3072</span><span class="p">,</span>
-        <span class="n">num_heads</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">12</span><span class="p">,</span>
-        <span class="n">num_layers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
-        <span class="n">attention_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-        <span class="n">hidden_dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
-    <span class="p">):</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
-
-        <span class="n">model_config</span> <span class="o">=</span> <span class="n">RoFormerConfig</span><span class="p">(</span>
-            <span class="n">vocab_size</span><span class="o">=</span><span class="n">num_characters</span><span class="p">,</span>
-            <span class="n">hidden_size</span><span class="o">=</span><span class="n">hidden_dim</span><span class="p">,</span>
-            <span class="n">intermediate_size</span><span class="o">=</span><span class="n">expansion_dim</span><span class="p">,</span>
-            <span class="n">num_hidden_layers</span><span class="o">=</span><span class="n">num_layers</span><span class="p">,</span>
-            <span class="n">num_attention_heads</span><span class="o">=</span><span class="n">num_heads</span><span class="p">,</span>
-            <span class="n">hidden_dropout_prob</span><span class="o">=</span><span class="n">hidden_dropout</span><span class="p">,</span>
-            <span class="n">attention_probs_dropout_prob</span><span class="o">=</span><span class="n">attention_dropout</span><span class="p">,</span>
-            <span class="n">pad_token_id</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
-            <span class="n">cls_token_id</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-            <span class="n">rotary_value</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">AutoModel</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="n">model_config</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model_config</span> <span class="o">=</span> <span class="n">model_config</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_fp_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">hidden_size</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">layer</span>
-
-<div class="viewcode-block" id="RoFormerMLMEncoder.forward">
-<a class="viewcode-back" href="../../../../../api/matcha/torch/models/pretraining/roformer_mlm/index.html#matcha.torch.models.pretraining.RoFormerMLMEncoder.forward">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">token_ids</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Forward pass that returns embeddings for ALL tokens.</span>
-
-<span class="sd">        :param token_ids: Input token IDs [batch_size, seq_length]</span>
-<span class="sd">        :return: Per-token embeddings [batch_size, seq_length, hidden_dim]</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">token_ids</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">long</span><span class="p">()</span>
-        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">token_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">attention_mask</span><span class="p">)</span>
-        <span class="c1"># Return full sequence embeddings instead of just CLS token</span>
-        <span class="k">return</span> <span class="n">out</span><span class="o">.</span><span class="n">last_hidden_state</span></div>
-</div>
-
 
 
 <div class="viewcode-block" id="RoFormerMLM">
@@ -230,8 +164,9 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
 
-        <span class="c1"># Build encoder</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">RoFormerMLMEncoder</span><span class="p">(</span>
+        <span class="c1"># Build encoder using the canonical RoFormer; pretraining consumes</span>
+        <span class="c1"># per-token embeddings via ``encoder.forward_tokens``.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">RoFormer</span><span class="p">(</span>
             <span class="n">num_characters</span><span class="o">=</span><span class="n">enc_num_characters</span><span class="p">,</span>
             <span class="n">hidden_dim</span><span class="o">=</span><span class="n">enc_hidden_dim</span><span class="p">,</span>
             <span class="n">expansion_dim</span><span class="o">=</span><span class="n">enc_expansion_dim</span><span class="p">,</span>
@@ -266,7 +201,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">token_ids</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;token_ids&quot;</span><span class="p">]</span>
         <span class="c1"># Get per-token embeddings: [batch_size, seq_length, hidden_dim]</span>
-        <span class="n">token_embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span>
+        <span class="n">token_embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">forward_tokens</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span>
         <span class="c1"># Predict vocabulary distribution for each token: [batch_size, seq_length, vocab_size]</span>
         <span class="n">logits</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prediction_head</span><span class="p">(</span><span class="n">token_embeddings</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">logits</span></div>
@@ -281,7 +216,7 @@
 <span class="sd">        :return: Per-token embeddings [batch_size, seq_length, hidden_dim]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">token_ids</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;token_ids&quot;</span><span class="p">]</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">forward_tokens</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="RoFormerMLM.training_step">

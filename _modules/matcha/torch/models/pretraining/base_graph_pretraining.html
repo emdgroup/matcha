@@ -126,8 +126,10 @@
 <span class="sd">    The model does **not** reconstruct its own input atom features.</span>
 
 <span class="sd">    Subclasses must implement:</span>
-<span class="sd">        - _build_encoder(): Build the graph encoder</span>
-<span class="sd">        - _get_node_embeddings(): Extract node-level embeddings from encoder</span>
+<span class="sd">        - _build_encoder(): Build the graph encoder. The encoder must be a</span>
+<span class="sd">          :class:`BaseGraphEncoder` subclass; per-layer node embeddings are</span>
+<span class="sd">          then read from ``self.encoder.forward_nodes_per_layer`` — pretraining</span>
+<span class="sd">          models do not implement their own layer stack.</span>
 
 <span class="sd">    :param int num_node_targets: Number of node-level prediction targets</span>
 <span class="sd">    :param int num_graph_targets: Number of graph-level prediction targets</span>
@@ -252,11 +254,14 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Build the graph encoder. Must set self.encoder.&quot;&quot;&quot;</span>
         <span class="k">pass</span>
 
-    <span class="nd">@abstractmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_per_layer_embeddings</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">Batch</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract per-layer node embeddings from the encoder.</span>
+
+<span class="sd">        Delegates to :meth:`BaseGraphEncoder.forward_nodes_per_layer` so the</span>
+<span class="sd">        pretraining path consumes the canonical encoder&#39;s layer stack rather</span>
+<span class="sd">        than re-implementing it.</span>
 
 <span class="sd">        :param batch: Input batch containing graph data</span>
 <span class="sd">        :return: Tuple of (per_layer_embeddings, processed_graph)</span>
@@ -264,7 +269,7 @@
 <span class="sd">              one per encoder layer</span>
 <span class="sd">            - processed_graph: PyG Batch object for accessing batch assignment</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">pass</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">forward_nodes_per_layer</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">])</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_build_prediction_head</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>

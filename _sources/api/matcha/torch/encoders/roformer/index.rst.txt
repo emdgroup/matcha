@@ -65,6 +65,20 @@ Module Contents
    .. py:attribute:: layers
 
 
+   .. py:method:: forward_tokens(token_ids: torch.Tensor) -> torch.Tensor
+
+      Encode tokenized SMILES into per-token contextual embeddings.
+
+      Consumed by both the classic path (which takes the [CLS] slice via
+      :meth:`forward`) and the MLM pretraining path (which keeps the full
+      sequence output).
+
+      :param torch.Tensor token_ids: Batched token IDs [batch_size, seq_len].
+      :returns: Per-token embeddings [batch_size, seq_len, hidden_dim].
+      :rtype: torch.Tensor
+
+
+
    .. py:method:: forward(token_ids: torch.Tensor) -> torch.Tensor
 
       Encode tokenized SMILES into a fixed-size molecular representation.

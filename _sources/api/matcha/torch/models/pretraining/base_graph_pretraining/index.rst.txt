@@ -43,8 +43,10 @@ Module Contents
    The model does **not** reconstruct its own input atom features.
 
    Subclasses must implement:
-       - _build_encoder(): Build the graph encoder
-       - _get_node_embeddings(): Extract node-level embeddings from encoder
+       - _build_encoder(): Build the graph encoder. The encoder must be a
+         :class:`BaseGraphEncoder` subclass; per-layer node embeddings are
+         then read from ``self.encoder.forward_nodes_per_layer`` — pretraining
+         models do not implement their own layer stack.
 
    :param int num_node_targets: Number of node-level prediction targets
    :param int num_graph_targets: Number of graph-level prediction targets

@@ -172,14 +172,14 @@ Module Contents
    .. py:attribute:: bond_projection
 
 
-   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+   .. py:method:: forward_nodes_per_layer(graph: torch_geometric.data.Batch) -> tuple[list[torch.Tensor], torch_geometric.data.Batch]
 
-      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
-      processing.
+      Run GPS message passing and return one node-feature tensor per layer.
 
-      :param Batch graph: batched PyG graph from the dataloader
-
-      :return torch.Tensor: learned representation
+      :param Batch graph: Batched PyG graph from the dataloader.
+      :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has length
+          ``num_layers``; each entry has shape ``[num_nodes, atom_hidden_dim]``.
+      :rtype: tuple[list[torch.Tensor], Batch]
 
 
 

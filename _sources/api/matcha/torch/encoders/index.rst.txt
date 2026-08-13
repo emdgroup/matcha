@@ -101,14 +101,18 @@ Package Contents
    .. py:attribute:: layers
 
 
-   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+   .. py:method:: forward_nodes_per_layer(graph: torch_geometric.data.Batch) -> tuple[list[torch.Tensor], torch_geometric.data.Batch]
 
-      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
-      processing.
+      Run AttentiveFP message passing and return one node-feature tensor per layer.
 
-      :param Batch graph: batched PyG graph from the dataloader
+      The initial GATEConv+GRU context layer produces the first entry; each of
+      the subsequent ``num_layers - 1`` GATv2Conv+GRU layers appends another,
+      so the returned list has length ``num_layers``.
 
-      :return torch.Tensor: learned representation
+      :param Batch graph: Batched PyG graph from the dataloader.
+      :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has length
+          ``num_layers``; each entry has shape ``[num_nodes, atom_hidden_dim]``.
+      :rtype: tuple[list[torch.Tensor], Batch]
 
 
 
@@ -155,6 +159,20 @@ Package Contents
 
 
    .. py:attribute:: layers
+
+
+   .. py:method:: forward_tokens(token_ids: torch.Tensor) -> torch.Tensor
+
+      Encode tokenized SMILES into per-token contextual embeddings.
+
+      Consumed by both the classic path (which takes the [CLS] slice via
+      :meth:`forward`) and the MLM pretraining path (which keeps the full
+      sequence output).
+
+      :param torch.Tensor token_ids: Batched token IDs [batch_size, seq_len].
+      :returns: Per-token embeddings [batch_size, seq_len, hidden_dim].
+      :rtype: torch.Tensor
+
 
 
    .. py:method:: forward(token_ids: torch.Tensor) -> torch.Tensor
@@ -348,14 +366,14 @@ Package Contents
    .. py:attribute:: layers
 
 
-   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+   .. py:method:: forward_nodes_per_layer(graph: torch_geometric.data.Batch) -> tuple[list[torch.Tensor], torch_geometric.data.Batch]
 
-      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
-      processing.
+      Run GatedGCN message passing and return one node-feature tensor per layer.
 
-      :param Batch graph: batched PyG graph from the dataloader
-
-      :return torch.Tensor: learned representation
+      :param Batch graph: Batched PyG graph from the dataloader.
+      :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has length
+          ``num_layers``; each entry has shape ``[num_nodes, atom_hidden_dim]``.
+      :rtype: tuple[list[torch.Tensor], Batch]
 
 
 
@@ -411,14 +429,14 @@ Package Contents
    .. py:attribute:: layers
 
 
-   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+   .. py:method:: forward_nodes_per_layer(graph: torch_geometric.data.Batch) -> tuple[list[torch.Tensor], torch_geometric.data.Batch]
 
-      Converts a batched PyG graph into a (x, self.fp_dim) tensor for further
-      processing.
+      Run GIN message passing and return one node-feature tensor per layer.
 
-      :param Batch graph: batched PyG graph from the dataloader
-
-      :return torch.Tensor: learned representation
+      :param Batch graph: Batched PyG graph from the dataloader.
+      :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has length
+          ``num_layers``; each entry has shape ``[num_nodes, atom_hidden_dim]``.
+      :rtype: tuple[list[torch.Tensor], Batch]
 
 
 
@@ -468,14 +486,14 @@ Package Contents
    .. py:attribute:: bond_projection
 
 
-   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+   .. py:method:: forward_nodes_per_layer(graph: torch_geometric.data.Batch) -> tuple[list[torch.Tensor], torch_geometric.data.Batch]
 
-      Converts a batched PyG graph into a (batch_size, fp_dim) tensor for further
-      processing.
+      Run GPS message passing and return one node-feature tensor per layer.
 
-      :param Batch graph: batched PyG graph from the dataloader
-
-      :return torch.Tensor: learned representation
+      :param Batch graph: Batched PyG graph from the dataloader.
+      :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has length
+          ``num_layers``; each entry has shape ``[num_nodes, atom_hidden_dim]``.
+      :rtype: tuple[list[torch.Tensor], Batch]
 
 
 
@@ -590,12 +608,14 @@ Package Contents
    .. py:attribute:: layers
 
 
-   .. py:method:: forward(graph: torch_geometric.data.Batch) -> torch.Tensor
+   .. py:method:: forward_nodes_per_layer(graph: torch_geometric.data.Batch) -> tuple[list[torch.Tensor], torch_geometric.data.Batch]
 
-      Converts a batched PyG graph into a (batch_size, fp_dim) tensor.
+      Run GT message passing and return one node-feature tensor per layer.
 
-      :param Batch graph: batched PyG graph from the dataloader
-      :return torch.Tensor: learned molecular representation
+      :param Batch graph: Batched PyG graph from the dataloader.
+      :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has length
+          ``num_layers``; each entry has shape ``[num_nodes, atom_hidden_dim]``.
+      :rtype: tuple[list[torch.Tensor], Batch]
 
 
 

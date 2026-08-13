@@ -108,6 +108,14 @@
 <span class="sd">    The class is just used to automate some tedious processes related to PyTorch Geometric</span>
 <span class="sd">    (see :method:`process_graph_batch`), handle different readout functions and jumping</span>
 <span class="sd">    knowledge settings.</span>
+
+<span class="sd">    Concrete subclasses implement :meth:`forward_nodes_per_layer` to produce</span>
+<span class="sd">    per-layer node embeddings; the shared :meth:`forward` template method then</span>
+<span class="sd">    combines them via the configured jumping-knowledge strategy and the readout</span>
+<span class="sd">    to produce a graph-level embedding. This structural contract is what</span>
+<span class="sd">    prevents architecture drift between classic and pretraining models — both</span>
+<span class="sd">    consume the same encoder, and pretraining hooks read the per-layer output</span>
+<span class="sd">    of the canonical encoder rather than re-implementing the layer stack.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -349,7 +357,63 @@
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">jk</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
             <span class="n">atom_features</span> <span class="o">=</span> <span class="p">[</span><span class="n">h</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">h</span> <span class="ow">in</span> <span class="n">atom_features</span><span class="p">]</span>
             <span class="n">final_atom_features</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">atom_features</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">final_atom_features</span></div>
+        <span class="k">return</span> <span class="n">final_atom_features</span>
+
+<div class="viewcode-block" id="BaseGraphEncoder.forward_nodes_per_layer">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/base_graph_encoder/index.html#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward_nodes_per_layer">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward_nodes_per_layer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">Batch</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run message passing and return one node-feature tensor per layer.</span>
+
+<span class="sd">        Concrete graph encoders should implement this to expose the</span>
+<span class="sd">        intermediate node representations produced by every message-passing</span>
+<span class="sd">        layer. It is the single hook consumed by both the classic path (via</span>
+<span class="sd">        :meth:`forward`) and the pretraining path (via</span>
+<span class="sd">        :class:`BaseGraphPretrainingModel`), so the same layer stack is</span>
+<span class="sd">        guaranteed to drive both.</span>
+
+<span class="sd">        The default implementation raises :class:`NotImplementedError` so</span>
+<span class="sd">        that encoders which have not yet migrated to the shared contract</span>
+<span class="sd">        (rolled out per-architecture across the issue #24 stages) still work</span>
+<span class="sd">        on the classic path but fail loudly if the pretraining path is</span>
+<span class="sd">        wired against them. Once every :class:`BaseGraphEncoder` subclass</span>
+<span class="sd">        implements this method, the base can be tightened to</span>
+<span class="sd">        ``@abstractmethod``.</span>
+
+<span class="sd">        :param Batch graph: Batched PyG graph from the dataloader.</span>
+<span class="sd">        :returns: A tuple of ``(all_atom_feats, g)`` where ``all_atom_feats``</span>
+<span class="sd">            is a list of length ``num_layers`` containing node features of</span>
+<span class="sd">            shape ``[num_nodes, atom_hidden_dim]``, and ``g`` is the</span>
+<span class="sd">            (possibly modified) PyG :class:`Batch` used for the readout.</span>
+<span class="sd">        :rtype: tuple[list[torch.Tensor], Batch]</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> has not implemented forward_nodes_per_layer; &quot;</span>
+            <span class="s2">&quot;canonical + pretraining encoder unification (issue #24) is still &quot;</span>
+            <span class="s2">&quot;in progress for this architecture.&quot;</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="BaseGraphEncoder.forward">
+<a class="viewcode-back" href="../../../../api/matcha/torch/encoders/base_graph_encoder/index.html#matcha.torch.encoders.base_graph_encoder.BaseGraphEncoder.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">:</span> <span class="n">Batch</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Convert a batched PyG graph into a ``[batch_size, fp_dim]`` embedding.</span>
+
+<span class="sd">        Template method that delegates the layer loop to</span>
+<span class="sd">        :meth:`forward_nodes_per_layer`, combines the per-layer node features</span>
+<span class="sd">        via the configured jumping-knowledge strategy, and applies the</span>
+<span class="sd">        readout. Subclasses that have migrated to the shared contract should</span>
+<span class="sd">        not override this method — override :meth:`forward_nodes_per_layer`</span>
+<span class="sd">        instead. Legacy subclasses may still override :meth:`forward`</span>
+<span class="sd">        directly until they migrate.</span>
+
+<span class="sd">        :param Batch graph: Batched PyG graph from the dataloader.</span>
+<span class="sd">        :returns: Graph-level embedding of shape ``[batch_size, fp_dim]``.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">all_atom_feats</span><span class="p">,</span> <span class="n">g</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward_nodes_per_layer</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
+        <span class="n">final_atom_feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_jk</span><span class="p">(</span><span class="n">all_atom_feats</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">readout</span><span class="p">(</span><span class="n">g</span><span class="p">,</span> <span class="n">final_atom_feats</span><span class="p">)</span></div>
+</div>
 
 </pre></div>
 

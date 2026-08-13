@@ -121,8 +121,10 @@ for nodes, and molecular descriptors like logP or molecular weight for graphs).
 The model does <strong>not</strong> reconstruct its own input atom features.</p>
 <dl class="simple">
 <dt>Subclasses must implement:</dt><dd><ul class="simple">
-<li><p>_build_encoder(): Build the graph encoder</p></li>
-<li><p>_get_node_embeddings(): Extract node-level embeddings from encoder</p></li>
+<li><p>_build_encoder(): Build the graph encoder. The encoder must be a
+<code class="xref py py-class docutils literal notranslate"><span class="pre">BaseGraphEncoder</span></code> subclass; per-layer node embeddings are
+then read from <code class="docutils literal notranslate"><span class="pre">self.encoder.forward_nodes_per_layer</span></code> — pretraining
+models do not implement their own layer stack.</p></li>
 </ul>
 </dd>
 </dl>
