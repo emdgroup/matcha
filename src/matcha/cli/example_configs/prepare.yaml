@@ -1,7 +1,11 @@
 # ── Example config: Prepare sparse multi-task dataset for pretraining ──
 #
-# Merge parquet files into a sparse matrix format consumed by the
-# ``pretrain_multitask`` command.
+# Merge parquet/CSV files into a sparse CSR label matrix consumed by the
+# ``pretrain_multitask`` command. Sparse mode uses zero-omission to encode
+# missing entries and remaps classification labels ``0 → -1`` internally so
+# "missing" and "inactive" are distinguishable. Choose this variant when the
+# underlying label matrix is largely empty. For dense ``float32`` output (NaN
+# marks missing, classification passes through as 0/1), see ``prepare_dense.yaml``.
 #
 # Usage:
 #   matcha prepare_dataset --config prepare.yaml
