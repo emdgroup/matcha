@@ -5,9 +5,11 @@
 Pretrains a MATCHA encoder using one of two self-supervised objectives:
 
 - **MLM (masked language modelling):** Trains a `RoFormerMLM` sequence model on SMILES. No task labels are needed — the model learns by reconstructing masked tokens.
-- **Graph pretraining:** Trains a graph encoder (`GINPretraining`, `GatedGCNPretraining`, etc.) on node-level and graph-level targets. Requires pre-computed node and graph label arrays.
+- **Graph pretraining (2D):** Trains a 2D graph encoder (`GINPretraining`, `GatedGCNPretraining`, `GPSPretraining`, `GTPretraining`, `AttentiveFPPretraining`) on node-level and graph-level targets. Requires pre-computed node and graph label arrays.
 
 Both modes produce an `encoder.ckpt` artifact that can be loaded by `FinetuningRegressor` / `FinetuningClassifier` in downstream `matcha train` runs.
+
+> **3D pretraining (E3GNN) is not available through the CLI.** `E3GNNPretraining` requires per-molecule 3D coordinates supplied at featurize time via `Graph3DPretrainingDataModule.featurize(..., coords=...)`, and the `pretrain_encoder` CLI schema has no field to pass those coord arrays — the graph path always instantiates the 2D `GraphPretrainingDataModule`. If the user asks to pretrain E3GNN, tell them this is a Python-API-only workflow today and point them at `src/matcha/datamodules/pretraining/graph_3d_pretraining_datamodule.py` + `src/matcha/torch/models/pretraining/e3gnn_pretraining.py`. Do **not** generate a graph-mode YAML with `architecture: E3GNNPretraining` — the model would build but the 2D datamodule would emit batches without `graph.pos`, and E3GNN would raise `ValueError` on the first forward pass.
 
 ---
 
@@ -18,9 +20,10 @@ Choose the mode based on the target architecture:
 | Goal | Mode | Architecture |
 |---|---|---|
 | Pretrain a sequence/transformer encoder | `mlm` | `RoFormerMLM` |
-| Pretrain a graph encoder with QM/physical labels | `graph` | `GINPretraining`, `GatedGCNPretraining` |
+| Pretrain a 2D graph encoder with QM/physical labels | `graph` | `GINPretraining`, `GatedGCNPretraining`, `GPSPretraining`, `GTPretraining`, `AttentiveFPPretraining` |
+| Pretrain a 3D graph encoder (E3GNN) | — | Python API only — CLI does not plumb 3D coordinates |
 
-Ask the user: "Do you want to pretrain a sequence model (MLM) or a graph model with node/graph labels (graph)?"
+Ask the user: "Do you want to pretrain a sequence model (MLM) or a 2D graph model with node/graph labels (graph)?" If they mention E3GNN, 3D pretraining, or coordinate-aware pretraining, surface the CLI limitation before generating a config.
 
 ---
 
@@ -123,6 +126,8 @@ datamodule:
 
 ## Graph Mode
 
+The CLI graph mode always uses the 2D `GraphPretrainingDataModule`. 3D architectures (E3GNN) are not selectable here — see the note at the top of this reference.
+
 ### Dataset
 ```yaml
 dataset:
@@ -141,6 +146,7 @@ dataset:
 |---|---|
 | `GINPretraining` | Simpler GIN encoder — fast, good baseline |
 | `GatedGCNPretraining` | Gated GCN with positional encodings — stronger |
+| `GPSPretraining`, `GTPretraining`, `AttentiveFPPretraining` | Additional 2D encoders — same YAML shape, swap architecture and the matching `enc_*` hyperparameters |
 
 ### Typical `model.params` for `GINPretraining`
 

@@ -130,7 +130,8 @@ prepare_sparse_dataset → train_tasks.npz + val_tasks.npz + task_metadata.json
 
 1. Run `pretrain_encoder` — choose mode:
    - **MLM mode** (`task_type: mlm`): pretrain `RoFormerMLM` on SMILES strings.
-   - **Graph mode** (`task_type: graph`): pretrain `GINPretraining` or `GatedGCNPretraining` on node/graph targets.
+   - **Graph mode** (`task_type: graph`): pretrain a 2D graph encoder (`GINPretraining`, `GatedGCNPretraining`, `GPSPretraining`, `GTPretraining`, `AttentiveFPPretraining`) on node/graph targets.
+   - **E3GNN (3D) pretraining is Python-API-only** — the CLI does not plumb per-molecule coordinates through `graph.pos`. See `references/pretrain-encoder.md` for details.
 2. Run `train` — set `model.architecture: FinetuningRegressor` and `model.path_to_pretrained: <pretrain output dir>`.
 
 ---

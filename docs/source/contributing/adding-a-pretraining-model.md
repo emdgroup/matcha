@@ -176,7 +176,9 @@ For 3D architectures also add a **classic ↔ pretraining datamodule parity test
 - `datamodules/__init__.py` — add a lazy-import entry (`_LAZY_IMPORTS`); a plain top-level import will reintroduce the circular chain.
 - `utils/schemas/__init__.py` — export both schemas.
 
-No sklearn / CLI wiring is required. `pretrain_encoder` dispatches through the two registries.
+No sklearn wiring is required — the pretraining path never goes through an sklearn estimator.
+
+**CLI caveat (2D vs 3D).** `pretrain_encoder` dispatches the *model* through `PretrainingModelRegistry`, but the graph branch (`cli/pretrain_encoder.py::_run_graph_pretraining`) hardcodes the 2D `GraphPretrainingDataModule` and its schema (`EncoderPretrainGraphDatamodule`) has no field to load per-molecule coordinates. A new 2D pretraining model is CLI-runnable as soon as it lands in `PretrainingModelRegistry`. A new 3D pretraining model (like `E3GNNPretraining`) is **not** CLI-runnable — it can only be driven from the Python API today. Wiring 3D pretraining into the CLI is a separate change: extend `EncoderPretrainDataset` with `train_coords` / `val_coords` npz keys, add a `task_type: "graph3d"` branch to `main()`, and dispatch to `Graph3DPretrainingDataModule` (registered as `"graph3d_pretraining"`) instead of `GraphPretrainingDataModule`.
 
 ---
 
