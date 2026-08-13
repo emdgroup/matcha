@@ -17,6 +17,14 @@ class BaseGraphEncoder(BaseEncoder):
     The class is just used to automate some tedious processes related to PyTorch Geometric
     (see :method:`process_graph_batch`), handle different readout functions and jumping
     knowledge settings.
+
+    Concrete subclasses implement :meth:`forward_nodes_per_layer` to produce
+    per-layer node embeddings; the shared :meth:`forward` template method then
+    combines them via the configured jumping-knowledge strategy and the readout
+    to produce a graph-level embedding. This structural contract is what
+    prevents architecture drift between classic and pretraining models — both
+    consume the same encoder, and pretraining hooks read the per-layer output
+    of the canonical encoder rather than re-implementing the layer stack.
     """
 
     def __init__(
@@ -259,3 +267,53 @@ class BaseGraphEncoder(BaseEncoder):
             atom_features = [h.unsqueeze(0) for h in atom_features]
             final_atom_features = torch.sum(torch.cat(atom_features, dim=0), dim=0)
         return final_atom_features
+
+    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
+        """Run message passing and return one node-feature tensor per layer.
+
+        Concrete graph encoders should implement this to expose the
+        intermediate node representations produced by every message-passing
+        layer. It is the single hook consumed by both the classic path (via
+        :meth:`forward`) and the pretraining path (via
+        :class:`BaseGraphPretrainingModel`), so the same layer stack is
+        guaranteed to drive both.
+
+        The default implementation raises :class:`NotImplementedError` so
+        that encoders which have not yet migrated to the shared contract
+        (rolled out per-architecture across the issue #24 stages) still work
+        on the classic path but fail loudly if the pretraining path is
+        wired against them. Once every :class:`BaseGraphEncoder` subclass
+        implements this method, the base can be tightened to
+        ``@abstractmethod``.
+
+        :param Batch graph: Batched PyG graph from the dataloader.
+        :returns: A tuple of ``(all_atom_feats, g)`` where ``all_atom_feats``
+            is a list of length ``num_layers`` containing node features of
+            shape ``[num_nodes, atom_hidden_dim]``, and ``g`` is the
+            (possibly modified) PyG :class:`Batch` used for the readout.
+        :rtype: tuple[list[torch.Tensor], Batch]
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} has not implemented forward_nodes_per_layer; "
+            "canonical + pretraining encoder unification (issue #24) is still "
+            "in progress for this architecture."
+        )
+
+    def forward(self, graph: Batch) -> torch.Tensor:
+        """Convert a batched PyG graph into a ``[batch_size, fp_dim]`` embedding.
+
+        Template method that delegates the layer loop to
+        :meth:`forward_nodes_per_layer`, combines the per-layer node features
+        via the configured jumping-knowledge strategy, and applies the
+        readout. Subclasses that have migrated to the shared contract should
+        not override this method — override :meth:`forward_nodes_per_layer`
+        instead. Legacy subclasses may still override :meth:`forward`
+        directly until they migrate.
+
+        :param Batch graph: Batched PyG graph from the dataloader.
+        :returns: Graph-level embedding of shape ``[batch_size, fp_dim]``.
+        :rtype: torch.Tensor
+        """
+        all_atom_feats, g = self.forward_nodes_per_layer(graph)
+        final_atom_feats = self._run_jk(all_atom_feats)
+        return self.readout(g, final_atom_feats)
