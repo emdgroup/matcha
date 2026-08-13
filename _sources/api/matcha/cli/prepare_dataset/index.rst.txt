@@ -1,0 +1,144 @@
+matcha.cli.prepare_dataset
+==========================
+
+.. py:module:: matcha.cli.prepare_dataset
+
+.. autoapi-nested-parse::
+
+   CLI command for preparing multi-task datasets for pretraining.
+
+   Merges multiple parquet/CSV files into a single (compounds x tasks) label
+   matrix, creates train/validation splits, applies standard scaling to
+   regression tasks, and saves the result in a parquet + labels format consumed
+   by the ``pretrain_multitask`` command.
+
+   Two storage modes are supported and selected via ``datasets.sparse``:
+
+   * ``sparse=True`` (default) — labels are stored as ``scipy.sparse`` CSR
+     matrices (``train_tasks_sparse.npz`` / ``val_tasks_sparse.npz``). Missing
+     entries are represented by omission and classification zeros are remapped
+     to ``-1`` so they survive the sparse round-trip.
+   * ``sparse=False`` — labels are stored as dense ``float32`` arrays
+     (``train_tasks_dense.npy`` / ``val_tasks_dense.npy``). Missing entries are
+     ``NaN`` and classification values pass through as ``0``/``1`` unchanged.
+
+   The storage mode is written into ``task_metadata.json`` under
+   ``storage_mode`` so downstream commands can dispatch on the artifact layout
+   without a user-visible flag.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.prepare_dataset.compute_sparse_scaling_stats
+   matcha.cli.prepare_dataset.apply_sparse_scaling
+   matcha.cli.prepare_dataset.compute_dense_scaling_stats
+   matcha.cli.prepare_dataset.apply_dense_scaling
+   matcha.cli.prepare_dataset.merge_datasets_streaming_dense
+   matcha.cli.prepare_dataset.create_validation_set_dense
+   matcha.cli.prepare_dataset.generate_datacard_dense
+   matcha.cli.prepare_dataset.merge_datasets_streaming_sparse
+   matcha.cli.prepare_dataset.create_validation_set_sparse
+   matcha.cli.prepare_dataset.generate_datacard_sparse
+   matcha.cli.prepare_dataset.main
+
+
+Module Contents
+---------------
+
+.. py:function:: compute_sparse_scaling_stats(sparse_matrix: scipy.sparse.csr_matrix, task_indices: List[int], logger: Any) -> Dict[int, Dict[str, float]]
+
+   Compute mean and std for specified task columns in sparse matrix without densifying.
+
+   :param sparse_matrix: CSR sparse matrix.
+   :param task_indices: List of column indices to compute stats for.
+   :param logger: Logger instance.
+   :returns: Dictionary mapping task index to
+       ``{"mean": float, "std": float}``.
+
+
+.. py:function:: apply_sparse_scaling(sparse_matrix: scipy.sparse.csr_matrix, scaling_stats: Dict[int, Dict[str, float]], logger: Any) -> scipy.sparse.csr_matrix
+
+   Apply scaling to sparse matrix columns without densifying the entire matrix.
+
+   :param sparse_matrix: Input sparse matrix.
+   :param scaling_stats: Dictionary with scaling statistics per column
+       (from :func:`compute_sparse_scaling_stats`).
+   :param logger: Logger instance.
+   :returns: Scaled sparse matrix.
+
+
+.. py:function:: compute_dense_scaling_stats(dense_matrix: numpy.ndarray, task_indices: List[int], logger: Any) -> Dict[int, Dict[str, float]]
+
+   Compute mean and std for specified task columns in a dense matrix, ignoring NaNs.
+
+   Mirrors :func:`compute_sparse_scaling_stats` but operates on a 2D ``np.ndarray``
+   where missing entries are represented as ``NaN`` rather than omission.
+
+   :param dense_matrix: 2D dense matrix of shape ``(n_compounds, n_tasks)``.
+   :param task_indices: List of column indices to compute stats for.
+   :param logger: Logger instance.
+   :returns: Dictionary mapping task index to
+       ``{"mean": float, "std": float}``.
+
+
+.. py:function:: apply_dense_scaling(dense_matrix: numpy.ndarray, scaling_stats: Dict[int, Dict[str, float]], logger: Any) -> numpy.ndarray
+
+   Apply column-wise standard scaling to a dense matrix, preserving NaN entries.
+
+   :param dense_matrix: 2D dense matrix of shape ``(n_compounds, n_tasks)``.
+   :param scaling_stats: Dictionary with scaling statistics per column
+       (from :func:`compute_dense_scaling_stats`).
+   :param logger: Logger instance.
+   :returns: Scaled dense matrix (NaN positions preserved unchanged).
+
+
+.. py:function:: merge_datasets_streaming_dense(files: List[str], merge_col: str, task_types: List[str], tag_to_add: str, logger: Any) -> Tuple[pandas.DataFrame, numpy.ndarray, List[str], Dict[str, str], Dict[str, str], Dict[str, List[int]]]
+
+   Build a dense ``(n_compounds, n_tasks)`` label matrix sequentially.
+
+   Mirrors :func:`merge_datasets_streaming_sparse`: the first pass (compound and
+   task discovery) is identical; the second pass fills a
+   ``np.full((n, T), np.nan, dtype=np.float32)`` array. Missing entries stay NaN
+   and classification values are written as-is (no ``0 → -1`` remap — dense mode
+   uses NaN to denote missing, so the remap is unnecessary).
+
+
+.. py:function:: create_validation_set_dense(mol_df: pandas.DataFrame, dense_matrix: numpy.ndarray, task_cols: List[str], min_compounds: int, sampling_rate: float, seed: int, logger: Any) -> Tuple[pandas.DataFrame, pandas.DataFrame, numpy.ndarray, numpy.ndarray]
+
+   Create validation split for dense data using per-task NaN masks.
+
+
+.. py:function:: generate_datacard_dense(train_mol_df: pandas.DataFrame, val_mol_df: pandas.DataFrame, train_dense: numpy.ndarray, val_dense: numpy.ndarray, task_cols: List[str], column_to_task_type: Dict[str, str], files: List[str], file_to_tasks: Dict[str, List[int]], logger: Any) -> Dict[str, Any]
+
+   Generate datacard for dense-format data (NaN = missing).
+
+
+.. py:function:: merge_datasets_streaming_sparse(files: List[str], merge_col: str, task_types: List[str], tag_to_add: str, logger: Any) -> Tuple[pandas.DataFrame, scipy.sparse.csr_matrix, List[str], Dict[str, str], Dict[str, str], Dict[str, List[int]]]
+
+   Build sparse matrix sequentially without loading all datasets into memory.
+
+
+.. py:function:: create_validation_set_sparse(mol_df: pandas.DataFrame, sparse_matrix: scipy.sparse.csr_matrix, task_cols: List[str], min_compounds: int, sampling_rate: float, seed: int, logger: Any) -> Tuple[pandas.DataFrame, pandas.DataFrame, scipy.sparse.csr_matrix, scipy.sparse.csr_matrix]
+
+   Create validation split for sparse data.
+
+
+.. py:function:: generate_datacard_sparse(train_mol_df: pandas.DataFrame, val_mol_df: pandas.DataFrame, train_sparse: scipy.sparse.csr_matrix, val_sparse: scipy.sparse.csr_matrix, task_cols: List[str], column_to_task_type: Dict[str, str], files: List[str], file_to_tasks: Dict[str, List[int]], logger: Any) -> Dict[str, Any]
+
+   Generate datacard for sparse format data.
+
+
+.. py:function:: main(cfg=None) -> None
+
+   Main function to process datasets according to config.
+
+   Branches on ``cfg.datasets.sparse`` to emit either sparse ``.npz`` CSR
+   label artifacts or dense ``.npy`` label arrays. ``task_metadata.json``
+   records the choice under ``storage_mode`` so the pretraining command can
+   dispatch without a user-visible flag.
+
+

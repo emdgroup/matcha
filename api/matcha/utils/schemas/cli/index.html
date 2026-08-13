@@ -888,6 +888,11 @@ mode it additionally receives the HTML plot files.</p>
 <span class="sig-name descname"><span class="pre">task_type</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.utils.schemas.cli.PrepareDatasets.task_type" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.cli.PrepareDatasets.sparse">
+<span class="sig-name descname"><span class="pre">sparse</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><span class="pre">bool</span></a></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">True</span></em><a class="headerlink" href="#matcha.utils.schemas.cli.PrepareDatasets.sparse" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 <dl class="py class">
@@ -1140,11 +1145,14 @@ mode it additionally receives the HTML plot files.</p>
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.cli.</span></span><span class="sig-name descname"><span class="pre">MultitaskPretrainDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/cli.html#MultitaskPretrainDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.cli.MultitaskPretrainDataset" title="Link to this definition"></a></dt>
 <dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
 <p>Dataset config for multitask pretraining.</p>
-<p><code class="docutils literal notranslate"><span class="pre">dataset_dir</span></code> is the base directory produced by the <code class="docutils literal notranslate"><span class="pre">prepare</span></code> command.
-By default, files are resolved relative to that directory using the
-standard names (<code class="docutils literal notranslate"><span class="pre">train_molecules.parquet</span></code>, <code class="docutils literal notranslate"><span class="pre">val_molecules.parquet</span></code>,
-<code class="docutils literal notranslate"><span class="pre">train_tasks.npz</span></code>, <code class="docutils literal notranslate"><span class="pre">val_tasks.npz</span></code>, <code class="docutils literal notranslate"><span class="pre">task_metadata.json</span></code>).
-Each path can be overridden individually to point at a different location.</p>
+<p><code class="docutils literal notranslate"><span class="pre">dataset_dir</span></code> is the base directory produced by the <code class="docutils literal notranslate"><span class="pre">prepare_dataset</span></code>
+command. By default, files are resolved relative to that directory using
+the standard names (<code class="docutils literal notranslate"><span class="pre">train_molecules.parquet</span></code>, <code class="docutils literal notranslate"><span class="pre">val_molecules.parquet</span></code>,
+the split task label artifact selected by <code class="docutils literal notranslate"><span class="pre">task_metadata.storage_mode</span></code> —
+<code class="docutils literal notranslate"><span class="pre">train_tasks_sparse.npz</span></code> / <code class="docutils literal notranslate"><span class="pre">val_tasks_sparse.npz</span></code> for sparse mode or
+<code class="docutils literal notranslate"><span class="pre">train_tasks_dense.npy</span></code> / <code class="docutils literal notranslate"><span class="pre">val_tasks_dense.npy</span></code> for dense mode — and
+<code class="docutils literal notranslate"><span class="pre">task_metadata.json</span></code>). Each path can be overridden individually to point
+at a different location.</p>
 <dl class="py attribute">
 <dt class="sig sig-object py" id="matcha.utils.schemas.cli.MultitaskPretrainDataset.dataset_dir">
 <span class="sig-name descname"><span class="pre">dataset_dir</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.cli.MultitaskPretrainDataset.dataset_dir" title="Link to this definition"></a></dt>

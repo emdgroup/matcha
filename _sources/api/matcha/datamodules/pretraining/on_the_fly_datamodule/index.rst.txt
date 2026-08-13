@@ -39,7 +39,10 @@ Module Contents
    to collation time rather than computing all features upfront.
 
    :param smiles: list of SMILES strings
-   :param y: label array, typically a sparse matrix of shape ``(N, T)``
+   :param y: label array of shape ``(N, T)``, either a ``scipy.sparse``
+       matrix (sparse-mode artifacts, ``0 → missing``, ``-1 → 0`` remap
+       applied at collate) or a 2D ``numpy.ndarray`` (dense-mode artifacts,
+       ``NaN`` = missing, ``0/1`` passed through as classification classes).
    :param coords: optional list of N arrays, each ``(A_i, 3)`` of per-atom
        3D coordinates. When set, the wrapper forwards it to the base
        datamodule's ``generate_features(coords=...)`` at collation time
@@ -113,12 +116,18 @@ Module Contents
 
       Set the raw data for each split.
 
+      Label arrays may be either a ``scipy.sparse`` matrix (sparse-mode
+      prep artifacts) or a 2D ``numpy.ndarray`` (dense-mode prep artifacts);
+      the collate function branches on ``scipy.sparse.issparse`` and both
+      paths surface the same dense-tensor / NaN-missing convention to the
+      base datamodule.
+
       :param train_smiles: training SMILES
-      :param train_y: training labels (sparse matrix)
+      :param train_y: training labels (``csr_matrix`` or 2D ``ndarray``)
       :param val_smiles: validation SMILES
-      :param val_y: validation labels (sparse matrix)
+      :param val_y: validation labels (``csr_matrix`` or 2D ``ndarray``)
       :param test_smiles: test SMILES
-      :param test_y: test labels (sparse matrix)
+      :param test_y: test labels (``csr_matrix`` or 2D ``ndarray``)
       :param predict_smiles: prediction SMILES
       :param predict_y: prediction labels (optional, defaults to zeros)
       :param train_coords: optional training per-atom 3D coordinates
@@ -132,10 +141,20 @@ Module Contents
 
       Generate features on-the-fly from batch SMILES and collate.
 
-      Converts SMILES to molecules, applies label encoding (sparse to dense,
-      replacing 0 with NaN and -1 with 0), then delegates to the base
-      datamodule's feature generation and collation. When batch items carry
-      a ``coords`` field, the wrapper probes the base's ``generate_features``
+      Converts SMILES to molecules, then produces a dense ``(B, T)`` label
+      tensor with ``NaN`` in missing positions. The path depends on the
+      stored label type:
+
+      - Sparse (``scipy.sparse`` rows): vstack + densify, then remap
+        ``0 → NaN`` (missing) and ``-1 → 0`` (classification negative).
+      - Dense (2D ``numpy.ndarray`` rows): stack + cast to ``float32``;
+        ``NaN`` already marks missing and classification values are
+        already ``0/1`` — no remap is applied.
+
+      The two paths converge on the same tensor shape / dtype /
+      missing-value convention before delegating to the base datamodule's
+      feature generation and collation. When batch items carry a
+      ``coords`` field, the wrapper probes the base's ``generate_features``
       signature once (cached) and forwards coords via ``coords=`` if
       accepted. Otherwise coords are silently dropped and a single
       ``logging.warning`` is emitted so the pytest ``filterwarnings=error``

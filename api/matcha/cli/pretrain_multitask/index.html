@@ -91,11 +91,15 @@
   <section id="module-matcha.cli.pretrain_multitask">
 <span id="matcha-cli-pretrain-multitask"></span><h1>matcha.cli.pretrain_multitask<a class="headerlink" href="#module-matcha.cli.pretrain_multitask" title="Link to this heading"></a></h1>
 <p>CLI command for multi-task pretraining of neural network models.</p>
-<p>Trains a MATCHA neural-network model (e.g. GatedGCN) on a sparse
-multi-task dataset produced by the <code class="docutils literal notranslate"><span class="pre">prepare_sparse_dataset</span></code> command.
-Supports multiple loss functions with independent weighting schedules,
-distributed training via DDP, and produces serialized artifacts
-compatible with downstream finetuning.</p>
+<p>Trains a MATCHA neural-network model (e.g. GatedGCN) on a multi-task
+dataset produced by the <code class="docutils literal notranslate"><span class="pre">prepare_dataset</span></code> command. Autodetects whether
+the on-disk task labels are stored in sparse (<code class="docutils literal notranslate"><span class="pre">train_tasks_sparse.npz</span></code>)
+or dense (<code class="docutils literal notranslate"><span class="pre">train_tasks_dense.npy</span></code>) form via the <code class="docutils literal notranslate"><span class="pre">storage_mode</span></code> field
+in <code class="docutils literal notranslate"><span class="pre">task_metadata.json</span></code> and dispatches to the appropriate loader; the
+downstream datamodule collates both layouts to an identical dense tensor
+with <code class="docutils literal notranslate"><span class="pre">NaN</span></code> marking missing entries. Supports multiple loss functions
+with independent weighting schedules, distributed training via DDP, and
+produces serialized artifacts compatible with downstream finetuning.</p>
 <section id="functions">
 <h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
 <table class="autosummary longtable docutils align-default">
@@ -112,10 +116,11 @@ compatible with downstream finetuning.</p>
 <dt class="sig sig-object py" id="matcha.cli.pretrain_multitask.main">
 <span class="sig-prename descclassname"><span class="pre">matcha.cli.pretrain_multitask.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cfg</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/pretrain_multitask.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.pretrain_multitask.main" title="Link to this definition"></a></dt>
 <dd><p>Run multi-task pretraining from a YAML configuration.</p>
-<p>Loads sparse training/validation data, builds a neural-network model via
-the scikit-learn registry interface, wraps the datamodule in an on-the-fly
-featurizer for memory efficiency, trains with Lightning (optionally
-distributed via DDP), and saves artifacts for downstream finetuning.</p>
+<p>Loads training/validation data (sparse or dense per <code class="docutils literal notranslate"><span class="pre">storage_mode</span></code> in
+the task metadata), builds a neural-network model via the scikit-learn
+registry interface, wraps the datamodule in an on-the-fly featurizer
+for memory efficiency, trains with Lightning (optionally distributed
+via DDP), and saves artifacts for downstream finetuning.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>cfg</strong> – Pre-parsed configuration object or <code class="docutils literal notranslate"><span class="pre">None</span></code> to parse from

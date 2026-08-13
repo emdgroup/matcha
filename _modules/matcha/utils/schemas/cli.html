@@ -432,7 +432,8 @@
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Schema for listing dataset files and their task types for pretraining preparation.&quot;&quot;&quot;</span>
 
     <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
-    <span class="n">task_type</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span></div>
+    <span class="n">task_type</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
+    <span class="n">sparse</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span></div>
 
 
 
@@ -563,11 +564,14 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">MultitaskPretrainDataset</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataset config for multitask pretraining.</span>
 
-<span class="sd">    ``dataset_dir`` is the base directory produced by the ``prepare`` command.</span>
-<span class="sd">    By default, files are resolved relative to that directory using the</span>
-<span class="sd">    standard names (``train_molecules.parquet``, ``val_molecules.parquet``,</span>
-<span class="sd">    ``train_tasks.npz``, ``val_tasks.npz``, ``task_metadata.json``).</span>
-<span class="sd">    Each path can be overridden individually to point at a different location.</span>
+<span class="sd">    ``dataset_dir`` is the base directory produced by the ``prepare_dataset``</span>
+<span class="sd">    command. By default, files are resolved relative to that directory using</span>
+<span class="sd">    the standard names (``train_molecules.parquet``, ``val_molecules.parquet``,</span>
+<span class="sd">    the split task label artifact selected by ``task_metadata.storage_mode`` —</span>
+<span class="sd">    ``train_tasks_sparse.npz`` / ``val_tasks_sparse.npz`` for sparse mode or</span>
+<span class="sd">    ``train_tasks_dense.npy`` / ``val_tasks_dense.npy`` for dense mode — and</span>
+<span class="sd">    ``task_metadata.json``). Each path can be overridden individually to point</span>
+<span class="sd">    at a different location.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">dataset_dir</span><span class="p">:</span> <span class="nb">str</span>

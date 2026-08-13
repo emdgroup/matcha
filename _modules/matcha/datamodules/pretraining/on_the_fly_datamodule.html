@@ -113,7 +113,10 @@
 <span class="sd">    to collation time rather than computing all features upfront.</span>
 
 <span class="sd">    :param smiles: list of SMILES strings</span>
-<span class="sd">    :param y: label array, typically a sparse matrix of shape ``(N, T)``</span>
+<span class="sd">    :param y: label array of shape ``(N, T)``, either a ``scipy.sparse``</span>
+<span class="sd">        matrix (sparse-mode artifacts, ``0 → missing``, ``-1 → 0`` remap</span>
+<span class="sd">        applied at collate) or a 2D ``numpy.ndarray`` (dense-mode artifacts,</span>
+<span class="sd">        ``NaN`` = missing, ``0/1`` passed through as classification classes).</span>
 <span class="sd">    :param coords: optional list of N arrays, each ``(A_i, 3)`` of per-atom</span>
 <span class="sd">        3D coordinates. When set, the wrapper forwards it to the base</span>
 <span class="sd">        datamodule&#39;s ``generate_features(coords=...)`` at collation time</span>
@@ -240,12 +243,18 @@
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Set the raw data for each split.</span>
 
+<span class="sd">        Label arrays may be either a ``scipy.sparse`` matrix (sparse-mode</span>
+<span class="sd">        prep artifacts) or a 2D ``numpy.ndarray`` (dense-mode prep artifacts);</span>
+<span class="sd">        the collate function branches on ``scipy.sparse.issparse`` and both</span>
+<span class="sd">        paths surface the same dense-tensor / NaN-missing convention to the</span>
+<span class="sd">        base datamodule.</span>
+
 <span class="sd">        :param train_smiles: training SMILES</span>
-<span class="sd">        :param train_y: training labels (sparse matrix)</span>
+<span class="sd">        :param train_y: training labels (``csr_matrix`` or 2D ``ndarray``)</span>
 <span class="sd">        :param val_smiles: validation SMILES</span>
-<span class="sd">        :param val_y: validation labels (sparse matrix)</span>
+<span class="sd">        :param val_y: validation labels (``csr_matrix`` or 2D ``ndarray``)</span>
 <span class="sd">        :param test_smiles: test SMILES</span>
-<span class="sd">        :param test_y: test labels (sparse matrix)</span>
+<span class="sd">        :param test_y: test labels (``csr_matrix`` or 2D ``ndarray``)</span>
 <span class="sd">        :param predict_smiles: prediction SMILES</span>
 <span class="sd">        :param predict_y: prediction labels (optional, defaults to zeros)</span>
 <span class="sd">        :param train_coords: optional training per-atom 3D coordinates</span>
@@ -287,10 +296,20 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate features on-the-fly from batch SMILES and collate.</span>
 
-<span class="sd">        Converts SMILES to molecules, applies label encoding (sparse to dense,</span>
-<span class="sd">        replacing 0 with NaN and -1 with 0), then delegates to the base</span>
-<span class="sd">        datamodule&#39;s feature generation and collation. When batch items carry</span>
-<span class="sd">        a ``coords`` field, the wrapper probes the base&#39;s ``generate_features``</span>
+<span class="sd">        Converts SMILES to molecules, then produces a dense ``(B, T)`` label</span>
+<span class="sd">        tensor with ``NaN`` in missing positions. The path depends on the</span>
+<span class="sd">        stored label type:</span>
+
+<span class="sd">        - Sparse (``scipy.sparse`` rows): vstack + densify, then remap</span>
+<span class="sd">          ``0 → NaN`` (missing) and ``-1 → 0`` (classification negative).</span>
+<span class="sd">        - Dense (2D ``numpy.ndarray`` rows): stack + cast to ``float32``;</span>
+<span class="sd">          ``NaN`` already marks missing and classification values are</span>
+<span class="sd">          already ``0/1`` — no remap is applied.</span>
+
+<span class="sd">        The two paths converge on the same tensor shape / dtype /</span>
+<span class="sd">        missing-value convention before delegating to the base datamodule&#39;s</span>
+<span class="sd">        feature generation and collation. When batch items carry a</span>
+<span class="sd">        ``coords`` field, the wrapper probes the base&#39;s ``generate_features``</span>
 <span class="sd">        signature once (cached) and forwards coords via ``coords=`` if</span>
 <span class="sd">        accepted. Otherwise coords are silently dropped and a single</span>
 <span class="sd">        ``logging.warning`` is emitted so the pytest ``filterwarnings=error``</span>
@@ -304,10 +323,14 @@
 
         <span class="c1"># Extract mols and labels from batch</span>
         <span class="n">mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;smiles&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
-        <span class="n">y_batch</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">])</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
-
-        <span class="n">y_batch</span><span class="p">[</span><span class="n">y_batch</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-        <span class="n">y_batch</span><span class="p">[</span><span class="n">y_batch</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">if</span> <span class="n">sp</span><span class="o">.</span><span class="n">issparse</span><span class="p">(</span><span class="n">batch</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;y&quot;</span><span class="p">]):</span>
+            <span class="n">y_batch</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">vstack</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">])</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+            <span class="n">y_batch</span><span class="p">[</span><span class="n">y_batch</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+            <span class="n">y_batch</span><span class="p">[</span><span class="n">y_batch</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">y_batch</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">])</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">False</span>
+            <span class="p">)</span>
 
         <span class="c1"># Optionally forward coords when the base datamodule accepts them</span>
         <span class="n">forward_coords</span> <span class="o">=</span> <span class="kc">None</span>

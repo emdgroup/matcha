@@ -91,11 +91,15 @@
   <h1>Source code for matcha.cli.pretrain_multitask</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;CLI command for multi-task pretraining of neural network models.</span>
 
-<span class="sd">Trains a MATCHA neural-network model (e.g. GatedGCN) on a sparse</span>
-<span class="sd">multi-task dataset produced by the ``prepare_sparse_dataset`` command.</span>
-<span class="sd">Supports multiple loss functions with independent weighting schedules,</span>
-<span class="sd">distributed training via DDP, and produces serialized artifacts</span>
-<span class="sd">compatible with downstream finetuning.</span>
+<span class="sd">Trains a MATCHA neural-network model (e.g. GatedGCN) on a multi-task</span>
+<span class="sd">dataset produced by the ``prepare_dataset`` command. Autodetects whether</span>
+<span class="sd">the on-disk task labels are stored in sparse (``train_tasks_sparse.npz``)</span>
+<span class="sd">or dense (``train_tasks_dense.npy``) form via the ``storage_mode`` field</span>
+<span class="sd">in ``task_metadata.json`` and dispatches to the appropriate loader; the</span>
+<span class="sd">downstream datamodule collates both layouts to an identical dense tensor</span>
+<span class="sd">with ``NaN`` marking missing entries. Supports multiple loss functions</span>
+<span class="sd">with independent weighting schedules, distributed training via DDP, and</span>
+<span class="sd">produces serialized artifacts compatible with downstream finetuning.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
@@ -241,10 +245,11 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="n">cfg</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run multi-task pretraining from a YAML configuration.</span>
 
-<span class="sd">    Loads sparse training/validation data, builds a neural-network model via</span>
-<span class="sd">    the scikit-learn registry interface, wraps the datamodule in an on-the-fly</span>
-<span class="sd">    featurizer for memory efficiency, trains with Lightning (optionally</span>
-<span class="sd">    distributed via DDP), and saves artifacts for downstream finetuning.</span>
+<span class="sd">    Loads training/validation data (sparse or dense per ``storage_mode`` in</span>
+<span class="sd">    the task metadata), builds a neural-network model via the scikit-learn</span>
+<span class="sd">    registry interface, wraps the datamodule in an on-the-fly featurizer</span>
+<span class="sd">    for memory efficiency, trains with Lightning (optionally distributed</span>
+<span class="sd">    via DDP), and saves artifacts for downstream finetuning.</span>
 
 <span class="sd">    :param cfg: Pre-parsed configuration object or ``None`` to parse from</span>
 <span class="sd">        CLI ``--config`` argument. Accepts a</span>
@@ -286,11 +291,26 @@
     <span class="n">val_smiles_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">val_smiles</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
         <span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;val_molecules.parquet&quot;</span>
     <span class="p">)</span>
-    <span class="n">train_tasks_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">train_tasks</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;train_tasks.npz&quot;</span><span class="p">)</span>
-    <span class="n">val_tasks_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">val_tasks</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;val_tasks.npz&quot;</span><span class="p">)</span>
     <span class="n">task_metadata_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">task_metadata</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
         <span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="s2">&quot;task_metadata.json&quot;</span>
     <span class="p">)</span>
+
+    <span class="c1"># Read task metadata first: ``storage_mode`` selects the label loader</span>
+    <span class="c1"># and the default artifact filenames. Defaults to sparse for defensive</span>
+    <span class="c1"># behaviour on metadata written before the storage_mode field existed.</span>
+    <span class="n">metadata</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">task_metadata_path</span><span class="p">)</span>
+    <span class="n">storage_mode</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;storage_mode&quot;</span><span class="p">,</span> <span class="s2">&quot;sparse&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">storage_mode</span> <span class="o">==</span> <span class="s2">&quot;sparse&quot;</span><span class="p">:</span>
+        <span class="n">default_train_tasks</span> <span class="o">=</span> <span class="s2">&quot;train_tasks_sparse.npz&quot;</span>
+        <span class="n">default_val_tasks</span> <span class="o">=</span> <span class="s2">&quot;val_tasks_sparse.npz&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">default_train_tasks</span> <span class="o">=</span> <span class="s2">&quot;train_tasks_dense.npy&quot;</span>
+        <span class="n">default_val_tasks</span> <span class="o">=</span> <span class="s2">&quot;val_tasks_dense.npy&quot;</span>
+    <span class="n">train_tasks_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">train_tasks</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+        <span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="n">default_train_tasks</span>
+    <span class="p">)</span>
+    <span class="n">val_tasks_path</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">val_tasks</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">dataset_dir</span><span class="p">,</span> <span class="n">default_val_tasks</span><span class="p">)</span>
 
     <span class="c1"># Auto-discover per-molecule 3D coords packed as flat + offsets under the</span>
     <span class="c1"># dataset directory. When present, coords are threaded to the on-the-fly</span>
@@ -309,21 +329,25 @@
     <span class="p">)</span>
 
     <span class="c1"># load data</span>
-    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s2">&quot;Loading train data&quot;</span><span class="p">)</span>
+    <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Loading train data (storage_mode=</span><span class="si">{</span><span class="n">storage_mode</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
     <span class="n">train_mols</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">train_smiles_path</span><span class="p">)</span><span class="o">.</span><span class="n">SMILES</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-    <span class="n">train_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">train_tasks_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">storage_mode</span> <span class="o">==</span> <span class="s2">&quot;sparse&quot;</span><span class="p">:</span>
+        <span class="n">train_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">train_tasks_path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">train_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">train_tasks_path</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Training set size: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">train_mols</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">train_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded train coords: </span><span class="si">{</span><span class="n">train_coords_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="s2">&quot;Loading validation data&quot;</span><span class="p">)</span>
     <span class="n">val_mols</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">val_smiles_path</span><span class="p">)</span><span class="o">.</span><span class="n">SMILES</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-    <span class="n">val_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">val_tasks_path</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">storage_mode</span> <span class="o">==</span> <span class="s2">&quot;sparse&quot;</span><span class="p">:</span>
+        <span class="n">val_y</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">load_npz</span><span class="p">(</span><span class="n">val_tasks_path</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">val_y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">val_tasks_path</span><span class="p">,</span> <span class="n">mmap_mode</span><span class="o">=</span><span class="s2">&quot;r&quot;</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Validation set size: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">val_mols</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">val_coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Loaded val coords: </span><span class="si">{</span><span class="n">val_coords_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="n">metadata</span> <span class="o">=</span> <span class="n">load_json</span><span class="p">(</span><span class="n">task_metadata_path</span><span class="p">)</span>
 
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">train_y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> tasks for training&quot;</span><span class="p">)</span>
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">msg</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="n">val_y</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2"> tasks for validation&quot;</span><span class="p">)</span>
@@ -398,7 +422,9 @@
         <span class="n">sample_smiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">train_mols</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sample_indices</span><span class="p">]</span>
         <span class="n">sample_mols</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">sample_smiles</span><span class="p">]</span>
         <span class="n">sample_y</span> <span class="o">=</span> <span class="n">train_y</span><span class="p">[</span><span class="n">sample_indices</span><span class="p">]</span>
-        <span class="n">train_set</span> <span class="o">=</span> <span class="n">datamodule</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">sample_mols</span><span class="p">,</span> <span class="n">sample_y</span><span class="o">.</span><span class="n">toarray</span><span class="p">())</span>
+        <span class="k">if</span> <span class="n">sp</span><span class="o">.</span><span class="n">issparse</span><span class="p">(</span><span class="n">sample_y</span><span class="p">):</span>
+            <span class="n">sample_y</span> <span class="o">=</span> <span class="n">sample_y</span><span class="o">.</span><span class="n">toarray</span><span class="p">()</span>
+        <span class="n">train_set</span> <span class="o">=</span> <span class="n">datamodule</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">sample_mols</span><span class="p">,</span> <span class="n">sample_y</span><span class="p">)</span>
         <span class="n">datamodule</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">train_set</span><span class="p">)</span>
 
     <span class="c1"># have to adjust num_tokens and remake model accordingly</span>
