@@ -30,7 +30,9 @@ from matcha.torch.models.classic.e3gnn_model import E3GNNModel  # noqa: E402
 from matcha.torch.models.classic.gatedgcn_model import GatedGCNModel  # noqa: E402
 from matcha.torch.models.classic.gin_model import GINModel  # noqa: E402
 from matcha.torch.models.classic.gps_model import GPSModel  # noqa: E402
+from matcha.torch.models.classic.gps3d_model import GPS3DModel  # noqa: E402
 from matcha.torch.models.classic.gt_model import GTModel  # noqa: E402
+from matcha.torch.models.classic.gt3d_model import GT3DModel  # noqa: E402
 from matcha.torch.models.pretraining.attentivefp_pretraining import (  # noqa: E402
     AttentiveFPPretraining,
 )
@@ -46,7 +48,13 @@ from matcha.torch.models.pretraining.gin_pretraining import (  # noqa: E402
 from matcha.torch.models.pretraining.gps_pretraining import (  # noqa: E402
     GPSPretraining,
 )
+from matcha.torch.models.pretraining.gps3d_pretraining import (  # noqa: E402
+    GPS3DPretraining,
+)
 from matcha.torch.models.pretraining.gt_pretraining import GTPretraining  # noqa: E402
+from matcha.torch.models.pretraining.gt3d_pretraining import (  # noqa: E402
+    GT3DPretraining,
+)
 
 
 _ATOM_HIDDEN_DIM = 16
@@ -138,6 +146,29 @@ _ARCHITECTURES = [
             enc_norm_coors_scale_init=1e-2,
         ),
         id="e3gnn",
+    ),
+    pytest.param(
+        GPS3DModel,
+        GPS3DPretraining,
+        dict(
+            enc_activation="relu",
+            enc_norm="layer",
+            enc_num_heads=4,
+            enc_expansion_k=1,
+            enc_num_kernels=4,
+        ),
+        id="gps3d",
+    ),
+    pytest.param(
+        GT3DModel,
+        GT3DPretraining,
+        dict(
+            enc_activation="relu",
+            enc_num_heads=4,
+            enc_expansion_k=1,
+            enc_num_kernels=4,
+        ),
+        id="gt3d",
     ),
 ]
 
