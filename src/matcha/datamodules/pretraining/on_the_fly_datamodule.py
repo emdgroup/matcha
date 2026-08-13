@@ -1,5 +1,8 @@
 """On-the-fly DataModule that defers featurization to batch collation time."""
 
+import inspect
+import logging
+
 import numpy as np
 import scipy.sparse as sp
 from matcha.datamodules.base_datamodule import BaseDataModule, DataModuleRegistry
@@ -7,6 +10,8 @@ from rdkit.Chem.rdchem import Mol
 from rdkit import Chem
 from torch.utils.data import StackDataset, DataLoader
 from lightning import LightningDataModule
+
+logger = logging.getLogger(__name__)
 
 
 class OnTheFlyDataset:
@@ -17,19 +22,33 @@ class OnTheFlyDataset:
 
     :param smiles: list of SMILES strings
     :param y: label array, typically a sparse matrix of shape ``(N, T)``
+    :param coords: optional list of N arrays, each ``(A_i, 3)`` of per-atom
+        3D coordinates. When set, the wrapper forwards it to the base
+        datamodule's ``generate_features(coords=...)`` at collation time
+        (if the base accepts it) — otherwise it is silently dropped with a
+        one-shot warning.
     """
 
-    def __init__(self, smiles: list[str], y: np.ndarray):
+    def __init__(
+        self,
+        smiles: list[str],
+        y: np.ndarray,
+        coords: list[np.ndarray] | None = None,
+    ):
         self.smiles = smiles
         self.y = y
+        self.coords = coords
 
     def __len__(self):
         """Return the number of samples."""
         return len(self.smiles)
 
     def __getitem__(self, idx):
-        """Return a dict with ``smiles`` and ``y`` for the given index."""
-        return {"smiles": self.smiles[idx], "y": self.y[idx]}
+        """Return a dict with ``smiles``, ``y`` (and ``coords`` when set) for the given index."""
+        item = {"smiles": self.smiles[idx], "y": self.y[idx]}
+        if self.coords is not None:
+            item["coords"] = self.coords[idx]
+        return item
 
 
 @DataModuleRegistry.register("on_the_fly")
@@ -70,6 +89,12 @@ class OnTheFlyDataModule(LightningDataModule):
 
         self.num_workers = num_workers
 
+        # Coords-capability probe state: filled on first collate that carries
+        # a ``coords`` field. Cached because ``inspect.signature`` is not free
+        # and we hit collate once per batch.
+        self._base_accepts_coords: bool | None = None
+        self._coords_ignore_warned = False
+
     def train_dataloader(self):
         """Return the training dataloader."""
         return self._dataloader_train
@@ -99,6 +124,10 @@ class OnTheFlyDataModule(LightningDataModule):
         test_y: np.ndarray = None,
         predict_smiles: list[str] = None,
         predict_y: np.ndarray = None,
+        train_coords: list[np.ndarray] | None = None,
+        val_coords: list[np.ndarray] | None = None,
+        test_coords: list[np.ndarray] | None = None,
+        predict_coords: list[np.ndarray] | None = None,
     ):
         """Set the raw data for each split.
 
@@ -110,29 +139,57 @@ class OnTheFlyDataModule(LightningDataModule):
         :param test_y: test labels (sparse matrix)
         :param predict_smiles: prediction SMILES
         :param predict_y: prediction labels (optional, defaults to zeros)
+        :param train_coords: optional training per-atom 3D coordinates
+        :param val_coords: optional validation per-atom 3D coordinates
+        :param test_coords: optional test per-atom 3D coordinates
+        :param predict_coords: optional prediction per-atom 3D coordinates
         """
         if train_smiles is not None and train_y is not None:
-            self._raw_train = OnTheFlyDataset(train_smiles, train_y)
+            self._raw_train = OnTheFlyDataset(train_smiles, train_y, train_coords)
         if val_smiles is not None and val_y is not None:
-            self._raw_val = OnTheFlyDataset(val_smiles, val_y)
+            self._raw_val = OnTheFlyDataset(val_smiles, val_y, val_coords)
         if test_smiles is not None and test_y is not None:
-            self._raw_test = OnTheFlyDataset(test_smiles, test_y)
+            self._raw_test = OnTheFlyDataset(test_smiles, test_y, test_coords)
         if predict_smiles is not None:
             # For prediction, y can be None or dummy values
             if predict_y is None:
                 predict_y = np.zeros(len(predict_smiles))
-            self._raw_predict = OnTheFlyDataset(predict_smiles, predict_y)
+            self._raw_predict = OnTheFlyDataset(
+                predict_smiles, predict_y, predict_coords
+            )
+
+    def _probe_base_accepts_coords(self) -> bool:
+        """Return whether ``base.generate_features`` accepts a ``coords`` kwarg.
+
+        Result is cached on ``self._base_accepts_coords`` — ``inspect.signature``
+        is called at most once per instance.
+        """
+        if self._base_accepts_coords is None:
+            try:
+                sig = inspect.signature(self.base.generate_features)
+                self._base_accepts_coords = "coords" in sig.parameters
+            except (TypeError, ValueError):
+                self._base_accepts_coords = False
+        return self._base_accepts_coords
 
     def collate_fn(self, batch: list[dict]) -> dict:
         """Generate features on-the-fly from batch SMILES and collate.
 
         Converts SMILES to molecules, applies label encoding (sparse to dense,
         replacing 0 with NaN and -1 with 0), then delegates to the base
-        datamodule's feature generation and collation.
+        datamodule's feature generation and collation. When batch items carry
+        a ``coords`` field, the wrapper probes the base's ``generate_features``
+        signature once (cached) and forwards coords via ``coords=`` if
+        accepted. Otherwise coords are silently dropped and a single
+        ``logging.warning`` is emitted so the pytest ``filterwarnings=error``
+        gate is not tripped.
 
-        :param batch: list of dicts with ``smiles`` and ``y`` keys
+        :param batch: list of dicts with ``smiles``, ``y``, and optionally
+            ``coords`` keys
         :return: collated batch dict from the base datamodule
         """
+        has_coords = "coords" in batch[0]
+
         # Extract mols and labels from batch
         mols = [Chem.MolFromSmiles(item["smiles"]) for item in batch]
         y_batch = sp.vstack([item["y"] for item in batch]).toarray()
@@ -140,8 +197,30 @@ class OnTheFlyDataModule(LightningDataModule):
         y_batch[y_batch == 0] = np.nan
         y_batch[y_batch == -1] = 0
 
+        # Optionally forward coords when the base datamodule accepts them
+        forward_coords = None
+        if has_coords:
+            if self._probe_base_accepts_coords():
+                forward_coords = [
+                    np.asarray(item["coords"], dtype=np.float32) for item in batch
+                ]
+            elif not self._coords_ignore_warned:
+                logger.warning(
+                    "Coords were supplied to OnTheFlyDataModule but the base "
+                    "datamodule (%s) does not accept a `coords` kwarg on "
+                    "generate_features; coords will be ignored for the rest "
+                    "of this run.",
+                    type(self.base).__name__,
+                )
+                self._coords_ignore_warned = True
+
         # Generate features using the base datamodule
-        features = self.base.generate_features(mols, y_batch, n_jobs=1)
+        if forward_coords is not None:
+            features = self.base.generate_features(
+                mols, y_batch, coords=forward_coords, n_jobs=1
+            )
+        else:
+            features = self.base.generate_features(mols, y_batch, n_jobs=1)
 
         # Convert to list of dicts for collation
         batch_dicts = []

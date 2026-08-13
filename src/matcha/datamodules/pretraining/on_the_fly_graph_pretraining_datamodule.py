@@ -25,6 +25,10 @@ class OnTheFlyGraphPretrainingDataset:
     :param smiles: list of SMILES strings
     :param y_graph: array ``(N, G)`` of molecule-level targets
     :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets
+    :param coords: optional list of N arrays, each ``(A_i, 3)`` of per-atom
+        3D coordinates in the input mol's atom order. When set, the wrapper
+        forwards it to the base datamodule's ``generate_features(coords=...)``
+        at batch collation time (e.g. for 3D pretraining).
     """
 
     def __init__(
@@ -32,22 +36,27 @@ class OnTheFlyGraphPretrainingDataset:
         smiles: list[str],
         y_graph: np.ndarray,
         y_node: list[np.ndarray],
+        coords: list[np.ndarray] | None = None,
     ):
         self.smiles = smiles
         self.y_graph = y_graph
         self.y_node = y_node
+        self.coords = coords
 
     def __len__(self):
         """Return the number of samples."""
         return len(self.smiles)
 
     def __getitem__(self, idx):
-        """Return a dict with ``smiles``, ``y_graph``, and ``y_node`` for the given index."""
-        return {
+        """Return a dict with ``smiles``, ``y_graph``, ``y_node`` (and ``coords`` when set) for the given index."""
+        item = {
             "smiles": self.smiles[idx],
             "y_graph": self.y_graph[idx],
             "y_node": self.y_node[idx],
         }
+        if self.coords is not None:
+            item["coords"] = self.coords[idx]
+        return item
 
 
 @DataModuleRegistry.register("on_the_fly_graph_pretraining")
@@ -127,6 +136,10 @@ class OnTheFlyGraphPretrainingDataModule(LightningDataModule):
         predict_smiles: list[str] | None = None,
         predict_y_graph: np.ndarray | None = None,
         predict_y_node: list[np.ndarray] | None = None,
+        train_coords: list[np.ndarray] | None = None,
+        val_coords: list[np.ndarray] | None = None,
+        test_coords: list[np.ndarray] | None = None,
+        predict_coords: list[np.ndarray] | None = None,
     ):
         """Set raw data for each split.
 
@@ -142,6 +155,10 @@ class OnTheFlyGraphPretrainingDataModule(LightningDataModule):
         :param predict_smiles: prediction SMILES
         :param predict_y_graph: prediction molecule-level labels
         :param predict_y_node: prediction atom-level labels
+        :param train_coords: optional training per-atom 3D coordinates
+        :param val_coords: optional validation per-atom 3D coordinates
+        :param test_coords: optional test per-atom 3D coordinates
+        :param predict_coords: optional prediction per-atom 3D coordinates
         """
         if (
             train_smiles is not None
@@ -149,7 +166,7 @@ class OnTheFlyGraphPretrainingDataModule(LightningDataModule):
             and train_y_node is not None
         ):
             self._raw_train = OnTheFlyGraphPretrainingDataset(
-                train_smiles, train_y_graph, train_y_node
+                train_smiles, train_y_graph, train_y_node, train_coords
             )
         if (
             val_smiles is not None
@@ -157,7 +174,7 @@ class OnTheFlyGraphPretrainingDataModule(LightningDataModule):
             and val_y_node is not None
         ):
             self._raw_val = OnTheFlyGraphPretrainingDataset(
-                val_smiles, val_y_graph, val_y_node
+                val_smiles, val_y_graph, val_y_node, val_coords
             )
         if (
             test_smiles is not None
@@ -165,7 +182,7 @@ class OnTheFlyGraphPretrainingDataModule(LightningDataModule):
             and test_y_node is not None
         ):
             self._raw_test = OnTheFlyGraphPretrainingDataset(
-                test_smiles, test_y_graph, test_y_node
+                test_smiles, test_y_graph, test_y_node, test_coords
             )
         if (
             predict_smiles is not None
@@ -173,7 +190,7 @@ class OnTheFlyGraphPretrainingDataModule(LightningDataModule):
             and predict_y_node is not None
         ):
             self._raw_predict = OnTheFlyGraphPretrainingDataset(
-                predict_smiles, predict_y_graph, predict_y_node
+                predict_smiles, predict_y_graph, predict_y_node, predict_coords
             )
 
     # ------------------------------------------------------------------
@@ -185,29 +202,56 @@ class OnTheFlyGraphPretrainingDataModule(LightningDataModule):
 
         Converts SMILES to molecules, delegates to the base datamodule's
         :meth:`generate_features`, then reshapes into the dict format
-        expected by :class:`BaseGraphPretrainingModel`.
+        expected by :class:`BaseGraphPretrainingModel`. When batch items
+        carry per-atom ``coords`` (e.g. for 3D pretraining), they are
+        forwarded to the base as ``generate_features(..., coords=...)``.
 
-        :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``
+        :param batch: list of dicts with ``smiles``, ``y_graph``, ``y_node``,
+            and optionally ``coords``
         :return: dict with ``graph``, ``y_node``, ``y_graph``
         """
+        has_coords = "coords" in batch[0]
+
         mols = [Chem.MolFromSmiles(item["smiles"]) for item in batch]
         y_graph = np.array([item["y_graph"] for item in batch], dtype=np.float32)
         y_node = [np.asarray(item["y_node"], dtype=np.float32) for item in batch]
+        coords = (
+            [np.asarray(item["coords"], dtype=np.float32) for item in batch]
+            if has_coords
+            else None
+        )
 
         # Filter out invalid molecules
-        valid = [
-            (m, yg, yn) for m, yg, yn in zip(mols, y_graph, y_node) if m is not None
-        ]
+        if coords is None:
+            valid = [
+                (m, yg, yn, None)
+                for m, yg, yn in zip(mols, y_graph, y_node)
+                if m is not None
+            ]
+        else:
+            valid = [
+                (m, yg, yn, ci)
+                for m, yg, yn, ci in zip(mols, y_graph, y_node, coords)
+                if m is not None
+            ]
         if not valid:
             raise ValueError("No valid molecules in batch")
 
-        mols, y_graph_arr, y_node_list = zip(*valid)
-        mols = list(mols)
-        y_graph_arr = np.array(y_graph_arr)
-        y_node_list = list(y_node_list)
+        mols_v, y_graph_v, y_node_v, coords_v = zip(*valid)
+        mols = list(mols_v)
+        y_graph_arr = np.array(y_graph_v)
+        y_node_list = list(y_node_v)
+        coords_list = list(coords_v) if has_coords else None
 
         # Generate features using the base datamodule then apply fitted scalers
-        features = self.base.generate_features(mols, y_graph_arr, y_node_list, n_jobs=1)
+        if coords_list is not None:
+            features = self.base.generate_features(
+                mols, y_graph_arr, y_node_list, coords=coords_list, n_jobs=1
+            )
+        else:
+            features = self.base.generate_features(
+                mols, y_graph_arr, y_node_list, n_jobs=1
+            )
         self.base.transform(features)
 
         # Convert StackDataset to list-of-dicts and delegate to base collate
