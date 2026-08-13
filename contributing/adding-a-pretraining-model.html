@@ -1,0 +1,319 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adding a new pretraining model &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Adding a new fingerprint or descriptor set" href="adding-a-fingerprint.html" />
+    <link rel="prev" title="Adding a new model" href="adding-a-model.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contributing</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding a new pretraining model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#encoder-reuse-the-canonical-class">1. Encoder — reuse the canonical class</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#datamodule-src-matcha-datamodules-pretraining-name-datamodule-py">2. Datamodule — <code class="docutils literal notranslate"><span class="pre">src/matcha/datamodules/pretraining/&lt;name&gt;_datamodule.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#schema-src-matcha-utils-schemas">3. Schema — <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#lightning-module-src-matcha-torch-models-pretraining-name-pretraining-py">4. Lightning module — <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/pretraining/&lt;name&gt;_pretraining.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tests-parity-fit-and-encoder-transfer">5. Tests — parity, fit, and encoder transfer</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wire-the-pretraining-path">6. Wire the pretraining path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checklist">Checklist</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api-reference.html">API reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Adding a new pretraining model</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/contributing/adding-a-pretraining-model.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="adding-a-new-pretraining-model">
+<h1>Adding a new pretraining model<a class="headerlink" href="#adding-a-new-pretraining-model" title="Link to this heading"></a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This page is written for LLM agents contributing to MATCHA. It trades prose for a step-by-step recipe with concrete file paths and code snippets.</p>
+</div>
+<p>Pretraining in MATCHA is a self-supervised, CLI-only path. Unlike classic supervised models, pretraining models are <strong>not</strong> wrapped by an sklearn estimator — they are trained by the <code class="docutils literal notranslate"><span class="pre">pretrain_encoder</span></code> CLI command via the <code class="docutils literal notranslate"><span class="pre">PretrainingModelRegistry</span></code> and reused later by feeding their encoder weights into a matching classic <code class="docutils literal notranslate"><span class="pre">*Model</span></code> for finetuning.</p>
+<p>Two reference implementations to copy from:</p>
+<ul class="simple">
+<li><p><strong>2D case</strong> — <code class="docutils literal notranslate"><span class="pre">GINPretraining</span></code> (<code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/pretraining/gin_pretraining.py</span></code>) + <code class="docutils literal notranslate"><span class="pre">GraphPretrainingDataModule</span></code> (<code class="docutils literal notranslate"><span class="pre">src/matcha/datamodules/pretraining/graph_pretraining_datamodule.py</span></code>).</p></li>
+<li><p><strong>3D case</strong> — <code class="docutils literal notranslate"><span class="pre">E3GNNPretraining</span></code> (<code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/pretraining/e3gnn_pretraining.py</span></code>) + <code class="docutils literal notranslate"><span class="pre">Graph3DPretrainingDataModule</span></code> (<code class="docutils literal notranslate"><span class="pre">src/matcha/datamodules/pretraining/graph_3d_pretraining_datamodule.py</span></code>). Coordinates ride on <code class="docutils literal notranslate"><span class="pre">graph.pos</span></code> — no separate collate key.</p></li>
+</ul>
+<p>A new pretraining model touches four layers, in this order:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>torch/encoders/   →  datamodules/pretraining/   →  utils/schemas/   →  torch/models/pretraining/   →  tests/
+(canonical enc)      (batch producer)              (pydantic)          (Lightning module)             (parity + fit)
+</pre></div>
+</div>
+<p>The encoder itself is shared with the classic path — do <strong>not</strong> create a pretraining-specific encoder twin. Issue #24 deleted every one of those; the invariant “one canonical encoder per architecture” is load-bearing.</p>
+<hr class="docutils" />
+<section id="encoder-reuse-the-canonical-class">
+<h2>1. Encoder — reuse the canonical class<a class="headerlink" href="#encoder-reuse-the-canonical-class" title="Link to this heading"></a></h2>
+<p>Pretraining models consume the same encoder as the classic model of the same family. Add a new encoder only when a genuinely new architecture is being introduced (in which case follow <code class="docutils literal notranslate"><span class="pre">adding-a-model.md</span></code> first, then come back here).</p>
+<p>The pretraining base class calls <code class="docutils literal notranslate"><span class="pre">encoder.forward_nodes_per_layer(graph)</span></code> to obtain one node-feature tensor per layer, then feeds the list through the shared jumping-knowledge merge and the two prediction heads. Any encoder exposing that method Just Works — see <code class="docutils literal notranslate"><span class="pre">BaseGraphPretrainingModel._get_per_layer_embeddings</span></code> in <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/pretraining/base_graph_pretraining.py</span></code>.</p>
+<p>For 3D encoders the input contract is the PyG convention: coordinates are read from <code class="docutils literal notranslate"><span class="pre">graph.pos</span></code>. Missing <code class="docutils literal notranslate"><span class="pre">pos</span></code> must raise a <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> with a clear message pointing at the datamodule — that error is the tripwire for misconfigured pipelines.</p>
+</section>
+<section id="datamodule-src-matcha-datamodules-pretraining-name-datamodule-py">
+<h2>2. Datamodule — <code class="docutils literal notranslate"><span class="pre">src/matcha/datamodules/pretraining/&lt;name&gt;_datamodule.py</span></code><a class="headerlink" href="#datamodule-src-matcha-datamodules-pretraining-name-datamodule-py" title="Link to this heading"></a></h2>
+<p>Pretraining datamodules produce batches with a <code class="docutils literal notranslate"><span class="pre">graph</span></code> field, per-atom targets <code class="docutils literal notranslate"><span class="pre">y_node</span></code>, and per-molecule targets <code class="docutils literal notranslate"><span class="pre">y_graph</span></code>. Add positional/structural fields (like 3D coords on <code class="docutils literal notranslate"><span class="pre">graph.pos</span></code>) on top of the parent class rather than parallel to it.</p>
+<p>Inherit from <code class="docutils literal notranslate"><span class="pre">GraphPretrainingDataModule</span></code> (never from a classic <code class="docutils literal notranslate"><span class="pre">Graph3DDataModule</span></code> — that would carry the ETKDG conformer path, which is out of scope for pretraining) and register on <code class="docutils literal notranslate"><span class="pre">DataModuleRegistry</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/datamodules/pretraining/graph_3d_pretraining_datamodule.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.graph_pretraining_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">GraphPretrainingDataModule</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nd">@DataModuleRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="s2">&quot;graph3d_pretraining&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Graph3DPretrainingDataModule</span><span class="p">(</span><span class="n">GraphPretrainingDataModule</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">y_graph</span><span class="p">,</span> <span class="n">y_node</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">n_jobs</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="c1"># validate + reorder coords, attach to Data.pos, parent collate handles the rest</span>
+        <span class="o">...</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">export_to_classic</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Graph3DDataModule</span><span class="p">:</span>
+        <span class="c1"># mirror pretraining PE settings into the classic 3D datamodule</span>
+        <span class="o">...</span>
+</pre></div>
+</div>
+<p>Key rules:</p>
+<ul class="simple">
+<li><p><strong>Wire coords through <code class="docutils literal notranslate"><span class="pre">Data.pos</span></code>, not a parallel collate key.</strong> <code class="docutils literal notranslate"><span class="pre">Batch.from_data_list</span></code> auto-concatenates <code class="docutils literal notranslate"><span class="pre">pos</span></code>, so the inherited collate function needs no changes. Any 3D encoder reads <code class="docutils literal notranslate"><span class="pre">graph.pos</span></code> inside its per-layer hook.</p></li>
+<li><p><strong>Validate against the canonical-SMILES atom count.</strong> The parent’s <code class="docutils literal notranslate"><span class="pre">_validate_node_labels</span></code> uses this convention for <code class="docutils literal notranslate"><span class="pre">y_node</span></code>; new node-aligned fields (coords, per-atom features) must mirror it so shape errors fail fast with a clear message.</p></li>
+<li><p><strong>Reorder user-supplied per-atom data to canonical order.</strong> <code class="docutils literal notranslate"><span class="pre">GraphDataModule._calculate_graph</span></code> reparses each molecule from its canonical SMILES; user rows come back misaligned otherwise. Use <code class="docutils literal notranslate"><span class="pre">mol.GetSubstructMatch(canonical_mol)</span></code> to remap.</p></li>
+<li><p><strong>Zero-pad virtual nodes for coordinate-like fields</strong>, never NaN — NaN would poison distance-based features (E3GNN’s Fourier distance) on real neighbours of a virtual node. <code class="docutils literal notranslate"><span class="pre">y_node</span></code>’s NaN padding is safe only because <code class="docutils literal notranslate"><span class="pre">MultitaskLoss</span></code> masks it.</p></li>
+<li><p><strong>Override <code class="docutils literal notranslate"><span class="pre">export_to_classic()</span></code>.</strong> It returns a classic datamodule that mirrors the pretraining PE settings so downstream finetuning inherits the same featurization.</p></li>
+<li><p><strong>Set a stable <code class="docutils literal notranslate"><span class="pre">state_dict</span></code> <code class="docutils literal notranslate"><span class="pre">&quot;ID&quot;</span></code> string</strong> so serialization survives round-trips.</p></li>
+</ul>
+</section>
+<section id="schema-src-matcha-utils-schemas">
+<h2>3. Schema — <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/</span></code><a class="headerlink" href="#schema-src-matcha-utils-schemas" title="Link to this heading"></a></h2>
+<p>Three touches:</p>
+<ol class="arabic">
+<li><p><strong>Datamodule schema</strong> in <code class="docutils literal notranslate"><span class="pre">datamodules.py</span></code> — subclass the parent pretraining schema, override <code class="docutils literal notranslate"><span class="pre">datamodule_type</span></code>, and add to the union at the bottom:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/utils/schemas/datamodules.py</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">Graph3DPretrainingDataModuleInputModel</span><span class="p">(</span><span class="n">GraphPretrainingDataModuleInputModel</span><span class="p">):</span>
+    <span class="n">datamodule_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;graph3d_pretraining&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;graph3d_pretraining&quot;</span>
+
+<span class="n">DataModuleModel</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="o">...</span>
+    <span class="o">|</span> <span class="n">Graph3DPretrainingDataModuleInputModel</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Model schema</strong> in <code class="docutils literal notranslate"><span class="pre">torch_api.py</span></code> — compose <code class="docutils literal notranslate"><span class="pre">PretrainingMatchaModel</span></code> + <code class="docutils literal notranslate"><span class="pre">GraphMixin</span></code> + <code class="docutils literal notranslate"><span class="pre">GraphPretrainingMixin</span></code> + the architecture’s <code class="docutils literal notranslate"><span class="pre">*Mixin</span></code>. <code class="docutils literal notranslate"><span class="pre">PretrainingMatchaModel</span></code> and <code class="docutils literal notranslate"><span class="pre">GraphPretrainingMixin</span></code> live in <code class="docutils literal notranslate"><span class="pre">generic_models.py</span></code> and cover loss/optimizer/scheduler and the joint head fields (<code class="docutils literal notranslate"><span class="pre">num_node_targets</span></code>, <code class="docutils literal notranslate"><span class="pre">num_graph_targets</span></code>, <code class="docutils literal notranslate"><span class="pre">node_head_dims</span></code>, <code class="docutils literal notranslate"><span class="pre">graph_head_dims</span></code>, <code class="docutils literal notranslate"><span class="pre">node_loss_weight</span></code>, …) that every graph pretraining model shares.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/utils/schemas/torch_api.py</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">E3GNNPretrainingInputModel</span><span class="p">(</span>
+    <span class="n">PretrainingMatchaModel</span><span class="p">,</span> <span class="n">GraphMixin</span><span class="p">,</span> <span class="n">GraphPretrainingMixin</span><span class="p">,</span> <span class="n">E3GNNMixin</span>
+<span class="p">):</span>
+    <span class="n">torch_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;e3gnn_pretraining&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;e3gnn_pretraining&quot;</span>
+    <span class="n">pred_hidden_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">pred_task_head_dims</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="n">TorchModel</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="o">...</span>
+    <span class="o">|</span> <span class="n">E3GNNPretrainingInputModel</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">pred_hidden_dims</span></code> / <code class="docutils literal notranslate"><span class="pre">pred_task_head_dims</span></code> come from <code class="docutils literal notranslate"><span class="pre">GraphMixin</span></code> but are unused in pretraining — default them to <code class="docutils literal notranslate"><span class="pre">None</span></code> so callers don’t need to pass them.</p>
+</li>
+<li><p><strong>Export both new schemas</strong> from <code class="docutils literal notranslate"><span class="pre">utils/schemas/__init__.py</span></code> (<code class="docutils literal notranslate"><span class="pre">import</span></code> + <code class="docutils literal notranslate"><span class="pre">__all__</span></code>).</p></li>
+</ol>
+</section>
+<section id="lightning-module-src-matcha-torch-models-pretraining-name-pretraining-py">
+<h2>4. Lightning module — <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/pretraining/&lt;name&gt;_pretraining.py</span></code><a class="headerlink" href="#lightning-module-src-matcha-torch-models-pretraining-name-pretraining-py" title="Link to this heading"></a></h2>
+<p>Subclass <code class="docutils literal notranslate"><span class="pre">BaseGraphPretrainingModel</span></code>, register on <code class="docutils literal notranslate"><span class="pre">PretrainingModelRegistry</span></code>, and implement <code class="docutils literal notranslate"><span class="pre">_build_encoder()</span></code>. The base class handles the per-layer hook, JK merge, both heads, both losses, <code class="docutils literal notranslate"><span class="pre">training_step</span></code>, <code class="docutils literal notranslate"><span class="pre">validation_step</span></code>, and per-task logging.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># see src/matcha/torch/models/pretraining/e3gnn_pretraining.py</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.encoders.e3gnn</span><span class="w"> </span><span class="kn">import</span> <span class="n">E3GNN</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.pretraining.base_graph_pretraining</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">BaseGraphPretrainingModel</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.pretraining.base_pretraining_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">PretrainingModelRegistry</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="nd">@PretrainingModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">E3GNNPretraining</span><span class="p">(</span><span class="n">BaseGraphPretrainingModel</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">num_node_targets</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_graph_targets</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                 <span class="n">enc_num_layers</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">enc_atom_hidden_dim</span><span class="o">=</span><span class="mi">128</span><span class="p">,</span> <span class="o">...</span><span class="p">,</span>
+                 <span class="n">node_head_dims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">graph_head_dims</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">num_node_targets</span><span class="o">=...</span><span class="p">,</span> <span class="n">num_graph_targets</span><span class="o">=...</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_build_encoder</span><span class="p">()</span>
+        <span class="n">head_input_dim</span> <span class="o">=</span> <span class="n">enc_atom_hidden_dim</span> <span class="o">*</span> <span class="n">enc_num_layers</span> <span class="k">if</span> <span class="n">enc_jk</span> <span class="o">==</span> <span class="s2">&quot;concat&quot;</span> <span class="k">else</span> <span class="n">enc_atom_hidden_dim</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">node_head</span>  <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_prediction_head</span><span class="p">(</span><span class="n">head_input_dim</span><span class="p">,</span> <span class="n">node_head_dims</span><span class="p">,</span> <span class="n">num_node_targets</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">graph_head</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_prediction_head</span><span class="p">(</span><span class="n">head_input_dim</span><span class="p">,</span> <span class="n">graph_head_dims</span><span class="p">,</span> <span class="n">num_graph_targets</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_train_config</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_encoder</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="n">E3GNN</span><span class="p">(</span>
+            <span class="n">num_layers</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_num_layers&quot;</span><span class="p">],</span>
+            <span class="n">atom_input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_atom_input_dim&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;enc_laplacian_k&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="o">...</span><span class="p">,</span>
+            <span class="o">...</span>
+        <span class="p">)</span>
+</pre></div>
+</div>
+<p>Rules:</p>
+<ul class="simple">
+<li><p><strong>Never override <code class="docutils literal notranslate"><span class="pre">forward</span></code> / <code class="docutils literal notranslate"><span class="pre">training_step</span></code> / <code class="docutils literal notranslate"><span class="pre">_get_per_layer_embeddings</span></code>.</strong> For 3D encoders, coordinates flow through <code class="docutils literal notranslate"><span class="pre">graph.pos</span></code> — the base class reads them via <code class="docutils literal notranslate"><span class="pre">self.encoder.forward_nodes_per_layer(batch[&quot;graph&quot;])</span></code>. Adding an override reintroduces the drift issues #24 and #26 were designed to eliminate.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">enc_*</span></code>-prefix every encoder-facing hyperparameter.</strong> The classic <code class="docutils literal notranslate"><span class="pre">*Model</span></code> uses the same prefixes, which is what makes encoder-weight transfer at finetuning time a strict <code class="docutils literal notranslate"><span class="pre">load_state_dict</span></code>.</p></li>
+<li><p><strong>Add the class to <code class="docutils literal notranslate"><span class="pre">torch/models/pretraining/__init__.py</span></code></strong> (import + <code class="docutils literal notranslate"><span class="pre">__all__</span></code>).</p></li>
+</ul>
+</section>
+<section id="tests-parity-fit-and-encoder-transfer">
+<h2>5. Tests — parity, fit, and encoder transfer<a class="headerlink" href="#tests-parity-fit-and-encoder-transfer" title="Link to this heading"></a></h2>
+<p>The pretraining test suite lives under <code class="docutils literal notranslate"><span class="pre">tests/pretraining/</span></code>. Add a new file <code class="docutils literal notranslate"><span class="pre">test_&lt;name&gt;_pretraining.py</span></code> covering:</p>
+<ul>
+<li><p><strong>Registry lookup:</strong> <code class="docutils literal notranslate"><span class="pre">&quot;&lt;name&gt;pretraining&quot;</span> <span class="pre">in</span> <span class="pre">PretrainingModelRegistry</span></code>.</p></li>
+<li><p><strong>Canonical encoder wiring:</strong> <code class="docutils literal notranslate"><span class="pre">isinstance(model.encoder,</span> <span class="pre">&lt;CanonicalEncoder&gt;)</span></code>.</p></li>
+<li><p><strong>Forward shapes:</strong> <code class="docutils literal notranslate"><span class="pre">model(batch)[&quot;node&quot;].shape</span> <span class="pre">==</span> <span class="pre">(N_atoms,</span> <span class="pre">num_node_targets)</span></code> and <code class="docutils literal notranslate"><span class="pre">[&quot;graph&quot;].shape</span> <span class="pre">==</span> <span class="pre">(batch_size,</span> <span class="pre">num_graph_targets)</span></code>.</p></li>
+<li><p><strong>Per-layer hook length:</strong> <code class="docutils literal notranslate"><span class="pre">len(model._get_per_layer_embeddings(batch)[0])</span> <span class="pre">==</span> <span class="pre">num_layers</span></code>.</p></li>
+<li><p><strong>One-step fit:</strong> <code class="docutils literal notranslate"><span class="pre">model.training_step(batch,</span> <span class="pre">0)</span></code> returns a finite scalar that <code class="docutils literal notranslate"><span class="pre">requires_grad</span></code>.</p></li>
+<li><p><strong>Optimizer step actually moves weights:</strong> compare <code class="docutils literal notranslate"><span class="pre">parameters_to_vector(model.encoder.parameters())</span></code> before and after.</p></li>
+<li><p><strong><code class="docutils literal notranslate"><span class="pre">save_hyperparameters</span></code> round-trip</strong> through <code class="docutils literal notranslate"><span class="pre">state_dict</span></code>/<code class="docutils literal notranslate"><span class="pre">load_state_dict</span></code>.</p></li>
+<li><p><strong>Encoder weight transfer to the classic <code class="docutils literal notranslate"><span class="pre">*Model</span></code></strong> — the headline acceptance criterion. Strict <code class="docutils literal notranslate"><span class="pre">load_state_dict</span></code> from the pretraining encoder into the classic encoder, then <code class="docutils literal notranslate"><span class="pre">parameters_to_vector</span></code> equality:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">missing</span><span class="p">,</span> <span class="n">unexpected</span> <span class="o">=</span> <span class="n">classic</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span>
+    <span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span>
+<span class="p">)</span>
+<span class="k">assert</span> <span class="n">missing</span> <span class="o">==</span> <span class="p">[]</span>
+<span class="k">assert</span> <span class="n">unexpected</span> <span class="o">==</span> <span class="p">[]</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p>Then extend the parametrized parity suites so the new model is exercised alongside the existing ones:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/pretraining/test_encoder_parity.py</span></code> — add a <code class="docutils literal notranslate"><span class="pre">pytest.param(&lt;ClassicModel&gt;,</span> <span class="pre">&lt;PretrainingModel&gt;,</span> <span class="pre">dict(enc_*=...),</span> <span class="pre">id=&quot;&lt;name&gt;&quot;)</span></code> entry. The three checks (parameter-key equality, module-tree string equality, <code class="docutils literal notranslate"><span class="pre">allclose</span></code> on encoder output after a weight-sync <code class="docutils literal notranslate"><span class="pre">load_state_dict</span></code>) then run automatically.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/pretraining/test_graph_pretraining_encoders.py</span></code> — add <code class="docutils literal notranslate"><span class="pre">pytest.param(&lt;PretrainingModel&gt;,</span> <span class="pre">&lt;CanonicalEncoder&gt;,</span> <span class="pre">dict(enc_*=...),</span> <span class="pre">id=&quot;&lt;name&gt;&quot;)</span></code> for the <code class="docutils literal notranslate"><span class="pre">is_canonical</span></code> / per-layer-length / forward-shape checks.</p></li>
+</ul>
+<p>For 3D architectures also add a <strong>classic ↔ pretraining datamodule parity test</strong>: build a small mol list, featurize once through <code class="docutils literal notranslate"><span class="pre">Graph3DDataModule</span></code> (ETKDG coords), reuse the resulting <code class="docutils literal notranslate"><span class="pre">graph.pos</span></code> as user-supplied coords in the pretraining datamodule, and assert that <code class="docutils literal notranslate"><span class="pre">E3GNN.forward_nodes_per_layer</span></code> produces bit-identical per-layer outputs on both batches. See <code class="docutils literal notranslate"><span class="pre">tests/pretraining/test_e3gnn_pretraining.py::test_classic_and_pretraining_datamodules_produce_identical_e3gnn_features</span></code> for the shape.</p>
+</section>
+<section id="wire-the-pretraining-path">
+<h2>6. Wire the pretraining path<a class="headerlink" href="#wire-the-pretraining-path" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">torch/models/pretraining/__init__.py</span></code> — import + <code class="docutils literal notranslate"><span class="pre">__all__</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">datamodules/pretraining/__init__.py</span></code> — import + <code class="docutils literal notranslate"><span class="pre">__all__</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">datamodules/__init__.py</span></code> — add a lazy-import entry (<code class="docutils literal notranslate"><span class="pre">_LAZY_IMPORTS</span></code>); a plain top-level import will reintroduce the circular chain.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">utils/schemas/__init__.py</span></code> — export both schemas.</p></li>
+</ul>
+<p>No sklearn / CLI wiring is required. <code class="docutils literal notranslate"><span class="pre">pretrain_encoder</span></code> dispatches through the two registries.</p>
+</section>
+<hr class="docutils" />
+<section id="checklist">
+<h2>Checklist<a class="headerlink" href="#checklist" title="Link to this heading"></a></h2>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Reuse the canonical encoder from <code class="docutils literal notranslate"><span class="pre">torch/encoders/</span></code> (no pretraining twin).</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Datamodule inherits from <code class="docutils literal notranslate"><span class="pre">GraphPretrainingDataModule</span></code>, registered with <code class="docutils literal notranslate"><span class="pre">DataModuleRegistry</span></code>, validates + reorders per-atom user data to canonical order, ships an <code class="docutils literal notranslate"><span class="pre">export_to_classic()</span></code> override.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> 3D specifics: coordinates on <code class="docutils literal notranslate"><span class="pre">graph.pos</span></code>, zero-padded for virtual nodes; encoder raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> on missing <code class="docutils literal notranslate"><span class="pre">pos</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Datamodule schema in <code class="docutils literal notranslate"><span class="pre">utils/schemas/datamodules.py</span></code> + model schema in <code class="docutils literal notranslate"><span class="pre">torch_api.py</span></code> (composed from <code class="docutils literal notranslate"><span class="pre">PretrainingMatchaModel</span></code>, <code class="docutils literal notranslate"><span class="pre">GraphMixin</span></code>, <code class="docutils literal notranslate"><span class="pre">GraphPretrainingMixin</span></code>, the architecture mixin), both re-exported.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Lightning module in <code class="docutils literal notranslate"><span class="pre">torch/models/pretraining/</span></code>, registered with <code class="docutils literal notranslate"><span class="pre">PretrainingModelRegistry</span></code>, <code class="docutils literal notranslate"><span class="pre">enc_*</span></code> / <code class="docutils literal notranslate"><span class="pre">pred_*</span></code> prefixes, <code class="docutils literal notranslate"><span class="pre">_build_encoder</span></code> only — no <code class="docutils literal notranslate"><span class="pre">forward</span></code> / <code class="docutils literal notranslate"><span class="pre">_get_per_layer_embeddings</span></code> override.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Tests: per-model <code class="docutils literal notranslate"><span class="pre">test_&lt;name&gt;_pretraining.py</span></code> (registry, forward shapes, fit, encoder transfer), plus entries in <code class="docutils literal notranslate"><span class="pre">test_encoder_parity.py</span></code> and <code class="docutils literal notranslate"><span class="pre">test_graph_pretraining_encoders.py</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> 3D only: classic ↔ pretraining datamodule parity test.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">-k</span> <span class="pre">'not</span> <span class="pre">gpu'</span></code> passes locally.</p></li>
+</ul>
+<p>If any of these steps feels awkward — e.g. the new pretraining path requires an override on <code class="docutils literal notranslate"><span class="pre">BaseGraphPretrainingModel</span></code> — flag it in the PR rather than adding it silently. The one-canonical-encoder + coords-on-<code class="docutils literal notranslate"><span class="pre">pos</span></code> invariants exist because parallel pretraining twins drifted the last three times.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="adding-a-model.html" class="btn btn-neutral float-left" title="Adding a new model" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="adding-a-fingerprint.html" class="btn btn-neutral float-right" title="Adding a new fingerprint or descriptor set" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

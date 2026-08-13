@@ -74,13 +74,23 @@ Module Contents
    .. py:attribute:: dist3d_encoder
 
 
-   .. py:method:: forward(graph: torch_geometric.data.Batch, coords: torch.Tensor) -> torch.Tensor
+   .. py:method:: forward_nodes_per_layer(graph: torch_geometric.data.Batch) -> tuple[list[torch.Tensor], torch_geometric.data.Batch]
 
-      Converts a batched PyG graph and 3D coordinates into a (batch_size, fp_dim) tensor.
+      Run 3D-biased graph-transformer message passing and return one
+      node-feature tensor per layer.
 
-      :param Batch graph: batched PyG graph from the dataloader
-      :param torch.Tensor coords: batched 3D coordinates [num_atoms, 3] from the dataloader
-      :return torch.Tensor: learned molecular representation
+      Coordinates are read from ``graph.pos`` (the PyG convention). The
+      3D datamodules (:class:`Graph3DDataModule` and the pretraining
+      counterpart) are responsible for attaching them there before the
+      batch reaches the encoder.
+
+      :param Batch graph: Batched PyG graph from the dataloader. Must
+          expose per-node 3D coordinates on ``graph.pos``.
+      :returns: Tuple ``(all_atom_feats, g)`` — ``all_atom_feats`` has
+          length ``num_layers``; each entry has shape
+          ``[num_nodes, atom_hidden_dim]``.
+      :rtype: tuple[list[torch.Tensor], Batch]
+      :raises ValueError: If ``graph.pos`` is not set.
 
 
 

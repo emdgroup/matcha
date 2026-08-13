@@ -173,26 +173,6 @@ Module Contents
 
 
 
-   .. py:method:: collate_fn(data: list[dict]) -> dict
-
-      Allows batching for 3DGNN datasets.
-
-      Middleman between the output of :method:`featurize` and the actual batch input
-      needed by a graph neural network to train. Reshapes the tuple from :method:`featurize`
-      into the necessary torch tensors for the forward pass. It is meant to be
-      passed to torch.data.DataLoader objects upon construction.
-
-      Example usage:
-      GF = Graph3DDataModulePyG()
-      ...
-      loader = DataLoader(..., collate_fn=GF.collate_fn)
-
-      :param list[dict] data: list of dicts containing PyG graphs, coords and labels
-
-      :return dict: dictionary with batched graph, coords and y tensors
-
-
-
    .. py:method:: state_dict() -> dict
 
       Utility for MLFlow logging

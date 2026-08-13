@@ -54,6 +54,7 @@
 <p class="caption" role="heading"><span class="caption-text">Contributing</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
 </ul>
@@ -672,9 +673,28 @@
 
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_process_batch_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a batch of molecules in a single process&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_coords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mol_batch</span><span class="p">]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_graph_with_pos</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a PyG :class:`Data` for ``mol`` and attach 3D coords to ``pos``.</span>
+
+<span class="sd">        Coordinates ride on ``Data.pos`` (the PyG convention) so that</span>
+<span class="sd">        :class:`torch_geometric.data.Batch` auto-concatenates them alongside</span>
+<span class="sd">        ``x`` and the per-node positional encodings — no parallel ``coords``</span>
+<span class="sd">        collate key is needed, and all 3D encoders read the coords from</span>
+<span class="sd">        ``graph.pos`` inside their per-layer hook.</span>
+
+<span class="sd">        :param Mol mol: molecule to convert.</span>
+<span class="sd">        :param bool is_training: forwarded to :meth:`_calculate_graph`</span>
+<span class="sd">            (currently unused, kept for signature parity).</span>
+<span class="sd">        :returns: PyG :class:`Data` with 3D coordinates attached to ``pos``.</span>
+<span class="sd">        :rtype: Data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">is_training</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_coords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">graph</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Data</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a batch of molecules in a single process, attaching coords.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph_with_pos</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mol_batch</span><span class="p">]</span>
 
 <div class="viewcode-block" id="Graph3DDataModule.generate_features">
 <a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.generate_features">[docs]</a>
@@ -703,46 +723,8 @@
 
         <span class="n">graphs</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_batch</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
 
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_batch_coords</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
-
         <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">graphs</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="Graph3DDataModule.collate_fn">
-<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.collate_fn">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">collate_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allows batching for 3DGNN datasets.</span>
-
-<span class="sd">        Middleman between the output of :method:`featurize` and the actual batch input</span>
-<span class="sd">        needed by a graph neural network to train. Reshapes the tuple from :method:`featurize`</span>
-<span class="sd">        into the necessary torch tensors for the forward pass. It is meant to be</span>
-<span class="sd">        passed to torch.data.DataLoader objects upon construction.</span>
-
-<span class="sd">        Example usage:</span>
-<span class="sd">        GF = Graph3DDataModulePyG()</span>
-<span class="sd">        ...</span>
-<span class="sd">        loader = DataLoader(..., collate_fn=GF.collate_fn)</span>
-
-<span class="sd">        :param list[dict] data: list of dicts containing PyG graphs, coords and labels</span>
-
-<span class="sd">        :return dict: dictionary with batched graph, coords and y tensors</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># list of dicts to dict of lists</span>
-        <span class="n">dict_of_lists</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="p">[</span><span class="n">dic</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="k">for</span> <span class="n">dic</span> <span class="ow">in</span> <span class="n">data</span><span class="p">]</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">]}</span>
-        <span class="n">graph</span><span class="p">,</span> <span class="n">coords</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">],</span>
-            <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;coords&quot;</span><span class="p">],</span>
-            <span class="n">dict_of_lists</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">],</span>
-        <span class="p">)</span>
-
-        <span class="c1"># batch graphs via PyG backend</span>
-        <span class="n">bg</span> <span class="o">=</span> <span class="n">collate_fn_pyg_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">)</span>
-
-        <span class="c1"># reshape labels and coords into batch shape</span>
-        <span class="n">y</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">coords</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;graph&quot;</span><span class="p">:</span> <span class="n">bg</span><span class="p">,</span> <span class="s2">&quot;coords&quot;</span><span class="p">:</span> <span class="n">coords</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">}</span></div>
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">graphs</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Graph3DDataModule.state_dict">

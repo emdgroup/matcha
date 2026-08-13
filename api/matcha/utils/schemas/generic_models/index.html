@@ -55,6 +55,7 @@
 <p class="caption" role="heading"><span class="caption-text">Contributing</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
 </ul>
@@ -95,6 +96,12 @@
 <tbody>
 <tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel" title="matcha.utils.schemas.generic_models.ClassicMatchaModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ClassicMatchaModel</span></code></a></p></td>
 <td><p>Base schema for all standard matcha models defining shared training parameters.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel" title="matcha.utils.schemas.generic_models.PretrainingMatchaModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PretrainingMatchaModel</span></code></a></p></td>
+<td><p>Base schema for pretraining models defining shared training parameters.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin" title="matcha.utils.schemas.generic_models.GraphPretrainingMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GraphPretrainingMixin</span></code></a></p></td>
+<td><p>Mixin schema for graph pretraining models with joint node + graph heads.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#matcha.utils.schemas.generic_models.GraphMixin" title="matcha.utils.schemas.generic_models.GraphMixin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">GraphMixin</span></code></a></p></td>
 <td><p>Mixin schema for shared graph neural network encoder parameters.</p></td>
@@ -201,6 +208,110 @@
 <dl class="py attribute">
 <dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.ClassicMatchaModel.scheduler_args">
 <span class="sig-name descname"><span class="pre">scheduler_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel.scheduler_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.PretrainingMatchaModel">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">PretrainingMatchaModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#PretrainingMatchaModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Base schema for pretraining models defining shared training parameters.</p>
+<p>Mirrors <a class="reference internal" href="#matcha.utils.schemas.generic_models.ClassicMatchaModel" title="matcha.utils.schemas.generic_models.ClassicMatchaModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">ClassicMatchaModel</span></code></a> but drops the classic-only
+<code class="docutils literal notranslate"><span class="pre">additional_mol_features_dim</span></code> and <code class="docutils literal notranslate"><span class="pre">num_endpoints</span></code> fields: pretraining
+models declare their targets via architecture-specific fields
+(<code class="docutils literal notranslate"><span class="pre">num_node_targets</span></code> / <code class="docutils literal notranslate"><span class="pre">num_graph_targets</span></code> for graph pretraining,
+<code class="docutils literal notranslate"><span class="pre">vocab_size</span></code> for MLM, …).</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.PretrainingMatchaModel.loss_fn">
+<span class="sig-name descname"><span class="pre">loss_fn</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel.loss_fn" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.PretrainingMatchaModel.loss_args">
+<span class="sig-name descname"><span class="pre">loss_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel.loss_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.PretrainingMatchaModel.optimizer">
+<span class="sig-name descname"><span class="pre">optimizer</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel.optimizer" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.PretrainingMatchaModel.optimizer_args">
+<span class="sig-name descname"><span class="pre">optimizer_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel.optimizer_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.PretrainingMatchaModel.scheduler">
+<span class="sig-name descname"><span class="pre">scheduler</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel.scheduler" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.PretrainingMatchaModel.scheduler_args">
+<span class="sig-name descname"><span class="pre">scheduler_args</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.PretrainingMatchaModel.scheduler_args" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.utils.schemas.generic_models.</span></span><span class="sig-name descname"><span class="pre">GraphPretrainingMixin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">/</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">**data:</span> <span class="pre">Any</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../../../../_modules/matcha/utils/schemas/generic_models.html#GraphPretrainingMixin"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="../base/index.html#matcha.utils.schemas.base.BaseDataModel" title="matcha.utils.schemas.base.BaseDataModel"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matcha.utils.schemas.base.BaseDataModel</span></code></a></p>
+<p>Mixin schema for graph pretraining models with joint node + graph heads.</p>
+<p>Captures the shared configuration surface of
+<a class="reference internal" href="../../../torch/models/pretraining/base_graph_pretraining/index.html#matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel" title="matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseGraphPretrainingModel</span></code></a>
+subclasses: node and graph target counts, per-head hidden dims (shared
+and per-task), loss weighting, per-task logging, and the optional
+node-encoder-depth split.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.num_node_targets">
+<span class="sig-name descname"><span class="pre">num_node_targets</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.num_node_targets" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.num_graph_targets">
+<span class="sig-name descname"><span class="pre">num_graph_targets</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.num_graph_targets" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.node_head_dims">
+<span class="sig-name descname"><span class="pre">node_head_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.node_head_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.graph_head_dims">
+<span class="sig-name descname"><span class="pre">graph_head_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.graph_head_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.node_task_head_dims">
+<span class="sig-name descname"><span class="pre">node_task_head_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.node_task_head_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.graph_task_head_dims">
+<span class="sig-name descname"><span class="pre">graph_task_head_dims</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><span class="pre">list</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.graph_task_head_dims" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.node_loss_weight">
+<span class="sig-name descname"><span class="pre">node_loss_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.node_loss_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.graph_loss_weight">
+<span class="sig-name descname"><span class="pre">graph_loss_weight</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.graph_loss_weight" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.per_task_log_every_n_steps">
+<span class="sig-name descname"><span class="pre">per_task_log_every_n_steps</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.per_task_log_every_n_steps" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.utils.schemas.generic_models.GraphPretrainingMixin.enc_node_encoder_depth">
+<span class="sig-name descname"><span class="pre">enc_node_encoder_depth</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#matcha.utils.schemas.generic_models.GraphPretrainingMixin.enc_node_encoder_depth" title="Link to this definition"></a></dt>
 <dd></dd></dl>
 
 </dd></dl>

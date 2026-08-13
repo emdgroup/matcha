@@ -10,6 +10,8 @@ Classes
 .. autoapisummary::
 
    matcha.utils.schemas.generic_models.ClassicMatchaModel
+   matcha.utils.schemas.generic_models.PretrainingMatchaModel
+   matcha.utils.schemas.generic_models.GraphPretrainingMixin
    matcha.utils.schemas.generic_models.GraphMixin
    matcha.utils.schemas.generic_models.GINMixin
    matcha.utils.schemas.generic_models.AttentiveFPMixin
@@ -72,6 +74,98 @@ Module Contents
 
    .. py:attribute:: scheduler_args
       :type:  dict[str, Any]
+
+
+.. py:class:: PretrainingMatchaModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Base schema for pretraining models defining shared training parameters.
+
+   Mirrors :class:`ClassicMatchaModel` but drops the classic-only
+   ``additional_mol_features_dim`` and ``num_endpoints`` fields: pretraining
+   models declare their targets via architecture-specific fields
+   (``num_node_targets`` / ``num_graph_targets`` for graph pretraining,
+   ``vocab_size`` for MLM, ...).
+
+
+   .. py:attribute:: loss_fn
+      :type:  str
+
+
+   .. py:attribute:: loss_args
+      :type:  dict
+
+
+   .. py:attribute:: optimizer
+      :type:  str
+
+
+   .. py:attribute:: optimizer_args
+      :type:  dict[str, Any]
+
+
+   .. py:attribute:: scheduler
+      :type:  str
+
+
+   .. py:attribute:: scheduler_args
+      :type:  dict[str, Any]
+
+
+.. py:class:: GraphPretrainingMixin(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Mixin schema for graph pretraining models with joint node + graph heads.
+
+   Captures the shared configuration surface of
+   :class:`~matcha.torch.models.pretraining.base_graph_pretraining.BaseGraphPretrainingModel`
+   subclasses: node and graph target counts, per-head hidden dims (shared
+   and per-task), loss weighting, per-task logging, and the optional
+   node-encoder-depth split.
+
+
+   .. py:attribute:: num_node_targets
+      :type:  int
+
+
+   .. py:attribute:: num_graph_targets
+      :type:  int
+
+
+   .. py:attribute:: node_head_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: graph_head_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: node_task_head_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: graph_task_head_dims
+      :type:  list[int] | None
+
+
+   .. py:attribute:: node_loss_weight
+      :type:  float
+
+
+   .. py:attribute:: graph_loss_weight
+      :type:  float
+
+
+   .. py:attribute:: per_task_log_every_n_steps
+      :type:  int
+
+
+   .. py:attribute:: enc_node_encoder_depth
+      :type:  int | None
 
 
 .. py:class:: GraphMixin(/, **data: Any)

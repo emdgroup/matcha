@@ -29,6 +29,7 @@ Classes
    matcha.utils.schemas.datamodules.CLMMLMDataModuleInputModel
    matcha.utils.schemas.datamodules.GraphDataModuleInputModel
    matcha.utils.schemas.datamodules.GraphPretrainingDataModuleInputModel
+   matcha.utils.schemas.datamodules.Graph3DPretrainingDataModuleInputModel
    matcha.utils.schemas.datamodules.Graph3DDataModuleInputModel
    matcha.utils.schemas.datamodules.CombinedDataModuleInputModel
    matcha.utils.schemas.datamodules.ChempropDataModuleInputModel
@@ -289,6 +290,24 @@ Module Contents
    .. py:attribute:: scale_y_node
       :type:  bool
       :value: False
+
+
+
+.. py:class:: Graph3DPretrainingDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`GraphPretrainingDataModuleInputModel`
+
+
+   Schema for 3D graph pretraining datamodule with user-supplied coordinates.
+
+   Inherits every field from :class:`GraphPretrainingDataModuleInputModel`. The
+   3D variant intentionally omits ``embed_timeout`` — coordinates are supplied
+   by the user, never generated on the fly with ETKDG.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph3d_pretraining']
+      :value: 'graph3d_pretraining'
 
 
 

@@ -41,6 +41,7 @@ Classes
    matcha.utils.schemas.MPNNInputModel
    matcha.utils.schemas.GatedGCNInputModel
    matcha.utils.schemas.E3GNNInputModel
+   matcha.utils.schemas.E3GNNPretrainingInputModel
    matcha.utils.schemas.GPSInputModel
    matcha.utils.schemas.GPS3DInputModel
    matcha.utils.schemas.GTInputModel
@@ -58,6 +59,7 @@ Classes
    matcha.utils.schemas.GraphDataModuleInputModel
    matcha.utils.schemas.GraphPretrainingDataModuleInputModel
    matcha.utils.schemas.Graph3DDataModuleInputModel
+   matcha.utils.schemas.Graph3DPretrainingDataModuleInputModel
    matcha.utils.schemas.CLMDataModuleInputModel
    matcha.utils.schemas.CombinedDataModuleInputModel
    matcha.utils.schemas.ScikitLearnInputModel
@@ -149,6 +151,42 @@ Package Contents
    .. py:attribute:: torch_type
       :type:  Literal['e3gnn']
       :value: 'e3gnn'
+
+
+
+.. py:class:: E3GNNPretrainingInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.generic_models.PretrainingMatchaModel`, :py:obj:`matcha.utils.schemas.generic_models.GraphMixin`, :py:obj:`matcha.utils.schemas.generic_models.GraphPretrainingMixin`, :py:obj:`matcha.utils.schemas.generic_models.E3GNNMixin`
+
+
+   Schema for the E(3)-equivariant GNN pretraining model configuration.
+
+   Combines the graph encoder surface (:class:`GraphMixin`) with
+   E3GNN-specific coordinate-update parameters (:class:`E3GNNMixin`) and
+   the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).
+
+   ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from
+   :class:`GraphMixin` but unused by pretraining models — the joint node /
+   graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /
+   ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default
+   to ``None`` here so pretraining callers do not need to pass them.
+
+
+   .. py:attribute:: torch_type
+      :type:  Literal['e3gnn_pretraining']
+      :value: 'e3gnn_pretraining'
+
+
+
+   .. py:attribute:: pred_hidden_dims
+      :type:  list[int] | None
+      :value: None
+
+
+
+   .. py:attribute:: pred_task_head_dims
+      :type:  list[int] | None
+      :value: None
 
 
 
@@ -597,6 +635,24 @@ Package Contents
    .. py:attribute:: embed_timeout
       :type:  Annotated[float, Field(gt=0.0)]
       :value: 30.0
+
+
+
+.. py:class:: Graph3DPretrainingDataModuleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`GraphPretrainingDataModuleInputModel`
+
+
+   Schema for 3D graph pretraining datamodule with user-supplied coordinates.
+
+   Inherits every field from :class:`GraphPretrainingDataModuleInputModel`. The
+   3D variant intentionally omits ``embed_timeout`` — coordinates are supplied
+   by the user, never generated on the fly with ETKDG.
+
+
+   .. py:attribute:: datamodule_type
+      :type:  Literal['graph3d_pretraining']
+      :value: 'graph3d_pretraining'
 
 
 
