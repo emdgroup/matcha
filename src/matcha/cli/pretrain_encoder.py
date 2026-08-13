@@ -44,7 +44,7 @@ from matcha.utils.schemas.cli import (
     EncoderPretrainMLMDatamodule,
     PretrainTraining,
 )
-from matcha.cli.utils import save_config_as_yaml
+from matcha.cli.utils import _load_npz_list, save_config_as_yaml
 from matcha.torch.models.pretraining import PretrainingModelRegistry
 from matcha import __version__
 
@@ -80,22 +80,6 @@ def _load_npz_array(path: str, key: str = "descriptors") -> np.ndarray:
     :returns: The loaded NumPy array.
     """
     return np.load(path)[key]
-
-
-def _load_npz_list(path: str) -> list[np.ndarray]:
-    """Load a list of variable-length arrays from a packed npz file.
-
-    Expected on-disk layout (``flat`` + ``offsets``)::
-
-        np.savez_compressed("node_y.npz", flat=<concatenated>, offsets=<cumulative>)
-
-    where ``offsets`` has length ``N + 1`` and ``flat`` has shape
-    ``(total_items,)`` or ``(total_items, D)``.
-    """
-    data = np.load(path)
-    flat = data["flat"]
-    offsets = data["offsets"]
-    return [flat[offsets[i] : offsets[i + 1]] for i in range(len(offsets) - 1)]
 
 
 def _filter_node_label_mismatches(

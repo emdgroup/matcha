@@ -295,3 +295,67 @@ def save_config_as_yaml(pydantic_config, output_path: str) -> None:
     cfg_dict = pydantic_config.model_dump()
     with open(output_path, "w") as f:
         yaml.dump(cfg_dict, f, default_flow_style=False, sort_keys=False)
+
+
+def _load_npz_list(path: str) -> list[np.ndarray]:
+    """Load a list of variable-length arrays from a packed npz file.
+
+    Expected on-disk layout (``flat`` + ``offsets``)::
+
+        np.savez_compressed("node_y.npz", flat=<concatenated>, offsets=<cumulative>)
+
+    where ``offsets`` has length ``N + 1`` and ``flat`` has shape
+    ``(total_items,)`` or ``(total_items, D)``.
+
+    :param path: Path to the packed ``.npz`` file.
+    :returns: A list of ``N`` numpy arrays reconstructed from the flat buffer.
+    """
+    data = np.load(path)
+    flat = data["flat"]
+    offsets = data["offsets"]
+    return [flat[offsets[i] : offsets[i + 1]] for i in range(len(offsets) - 1)]
+
+
+def _load_coords_npz(path: str) -> list[np.ndarray]:
+    """Load per-molecule 3D coordinates from a packed npz file.
+
+    Uses the same ``flat + offsets`` layout as :func:`_load_npz_list` but
+    with two additional invariants: ``flat`` is a 2D array of shape
+    ``(total_atoms, 3)`` and each molecule's slice becomes an
+    ``(A_i, 3)`` ``float32`` array.
+
+    Startup guards raise ``AssertionError`` on malformed inputs, so the CLI
+    fails fast before featurization is ever attempted:
+
+    - ``flat.ndim == 2``
+    - ``flat.shape[1] == 3``
+    - ``offsets.ndim == 1``
+    - ``offsets`` is monotonic non-decreasing
+    - ``offsets[-1] == flat.shape[0]``
+
+    :param path: Path to the packed ``.npz`` file.
+    :returns: A list of ``N`` ``float32`` arrays, each of shape ``(A_i, 3)``.
+    """
+    data = np.load(path)
+    flat = data["flat"]
+    offsets = data["offsets"]
+
+    assert flat.ndim == 2, (
+        f"coords npz '{path}': expected flat.ndim == 2, got {flat.ndim}"
+    )
+    assert flat.shape[1] == 3, (
+        f"coords npz '{path}': expected flat.shape[1] == 3, got {flat.shape[1]}"
+    )
+    assert offsets.ndim == 1, (
+        f"coords npz '{path}': expected offsets.ndim == 1, got {offsets.ndim}"
+    )
+    assert bool(np.all(np.diff(offsets) >= 0)), (
+        f"coords npz '{path}': offsets must be monotonic non-decreasing"
+    )
+    assert int(offsets[-1]) == flat.shape[0], (
+        f"coords npz '{path}': offsets[-1]={int(offsets[-1])} does not match "
+        f"flat.shape[0]={flat.shape[0]}"
+    )
+
+    flat32 = flat.astype(np.float32, copy=False)
+    return [flat32[offsets[i] : offsets[i + 1]] for i in range(len(offsets) - 1)]
