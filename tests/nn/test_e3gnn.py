@@ -57,9 +57,7 @@ def _make_batch(n_atoms: int = 4) -> tuple[Batch, torch.Tensor]:
     # Make undirected
     edge_index = torch.cat([edge_index, edge_index.flip(0)], dim=1)
     coords = torch.randn(n_atoms, 3)
-    g = Data(
-        x=torch.randn(n_atoms, _ATOM_INPUT_DIM), edge_index=edge_index, pos=coords
-    )
+    g = Data(x=torch.randn(n_atoms, _ATOM_INPUT_DIM), edge_index=edge_index, pos=coords)
     batch = Batch.from_data_list([g])
     return batch, coords
 

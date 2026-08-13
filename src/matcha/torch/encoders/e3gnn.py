@@ -433,9 +433,7 @@ class E3GNN(BaseGraphEncoder, HyperparametersMixin):
         """Return fingerprint dimension."""
         return self._fp_dim
 
-    def forward_nodes_per_layer(
-        self, graph: Batch
-    ) -> tuple[list[torch.Tensor], Batch]:
+    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
         """Run E(n)-equivariant message passing and return one node-feature
         tensor per layer.
 

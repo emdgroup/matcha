@@ -128,9 +128,7 @@ class GT3D(BaseGraphEncoder, HyperparametersMixin):
         self._parse_jk(jk)
         self._parse_readout(readout)
 
-    def forward_nodes_per_layer(
-        self, graph: Batch
-    ) -> tuple[list[torch.Tensor], Batch]:
+    def forward_nodes_per_layer(self, graph: Batch) -> tuple[list[torch.Tensor], Batch]:
         """Run 3D-biased graph-transformer message passing and return one
         node-feature tensor per layer.
 
