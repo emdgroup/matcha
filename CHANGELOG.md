@@ -1,3 +1,9 @@
+## v0.0.13 (2026-08-14)
+
+### Fix
+
+- **losses**: revert MultiLoss to always-tuple return + align callers (stage 1/1)
+
 ## v0.0.12 (2026-08-13)
 
 ### Feat
