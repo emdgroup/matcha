@@ -127,6 +127,24 @@ class TestFinetunerMultiLoss:
         model.predictor_scheduler = MagicMock()
         model.pretrain_optimizer = MagicMock() if with_pretrain_optimizer else None
 
+        if with_pretrain_optimizer:
+            # Regression for issue #52: `training_step` must route `.step()`
+            # through Lightning-wrapped optimizers so `global_step` advances
+            # and the `MultiLoss` weight curriculum interpolates.
+            wrapped_predictor = MagicMock()
+            wrapped_pretrain = MagicMock()
+
+            def _advance_global_step(*_args, **_kwargs):
+                model.global_step += 1
+
+            wrapped_predictor.step = MagicMock(side_effect=_advance_global_step)
+            wrapped_pretrain.step = MagicMock()
+            model.optimizers = MagicMock(
+                return_value=[wrapped_predictor, wrapped_pretrain]
+            )
+            model._wrapped_predictor = wrapped_predictor
+            model._wrapped_pretrain = wrapped_pretrain
+
         logged: dict = {}
 
         def fake_log(name, value, **_kwargs):
@@ -139,10 +157,16 @@ class TestFinetunerMultiLoss:
     def test_training_step_multiloss(self, loss_configs):
         """Full fine-tuning path: dual optimizers + manual_backward on the
         MultiLoss tuple must receive a scalar tensor, not the tuple itself.
+
+        Also regression for issue #52: `.step()` must be routed through
+        `self.optimizers()` (Lightning-wrapped optimizers) so
+        `manual_optimization.optim_step_progress` advances and the
+        `MultiLoss` weight curriculum interpolates off `init_w`.
         """
         model = self._make_finetuner_mock(loss_configs, with_pretrain_optimizer=True)
         batch = {"y": torch.randn(8, 3)}
 
+        # First step — issue #48 regression checks (tuple unpacking).
         train_loss = model.training_step(batch, 0)
 
         assert isinstance(train_loss, torch.Tensor)
@@ -158,8 +182,37 @@ class TestFinetunerMultiLoss:
         assert any(
             k.startswith("train_task_") and k.endswith("_loss") for k in model._logged
         )
+        weight_keys = [
+            k
+            for k in model._logged
+            if k.startswith("train_task_") and k.endswith("_weight")
+        ]
+        assert weight_keys
+        init_weights = {k: model._logged[k] for k in weight_keys}
+
+        # Run enough further steps to pass warmup=2 and progress along T=10.
+        for _ in range(9):
+            model.training_step(batch, 0)
+
+        # Issue #52 regression: `self.optimizers()` was consulted on every step
+        # and wrapped `.step()` was invoked, while the raw torch refs were not.
+        assert model.optimizers.call_count == 10
+        assert model._wrapped_predictor.step.call_count == 10
+        assert model._wrapped_pretrain.step.call_count == 10
+        model.predictor_optimizer.step.assert_not_called()
+        model.pretrain_optimizer.step.assert_not_called()
+        # Simulated `global_step` counter incremented via the wrapped-step
+        # side-effect, mirroring Lightning's `optim_step_progress` advance.
+        assert model.global_step == 10
+        # At least one task weight has moved off its `init_w` because the
+        # `MultiLoss` schedule now receives a non-zero `T_current`.
+        final_weights = {k: model._logged[k] for k in weight_keys}
         assert any(
-            k.startswith("train_task_") and k.endswith("_weight") for k in model._logged
+            not torch.isclose(
+                torch.tensor(final_weights[k]),
+                torch.tensor(init_weights[k]),
+            )
+            for k in weight_keys
         )
 
     def test_training_step_multiloss_lora_path(self, loss_configs):
