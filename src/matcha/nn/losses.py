@@ -191,14 +191,21 @@ class MultiLoss(nn.Module):
 
     def forward(
         self, outputs: torch.Tensor, targets: torch.Tensor, T_current: int = 0
-    ) -> torch.Tensor:
+    ) -> tuple[torch.Tensor, dict]:
         """Forward pass with dynamic weight scheduling.
+
+        Always returns ``(total_loss, loss_log)`` so training and validation share
+        one contract. See issue #41: the earlier training-mode / eval-mode split
+        was a hotfix with no in-repo reproducer and left ``BaseClassicModel`` /
+        ``MLPModel`` callers unpacking a 0-d tensor. Callers that do not need the
+        per-task log can ignore the second element.
 
         :param torch.Tensor outputs: Model predictions.
         :param torch.Tensor targets: Ground truth targets; NaN marks missing entries.
         :param int T_current: Current training epoch for weight scheduling.
-        :returns: Weighted total loss (scalar during training, tuple with log during eval).
-        :rtype: torch.Tensor or tuple[torch.Tensor, dict]
+        :returns: Tuple of ``(total_loss, loss_log)`` where ``loss_log`` maps each
+            task name to a ``{"loss": float, "weight": float}`` record.
+        :rtype: tuple[torch.Tensor, dict]
         """
         total_loss = 0.0
         loss_log = {}
@@ -241,16 +248,7 @@ class MultiLoss(nn.Module):
             name = f"task_{i}" if "name" not in config else config["name"]
             loss_log[name] = {"loss": task_loss_final.item(), "weight": current_weight}
 
-        # commented out as hotfix for openadmet
-        # return total_loss, loss_log
-
-        # Return different signatures based on training vs validation mode
-        if self.training:
-            # During training, return only the loss tensor for backward()
-            return total_loss
-        else:
-            # During validation, return tuple for logging
-            return total_loss, loss_log
+        return total_loss, loss_log
 
 
 @LossRegistry.register(alias="bounded")

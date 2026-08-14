@@ -110,23 +110,22 @@ class MLPModel(BaseClassicModel, HyperparametersMixin):
         mol_features, y = batch["mol_features"], batch["y"]
         mol_features.requires_grad_()
         y_pred = self.forward(batch)
-        train_loss = self.loss_fn(y_pred, y)
+
+        if not isinstance(self.loss_fn, MultiLoss):
+            train_loss = self.loss_fn(y_pred, y)
+            loss_log = None
+        else:
+            train_loss, loss_log = self.loss_fn(y_pred, y, self.global_step)
+
         if self.deep_lasso_weight > 0:
             reg = deep_lasso_regularizer(train_loss, mol_features)
             train_loss = (
                 self.deep_lasso_weight * reg + (1 - self.deep_lasso_weight) * train_loss
             )
 
-        if not isinstance(self.loss_fn, MultiLoss):
-            train_loss = self.loss_fn(y_pred, y)
-            self.log(
-                "train_loss", train_loss, prog_bar=True, on_step=True, sync_dist=True
-            )
-        else:
-            train_loss, loss_log = self.loss_fn(y_pred, y, self.global_step)
-            self.log(
-                "train_loss", train_loss, prog_bar=True, on_step=True, sync_dist=True
-            )
+        self.log("train_loss", train_loss, prog_bar=True, on_step=True, sync_dist=True)
+
+        if loss_log is not None:
             for name, log in loss_log.items():
                 self.log(
                     f"train_{name}_loss",

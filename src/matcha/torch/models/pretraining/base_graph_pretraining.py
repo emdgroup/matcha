@@ -16,7 +16,7 @@ from lightning.pytorch.core.mixins import HyperparametersMixin
 from matcha.torch.models.pretraining.base_pretraining_model import (
     BasePretrainingModel,
 )
-from matcha.nn.losses import MultitaskLoss, GradNormLoss, MultiLoss
+from matcha.nn.losses import MultitaskLoss, GradNormLoss
 from matcha.nn.layers import LnBnDr, MultiMLP
 
 
@@ -112,7 +112,23 @@ class BaseGraphPretrainingModel(BasePretrainingModel, HyperparametersMixin):
         Graph pretraining targets (both node-level and graph-level) may
         contain NaN entries.  ``MultitaskLoss`` automatically masks those
         out, matching the behaviour used by the classical models.
+
+        ``loss_fn="multiloss"`` is rejected at construction time: MultiLoss
+        returns ``(loss, log_dict)`` (see issue #41) which would break the
+        two-head training/validation flow used here, and no in-tree caller
+        currently exercises this path. Use ``multitask`` or ``gradnorm``
+        instead.
         """
+        loss_fn = self.hparams["loss_fn"]
+        if loss_fn == "multiloss":
+            raise ValueError(
+                "loss_fn='multiloss' is not supported for graph pretraining. "
+                "MultiLoss returns a (loss, log_dict) tuple that the two-head "
+                "training/validation flow cannot consume, and its per-task "
+                "logging assumes a single-tensor target. "
+                "Use loss_fn='multitask' or loss_fn='gradnorm' instead."
+            )
+
         super()._parse_train_config()
 
         # Re-wrap the loss produced by the base class so NaN targets are
@@ -120,12 +136,9 @@ class BaseGraphPretrainingModel(BasePretrainingModel, HyperparametersMixin):
         # nn.MSELoss); we replace it with the MultitaskLoss wrapper that
         # applies NaN masking, unless the user already requested an
         # explicitly NaN-aware loss variant.
-        loss_fn = self.hparams["loss_fn"]
         loss_args = self.hparams.get("loss_args", {})
 
-        if loss_fn == "multiloss":
-            self.loss_fn = MultiLoss(loss_args["loss_configs"])
-        elif loss_fn == "gradnorm":
+        if loss_fn == "gradnorm":
             inner_fn = loss_args.get("loss_fn", "mse")
             inner_args = loss_args.get("loss_args", {})
             num_ep = loss_args.get("num_endpoints", 1)

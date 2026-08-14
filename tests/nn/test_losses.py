@@ -1,5 +1,7 @@
 """Tests for matcha.nn.losses – LossRegistry and loss modules."""
 
+from unittest.mock import MagicMock
+
 import pytest
 import torch
 import torch.nn.functional as F
@@ -15,6 +17,8 @@ from matcha.nn.losses import (
     GradNormLoss,
     DropoutLoss,
 )
+from matcha.torch.models.classic.base_classic_model import BaseClassicModel
+from matcha.torch.models.classic.mlp_model import MLPModel
 
 
 # ===================================================================
@@ -306,15 +310,18 @@ class TestMultiLoss:
             },
         ]
 
-    def test_output_scalar_training(self, loss_configs):
+    def test_output_tuple_training(self, loss_configs):
         loss_fn = MultiLoss(loss_configs)
         loss_fn.train()
         preds = torch.randn(8, 3)
         targets = torch.randn(8, 3)
         result = loss_fn(preds, targets, T_current=0)
-        # In training mode, returns only the loss tensor
-        assert isinstance(result, torch.Tensor)
-        assert result.dim() == 0
+        # Training and eval share the always-tuple contract (see issue #41).
+        assert isinstance(result, tuple)
+        assert len(result) == 2
+        loss, log = result
+        assert loss.dim() == 0
+        assert isinstance(log, dict)
 
     def test_output_tuple_eval(self, loss_configs):
         loss_fn = MultiLoss(loss_configs)
@@ -359,8 +366,80 @@ class TestMultiLoss:
         targets = torch.randn(8, 3)
         targets[0, 0] = float("nan")
         targets[3, 2] = float("nan")
-        loss = loss_fn(preds, targets, T_current=0)
+        loss, _ = loss_fn(preds, targets, T_current=0)
         assert torch.isfinite(loss)
+
+    def _make_training_step_mock(self, spec_cls, loss_configs):
+        """Build a MagicMock that runs the real training_step of ``spec_cls``.
+
+        Follows the ``MagicMock(spec=...) + bound method`` pattern used in
+        ``tests/pretraining/test_base_graph_pretraining.py``. Assigns a real
+        MultiLoss in train mode and records ``self.log`` calls.
+        """
+        model = MagicMock(spec=spec_cls)
+        model.training_step = spec_cls.training_step.__get__(model)
+        model.global_step = 0
+        model.deep_lasso_weight = 0.0
+
+        preds = torch.randn(8, 3, requires_grad=True)
+        model.forward = MagicMock(return_value=preds)
+
+        loss_fn = MultiLoss(loss_configs)
+        loss_fn.train()
+        model.loss_fn = loss_fn
+
+        logged: dict = {}
+
+        def fake_log(name, value, **_kwargs):
+            logged[name] = value.item() if isinstance(value, torch.Tensor) else value
+
+        model.log = MagicMock(side_effect=fake_log)
+        model._logged = logged
+        return model
+
+    def test_training_step_integration_base_classic_model(self, loss_configs):
+        """Regression for issue #41: BaseClassicModel.training_step must
+        consume MultiLoss's tuple return without ``iteration over a 0-d tensor``.
+        """
+        model = self._make_training_step_mock(BaseClassicModel, loss_configs)
+        batch = {"y": torch.randn(8, 3)}
+
+        train_loss = model.training_step(batch, 0)
+
+        assert isinstance(train_loss, torch.Tensor)
+        assert train_loss.dim() == 0
+        assert train_loss.requires_grad
+        assert "train_loss" in model._logged
+        # At least one per-task loss and weight were logged.
+        assert any(
+            k.startswith("train_task_") and k.endswith("_loss") for k in model._logged
+        )
+        assert any(
+            k.startswith("train_task_") and k.endswith("_weight") for k in model._logged
+        )
+
+    def test_training_step_integration_mlp_model(self, loss_configs):
+        """Regression for issue #41: MLPModel.training_step must consume
+        MultiLoss's tuple return without ``iteration over a 0-d tensor``.
+        """
+        model = self._make_training_step_mock(MLPModel, loss_configs)
+        batch = {
+            "mol_features": torch.randn(8, 4),
+            "y": torch.randn(8, 3),
+        }
+
+        train_loss = model.training_step(batch, 0)
+
+        assert isinstance(train_loss, torch.Tensor)
+        assert train_loss.dim() == 0
+        assert train_loss.requires_grad
+        assert "train_loss" in model._logged
+        assert any(
+            k.startswith("train_task_") and k.endswith("_loss") for k in model._logged
+        )
+        assert any(
+            k.startswith("train_task_") and k.endswith("_weight") for k in model._logged
+        )
 
 
 # ===================================================================
