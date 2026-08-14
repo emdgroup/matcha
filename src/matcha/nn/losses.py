@@ -623,6 +623,7 @@ class DropoutLoss(nn.Module):
                 f"(got {inner_cls.__name__}). Wrap a per-element loss "
                 f"(e.g. 'mse', 'mae', 'bce', 'focal-bce') instead."
             )
+        kwargs.pop("reduction", None)
         self.loss = inner_cls(reduction="none", **kwargs)
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
