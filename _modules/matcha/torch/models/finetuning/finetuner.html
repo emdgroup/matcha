@@ -627,12 +627,17 @@
             <span class="n">train_loss</span><span class="p">,</span> <span class="n">loss_log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_optimizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Full fine-tuning: manual optimization with two optimizers</span>
+            <span class="c1"># Full fine-tuning: manual optimization with two optimizers.</span>
+            <span class="c1"># Step through Lightning-wrapped optimizers so</span>
+            <span class="c1"># `manual_optimization.optim_step_progress` (and hence</span>
+            <span class="c1"># `self.global_step`) advances — the raw torch refs bypass</span>
+            <span class="c1"># `LightningOptimizer._on_before_step`/`_on_after_step` hooks.</span>
+            <span class="n">opt_predictor</span><span class="p">,</span> <span class="n">opt_pretrain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">optimizers</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">predictor_optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_optimizer</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">manual_backward</span><span class="p">(</span><span class="n">train_loss</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">predictor_optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_optimizer</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+            <span class="n">opt_predictor</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+            <span class="n">opt_pretrain</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
 
             <span class="c1"># Manually step scheduler (Lightning skips auto-stepping</span>
             <span class="c1"># when automatic_optimization is False)</span>
