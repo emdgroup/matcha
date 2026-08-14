@@ -1,3 +1,9 @@
+## v0.0.14 (2026-08-14)
+
+### Fix
+
+- **finetuner**: route wrapper MLM path through forward_tokens
+
 ## v0.0.13 (2026-08-14)
 
 ### Fix
