@@ -1,3 +1,10 @@
+## v0.0.16 (2026-08-14)
+
+### Fix
+
+- **losses**: drop caller-supplied reduction kwarg in DropoutLoss so it can be wrapped by MultiLoss/MultitaskLoss
+- **finetuner**: advance global_step in full manual-opt path so MultiLoss weight curriculum interpolates
+
 ## v0.0.15 (2026-08-14)
 
 ### Fix
