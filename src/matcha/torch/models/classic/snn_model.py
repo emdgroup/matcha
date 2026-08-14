@@ -109,8 +109,10 @@ class SNNModel(BaseClassicModel, HyperparametersMixin):
         if not isinstance(self.loss_fn, MultiLoss):
             train_loss = self.loss_fn(y_pred, y)
         else:
-            # MultiLoss returns only the loss tensor during training mode
-            train_loss = self.loss_fn(y_pred, y, self.global_step)
+            # MultiLoss always returns (loss, per-task log); training-only per-task
+            # logging is deliberately dropped here to keep the SNN training step
+            # minimal. See issue #41.
+            train_loss, _ = self.loss_fn(y_pred, y, self.global_step)
 
         if self.deep_lasso_weight > 0:
             reg = deep_lasso_regularizer(train_loss, mol_features)

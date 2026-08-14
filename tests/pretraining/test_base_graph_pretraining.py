@@ -450,3 +450,20 @@ class TestBuildPredictionHeadTaskHeadDims:
             activation="swish",
         )
         assert isinstance(head[-1], nn.Linear)
+
+
+class TestParseTrainConfigRejectsMultiloss:
+    """Regression for issue #41: graph pretraining must reject loss_fn='multiloss'
+    at construction time so MultiLoss's (loss, log) tuple never reaches the
+    two-head training/validation flow.
+    """
+
+    def test_parse_train_config_rejects_multiloss(self) -> None:
+        model = MagicMock(spec=BaseGraphPretrainingModel)
+        model._parse_train_config = (
+            BaseGraphPretrainingModel._parse_train_config.__get__(model)
+        )
+        model.hparams = {"loss_fn": "multiloss", "loss_args": {"loss_configs": []}}
+
+        with pytest.raises(ValueError, match="multiloss"):
+            model._parse_train_config()
