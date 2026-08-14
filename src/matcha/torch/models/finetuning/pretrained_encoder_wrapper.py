@@ -66,8 +66,12 @@ class PretrainedEncoderWrapper(nn.Module):
 
         * **Graph encoders** already aggregate via readout, returning
           ``[B, D]`` from their ``forward(graph)`` call.
-        * **MLM encoders** return per-token embeddings ``[B, S, D]``;
-          we CLS-pool (take index 0) to get ``[B, D]``.
+        * **MLM encoders** expose ``forward_tokens`` returning per-token
+          embeddings ``[B, S, D]``; we CLS-pool (take index 0) to get
+          ``[B, D]``. Using ``forward_tokens`` here — not ``forward`` —
+          matters because the encoder's ``forward`` already CLS-pools
+          for the classic path, so calling it and slicing again would
+          index a 2D tensor with three indices.
         """
         if self._encoder_type == self._GRAPH_TYPE:
             graph = batch["graph"]
@@ -75,5 +79,5 @@ class PretrainedEncoderWrapper(nn.Module):
 
         # MLM path
         token_ids = batch["token_ids"]
-        embeddings = self.encoder(token_ids)  # [B, S, D]
+        embeddings = self.encoder.forward_tokens(token_ids)  # [B, S, D]
         return embeddings[:, 0, :]  # CLS pooling
