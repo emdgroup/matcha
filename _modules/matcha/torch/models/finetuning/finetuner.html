@@ -97,6 +97,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassicModelRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.predictors</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiLoss</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.optimizers</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizerRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaRMSN</span><span class="p">,</span> <span class="n">GraphNorm</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.mixin</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelMixin</span>
@@ -620,7 +621,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">y</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span>
         <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
-        <span class="n">train_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">MultiLoss</span><span class="p">):</span>
+            <span class="n">train_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">train_loss</span><span class="p">,</span> <span class="n">loss_log</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">global_step</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_optimizer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># Full fine-tuning: manual optimization with two optimizers</span>
@@ -634,7 +638,27 @@
             <span class="c1"># when automatic_optimization is False)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">predictor_scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;train_loss&quot;</span><span class="p">,</span> <span class="n">train_loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">MultiLoss</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="s2">&quot;train_loss&quot;</span><span class="p">,</span> <span class="n">train_loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                <span class="s2">&quot;train_loss&quot;</span><span class="p">,</span> <span class="n">train_loss</span><span class="p">,</span> <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">log</span> <span class="ow">in</span> <span class="n">loss_log</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;train_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_loss&quot;</span><span class="p">,</span>
+                    <span class="n">log</span><span class="p">[</span><span class="s2">&quot;loss&quot;</span><span class="p">],</span>
+                    <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">log</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;train_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_weight&quot;</span><span class="p">,</span>
+                    <span class="n">log</span><span class="p">[</span><span class="s2">&quot;weight&quot;</span><span class="p">],</span>
+                    <span class="n">prog_bar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">on_step</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">sync_dist</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                <span class="p">)</span>
         <span class="k">return</span> <span class="n">train_loss</span></div>
 
 
