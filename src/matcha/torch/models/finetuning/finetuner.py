@@ -524,12 +524,17 @@ class Finetuner(ModelMixin, HyperparametersMixin):
             train_loss, loss_log = self.loss_fn(y_pred, y, self.global_step)
 
         if self.pretrain_optimizer is not None:
-            # Full fine-tuning: manual optimization with two optimizers
+            # Full fine-tuning: manual optimization with two optimizers.
+            # Step through Lightning-wrapped optimizers so
+            # `manual_optimization.optim_step_progress` (and hence
+            # `self.global_step`) advances — the raw torch refs bypass
+            # `LightningOptimizer._on_before_step`/`_on_after_step` hooks.
+            opt_predictor, opt_pretrain = self.optimizers()
             self.predictor_optimizer.zero_grad()
             self.pretrain_optimizer.zero_grad()
             self.manual_backward(train_loss)
-            self.predictor_optimizer.step()
-            self.pretrain_optimizer.step()
+            opt_predictor.step()
+            opt_pretrain.step()
 
             # Manually step scheduler (Lightning skips auto-stepping
             # when automatic_optimization is False)
