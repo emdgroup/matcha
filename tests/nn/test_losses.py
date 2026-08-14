@@ -705,6 +705,57 @@ class TestDropoutLoss:
         with pytest.raises(ValueError):
             DropoutLoss(loss_fn=alias)
 
+    def test_wrapped_by_multitask_loss_constructs(self):
+        """Regression: MultitaskLoss injects reduction="none"; DropoutLoss must tolerate it.
+
+        Only construction is verified: MultitaskLoss's forward expects per-element
+        inner output, but DropoutLoss reduces internally — a separate shape-contract
+        issue (see issue #55 plan). This test guards against the TypeError caused
+        by the duplicated ``reduction`` kwarg.
+        """
+        loss_fn = MultitaskLoss(
+            loss_fn="dropout-mse", loss_args={"dropout": 0.5, "seed": 0}
+        )
+        assert isinstance(loss_fn.loss, DropoutLoss)
+
+    def test_wrapped_by_multi_loss_constructs(self):
+        """Regression: MultiLoss injects reduction="none"; DropoutLoss must tolerate it.
+
+        Only construction is verified — see :meth:`test_wrapped_by_multitask_loss_constructs`.
+        """
+        loss_configs = [
+            {
+                "loss_fn": "dropout-mse",
+                "loss_args": {"dropout": 0.5, "seed": 0},
+                "task_map": [0, 1, 2],
+                "init_w": 1.0,
+                "final_w": 1.0,
+                "T": 1,
+                "warmup": 0,
+            },
+        ]
+        loss_fn = MultiLoss(loss_configs)
+        assert isinstance(loss_fn.losses[0], DropoutLoss)
+
+    @pytest.mark.parametrize(
+        "alias",
+        [
+            "dropout-mse",
+            "dropout-mae",
+            "dropout-focal-bce",
+            "dropout-weighted-bce",
+        ],
+    )
+    def test_aliases_construct_with_reduction_kwarg(self, alias):
+        """Regression: caller-supplied ``reduction`` must be silently discarded.
+
+        Covers the wrapper injection path (``MultiLoss``/``MultitaskLoss`` always
+        pass ``reduction="none"``) at the alias level, mirroring the acceptance
+        criteria on dropout aliases.
+        """
+        loss_fn = LossRegistry[alias](reduction="none", dropout=0.1, seed=0)
+        assert isinstance(loss_fn, DropoutLoss)
+
 
 # ===================================================================
 # DropoutLoss registry aliases
