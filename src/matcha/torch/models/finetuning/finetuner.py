@@ -7,6 +7,7 @@ LoRA (Low-Rank Adaptation) as finetuning strategies.
 from matcha.torch.models.classic.base_classic_model import ClassicModelRegistry
 from matcha.utils.serialization import load_yaml
 from matcha.torch.predictors import MLP
+from matcha.nn.losses import MultiLoss
 from matcha.nn.optimizers import OptimizerRegistry
 from matcha.nn.layers import AdaRMSN, GraphNorm
 from matcha.torch.models.mixin import ModelMixin
@@ -517,7 +518,10 @@ class Finetuner(ModelMixin, HyperparametersMixin):
         """
         y = batch["y"]
         y_pred = self.forward(batch)
-        train_loss = self.loss_fn(y_pred, y)
+        if not isinstance(self.loss_fn, MultiLoss):
+            train_loss = self.loss_fn(y_pred, y)
+        else:
+            train_loss, loss_log = self.loss_fn(y_pred, y, self.global_step)
 
         if self.pretrain_optimizer is not None:
             # Full fine-tuning: manual optimization with two optimizers
@@ -531,7 +535,27 @@ class Finetuner(ModelMixin, HyperparametersMixin):
             # when automatic_optimization is False)
             self.predictor_scheduler.step()
 
-        self.log("train_loss", train_loss, prog_bar=True, on_step=True)
+        if not isinstance(self.loss_fn, MultiLoss):
+            self.log("train_loss", train_loss, prog_bar=True, on_step=True)
+        else:
+            self.log(
+                "train_loss", train_loss, prog_bar=True, on_step=True, sync_dist=True
+            )
+            for name, log in loss_log.items():
+                self.log(
+                    f"train_{name}_loss",
+                    log["loss"],
+                    prog_bar=True,
+                    on_step=True,
+                    sync_dist=True,
+                )
+                self.log(
+                    f"train_{name}_weight",
+                    log["weight"],
+                    prog_bar=True,
+                    on_step=True,
+                    sync_dist=True,
+                )
         return train_loss
 
     def predict_step(self, batch: dict[str, Any]) -> torch.Tensor:
