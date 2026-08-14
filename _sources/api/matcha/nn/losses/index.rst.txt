@@ -176,15 +176,22 @@ Module Contents
    .. py:attribute:: losses
 
 
-   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor, T_current: int = 0) -> torch.Tensor
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor, T_current: int = 0) -> tuple[torch.Tensor, dict]
 
       Forward pass with dynamic weight scheduling.
+
+      Always returns ``(total_loss, loss_log)`` so training and validation share
+      one contract. See issue #41: the earlier training-mode / eval-mode split
+      was a hotfix with no in-repo reproducer and left ``BaseClassicModel`` /
+      ``MLPModel`` callers unpacking a 0-d tensor. Callers that do not need the
+      per-task log can ignore the second element.
 
       :param torch.Tensor outputs: Model predictions.
       :param torch.Tensor targets: Ground truth targets; NaN marks missing entries.
       :param int T_current: Current training epoch for weight scheduling.
-      :returns: Weighted total loss (scalar during training, tuple with log during eval).
-      :rtype: torch.Tensor or tuple[torch.Tensor, dict]
+      :returns: Tuple of ``(total_loss, loss_log)`` where ``loss_log`` maps each
+          task name to a ``{"loss": float, "weight": float}`` record.
+      :rtype: tuple[torch.Tensor, dict]
 
 
 

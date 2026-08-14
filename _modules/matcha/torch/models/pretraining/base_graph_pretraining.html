@@ -106,7 +106,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.pretraining.base_pretraining_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">BasePretrainingModel</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultitaskLoss</span><span class="p">,</span> <span class="n">GradNormLoss</span><span class="p">,</span> <span class="n">MultiLoss</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultitaskLoss</span><span class="p">,</span> <span class="n">GradNormLoss</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">LnBnDr</span><span class="p">,</span> <span class="n">MultiMLP</span>
 
 
@@ -204,7 +204,23 @@
 <span class="sd">        Graph pretraining targets (both node-level and graph-level) may</span>
 <span class="sd">        contain NaN entries.  ``MultitaskLoss`` automatically masks those</span>
 <span class="sd">        out, matching the behaviour used by the classical models.</span>
+
+<span class="sd">        ``loss_fn=&quot;multiloss&quot;`` is rejected at construction time: MultiLoss</span>
+<span class="sd">        returns ``(loss, log_dict)`` (see issue #41) which would break the</span>
+<span class="sd">        two-head training/validation flow used here, and no in-tree caller</span>
+<span class="sd">        currently exercises this path. Use ``multitask`` or ``gradnorm``</span>
+<span class="sd">        instead.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">loss_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;loss_fn&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">loss_fn</span> <span class="o">==</span> <span class="s2">&quot;multiloss&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;loss_fn=&#39;multiloss&#39; is not supported for graph pretraining. &quot;</span>
+                <span class="s2">&quot;MultiLoss returns a (loss, log_dict) tuple that the two-head &quot;</span>
+                <span class="s2">&quot;training/validation flow cannot consume, and its per-task &quot;</span>
+                <span class="s2">&quot;logging assumes a single-tensor target. &quot;</span>
+                <span class="s2">&quot;Use loss_fn=&#39;multitask&#39; or loss_fn=&#39;gradnorm&#39; instead.&quot;</span>
+            <span class="p">)</span>
+
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_parse_train_config</span><span class="p">()</span>
 
         <span class="c1"># Re-wrap the loss produced by the base class so NaN targets are</span>
@@ -212,12 +228,9 @@
         <span class="c1"># nn.MSELoss); we replace it with the MultitaskLoss wrapper that</span>
         <span class="c1"># applies NaN masking, unless the user already requested an</span>
         <span class="c1"># explicitly NaN-aware loss variant.</span>
-        <span class="n">loss_fn</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;loss_fn&quot;</span><span class="p">]</span>
         <span class="n">loss_args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;loss_args&quot;</span><span class="p">,</span> <span class="p">{})</span>
 
-        <span class="k">if</span> <span class="n">loss_fn</span> <span class="o">==</span> <span class="s2">&quot;multiloss&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="o">=</span> <span class="n">MultiLoss</span><span class="p">(</span><span class="n">loss_args</span><span class="p">[</span><span class="s2">&quot;loss_configs&quot;</span><span class="p">])</span>
-        <span class="k">elif</span> <span class="n">loss_fn</span> <span class="o">==</span> <span class="s2">&quot;gradnorm&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">loss_fn</span> <span class="o">==</span> <span class="s2">&quot;gradnorm&quot;</span><span class="p">:</span>
             <span class="n">inner_fn</span> <span class="o">=</span> <span class="n">loss_args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;loss_fn&quot;</span><span class="p">,</span> <span class="s2">&quot;mse&quot;</span><span class="p">)</span>
             <span class="n">inner_args</span> <span class="o">=</span> <span class="n">loss_args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;loss_args&quot;</span><span class="p">,</span> <span class="p">{})</span>
             <span class="n">num_ep</span> <span class="o">=</span> <span class="n">loss_args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
