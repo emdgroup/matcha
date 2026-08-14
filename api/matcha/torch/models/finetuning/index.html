@@ -490,8 +490,12 @@ that tiny projection heads, edge-feature layers, etc. are left untouched.</p>
 <ul class="simple">
 <li><p><strong>Graph encoders</strong> already aggregate via readout, returning
 <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code> from their <code class="docutils literal notranslate"><span class="pre">forward(graph)</span></code> call.</p></li>
-<li><p><strong>MLM encoders</strong> return per-token embeddings <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">S,</span> <span class="pre">D]</span></code>;
-we CLS-pool (take index 0) to get <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code>.</p></li>
+<li><p><strong>MLM encoders</strong> expose <code class="docutils literal notranslate"><span class="pre">forward_tokens</span></code> returning per-token
+embeddings <code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">S,</span> <span class="pre">D]</span></code>; we CLS-pool (take index 0) to get
+<code class="docutils literal notranslate"><span class="pre">[B,</span> <span class="pre">D]</span></code>. Using <code class="docutils literal notranslate"><span class="pre">forward_tokens</span></code> here — not <code class="docutils literal notranslate"><span class="pre">forward</span></code> —
+matters because the encoder’s <code class="docutils literal notranslate"><span class="pre">forward</span></code> already CLS-pools
+for the classic path, so calling it and slicing again would
+index a 2D tensor with three indices.</p></li>
 </ul>
 </dd></dl>
 

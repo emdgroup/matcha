@@ -160,8 +160,12 @@
 
 <span class="sd">        * **Graph encoders** already aggregate via readout, returning</span>
 <span class="sd">          ``[B, D]`` from their ``forward(graph)`` call.</span>
-<span class="sd">        * **MLM encoders** return per-token embeddings ``[B, S, D]``;</span>
-<span class="sd">          we CLS-pool (take index 0) to get ``[B, D]``.</span>
+<span class="sd">        * **MLM encoders** expose ``forward_tokens`` returning per-token</span>
+<span class="sd">          embeddings ``[B, S, D]``; we CLS-pool (take index 0) to get</span>
+<span class="sd">          ``[B, D]``. Using ``forward_tokens`` here — not ``forward`` —</span>
+<span class="sd">          matters because the encoder&#39;s ``forward`` already CLS-pools</span>
+<span class="sd">          for the classic path, so calling it and slicing again would</span>
+<span class="sd">          index a 2D tensor with three indices.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encoder_type</span> <span class="o">==</span> <span class="bp">self</span><span class="o">.</span><span class="n">_GRAPH_TYPE</span><span class="p">:</span>
             <span class="n">graph</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;graph&quot;</span><span class="p">]</span>
@@ -169,7 +173,7 @@
 
         <span class="c1"># MLM path</span>
         <span class="n">token_ids</span> <span class="o">=</span> <span class="n">batch</span><span class="p">[</span><span class="s2">&quot;token_ids&quot;</span><span class="p">]</span>
-        <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span>  <span class="c1"># [B, S, D]</span>
+        <span class="n">embeddings</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">forward_tokens</span><span class="p">(</span><span class="n">token_ids</span><span class="p">)</span>  <span class="c1"># [B, S, D]</span>
         <span class="k">return</span> <span class="n">embeddings</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:]</span>  <span class="c1"># CLS pooling</span></div>
 </div>
 

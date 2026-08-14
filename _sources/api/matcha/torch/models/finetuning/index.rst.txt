@@ -340,8 +340,12 @@ Package Contents
 
       * **Graph encoders** already aggregate via readout, returning
         ``[B, D]`` from their ``forward(graph)`` call.
-      * **MLM encoders** return per-token embeddings ``[B, S, D]``;
-        we CLS-pool (take index 0) to get ``[B, D]``.
+      * **MLM encoders** expose ``forward_tokens`` returning per-token
+        embeddings ``[B, S, D]``; we CLS-pool (take index 0) to get
+        ``[B, D]``. Using ``forward_tokens`` here — not ``forward`` —
+        matters because the encoder's ``forward`` already CLS-pools
+        for the classic path, so calling it and slicing again would
+        index a 2D tensor with three indices.
 
 
 
