@@ -349,18 +349,14 @@ def create_validation_set_dense(
     if n_compounds == 0:
         raise ValueError("Cannot create validation set from an empty dataset.")
     if min_compounds < 0:
-        raise ValueError(
-            f"min_compounds must be non-negative, got {min_compounds}."
-        )
+        raise ValueError(f"min_compounds must be non-negative, got {min_compounds}.")
     if min_compounds > n_compounds:
         raise ValueError(
             f"min_compounds ({min_compounds}) exceeds n_compounds "
             f"({n_compounds}); floor cannot be honored."
         )
     if not 0.0 <= sampling_rate <= 1.0:
-        raise ValueError(
-            f"sampling_rate must lie in [0.0, 1.0], got {sampling_rate}."
-        )
+        raise ValueError(f"sampling_rate must lie in [0.0, 1.0], got {sampling_rate}.")
 
     rng = np.random.default_rng(seed)
 

@@ -286,9 +286,11 @@ class TestCreateValidationSetDense:
         # sampling must place exactly ``sampling_rate * n_compounds`` in val.
         n_compounds = 100
         n_tasks = 20
-        dense_matrix = np.random.default_rng(0).standard_normal(
-            (n_compounds, n_tasks)
-        ).astype(np.float32)
+        dense_matrix = (
+            np.random.default_rng(0)
+            .standard_normal((n_compounds, n_tasks))
+            .astype(np.float32)
+        )
         mol_df = pd.DataFrame({"smiles": [f"C{i}" for i in range(n_compounds)]})
 
         _, val_mol_df, _, _ = create_validation_set_dense(
@@ -524,4 +526,3 @@ class TestPrepareMainEndToEnd:
         # discovered across both input files (4 + 3 - 2 shared = 5).
         assert train.shape[0] + val.shape[0] == 5
         assert train.shape[1] == 2
-
