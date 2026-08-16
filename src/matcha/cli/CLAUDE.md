@@ -54,3 +54,10 @@ Every command follows the same skeleton:
 - **Dense mode** — writes `train_tasks_dense.npy` / `val_tasks_dense.npy`. `NaN` marks missing entries directly; classification passes through as `0`/`1` with no remap. Choose this when the underlying label matrix is largely populated and CSR overhead outweighs the storage savings.
 
 Auto-detection contract: `task_metadata.json` carries a `storage_mode: "sparse" | "dense"` field. `pretrain_multitask` reads it up front and dispatches to the right loader and artifact filenames — users do **not** set any additional flag on the pretraining side. Both modes converge on the same `(B, T)` `float32` tensor with `NaN` marking missing at the collate boundary, so loss modules and model heads see an identical batch shape either way.
+
+Validation-split sampling **intentionally diverges** between the two modes, and the divergence is load-bearing — do not unify:
+
+- **Sparse mode** — per-task sampling with per-task `min_compounds` floor and OR aggregation across tasks. With most cells missing the per-task samplers rarely overlap, so the union stays close to `sampling_rate * n_compounds` while guaranteeing every task sees at least `min_compounds` validation rows.
+- **Dense mode** — single global compound sample: `n_val = min(n_compounds, max(min_compounds, int(sampling_rate * n_compounds)))`, `min_compounds` acting as a global floor rather than a per-task guarantee. The sparse OR-aggregation strategy would drive per-compound inclusion probability toward `1 - (1 - sampling_rate)^n_tasks` on near-fully-populated matrices and blow up the val split, so dense uses the direct compound fraction instead.
+
+Both paths remain seeded reproducibly through `validation.seed`.

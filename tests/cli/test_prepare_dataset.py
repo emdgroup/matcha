@@ -238,7 +238,7 @@ class TestMergeDatasetsStreamingDense:
 
 
 class TestCreateValidationSetDense:
-    """Random per-task sampling identifies compounds via ~np.isnan masks."""
+    """Global compound sampling — val size tracks ``sampling_rate * n_compounds``."""
 
     def test_create_validation_set_dense_split_sizes(self, stub_logger):
         # 10 compounds; task 0 covers all, task 1 covers only the first 5.
@@ -265,11 +265,8 @@ class TestCreateValidationSetDense:
         assert val_dense.shape[0] == len(val_mol_df)
         assert train_dense.shape[1] == 2
 
-        # Validation set has at least ``min_compounds`` (2) per task's sampling
-        # request; task 0 samples 2 (max(2, int(10*0.2))=2) and task 1 samples 2
-        # (max(2, int(5*0.2))=2). Overlap between the two per-task sample sets
-        # is possible, so we only assert an upper and lower bound.
-        assert 2 <= len(val_mol_df) <= 4
+        # Global sampling: n=10, rate=0.2, min=2 → min(10, max(2, 2)) = 2.
+        assert len(val_mol_df) == 2
 
         # Determinism: same seed → same split.
         _, val_mol_df_again, _, _ = create_validation_set_dense(
@@ -282,6 +279,126 @@ class TestCreateValidationSetDense:
             logger=stub_logger,
         )
         assert val_mol_df["smiles"].tolist() == val_mol_df_again["smiles"].tolist()
+
+    def test_dense_val_fraction_matches_sampling_rate(self, stub_logger):
+        # Regression guard for issue #63: with 20 fully-populated tasks the
+        # old per-task-OR heuristic pushed val toward ~all compounds. Global
+        # sampling must place exactly ``sampling_rate * n_compounds`` in val.
+        n_compounds = 100
+        n_tasks = 20
+        dense_matrix = (
+            np.random.default_rng(0)
+            .standard_normal((n_compounds, n_tasks))
+            .astype(np.float32)
+        )
+        mol_df = pd.DataFrame({"smiles": [f"C{i}" for i in range(n_compounds)]})
+
+        _, val_mol_df, _, _ = create_validation_set_dense(
+            mol_df=mol_df,
+            dense_matrix=dense_matrix,
+            task_cols=[f"task_{i}" for i in range(n_tasks)],
+            min_compounds=1,
+            sampling_rate=0.1,
+            seed=42,
+            logger=stub_logger,
+        )
+
+        assert len(val_mol_df) == 10
+
+    def test_dense_min_compounds_floor(self, stub_logger):
+        # int(0.001 * 100) == 0, so ``min_compounds`` is the binding floor.
+        n_compounds = 100
+        dense_matrix = np.zeros((n_compounds, 1), dtype=np.float32)
+        mol_df = pd.DataFrame({"smiles": [f"C{i}" for i in range(n_compounds)]})
+
+        _, val_mol_df, _, _ = create_validation_set_dense(
+            mol_df=mol_df,
+            dense_matrix=dense_matrix,
+            task_cols=["task_0"],
+            min_compounds=5,
+            sampling_rate=0.001,
+            seed=42,
+            logger=stub_logger,
+        )
+
+        assert len(val_mol_df) == 5
+
+    def test_dense_val_size_independent_of_n_tasks(self, stub_logger):
+        # Acceptance criterion: same seed and n_compounds with 1 vs. 100 tasks
+        # must yield the same val indices — task count no longer influences
+        # which compounds are drawn.
+        n_compounds = 50
+        mol_df = pd.DataFrame({"smiles": [f"C{i}" for i in range(n_compounds)]})
+
+        one_task = np.zeros((n_compounds, 1), dtype=np.float32)
+        many_tasks = np.zeros((n_compounds, 100), dtype=np.float32)
+
+        _, val_one, _, _ = create_validation_set_dense(
+            mol_df=mol_df,
+            dense_matrix=one_task,
+            task_cols=["task_0"],
+            min_compounds=1,
+            sampling_rate=0.2,
+            seed=7,
+            logger=stub_logger,
+        )
+        _, val_many, _, _ = create_validation_set_dense(
+            mol_df=mol_df,
+            dense_matrix=many_tasks,
+            task_cols=[f"task_{i}" for i in range(100)],
+            min_compounds=1,
+            sampling_rate=0.2,
+            seed=7,
+            logger=stub_logger,
+        )
+
+        assert val_one["smiles"].tolist() == val_many["smiles"].tolist()
+
+    def test_dense_raises_on_empty_dataset(self, stub_logger):
+        mol_df = pd.DataFrame({"smiles": []})
+        dense_matrix = np.empty((0, 2), dtype=np.float32)
+
+        with pytest.raises(ValueError, match="empty dataset"):
+            create_validation_set_dense(
+                mol_df=mol_df,
+                dense_matrix=dense_matrix,
+                task_cols=["task_0", "task_1"],
+                min_compounds=1,
+                sampling_rate=0.2,
+                seed=42,
+                logger=stub_logger,
+            )
+
+    def test_dense_raises_when_min_exceeds_total(self, stub_logger):
+        mol_df = pd.DataFrame({"smiles": ["C0", "C1", "C2"]})
+        dense_matrix = np.zeros((3, 1), dtype=np.float32)
+
+        with pytest.raises(ValueError, match="exceeds n_compounds"):
+            create_validation_set_dense(
+                mol_df=mol_df,
+                dense_matrix=dense_matrix,
+                task_cols=["task_0"],
+                min_compounds=10,
+                sampling_rate=0.2,
+                seed=42,
+                logger=stub_logger,
+            )
+
+    @pytest.mark.parametrize("bad_rate", [-0.1, 1.5])
+    def test_dense_raises_on_invalid_sampling_rate(self, stub_logger, bad_rate):
+        mol_df = pd.DataFrame({"smiles": ["C0", "C1", "C2"]})
+        dense_matrix = np.zeros((3, 1), dtype=np.float32)
+
+        with pytest.raises(ValueError, match="sampling_rate"):
+            create_validation_set_dense(
+                mol_df=mol_df,
+                dense_matrix=dense_matrix,
+                task_cols=["task_0"],
+                min_compounds=1,
+                sampling_rate=bad_rate,
+                seed=42,
+                logger=stub_logger,
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -409,66 +526,3 @@ class TestPrepareMainEndToEnd:
         # discovered across both input files (4 + 3 - 2 shared = 5).
         assert train.shape[0] + val.shape[0] == 5
         assert train.shape[1] == 2
-
-    def test_prepare_sparse_and_dense_same_semantics(self, tmp_path):
-        files = _write_prepare_fixture(tmp_path)
-        sparse_out = tmp_path / "out_sparse_cmp"
-        dense_out = tmp_path / "out_dense_cmp"
-
-        prepare_dataset_main(_make_prepare_cfg(files, sparse_out, sparse=True))
-        prepare_dataset_main(_make_prepare_cfg(files, dense_out, sparse=False))
-
-        sparse_meta = load_json(str(sparse_out / "task_metadata.json"))
-        dense_meta = load_json(str(dense_out / "task_metadata.json"))
-
-        # Task ordering and column-type inventory are identical.
-        assert sparse_meta["task_columns"] == dense_meta["task_columns"]
-        assert sparse_meta["column_to_task_type"] == dense_meta["column_to_task_type"]
-
-        # Scaling statistics from the same underlying data must agree (both
-        # helpers exclude missing entries; sparse via non-zero data, dense via
-        # ``np.nanmean``/``np.nanstd``).
-        sparse_stats = sparse_meta["scaling_stats"]
-        dense_stats = dense_meta["scaling_stats"]
-        assert set(sparse_stats) == set(dense_stats)
-        for key in sparse_stats:
-            assert sparse_stats[key]["mean"] == pytest.approx(
-                dense_stats[key]["mean"], rel=1e-5, abs=1e-5
-            )
-            assert sparse_stats[key]["std"] == pytest.approx(
-                dense_stats[key]["std"], rel=1e-5, abs=1e-5
-            )
-
-        # Non-missing entries agree after de-scaling. Compare via the sparse
-        # matrix's raw ``col.data`` rather than a densified view — the latter
-        # would misclassify a value that scaled to exactly 0.0 as "missing".
-        train_sparse = sp.load_npz(str(sparse_out / "train_tasks_sparse.npz"))
-        train_dense = np.load(
-            str(dense_out / "train_tasks_dense.npy"), allow_pickle=False
-        )
-
-        # Sparse and dense pipelines both sort compounds alphabetically and
-        # share the same validation seed, so the train molecule ordering matches
-        # row-for-row across the two artifacts.
-        sparse_mols = pd.read_parquet(sparse_out / "train_molecules.parquet")
-        dense_mols = pd.read_parquet(dense_out / "train_molecules.parquet")
-        assert sparse_mols["smiles"].tolist() == dense_mols["smiles"].tolist()
-
-        for task_idx in range(train_dense.shape[1]):
-            stats = dense_stats[str(task_idx)]
-
-            dense_col = train_dense[:, task_idx]
-            finite = ~np.isnan(dense_col)
-            dense_original = dense_col[finite] * stats["std"] + stats["mean"]
-
-            sparse_col_data = train_sparse.getcol(task_idx).data
-            sparse_original = sparse_col_data * stats["std"] + stats["mean"]
-
-            # Both modes surface the same non-missing count and values.
-            assert finite.sum() == len(sparse_original)
-            np.testing.assert_allclose(
-                np.sort(dense_original),
-                np.sort(sparse_original),
-                rtol=1e-5,
-                atol=1e-5,
-            )
