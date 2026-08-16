@@ -597,6 +597,15 @@ class DropoutLoss(nn.Module):
         perturb the ambient torch RNG. When ``None`` (default), masks are drawn
         from the ambient RNG (like :class:`torch.nn.Dropout`).
     :type seed: int or None
+    :param str reduction: Reduction applied after NaN and dropout masking:
+        ``"mean"`` (default) returns a scalar averaged over kept entries — the
+        standalone contract; ``"sum"`` returns the scalar sum of the masked
+        per-element loss; ``"none"`` returns the per-element loss tensor with
+        dropped and NaN entries zeroed, so :class:`MultiLoss` and
+        :class:`MultitaskLoss` (which construct inner losses with
+        ``reduction="none"``) receive the shape they expect. The inner loss is
+        always instantiated with ``reduction="none"``; this parameter controls
+        only the outer reduction after masking.
     :param kwargs: Extra keyword arguments forwarded to the inner loss constructor.
     """
 
@@ -605,6 +614,7 @@ class DropoutLoss(nn.Module):
         loss_fn: str = "mse",
         dropout: float = 0.0,
         seed: int | None = None,
+        reduction: str = "mean",
         **kwargs,
     ):
         if not 0.0 <= dropout < 1.0:
@@ -613,6 +623,7 @@ class DropoutLoss(nn.Module):
         self.dropout = float(dropout)
         self._seed = seed
         self._generator: torch.Generator | None = None
+        self.reduction = reduction
         inner_cls = LossRegistry[loss_fn]
         if issubclass(
             inner_cls,
@@ -623,7 +634,6 @@ class DropoutLoss(nn.Module):
                 f"(got {inner_cls.__name__}). Wrap a per-element loss "
                 f"(e.g. 'mse', 'mae', 'bce', 'focal-bce') instead."
             )
-        kwargs.pop("reduction", None)
         self.loss = inner_cls(reduction="none", **kwargs)
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
@@ -631,7 +641,10 @@ class DropoutLoss(nn.Module):
         :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.
         :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
             marks missing entries and is always excluded from the loss.
-        :returns: Scalar loss averaged across kept (non-NaN, non-dropped) entries.
+        :returns: Masked per-element loss when ``reduction="none"`` (same shape
+            as ``outputs``, with dropped and NaN entries zeroed). Scalar sum for
+            ``"sum"``. Scalar mean over kept entries for ``"mean"`` (the default
+            standalone behavior).
         :rtype: torch.Tensor
         """
         nan_mask = torch.isnan(targets)
@@ -656,7 +669,12 @@ class DropoutLoss(nn.Module):
             keep_mask = keep_mask & keep_from_dropout
 
         losses = losses * keep_mask
-        return losses.sum() / (keep_mask.sum() + 1e-8)
+        if self.reduction == "mean":
+            return losses.sum() / (keep_mask.sum() + 1e-8)
+        elif self.reduction == "sum":
+            return losses.sum()
+        else:
+            return losses
 
 
 @LossRegistry.register(alias="dropout-mse")

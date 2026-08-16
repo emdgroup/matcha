@@ -706,23 +706,14 @@ class TestDropoutLoss:
             DropoutLoss(loss_fn=alias)
 
     def test_wrapped_by_multitask_loss_constructs(self):
-        """Regression: MultitaskLoss injects reduction="none"; DropoutLoss must tolerate it.
-
-        Only construction is verified: MultitaskLoss's forward expects per-element
-        inner output, but DropoutLoss reduces internally — a separate shape-contract
-        issue (see issue #55 plan). This test guards against the TypeError caused
-        by the duplicated ``reduction`` kwarg.
-        """
+        """Regression: MultitaskLoss injects reduction="none"; DropoutLoss must tolerate it."""
         loss_fn = MultitaskLoss(
             loss_fn="dropout-mse", loss_args={"dropout": 0.5, "seed": 0}
         )
         assert isinstance(loss_fn.loss, DropoutLoss)
 
     def test_wrapped_by_multi_loss_constructs(self):
-        """Regression: MultiLoss injects reduction="none"; DropoutLoss must tolerate it.
-
-        Only construction is verified — see :meth:`test_wrapped_by_multitask_loss_constructs`.
-        """
+        """Regression: MultiLoss injects reduction="none"; DropoutLoss must tolerate it."""
         loss_configs = [
             {
                 "loss_fn": "dropout-mse",
@@ -747,14 +738,132 @@ class TestDropoutLoss:
         ],
     )
     def test_aliases_construct_with_reduction_kwarg(self, alias):
-        """Regression: caller-supplied ``reduction`` must be silently discarded.
+        """Regression: caller-supplied ``reduction`` is honored by DropoutLoss.
 
         Covers the wrapper injection path (``MultiLoss``/``MultitaskLoss`` always
-        pass ``reduction="none"``) at the alias level, mirroring the acceptance
-        criteria on dropout aliases.
+        pass ``reduction="none"``) at the alias level.
         """
         loss_fn = LossRegistry[alias](reduction="none", dropout=0.1, seed=0)
         assert isinstance(loss_fn, DropoutLoss)
+        assert loss_fn.reduction == "none"
+
+    def test_reduction_mean_matches_current_behavior(self):
+        loss_fn = DropoutLoss(loss_fn="mse", dropout=0.0)
+        loss_fn.eval()
+        preds = torch.randn(8, 3)
+        targets = torch.randn(8, 3)
+        loss = loss_fn(preds, targets)
+        expected = F.mse_loss(preds, targets, reduction="mean")
+        assert loss.dim() == 0
+        assert torch.allclose(loss, expected, atol=1e-6)
+
+    def test_reduction_none_returns_per_element(self):
+        loss_fn = DropoutLoss(loss_fn="mse", dropout=0.0, reduction="none")
+        loss_fn.eval()
+        preds = torch.randn(8, 3)
+        targets = torch.randn(8, 3)
+        loss = loss_fn(preds, targets)
+        expected = F.mse_loss(preds, targets, reduction="none")
+        assert loss.shape == (8, 3)
+        assert torch.allclose(loss, expected, atol=1e-6)
+
+    def test_reduction_sum_matches_masked_sum(self):
+        loss_fn = DropoutLoss(loss_fn="mse", dropout=0.0, reduction="sum")
+        loss_fn.eval()
+        preds = torch.randn(8, 3)
+        targets = torch.randn(8, 3)
+        loss = loss_fn(preds, targets)
+        expected = F.mse_loss(preds, targets, reduction="sum")
+        assert loss.dim() == 0
+        assert torch.allclose(loss, expected, atol=1e-6)
+
+    def test_reduction_none_zeros_nan_and_dropout(self):
+        loss_fn = DropoutLoss(loss_fn="mse", dropout=0.5, seed=0, reduction="none")
+        loss_fn.train()
+        preds = torch.randn(8, 3)
+        targets = torch.randn(8, 3)
+        targets[0, 1] = float("nan")
+        targets[3, 0] = float("nan")
+
+        # Reproduce the internal mask trajectory to identify dropped positions.
+        gen = torch.Generator()
+        gen.manual_seed(0)
+        keep_from_dropout = torch.rand((8, 3), generator=gen) >= 0.5
+        nan_mask = torch.isnan(targets)
+        keep_mask = (~nan_mask) & keep_from_dropout
+
+        out = loss_fn(preds, targets)
+        assert out.shape == (8, 3)
+        # NaN and dropped positions must be exactly zero.
+        assert torch.all(out[~keep_mask] == 0.0)
+        # Kept positions must be non-zero for generic inputs.
+        assert torch.all(out[keep_mask] != 0.0)
+
+    def test_reduction_none_preserves_shape(self):
+        loss_fn = DropoutLoss(loss_fn="mse", dropout=0.0, reduction="none")
+        loss_fn.eval()
+        preds = torch.randn(16, 5)
+        targets = torch.randn(16, 5)
+        out = loss_fn(preds, targets)
+        assert out.shape == preds.shape
+
+    def test_wrapped_by_multi_loss_forward(self):
+        """End-to-end regression: ``MultiLoss`` with mixed dropout losses runs forward.
+
+        Mirrors the ``pretrain_multitask`` config family from issue #59: one
+        entry using ``dropout-mse`` on descriptor columns and one using
+        ``dropout-focal-bce`` on fingerprint columns, with sprinkled NaN targets.
+        """
+        loss_configs = [
+            {
+                "loss_fn": "dropout-mse",
+                "loss_args": {"dropout": 0.3, "seed": 0},
+                "task_map": [0, 1, 2],
+                "init_w": 1.0,
+                "final_w": 1.0,
+                "T": 1,
+                "warmup": 0,
+                "name": "descriptors",
+            },
+            {
+                "loss_fn": "dropout-focal-bce",
+                "loss_args": {"dropout": 0.3, "seed": 1},
+                "task_map": [3, 4],
+                "init_w": 1.0,
+                "final_w": 1.0,
+                "T": 1,
+                "warmup": 0,
+                "name": "fingerprints",
+            },
+        ]
+        loss_fn = MultiLoss(loss_configs)
+        loss_fn.train()
+
+        preds = torch.randn(8, 5)
+        targets = torch.randn(8, 5)
+        # Sprinkle NaNs across both branches.
+        targets[0, 1] = float("nan")
+        targets[5, 2] = float("nan")
+        # Binarize the fingerprint columns and add NaNs.
+        targets[:, 3:] = (torch.randn(8, 2) > 0.0).float()
+        targets[2, 3] = float("nan")
+
+        total_loss, loss_log = loss_fn(preds, targets, T_current=0)
+        assert total_loss.dim() == 0
+        assert torch.isfinite(total_loss)
+        assert "descriptors" in loss_log
+        assert "fingerprints" in loss_log
+
+    def test_wrapped_by_multitask_loss_forward(self, multitask_targets):
+        """End-to-end regression: ``MultitaskLoss`` wrapping ``dropout-mse`` runs forward."""
+        loss_fn = MultitaskLoss(
+            loss_fn="dropout-mse", loss_args={"dropout": 0.5, "seed": 0}
+        )
+        loss_fn.train()
+        preds = torch.randn_like(multitask_targets)
+        loss = loss_fn(preds, multitask_targets.clone())
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
 
 
 # ===================================================================
@@ -797,3 +906,19 @@ class TestDropoutAliases:
         loss = loss_fn(preds, targets)
         assert loss.dim() == 0
         assert torch.isfinite(loss)
+
+    @pytest.mark.parametrize(
+        "key",
+        ["dropout-mse", "dropout-mae", "dropout-focal-bce", "dropout-weighted-bce"],
+    )
+    def test_aliases_reduction_none_returns_per_element(self, key):
+        """Aliases inherit ``reduction`` via ``**kwargs`` forwarding."""
+        loss_fn = LossRegistry[key](dropout=0.0, reduction="none")
+        preds = torch.randn(8, 1)
+        if key in self.BCE_ALIASES:
+            targets = torch.randint(0, 2, (8, 1)).float()
+        else:
+            targets = torch.randn(8, 1)
+        out = loss_fn(preds, targets)
+        assert out.shape == preds.shape
+        assert out.dim() == 2
