@@ -412,7 +412,7 @@ Module Contents
 
 
 
-.. py:class:: DropoutLoss(loss_fn: str = 'mse', dropout: float = 0.0, seed: int | None = None, **kwargs)
+.. py:class:: DropoutLoss(loss_fn: str = 'mse', dropout: float = 0.0, seed: int | None = None, reduction: str = 'mean', **kwargs)
 
    Bases: :py:obj:`torch.nn.Module`
 
@@ -440,10 +440,24 @@ Module Contents
        perturb the ambient torch RNG. When ``None`` (default), masks are drawn
        from the ambient RNG (like :class:`torch.nn.Dropout`).
    :type seed: int or None
+   :param str reduction: Reduction applied after NaN and dropout masking:
+       ``"mean"`` (default) returns a scalar averaged over kept entries — the
+       standalone contract; ``"sum"`` returns the scalar sum of the masked
+       per-element loss; ``"none"`` returns the per-element loss tensor with
+       dropped and NaN entries zeroed, so :class:`MultiLoss` and
+       :class:`MultitaskLoss` (which construct inner losses with
+       ``reduction="none"``) receive the shape they expect. The inner loss is
+       always instantiated with ``reduction="none"``; this parameter controls
+       only the outer reduction after masking.
    :param kwargs: Extra keyword arguments forwarded to the inner loss constructor.
 
 
    .. py:attribute:: dropout
+
+
+   .. py:attribute:: reduction
+      :value: 'mean'
+
 
 
    .. py:attribute:: loss
@@ -454,7 +468,10 @@ Module Contents
       :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.
       :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
           marks missing entries and is always excluded from the loss.
-      :returns: Scalar loss averaged across kept (non-NaN, non-dropped) entries.
+      :returns: Masked per-element loss when ``reduction="none"`` (same shape
+          as ``outputs``, with dropped and NaN entries zeroed). Scalar sum for
+          ``"sum"``. Scalar mean over kept entries for ``"mean"`` (the default
+          standalone behavior).
       :rtype: torch.Tensor
 
 

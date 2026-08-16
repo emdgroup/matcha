@@ -764,6 +764,15 @@
 <span class="sd">        perturb the ambient torch RNG. When ``None`` (default), masks are drawn</span>
 <span class="sd">        from the ambient RNG (like :class:`torch.nn.Dropout`).</span>
 <span class="sd">    :type seed: int or None</span>
+<span class="sd">    :param str reduction: Reduction applied after NaN and dropout masking:</span>
+<span class="sd">        ``&quot;mean&quot;`` (default) returns a scalar averaged over kept entries — the</span>
+<span class="sd">        standalone contract; ``&quot;sum&quot;`` returns the scalar sum of the masked</span>
+<span class="sd">        per-element loss; ``&quot;none&quot;`` returns the per-element loss tensor with</span>
+<span class="sd">        dropped and NaN entries zeroed, so :class:`MultiLoss` and</span>
+<span class="sd">        :class:`MultitaskLoss` (which construct inner losses with</span>
+<span class="sd">        ``reduction=&quot;none&quot;``) receive the shape they expect. The inner loss is</span>
+<span class="sd">        always instantiated with ``reduction=&quot;none&quot;``; this parameter controls</span>
+<span class="sd">        only the outer reduction after masking.</span>
 <span class="sd">    :param kwargs: Extra keyword arguments forwarded to the inner loss constructor.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
@@ -772,6 +781,7 @@
         <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
         <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span>
         <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">reduction</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mean&quot;</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">dropout</span> <span class="o">&lt;</span> <span class="mf">1.0</span><span class="p">:</span>
@@ -780,6 +790,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">dropout</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">dropout</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_seed</span> <span class="o">=</span> <span class="n">seed</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_generator</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Generator</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">=</span> <span class="n">reduction</span>
         <span class="n">inner_cls</span> <span class="o">=</span> <span class="n">LossRegistry</span><span class="p">[</span><span class="n">loss_fn</span><span class="p">]</span>
         <span class="k">if</span> <span class="nb">issubclass</span><span class="p">(</span>
             <span class="n">inner_cls</span><span class="p">,</span>
@@ -790,7 +801,6 @@
                 <span class="sa">f</span><span class="s2">&quot;(got </span><span class="si">{</span><span class="n">inner_cls</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">). Wrap a per-element loss &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;(e.g. &#39;mse&#39;, &#39;mae&#39;, &#39;bce&#39;, &#39;focal-bce&#39;) instead.&quot;</span>
             <span class="p">)</span>
-        <span class="n">kwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;reduction&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">inner_cls</span><span class="p">(</span><span class="n">reduction</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
 <div class="viewcode-block" id="DropoutLoss.forward">
@@ -800,7 +810,10 @@
 <span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch, num_tasks)``.</span>
 <span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN</span>
 <span class="sd">            marks missing entries and is always excluded from the loss.</span>
-<span class="sd">        :returns: Scalar loss averaged across kept (non-NaN, non-dropped) entries.</span>
+<span class="sd">        :returns: Masked per-element loss when ``reduction=&quot;none&quot;`` (same shape</span>
+<span class="sd">            as ``outputs``, with dropped and NaN entries zeroed). Scalar sum for</span>
+<span class="sd">            ``&quot;sum&quot;``. Scalar mean over kept entries for ``&quot;mean&quot;`` (the default</span>
+<span class="sd">            standalone behavior).</span>
 <span class="sd">        :rtype: torch.Tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span>
@@ -825,7 +838,12 @@
             <span class="n">keep_mask</span> <span class="o">=</span> <span class="n">keep_mask</span> <span class="o">&amp;</span> <span class="n">keep_from_dropout</span>
 
         <span class="n">losses</span> <span class="o">=</span> <span class="n">losses</span> <span class="o">*</span> <span class="n">keep_mask</span>
-        <span class="k">return</span> <span class="n">losses</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">keep_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span></div>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;mean&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">losses</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="p">(</span><span class="n">keep_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">reduction</span> <span class="o">==</span> <span class="s2">&quot;sum&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">losses</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">losses</span></div>
 </div>
 
 
