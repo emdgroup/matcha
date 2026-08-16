@@ -316,25 +316,60 @@ def create_validation_set_dense(
     seed: int,
     logger: Any,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, np.ndarray, np.ndarray]:
-    """Create validation split for dense data using per-task NaN masks."""
+    """Create validation split for dense data by sampling compounds globally.
+
+    In dense mode essentially every compound has non-NaN entries for every
+    task, so the sparse-mode per-task union heuristic would compound the
+    per-compound inclusion probability toward ``1 - (1 - sampling_rate) ** n_tasks``
+    and push most of the dataset into validation. This function instead draws
+    a single global sample of compounds so that ``len(val) ≈ sampling_rate *
+    n_compounds`` regardless of the number of tasks. ``min_compounds`` acts as
+    a global floor on the validation size — contrast with the sparse variant,
+    where it is a per-task floor. The exact size is::
+
+        n_val = min(n_compounds, max(min_compounds, int(sampling_rate * n_compounds)))
+
+    :param mol_df: DataFrame of compounds (one row per compound).
+    :param dense_matrix: ``(n_compounds, n_tasks)`` label matrix; ``NaN``
+        marks missing entries.
+    :param task_cols: Task column names; used for logging only.
+    :param min_compounds: Global floor on the validation-set size. Must be
+        non-negative and no greater than ``n_compounds``.
+    :param sampling_rate: Target fraction of compounds to place in
+        validation. Must lie in ``[0.0, 1.0]``.
+    :param seed: Seed for the numpy RNG driving the split.
+    :param logger: Logger instance.
+    :returns: ``(train_mol_df, val_mol_df, train_dense, val_dense)``.
+    :raises ValueError: If ``n_compounds == 0``, ``min_compounds > n_compounds``,
+        ``sampling_rate`` is outside ``[0.0, 1.0]``, or ``min_compounds < 0``.
+    """
+
+    n_compounds = len(mol_df)
+
+    if n_compounds == 0:
+        raise ValueError("Cannot create validation set from an empty dataset.")
+    if min_compounds < 0:
+        raise ValueError(
+            f"min_compounds must be non-negative, got {min_compounds}."
+        )
+    if min_compounds > n_compounds:
+        raise ValueError(
+            f"min_compounds ({min_compounds}) exceeds n_compounds "
+            f"({n_compounds}); floor cannot be honored."
+        )
+    if not 0.0 <= sampling_rate <= 1.0:
+        raise ValueError(
+            f"sampling_rate must lie in [0.0, 1.0], got {sampling_rate}."
+        )
 
     rng = np.random.default_rng(seed)
-    n_compounds = len(mol_df)
 
     logger.info(f"Creating validation set for {len(task_cols)} tasks")
 
+    n_val = min(n_compounds, max(min_compounds, int(sampling_rate * n_compounds)))
+    chosen = rng.choice(n_compounds, size=n_val, replace=False)
     val_mask = np.zeros(n_compounds, dtype=bool)
-
-    for task_idx in range(len(task_cols)):
-        compound_indices = np.flatnonzero(~np.isnan(dense_matrix[:, task_idx]))
-
-        if len(compound_indices) > 0:
-            n_samples = min(
-                max(min_compounds, int(len(compound_indices) * sampling_rate)),
-                len(compound_indices),
-            )
-            chosen = rng.choice(compound_indices, size=n_samples, replace=False)
-            val_mask[chosen] = True
+    val_mask[chosen] = True
 
     train_mol_df = mol_df.iloc[~val_mask].reset_index(drop=True)
     val_mol_df = mol_df.iloc[val_mask].reset_index(drop=True)
