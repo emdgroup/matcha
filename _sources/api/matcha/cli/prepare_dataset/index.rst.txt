@@ -109,7 +109,32 @@ Module Contents
 
 .. py:function:: create_validation_set_dense(mol_df: pandas.DataFrame, dense_matrix: numpy.ndarray, task_cols: List[str], min_compounds: int, sampling_rate: float, seed: int, logger: Any) -> Tuple[pandas.DataFrame, pandas.DataFrame, numpy.ndarray, numpy.ndarray]
 
-   Create validation split for dense data using per-task NaN masks.
+   Create validation split for dense data by sampling compounds globally.
+
+   In dense mode essentially every compound has non-NaN entries for every
+   task, so the sparse-mode per-task union heuristic would compound the
+   per-compound inclusion probability toward ``1 - (1 - sampling_rate) ** n_tasks``
+   and push most of the dataset into validation. This function instead draws
+   a single global sample of compounds so that ``len(val) ≈ sampling_rate *
+   n_compounds`` regardless of the number of tasks. ``min_compounds`` acts as
+   a global floor on the validation size — contrast with the sparse variant,
+   where it is a per-task floor. The exact size is::
+
+       n_val = min(n_compounds, max(min_compounds, int(sampling_rate * n_compounds)))
+
+   :param mol_df: DataFrame of compounds (one row per compound).
+   :param dense_matrix: ``(n_compounds, n_tasks)`` label matrix; ``NaN``
+       marks missing entries.
+   :param task_cols: Task column names; used for logging only.
+   :param min_compounds: Global floor on the validation-set size. Must be
+       non-negative and no greater than ``n_compounds``.
+   :param sampling_rate: Target fraction of compounds to place in
+       validation. Must lie in ``[0.0, 1.0]``.
+   :param seed: Seed for the numpy RNG driving the split.
+   :param logger: Logger instance.
+   :returns: ``(train_mol_df, val_mol_df, train_dense, val_dense)``.
+   :raises ValueError: If ``n_compounds == 0``, ``min_compounds > n_compounds``,
+       ``sampling_rate`` is outside ``[0.0, 1.0]``, or ``min_compounds < 0``.
 
 
 .. py:function:: generate_datacard_dense(train_mol_df: pandas.DataFrame, val_mol_df: pandas.DataFrame, train_dense: numpy.ndarray, val_dense: numpy.ndarray, task_cols: List[str], column_to_task_type: Dict[str, str], files: List[str], file_to_tasks: Dict[str, List[int]], logger: Any) -> Dict[str, Any]

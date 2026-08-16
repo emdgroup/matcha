@@ -424,25 +424,56 @@
     <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">logger</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create validation split for dense data using per-task NaN masks.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create validation split for dense data by sampling compounds globally.</span>
+
+<span class="sd">    In dense mode essentially every compound has non-NaN entries for every</span>
+<span class="sd">    task, so the sparse-mode per-task union heuristic would compound the</span>
+<span class="sd">    per-compound inclusion probability toward ``1 - (1 - sampling_rate) ** n_tasks``</span>
+<span class="sd">    and push most of the dataset into validation. This function instead draws</span>
+<span class="sd">    a single global sample of compounds so that ``len(val) ≈ sampling_rate *</span>
+<span class="sd">    n_compounds`` regardless of the number of tasks. ``min_compounds`` acts as</span>
+<span class="sd">    a global floor on the validation size — contrast with the sparse variant,</span>
+<span class="sd">    where it is a per-task floor. The exact size is::</span>
+
+<span class="sd">        n_val = min(n_compounds, max(min_compounds, int(sampling_rate * n_compounds)))</span>
+
+<span class="sd">    :param mol_df: DataFrame of compounds (one row per compound).</span>
+<span class="sd">    :param dense_matrix: ``(n_compounds, n_tasks)`` label matrix; ``NaN``</span>
+<span class="sd">        marks missing entries.</span>
+<span class="sd">    :param task_cols: Task column names; used for logging only.</span>
+<span class="sd">    :param min_compounds: Global floor on the validation-set size. Must be</span>
+<span class="sd">        non-negative and no greater than ``n_compounds``.</span>
+<span class="sd">    :param sampling_rate: Target fraction of compounds to place in</span>
+<span class="sd">        validation. Must lie in ``[0.0, 1.0]``.</span>
+<span class="sd">    :param seed: Seed for the numpy RNG driving the split.</span>
+<span class="sd">    :param logger: Logger instance.</span>
+<span class="sd">    :returns: ``(train_mol_df, val_mol_df, train_dense, val_dense)``.</span>
+<span class="sd">    :raises ValueError: If ``n_compounds == 0``, ``min_compounds &gt; n_compounds``,</span>
+<span class="sd">        ``sampling_rate`` is outside ``[0.0, 1.0]``, or ``min_compounds &lt; 0``.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">n_compounds</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mol_df</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">n_compounds</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Cannot create validation set from an empty dataset.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">min_compounds</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;min_compounds must be non-negative, got </span><span class="si">{</span><span class="n">min_compounds</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">min_compounds</span> <span class="o">&gt;</span> <span class="n">n_compounds</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;min_compounds (</span><span class="si">{</span><span class="n">min_compounds</span><span class="si">}</span><span class="s2">) exceeds n_compounds &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="n">n_compounds</span><span class="si">}</span><span class="s2">); floor cannot be honored.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="mf">0.0</span> <span class="o">&lt;=</span> <span class="n">sampling_rate</span> <span class="o">&lt;=</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;sampling_rate must lie in [0.0, 1.0], got </span><span class="si">{</span><span class="n">sampling_rate</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 
     <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span>
-    <span class="n">n_compounds</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mol_df</span><span class="p">)</span>
 
     <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Creating validation set for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">task_cols</span><span class="p">)</span><span class="si">}</span><span class="s2"> tasks&quot;</span><span class="p">)</span>
 
+    <span class="n">n_val</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_compounds</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_compounds</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">sampling_rate</span> <span class="o">*</span> <span class="n">n_compounds</span><span class="p">)))</span>
+    <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n_compounds</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_val</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
     <span class="n">val_mask</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">n_compounds</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">bool</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">task_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">task_cols</span><span class="p">)):</span>
-        <span class="n">compound_indices</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">flatnonzero</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">dense_matrix</span><span class="p">[:,</span> <span class="n">task_idx</span><span class="p">]))</span>
-
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">compound_indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">n_samples</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span>
-                <span class="nb">max</span><span class="p">(</span><span class="n">min_compounds</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">compound_indices</span><span class="p">)</span> <span class="o">*</span> <span class="n">sampling_rate</span><span class="p">)),</span>
-                <span class="nb">len</span><span class="p">(</span><span class="n">compound_indices</span><span class="p">),</span>
-            <span class="p">)</span>
-            <span class="n">chosen</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">compound_indices</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_samples</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="n">val_mask</span><span class="p">[</span><span class="n">chosen</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">val_mask</span><span class="p">[</span><span class="n">chosen</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="n">train_mol_df</span> <span class="o">=</span> <span class="n">mol_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="o">~</span><span class="n">val_mask</span><span class="p">]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">val_mol_df</span> <span class="o">=</span> <span class="n">mol_df</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">val_mask</span><span class="p">]</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>

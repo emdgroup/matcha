@@ -128,7 +128,7 @@ without a user-visible flag.</p>
 <td><p>Build a dense <code class="docutils literal notranslate"><span class="pre">(n_compounds,</span> <span class="pre">n_tasks)</span></code> label matrix sequentially.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#matcha.cli.prepare_dataset.create_validation_set_dense" title="matcha.cli.prepare_dataset.create_validation_set_dense"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create_validation_set_dense</span></code></a>(→ Tuple[pandas.DataFrame, ...)</p></td>
-<td><p>Create validation split for dense data using per-task NaN masks.</p></td>
+<td><p>Create validation split for dense data by sampling compounds globally.</p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="#matcha.cli.prepare_dataset.generate_datacard_dense" title="matcha.cli.prepare_dataset.generate_datacard_dense"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_datacard_dense</span></code></a>(→ Dict[str, Any])</p></td>
 <td><p>Generate datacard for dense-format data (NaN = missing).</p></td>
@@ -242,7 +242,41 @@ uses NaN to denote missing, so the remap is unnecessary).</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="matcha.cli.prepare_dataset.create_validation_set_dense">
 <span class="sig-prename descclassname"><span class="pre">matcha.cli.prepare_dataset.</span></span><span class="sig-name descname"><span class="pre">create_validation_set_dense</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dense_matrix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">task_cols</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_compounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_rate</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><span class="pre">float</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">logger</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">pandas.DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../_modules/matcha/cli/prepare_dataset.html#create_validation_set_dense"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.cli.prepare_dataset.create_validation_set_dense" title="Link to this definition"></a></dt>
-<dd><p>Create validation split for dense data using per-task NaN masks.</p>
+<dd><p>Create validation split for dense data by sampling compounds globally.</p>
+<p>In dense mode essentially every compound has non-NaN entries for every
+task, so the sparse-mode per-task union heuristic would compound the
+per-compound inclusion probability toward <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">-</span> <span class="pre">(1</span> <span class="pre">-</span> <span class="pre">sampling_rate)</span> <span class="pre">**</span> <span class="pre">n_tasks</span></code>
+and push most of the dataset into validation. This function instead draws
+a single global sample of compounds so that <code class="docutils literal notranslate"><span class="pre">len(val)</span> <span class="pre">≈</span> <span class="pre">sampling_rate</span> <span class="pre">*</span>
+<span class="pre">n_compounds</span></code> regardless of the number of tasks. <code class="docutils literal notranslate"><span class="pre">min_compounds</span></code> acts as
+a global floor on the validation size — contrast with the sparse variant,
+where it is a per-task floor. The exact size is:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">n_val</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">n_compounds</span><span class="p">,</span> <span class="nb">max</span><span class="p">(</span><span class="n">min_compounds</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">sampling_rate</span> <span class="o">*</span> <span class="n">n_compounds</span><span class="p">)))</span>
+</pre></div>
+</div>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mol_df</strong> – DataFrame of compounds (one row per compound).</p></li>
+<li><p><strong>dense_matrix</strong> – <code class="docutils literal notranslate"><span class="pre">(n_compounds,</span> <span class="pre">n_tasks)</span></code> label matrix; <code class="docutils literal notranslate"><span class="pre">NaN</span></code>
+marks missing entries.</p></li>
+<li><p><strong>task_cols</strong> – Task column names; used for logging only.</p></li>
+<li><p><strong>min_compounds</strong> – Global floor on the validation-set size. Must be
+non-negative and no greater than <code class="docutils literal notranslate"><span class="pre">n_compounds</span></code>.</p></li>
+<li><p><strong>sampling_rate</strong> – Target fraction of compounds to place in
+validation. Must lie in <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0]</span></code>.</p></li>
+<li><p><strong>seed</strong> – Seed for the numpy RNG driving the split.</p></li>
+<li><p><strong>logger</strong> – Logger instance.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">(train_mol_df,</span> <span class="pre">val_mol_df,</span> <span class="pre">train_dense,</span> <span class="pre">val_dense)</span></code>.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If <code class="docutils literal notranslate"><span class="pre">n_compounds</span> <span class="pre">==</span> <span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">min_compounds</span> <span class="pre">&gt;</span> <span class="pre">n_compounds</span></code>,
+<code class="docutils literal notranslate"><span class="pre">sampling_rate</span></code> is outside <code class="docutils literal notranslate"><span class="pre">[0.0,</span> <span class="pre">1.0]</span></code>, or <code class="docutils literal notranslate"><span class="pre">min_compounds</span> <span class="pre">&lt;</span> <span class="pre">0</span></code>.</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
