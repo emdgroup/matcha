@@ -1,3 +1,9 @@
+## v0.0.18 (2026-08-16)
+
+### Fix
+
+- **cli**: sample dense-mode validation compounds globally so val size tracks sampling_rate
+
 ## v0.0.17 (2026-08-16)
 
 ### Fix
