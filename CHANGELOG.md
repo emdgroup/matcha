@@ -1,3 +1,9 @@
+## v0.0.17 (2026-08-16)
+
+### Fix
+
+- **losses**: honor reduction in DropoutLoss so it returns per-element output when wrapped by MultiLoss/MultitaskLoss
+
 ## v0.0.16 (2026-08-14)
 
 ### Fix
