@@ -1,3 +1,9 @@
+## v0.0.19 (2026-08-17)
+
+### Fix
+
+- **torch**: resolve leaf encoder when finetuning nested Finetuner artifacts
+
 ## v0.0.18 (2026-08-16)
 
 ### Fix
