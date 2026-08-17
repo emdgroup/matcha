@@ -115,6 +115,13 @@
 <span class="n">_SELF_CONTAINED_SENTINEL</span> <span class="o">=</span> <span class="s2">&quot;__self_contained__&quot;</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_resolve_leaf_encoder</span><span class="p">(</span><span class="n">pretrain</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Walk through nested Finetuner wrappers to the innermost encoder.&quot;&quot;&quot;</span>
+    <span class="k">while</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">Finetuner</span><span class="p">):</span>
+        <span class="n">pretrain</span> <span class="o">=</span> <span class="n">pretrain</span><span class="o">.</span><span class="n">pretrain</span>
+    <span class="k">return</span> <span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span>
+
+
 <div class="viewcode-block" id="Finetuner">
 <a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/index.html#matcha.torch.models.finetuning.finetuner.Finetuner">[docs]</a>
 <span class="nd">@ClassicModelRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">()</span>
@@ -445,7 +452,7 @@
 
         <span class="c1"># Apply LoRA to encoder linear layers</span>
         <span class="n">lora_params</span> <span class="o">=</span> <span class="n">apply_lora</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span><span class="p">,</span>
+            <span class="n">_resolve_leaf_encoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="p">),</span>
             <span class="n">rank</span><span class="o">=</span><span class="n">lora_rank</span><span class="p">,</span>
             <span class="n">alpha</span><span class="o">=</span><span class="n">lora_alpha</span><span class="p">,</span>
             <span class="n">min_dim</span><span class="o">=</span><span class="n">lora_min_dim</span><span class="p">,</span>
@@ -486,6 +493,8 @@
 
         <span class="n">pretrain_opt_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pretrain_params&quot;</span><span class="p">][</span><span class="s2">&quot;optimizer_args&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
 
+        <span class="n">encoder</span> <span class="o">=</span> <span class="n">_resolve_leaf_encoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="p">)</span>
+
         <span class="c1"># Build parameter groups with different learning rates</span>
         <span class="n">param_groups</span> <span class="o">=</span> <span class="p">[]</span>
 
@@ -498,12 +507,8 @@
                 <span class="n">param_groups</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="n">predictor_params</span><span class="p">,</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="n">pretrain_lr</span><span class="p">})</span>
 
         <span class="c1"># 2. Encoder parameters with halving learning rates from bottom to top</span>
-        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="p">,</span> <span class="s2">&quot;encoder&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">encoder_layers</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">layers</span><span class="p">)</span>
-                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span><span class="p">,</span> <span class="s2">&quot;layers&quot;</span><span class="p">)</span>
-                <span class="k">else</span> <span class="p">[]</span>
-            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">encoder_layers</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">encoder</span><span class="o">.</span><span class="n">layers</span><span class="p">)</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">encoder</span><span class="p">,</span> <span class="s2">&quot;layers&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[]</span>
 
             <span class="k">if</span> <span class="n">encoder_layers</span><span class="p">:</span>
                 <span class="n">layer_lr</span> <span class="o">=</span> <span class="n">pretrain_lr</span>
@@ -519,7 +524,7 @@
                 <span class="p">}</span>
                 <span class="n">other_encoder_params</span> <span class="o">=</span> <span class="p">[</span>
                     <span class="n">p</span>
-                    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">encoder</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span>
                     <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">and</span> <span class="nb">id</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">layer_param_ids</span>
                 <span class="p">]</span>
                 <span class="k">if</span> <span class="n">other_encoder_params</span><span class="p">:</span>
@@ -527,9 +532,7 @@
                         <span class="p">{</span><span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="n">other_encoder_params</span><span class="p">,</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="n">layer_lr</span><span class="p">}</span>
                     <span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="n">encoder_params</span> <span class="o">=</span> <span class="p">[</span>
-                    <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span>
-                <span class="p">]</span>
+                <span class="n">encoder_params</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">encoder</span><span class="o">.</span><span class="n">parameters</span><span class="p">()</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span><span class="p">]</span>
                 <span class="k">if</span> <span class="n">encoder_params</span><span class="p">:</span>
                     <span class="n">param_groups</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
                         <span class="p">{</span><span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="n">encoder_params</span><span class="p">,</span> <span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="n">pretrain_lr</span> <span class="o">*</span> <span class="n">pretrain_decay</span><span class="p">}</span>
