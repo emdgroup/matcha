@@ -25,6 +25,13 @@ from matcha.utils.schemas import FinetunerInputModel
 _SELF_CONTAINED_SENTINEL = "__self_contained__"
 
 
+def _resolve_leaf_encoder(pretrain: nn.Module) -> nn.Module:
+    """Walk through nested Finetuner wrappers to the innermost encoder."""
+    while isinstance(pretrain, Finetuner):
+        pretrain = pretrain.pretrain
+    return pretrain.encoder
+
+
 @ClassicModelRegistry.register()
 class Finetuner(ModelMixin, HyperparametersMixin):
     """Finetuner model that adapts a pretrained encoder for downstream tasks.
@@ -353,7 +360,7 @@ class Finetuner(ModelMixin, HyperparametersMixin):
 
         # Apply LoRA to encoder linear layers
         lora_params = apply_lora(
-            self.pretrain.encoder,
+            _resolve_leaf_encoder(self.pretrain),
             rank=lora_rank,
             alpha=lora_alpha,
             min_dim=lora_min_dim,
@@ -394,6 +401,8 @@ class Finetuner(ModelMixin, HyperparametersMixin):
 
         pretrain_opt_params = self.hparams["pretrain_params"]["optimizer_args"].copy()
 
+        encoder = _resolve_leaf_encoder(self.pretrain)
+
         # Build parameter groups with different learning rates
         param_groups = []
 
@@ -406,12 +415,8 @@ class Finetuner(ModelMixin, HyperparametersMixin):
                 param_groups.append({"params": predictor_params, "lr": pretrain_lr})
 
         # 2. Encoder parameters with halving learning rates from bottom to top
-        if hasattr(self.pretrain, "encoder") and self.pretrain.encoder is not None:
-            encoder_layers = (
-                list(self.pretrain.encoder.layers)
-                if hasattr(self.pretrain.encoder, "layers")
-                else []
-            )
+        if encoder is not None:
+            encoder_layers = list(encoder.layers) if hasattr(encoder, "layers") else []
 
             if encoder_layers:
                 layer_lr = pretrain_lr
@@ -427,7 +432,7 @@ class Finetuner(ModelMixin, HyperparametersMixin):
                 }
                 other_encoder_params = [
                     p
-                    for p in self.pretrain.encoder.parameters()
+                    for p in encoder.parameters()
                     if p.requires_grad and id(p) not in layer_param_ids
                 ]
                 if other_encoder_params:
@@ -435,9 +440,7 @@ class Finetuner(ModelMixin, HyperparametersMixin):
                         {"params": other_encoder_params, "lr": layer_lr}
                     )
             else:
-                encoder_params = [
-                    p for p in self.pretrain.encoder.parameters() if p.requires_grad
-                ]
+                encoder_params = [p for p in encoder.parameters() if p.requires_grad]
                 if encoder_params:
                     param_groups.append(
                         {"params": encoder_params, "lr": pretrain_lr * pretrain_decay}
