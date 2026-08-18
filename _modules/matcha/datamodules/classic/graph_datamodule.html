@@ -186,9 +186,9 @@
     <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
     <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Mol</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Embed a 10-conformer ETKDG pool, MMFF-minimize, and return the pick.</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Embed a 5-conformer ETKDG pool, MMFF-minimize, and return the pick.</span>
 
-<span class="sd">    Adds hydrogens, embeds up to 10 conformers with a fixed</span>
+<span class="sd">    Adds hydrogens, embeds up to 5 conformers with a fixed</span>
 <span class="sd">    ``randomSeed=42`` for reproducibility, then MMFF94-minimizes them</span>
 <span class="sd">    with ``numThreads=1`` (featurization already runs under an outer</span>
 <span class="sd">    process pool, and MMFF should not oversubscribe cores). The lowest-</span>
@@ -212,13 +212,13 @@
     <span class="n">etkdg_params</span><span class="o">.</span><span class="n">randomSeed</span> <span class="o">=</span> <span class="mi">42</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_run_embed_mmff</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
-        <span class="n">conf_ids</span> <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">EmbedMultipleConfs</span><span class="p">(</span><span class="n">mol_h</span><span class="p">,</span> <span class="n">numConfs</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">etkdg_params</span><span class="p">)</span>
+        <span class="n">conf_ids</span> <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">EmbedMultipleConfs</span><span class="p">(</span><span class="n">mol_h</span><span class="p">,</span> <span class="n">numConfs</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">etkdg_params</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">conf_ids</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
         <span class="k">return</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">MMFFOptimizeMoleculeConfs</span><span class="p">(</span>
             <span class="n">mol_h</span><span class="p">,</span>
             <span class="n">numThreads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-            <span class="n">maxIters</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+            <span class="n">maxIters</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
             <span class="n">mmffVariant</span><span class="o">=</span><span class="s2">&quot;MMFF94&quot;</span><span class="p">,</span>
             <span class="n">nonBondedThresh</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span>
         <span class="p">)</span>
