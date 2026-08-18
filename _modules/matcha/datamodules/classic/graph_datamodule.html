@@ -90,6 +90,9 @@
   <h1>Source code for matcha.datamodules.classic.graph_datamodule</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Graph-based molecular featurization for 2D and 3D GNN training.&quot;&quot;&quot;</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">TypeVar</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop</span><span class="w"> </span><span class="kn">import</span> <span class="n">featurizers</span>
@@ -119,25 +122,122 @@
 <span class="n">ATOM_FEAT_DIM</span> <span class="o">=</span> <span class="mi">72</span>
 <span class="n">BOND_FEAT_DIM</span> <span class="o">=</span> <span class="mi">14</span>
 
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">)</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_embed_with_timeout</span><span class="p">(</span><span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">,</span> <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run AllChem.EmbedMolecule in a thread with a timeout.</span>
 
-<span class="sd">    RDKit releases the GIL during its C++ distance geometry solver, so a</span>
-<span class="sd">    ThreadPoolExecutor future can interrupt a hung call from within a worker.</span>
-<span class="sd">    Using shutdown(wait=False) ensures we do not block on stuck C++ threads</span>
-<span class="sd">    after the timeout fires.</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">_run_with_timeout</span><span class="p">(</span>
+    <span class="n">fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">T</span><span class="p">],</span>
+    <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+    <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">T</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run an arbitrary callable in a thread with a timeout.</span>
 
-<span class="sd">    Returns 0 on success, -1 on timeout or any exception.</span>
+<span class="sd">    RDKit releases the GIL during its C++ distance geometry / force-field</span>
+<span class="sd">    solvers, so a ThreadPoolExecutor future can interrupt a hung call from</span>
+<span class="sd">    within a worker. Using shutdown(wait=False) ensures we do not block on</span>
+<span class="sd">    stuck C++ threads after the timeout fires.</span>
+
+<span class="sd">    Returns the callable&#39;s result on success, ``None`` on timeout or any</span>
+<span class="sd">    exception.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">executor</span> <span class="o">=</span> <span class="n">ThreadPoolExecutor</span><span class="p">(</span><span class="n">max_workers</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">future</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">AllChem</span><span class="o">.</span><span class="n">EmbedMolecule</span><span class="p">,</span> <span class="n">mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">)</span>
+    <span class="n">future</span> <span class="o">=</span> <span class="n">executor</span><span class="o">.</span><span class="n">submit</span><span class="p">(</span><span class="n">fn</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">future</span><span class="o">.</span><span class="n">result</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">)</span>
     <span class="k">except</span> <span class="p">(</span><span class="n">FuturesTimeoutError</span><span class="p">,</span> <span class="ne">Exception</span><span class="p">):</span>
-        <span class="k">return</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="k">return</span> <span class="kc">None</span>
     <span class="k">finally</span><span class="p">:</span>
         <span class="n">executor</span><span class="o">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">wait</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_select_lowest_energy_conf_id</span><span class="p">(</span>
+    <span class="n">mmff_results</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]],</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pick the conformer index with the lowest MMFF energy.</span>
+
+<span class="sd">    Given the ``list[(not_converged, energy)]`` returned by</span>
+<span class="sd">    :func:`AllChem.MMFFOptimizeMoleculeConfs`, prefer the lowest-energy</span>
+<span class="sd">    conformer with ``not_converged == 0`` and a finite energy. If no</span>
+<span class="sd">    conformer converged, fall back to the lowest finite-energy</span>
+<span class="sd">    non-converged conformer. Returns ``None`` when every entry is</span>
+<span class="sd">    non-finite or ``mmff_results`` is empty.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">converged</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">energy</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">not_converged</span><span class="p">,</span> <span class="n">energy</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mmff_results</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">not_converged</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">and</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">energy</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">converged</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">converged</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">non_converged</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">energy</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">energy</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">mmff_results</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">energy</span><span class="p">)</span>
+    <span class="p">]</span>
+    <span class="k">if</span> <span class="n">non_converged</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">min</span><span class="p">(</span><span class="n">non_converged</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">t</span><span class="p">:</span> <span class="n">t</span><span class="p">[</span><span class="mi">1</span><span class="p">])[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="k">return</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_embed_and_minimize</span><span class="p">(</span>
+    <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+    <span class="n">timeout_seconds</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Mol</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Embed a 10-conformer ETKDG pool, MMFF-minimize, and return the pick.</span>
+
+<span class="sd">    Adds hydrogens, embeds up to 10 conformers with a fixed</span>
+<span class="sd">    ``randomSeed=42`` for reproducibility, then MMFF94-minimizes them</span>
+<span class="sd">    with ``numThreads=1`` (featurization already runs under an outer</span>
+<span class="sd">    process pool, and MMFF should not oversubscribe cores). The lowest-</span>
+<span class="sd">    energy converged conformer wins; if none converged, the lowest</span>
+<span class="sd">    finite-energy non-converged one is used instead.</span>
+
+<span class="sd">    The full embed + MMFF sequence shares a single</span>
+<span class="sd">    :func:`_run_with_timeout` budget so a hung molecule does not stall</span>
+<span class="sd">    a worker. If the first :func:`AllChem.EmbedMultipleConfs` produces</span>
+<span class="sd">    zero conformers, retries once with ``useRandomCoords=True`` after</span>
+<span class="sd">    :meth:`RemoveAllConformers` to keep the two attempts cleanly</span>
+<span class="sd">    separated.</span>
+
+<span class="sd">    Returns ``(mol_h, chosen_conf_id)`` on success — where ``mol_h`` is</span>
+<span class="sd">    the H-added molecule owning the selected conformer — or ``None``</span>
+<span class="sd">    if the wrapped call times out or raises, both embed attempts</span>
+<span class="sd">    produce zero conformers, or no conformer has a finite MMFF energy.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">mol_h</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">AddHs</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+    <span class="n">etkdg_params</span> <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">ETKDGv3</span><span class="p">()</span>
+    <span class="n">etkdg_params</span><span class="o">.</span><span class="n">randomSeed</span> <span class="o">=</span> <span class="mi">42</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_embed_mmff</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]:</span>
+        <span class="n">conf_ids</span> <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">EmbedMultipleConfs</span><span class="p">(</span><span class="n">mol_h</span><span class="p">,</span> <span class="n">numConfs</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">etkdg_params</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">conf_ids</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+        <span class="k">return</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">MMFFOptimizeMoleculeConfs</span><span class="p">(</span>
+            <span class="n">mol_h</span><span class="p">,</span>
+            <span class="n">numThreads</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">maxIters</span><span class="o">=</span><span class="mi">1000</span><span class="p">,</span>
+            <span class="n">mmffVariant</span><span class="o">=</span><span class="s2">&quot;MMFF94&quot;</span><span class="p">,</span>
+            <span class="n">nonBondedThresh</span><span class="o">=</span><span class="mf">100.0</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="n">results</span> <span class="o">=</span> <span class="n">_run_with_timeout</span><span class="p">(</span><span class="n">_run_embed_mmff</span><span class="p">,</span> <span class="n">timeout_seconds</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="n">mol_h</span><span class="o">.</span><span class="n">RemoveAllConformers</span><span class="p">()</span>
+        <span class="n">etkdg_params</span><span class="o">.</span><span class="n">useRandomCoords</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="n">_run_with_timeout</span><span class="p">(</span><span class="n">_run_embed_mmff</span><span class="p">,</span> <span class="n">timeout_seconds</span><span class="o">=</span><span class="n">timeout_seconds</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">results</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">chosen_id</span> <span class="o">=</span> <span class="n">_select_lowest_energy_conf_id</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">chosen_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="p">(</span><span class="n">mol_h</span><span class="p">,</span> <span class="n">chosen_id</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="GraphDataModule">
@@ -571,7 +671,7 @@
         <span class="n">compute_distances</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">num_virtual_nodes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
         <span class="n">init_virtual_nodes</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-        <span class="n">embed_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">30.0</span><span class="p">,</span>
+        <span class="n">embed_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">120.0</span><span class="p">,</span>
         <span class="n">is_classification</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
         <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;standard&quot;</span><span class="p">,</span>
         <span class="n">clip</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -622,55 +722,35 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">collate_fn_map</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">Data</span><span class="p">:</span> <span class="n">collate_fn_pyg_graph</span><span class="p">})</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_coords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Computes the 3D atomic coordinates for a given molecule using ETKDG.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute 3D atomic coordinates for ``mol`` via ETKDG + MMFF.</span>
 
-<span class="sd">        Example usage:</span>
+<span class="sd">        Thin adapter over :func:`_embed_and_minimize`: delegates conformer</span>
+<span class="sd">        generation, MMFF94 minimization and lowest-energy selection to the</span>
+<span class="sd">        module-level helper, then handles tensor shaping (strip added Hs,</span>
+<span class="sd">        pad virtual nodes, cast to ``float32``).</span>
 
-<span class="sd">        .. code-block:: python</span>
-<span class="sd">            coords = get_3D_coords(mol)</span>
+<span class="sd">        On helper failure (timeout, exception, or no viable conformer),</span>
+<span class="sd">        falls back to :func:`AllChem.Compute2DCoords` on the H-added</span>
+<span class="sd">        molecule so downstream code always receives a coord tensor.</span>
 
-<span class="sd">        :param rdkit.Chem.rdchem.Mol mol: molecule to compute a conformer for</span>
-
-<span class="sd">        :return torch.tensor: tensor (A,3) corresponding to the 3D coordinates</span>
-<span class="sd">            for each a-th atom in the ETKDG-generated conformer</span>
+<span class="sd">        :param rdkit.Chem.rdchem.Mol mol: molecule to compute a conformer for.</span>
+<span class="sd">        :return torch.Tensor: tensor of shape ``(A + num_virtual_nodes, 3)``</span>
+<span class="sd">            with the heavy-atom coordinates of the selected conformer,</span>
+<span class="sd">            followed by zero rows for any virtual nodes.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># count number of atoms before adding H</span>
         <span class="n">start_n_atoms</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span>
 
-        <span class="c1"># add Hs to get reasonable conformers</span>
-        <span class="n">mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">AddHs</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">_embed_and_minimize</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">embed_timeout</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">mol_h</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">AddHs</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+            <span class="n">AllChem</span><span class="o">.</span><span class="n">Compute2DCoords</span><span class="p">(</span><span class="n">mol_h</span><span class="p">)</span>
+            <span class="n">chosen_id</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">mol_h</span><span class="p">,</span> <span class="n">chosen_id</span> <span class="o">=</span> <span class="n">result</span>
 
-        <span class="c1"># Use ETKDGv3 for conformer generation</span>
-        <span class="n">etkdg_params</span> <span class="o">=</span> <span class="n">AllChem</span><span class="o">.</span><span class="n">ETKDGv3</span><span class="p">()</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">mol_h</span><span class="o">.</span><span class="n">GetConformer</span><span class="p">(</span><span class="n">chosen_id</span><span class="p">)</span><span class="o">.</span><span class="n">GetPositions</span><span class="p">()</span>
+        <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[:</span><span class="n">start_n_atoms</span><span class="p">,</span> <span class="p">:]</span>
 
-        <span class="c1"># try to embed molecule with ETKDG</span>
-        <span class="n">flag</span> <span class="o">=</span> <span class="n">_embed_with_timeout</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">embed_timeout</span><span class="p">)</span>
-
-        <span class="c1"># if embedding failed, retry with random coordinates as a fallback</span>
-        <span class="k">if</span> <span class="n">flag</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-            <span class="n">etkdg_params</span><span class="o">.</span><span class="n">useRandomCoords</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="n">flag</span> <span class="o">=</span> <span class="n">_embed_with_timeout</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">etkdg_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">embed_timeout</span><span class="p">)</span>
-
-        <span class="c1"># if all embedding attempts fail, fall back to 2D coordinates</span>
-        <span class="k">if</span> <span class="n">flag</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-            <span class="n">AllChem</span><span class="o">.</span><span class="n">Compute2DCoords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
-
-        <span class="c1"># get coords as numpy array of shape (N+n_H, 3)</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">conf</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetConformer</span><span class="p">()</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">GetPositions</span><span class="p">()</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="n">AllChem</span><span class="o">.</span><span class="n">Compute2DCoords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
-            <span class="n">conf</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetConformer</span><span class="p">()</span>
-            <span class="n">coords</span> <span class="o">=</span> <span class="n">conf</span><span class="o">.</span><span class="n">GetPositions</span><span class="p">()</span>
-
-        <span class="c1"># slice coord array only on non-H indexes</span>
-        <span class="n">non_h_idx</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">start_n_atoms</span><span class="p">):</span>
-            <span class="n">non_h_idx</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-        <span class="n">coords</span> <span class="o">=</span> <span class="n">coords</span><span class="p">[</span><span class="n">non_h_idx</span><span class="p">,</span> <span class="p">:]</span>
-
-        <span class="c1"># add coords for virtual node</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">virtual_coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="mi">3</span><span class="p">))</span>
             <span class="n">coords</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">coords</span><span class="p">,</span> <span class="n">virtual_coords</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
