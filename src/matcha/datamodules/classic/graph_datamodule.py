@@ -648,7 +648,14 @@ class Graph3DDataModule(GraphDataModule):
         length-``N`` list of ``(A_i, 3)`` arrays), the ETKDG path is
         skipped entirely and the user-supplied coordinates are reordered
         to the canonical atom ordering before being attached to
-        ``graph.pos``.
+        ``graph.pos``. Virtual nodes are zero-padded on the trailing
+        rows of ``pos`` so that ``pos.shape[0] == graph.num_nodes``,
+        matching the ETKDG path exactly.
+
+        The ``coords`` argument is *all-or-nothing*: either every
+        molecule is supplied a coord array (``len(coords) == len(mol_list)``)
+        or ``coords`` is left as ``None`` and ETKDG runs for every
+        molecule. Per-molecule ``None`` entries are not supported.
 
         Combining user-supplied ``coords`` with ``augment_resonance=True``
         is rejected: resonance augmentation reshuffles molecules and atom
@@ -661,9 +668,12 @@ class Graph3DDataModule(GraphDataModule):
         :param n_jobs: number of parallel workers (``None`` = auto).
         :param coords: optional per-molecule 3D coordinate arrays. Each
             entry must have shape ``(A_i, 3)`` where ``A_i`` is the
-            canonical atom count of ``mol_list[i]``.
+            canonical atom count of ``mol_list[i]``, and every entry
+            must be finite (``NaN`` / ``Inf`` are rejected up front).
         :raises ValueError: if ``coords`` is supplied together with
-            ``augment_resonance=True``.
+            ``augment_resonance=True``; if ``len(coords) != len(mol_list)``;
+            if any ``coords[i]`` has the wrong shape or contains
+            non-finite values.
         :return: ``StackDataset`` with keys ``graph`` and ``y``.
         """
         # validate inputs without scaling
@@ -718,7 +728,13 @@ class Graph3DDataModule(GraphDataModule):
         ``coords`` is provided, ETKDG conformer generation is skipped and
         the user-supplied per-molecule coords are attached to
         ``graph.pos`` (reordered to the canonical atom ordering, zero-
-        padded for virtual nodes).
+        padded for virtual nodes so the final ``pos.shape[0]`` matches
+        ``graph.num_nodes``).
+
+        The ``coords`` argument is *all-or-nothing*: either supply a
+        length-``N`` list of ``(A_i, 3)`` arrays for every molecule, or
+        leave it as ``None`` and let ETKDG embed every molecule. Per-
+        molecule ``None`` entries are not supported.
 
         Combining ``coords`` with ``augment_resonance=True`` is rejected
         by :meth:`generate_features` — see there for the rationale.
@@ -730,7 +746,8 @@ class Graph3DDataModule(GraphDataModule):
             otherwise transform-only.
         :param n_jobs: parallel workers (``None`` = auto).
         :param coords: optional per-molecule coord arrays; see
-            :meth:`generate_features` for shape / semantics.
+            :meth:`generate_features` for shape / semantics /
+            finiteness requirements.
         :return: ``StackDataset`` with keys ``graph`` and ``y``.
         """
         # Apply augmentation if enabled. Skip augmentation entirely when
