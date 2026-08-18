@@ -12,6 +12,10 @@ from torch.utils.data import StackDataset
 from torch_geometric.utils import to_scipy_sparse_matrix
 from scipy.sparse.csgraph import shortest_path
 from matcha.datamodules.base_datamodule import BaseDataModule, DataModuleRegistry
+from matcha.datamodules.classic.coords_utils import (
+    reorder_coords_to_canonical,
+    validate_coords,
+)
 from matcha.datamodules.classic.graph_positional_encoder import GraphPE
 from matcha.utils.schemas.datamodules import (
     Graph3DDataModuleInputModel,
@@ -582,9 +586,51 @@ class Graph3DDataModule(GraphDataModule):
         graph.pos = self._calculate_coords(mol)
         return graph
 
+    def _calculate_graph_with_user_pos(
+        self,
+        mol: Mol,
+        coords_i: np.ndarray,
+        is_training: bool = True,
+    ) -> Data:
+        """Build a PyG :class:`Data` for ``mol`` and attach user coords to ``pos``.
+
+        Mirrors :meth:`_calculate_graph_with_pos` but skips ETKDG conformer
+        generation. Coords are reordered to the canonical atom ordering that
+        :meth:`_calculate_graph` produces (which reparses ``mol`` via its
+        canonical SMILES), cast to ``torch.float32``, and zero-padded for
+        virtual nodes so ``graph.pos.shape[0]`` matches ``graph.num_nodes``.
+        The padding order mirrors the ETKDG path exactly: real atoms first,
+        then virtual nodes.
+
+        :param Mol mol: molecule in the user-supplied atom order.
+        :param np.ndarray coords_i: array of shape ``(A, 3)`` in the same
+            atom order as ``mol``.
+        :param bool is_training: forwarded to :meth:`_calculate_graph`.
+        :returns: PyG :class:`Data` with user-supplied 3D coords on ``pos``.
+        :rtype: Data
+        """
+        graph = self._calculate_graph(mol, is_training)
+        canonical_coords = reorder_coords_to_canonical(mol, coords_i)
+        pos = torch.tensor(canonical_coords, dtype=torch.float32)
+        if self.params.num_virtual_nodes > 0:
+            pad = torch.zeros(
+                (self.params.num_virtual_nodes, 3),
+                dtype=torch.float32,
+            )
+            pos = torch.cat([pos, pad], dim=0)
+        graph.pos = pos
+        return graph
+
     def _process_batch(self, mol_batch: list[Mol]) -> list[Data]:
         """Process a batch of molecules in a single process, attaching coords."""
         return [self._calculate_graph_with_pos(mol, True) for mol in mol_batch]
+
+    def _process_batch_with_coords(
+        self,
+        batch: list[tuple[Mol, np.ndarray]],
+    ) -> list[Data]:
+        """Process a batch of ``(mol, coords)`` pairs, attaching user coords."""
+        return [self._calculate_graph_with_user_pos(mol, ci, True) for mol, ci in batch]
 
     def generate_features(
         self,
@@ -592,15 +638,122 @@ class Graph3DDataModule(GraphDataModule):
         y: np.ndarray | None = None,
         bound_mask: list[str] | None = None,
         n_jobs: int | None = None,
+        coords: list[np.ndarray] | None = None,
     ) -> StackDataset:
-        """Generates unscaled features for 3D graph neural networks, with optional augmentation."""
+        """Generates unscaled features for 3D graph neural networks.
+
+        When ``coords`` is ``None`` (the default), 3D conformers are
+        generated on the fly via ETKDG — behaviour identical to the
+        pre-existing implementation. When ``coords`` is provided (a
+        length-``N`` list of ``(A_i, 3)`` arrays), the ETKDG path is
+        skipped entirely and the user-supplied coordinates are reordered
+        to the canonical atom ordering before being attached to
+        ``graph.pos``. Virtual nodes are zero-padded on the trailing
+        rows of ``pos`` so that ``pos.shape[0] == graph.num_nodes``,
+        matching the ETKDG path exactly.
+
+        The ``coords`` argument is *all-or-nothing*: either every
+        molecule is supplied a coord array (``len(coords) == len(mol_list)``)
+        or ``coords`` is left as ``None`` and ETKDG runs for every
+        molecule. Per-molecule ``None`` entries are not supported.
+
+        Combining user-supplied ``coords`` with ``augment_resonance=True``
+        is rejected: resonance augmentation reshuffles molecules and atom
+        orderings, which would break coord alignment.
+
+        :param mol_list: list of RDKit molecules.
+        :param y: optional label array.
+        :param bound_mask: optional per-sample bound-mask (``"="`` / ``"<"``
+            / ``">"``).
+        :param n_jobs: number of parallel workers (``None`` = auto).
+        :param coords: optional per-molecule 3D coordinate arrays. Each
+            entry must have shape ``(A_i, 3)`` where ``A_i`` is the
+            canonical atom count of ``mol_list[i]``, and every entry
+            must be finite (``NaN`` / ``Inf`` are rejected up front).
+        :raises ValueError: if ``coords`` is supplied together with
+            ``augment_resonance=True``; if ``len(coords) != len(mol_list)``;
+            if any ``coords[i]`` has the wrong shape or contains
+            non-finite values.
+        :return: ``StackDataset`` with keys ``graph`` and ``y``.
+        """
         # validate inputs without scaling
         mol_list, y, bound_mask, n_jobs = self._validate_input(
             mol_list, y, bound_mask, n_jobs
         )
 
-        # Apply augmentation if enabled
-        if self._augment_resonance:
+        if coords is not None and self._augment_resonance:
+            raise ValueError(
+                "coords cannot be combined with augment_resonance=True: "
+                "resonance augmentation reshuffles molecules and atom "
+                "orderings, which would break coord alignment."
+            )
+
+        if coords is None:
+            # ETKDG path — unchanged behaviour.
+            if self._augment_resonance:
+                mol_list, y, bound_mask = self.augment(
+                    mol_list,
+                    y,
+                    bound_mask=bound_mask,
+                    use_resonance=self._augment_resonance,
+                    n_jobs=n_jobs,
+                )
+
+            graphs = parallelize(self._process_batch, mol_list, n_jobs)
+        else:
+            # User-supplied coords path — skips ETKDG entirely.
+            coords = validate_coords(mol_list, coords)
+            graphs = parallelize(
+                self._process_batch_with_coords,
+                list(zip(mol_list, coords)),
+                n_jobs,
+            )
+
+        y_tensor = torch.tensor(y, dtype=torch.float32)
+        return StackDataset(graph=graphs, y=y_tensor)
+
+    def featurize(
+        self,
+        mol_list: list[Mol],
+        y: np.ndarray | None = None,
+        bound_mask: list[str] | None = None,
+        is_training: bool = True,
+        n_jobs: int | None = None,
+        coords: list[np.ndarray] | None = None,
+    ) -> StackDataset:
+        """Generates a dataset ready for 3D GNN training.
+
+        Mirrors :meth:`GraphDataModule.featurize` but threads an optional
+        ``coords`` argument through to :meth:`generate_features`. When
+        ``coords`` is provided, ETKDG conformer generation is skipped and
+        the user-supplied per-molecule coords are attached to
+        ``graph.pos`` (reordered to the canonical atom ordering, zero-
+        padded for virtual nodes so the final ``pos.shape[0]`` matches
+        ``graph.num_nodes``).
+
+        The ``coords`` argument is *all-or-nothing*: either supply a
+        length-``N`` list of ``(A_i, 3)`` arrays for every molecule, or
+        leave it as ``None`` and let ETKDG embed every molecule. Per-
+        molecule ``None`` entries are not supported.
+
+        Combining ``coords`` with ``augment_resonance=True`` is rejected
+        by :meth:`generate_features` — see there for the rationale.
+
+        :param mol_list: list of N RDKit molecules to featurize.
+        :param y: optional label array of shape ``(N, X)``.
+        :param bound_mask: optional per-sample bound-mask.
+        :param is_training: fit the Y scaler on the input if ``True``,
+            otherwise transform-only.
+        :param n_jobs: parallel workers (``None`` = auto).
+        :param coords: optional per-molecule coord arrays; see
+            :meth:`generate_features` for shape / semantics /
+            finiteness requirements.
+        :return: ``StackDataset`` with keys ``graph`` and ``y``.
+        """
+        # Apply augmentation if enabled. Skip augmentation entirely when
+        # coords are supplied — the mutex is enforced (and raised) inside
+        # generate_features.
+        if is_training and self._augment_resonance and coords is None:
             mol_list, y, bound_mask = self.augment(
                 mol_list,
                 y,
@@ -609,10 +762,19 @@ class Graph3DDataModule(GraphDataModule):
                 n_jobs=n_jobs,
             )
 
-        graphs = parallelize(self._process_batch, mol_list, n_jobs)
+        # Generate unscaled features
+        dataset = self.generate_features(mol_list, y, bound_mask, n_jobs, coords=coords)
 
-        y_tensor = torch.tensor(y, dtype=torch.float32)
-        return StackDataset(graph=graphs, y=y_tensor)
+        # Apply scaling based on is_training flag
+        if is_training:
+            self.fit(dataset)
+
+        self.transform(dataset)
+
+        # Handle bound mask and classification transformations
+        self._process_y(dataset, bound_mask)
+
+        return dataset
 
     def state_dict(self) -> dict:
         """Utility for MLFlow logging"""

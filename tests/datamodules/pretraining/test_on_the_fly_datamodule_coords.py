@@ -13,8 +13,11 @@ from types import SimpleNamespace
 import numpy as np
 import scipy.sparse as sp
 import pytest
+import torch
+from rdkit import Chem
 from torch.utils.data import StackDataset
 
+from matcha.datamodules.classic.graph_datamodule import Graph3DDataModule
 from matcha.datamodules.pretraining.on_the_fly_datamodule import OnTheFlyDataModule
 
 
@@ -228,3 +231,97 @@ class TestNoCoordsPathUnchanged:
         ]
         assert warnings == []
         assert dm._base_accepts_coords is None
+
+
+# ---------------------------------------------------------------------------
+# (d) End-to-end integration with a real Graph3DDataModule base (issue #72,
+#     Stage 4). Pins the wiring from OnTheFlyDataModule.collate_fn all the
+#     way down to ``batch.pos`` on the collated PyG graph.
+# ---------------------------------------------------------------------------
+
+
+def _canonical_reorder_expected(mol: Chem.Mol, coords_i: np.ndarray) -> np.ndarray:
+    """Recompute the canonical-atom-order permutation the base applies."""
+    canonical = Chem.MolFromSmiles(Chem.MolToSmiles(mol, canonical=True))
+    match = mol.GetSubstructMatch(canonical)
+    return coords_i[list(match)].astype(np.float32)
+
+
+class TestIntegrationWithRealGraph3DDataModule:
+    """Wrap a real :class:`Graph3DDataModule` with :class:`OnTheFlyDataModule`
+    and pin the end-to-end contract: probe reports the new ``coords`` kwarg,
+    and ``batch.pos`` after collation matches user coords under the same
+    canonical reorder + virtual-node zero-padding the base applies.
+    """
+
+    def test_probe_accepts_coords_with_real_graph3d_base(self):
+        base = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+        dm = OnTheFlyDataModule(base=base)
+        assert dm._probe_base_accepts_coords() is True
+
+    def test_end_to_end_pos_matches_user_coords_after_canonical_reorder(self):
+        # OCC(=O)N (glycolamide) canonicalises non-trivially, so the reorder
+        # is directly observable on ``pos``.
+        smiles_list = ["OCC(=O)N", "CCO"]
+        mols = [Chem.MolFromSmiles(s) for s in smiles_list]
+        coords = [
+            np.tile(np.arange(m.GetNumAtoms(), dtype=np.float32).reshape(-1, 1), (1, 3))
+            for m in mols
+        ]
+        y = np.zeros((len(smiles_list), 1), dtype=np.float32)
+
+        base = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+        dm = OnTheFlyDataModule(base=base)
+
+        batch = [
+            {"smiles": smiles_list[i], "y": y[i], "coords": coords[i]}
+            for i in range(len(smiles_list))
+        ]
+        out = dm.collate_fn(batch)
+
+        expected = np.concatenate(
+            [_canonical_reorder_expected(mol, ci) for mol, ci in zip(mols, coords)],
+            axis=0,
+        )
+
+        graph = out["graph"]
+        assert hasattr(graph, "pos") and graph.pos is not None
+        assert graph.pos.shape == torch.Size([expected.shape[0], 3])
+        assert graph.pos.dtype == torch.float32
+        np.testing.assert_allclose(
+            graph.pos.detach().cpu().numpy(), expected, rtol=0, atol=0
+        )
+
+        # Probe cache reflects a successful coords passthrough.
+        assert dm._base_accepts_coords is True
+        assert dm._coords_ignore_warned is False
+
+    def test_end_to_end_pos_zero_pads_virtual_nodes(self):
+        smi = "CCO"
+        mol = Chem.MolFromSmiles(smi)
+        n = mol.GetNumAtoms()
+        coords_i = np.arange(n * 3, dtype=np.float32).reshape(n, 3) + 1.0
+        y = np.zeros((1, 1), dtype=np.float32)
+
+        base = Graph3DDataModule(
+            laplacian_k=0,
+            rwse_k=0,
+            rrwp_k=0,
+            compute_distances=False,
+            num_virtual_nodes=2,
+        )
+        dm = OnTheFlyDataModule(base=base)
+
+        batch = [{"smiles": smi, "y": y[0], "coords": coords_i}]
+        out = dm.collate_fn(batch)
+
+        pos = out["graph"].pos
+        assert pos.shape[0] == n + 2
+        assert pos.shape[1] == 3
+        # Trailing virtual-node rows must be exactly zero — same convention
+        # the ETKDG path uses in ``_calculate_coords``.
+        assert torch.all(pos[n:] == 0.0)
