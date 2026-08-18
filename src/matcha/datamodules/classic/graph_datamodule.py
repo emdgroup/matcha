@@ -1,5 +1,6 @@
 """Graph-based molecular featurization for 2D and 3D GNN training."""
 
+import math
 from typing import Callable, TypeVar
 
 import numpy as np
@@ -58,6 +59,95 @@ def _run_with_timeout(
         return None
     finally:
         executor.shutdown(wait=False)
+
+
+def _select_lowest_energy_conf_id(
+    mmff_results: list[tuple[int, float]],
+) -> int | None:
+    """Pick the conformer index with the lowest MMFF energy.
+
+    Given the ``list[(not_converged, energy)]`` returned by
+    :func:`AllChem.MMFFOptimizeMoleculeConfs`, prefer the lowest-energy
+    conformer with ``not_converged == 0`` and a finite energy. If no
+    conformer converged, fall back to the lowest finite-energy
+    non-converged conformer. Returns ``None`` when every entry is
+    non-finite or ``mmff_results`` is empty.
+    """
+    converged = [
+        (i, energy)
+        for i, (not_converged, energy) in enumerate(mmff_results)
+        if not_converged == 0 and math.isfinite(energy)
+    ]
+    if converged:
+        return min(converged, key=lambda t: t[1])[0]
+
+    non_converged = [
+        (i, energy)
+        for i, (_, energy) in enumerate(mmff_results)
+        if math.isfinite(energy)
+    ]
+    if non_converged:
+        return min(non_converged, key=lambda t: t[1])[0]
+
+    return None
+
+
+def _embed_and_minimize(
+    mol: Mol,
+    timeout_seconds: float,
+) -> tuple[Mol, int] | None:
+    """Embed a 10-conformer ETKDG pool, MMFF-minimize, and return the pick.
+
+    Adds hydrogens, embeds up to 10 conformers with a fixed
+    ``randomSeed=42`` for reproducibility, then MMFF94-minimizes them
+    with ``numThreads=1`` (featurization already runs under an outer
+    process pool, and MMFF should not oversubscribe cores). The lowest-
+    energy converged conformer wins; if none converged, the lowest
+    finite-energy non-converged one is used instead.
+
+    The full embed + MMFF sequence shares a single
+    :func:`_run_with_timeout` budget so a hung molecule does not stall
+    a worker. If the first :func:`AllChem.EmbedMultipleConfs` produces
+    zero conformers, retries once with ``useRandomCoords=True`` after
+    :meth:`RemoveAllConformers` to keep the two attempts cleanly
+    separated.
+
+    Returns ``(mol_h, chosen_conf_id)`` on success — where ``mol_h`` is
+    the H-added molecule owning the selected conformer — or ``None``
+    if the wrapped call times out or raises, both embed attempts
+    produce zero conformers, or no conformer has a finite MMFF energy.
+    """
+    mol_h = Chem.AddHs(mol)
+    etkdg_params = AllChem.ETKDGv3()
+    etkdg_params.randomSeed = 42
+
+    def _run_embed_mmff() -> list[tuple[int, float]]:
+        conf_ids = AllChem.EmbedMultipleConfs(mol_h, numConfs=10, params=etkdg_params)
+        if len(conf_ids) == 0:
+            return []
+        return AllChem.MMFFOptimizeMoleculeConfs(
+            mol_h,
+            numThreads=1,
+            maxIters=1000,
+            mmffVariant="MMFF94",
+            nonBondedThresh=100.0,
+        )
+
+    results = _run_with_timeout(_run_embed_mmff, timeout_seconds=timeout_seconds)
+    if results is None:
+        return None
+
+    if len(results) == 0:
+        mol_h.RemoveAllConformers()
+        etkdg_params.useRandomCoords = True
+        results = _run_with_timeout(_run_embed_mmff, timeout_seconds=timeout_seconds)
+        if results is None or len(results) == 0:
+            return None
+
+    chosen_id = _select_lowest_energy_conf_id(results)
+    if chosen_id is None:
+        return None
+    return (mol_h, chosen_id)
 
 
 @DataModuleRegistry.register("graph")

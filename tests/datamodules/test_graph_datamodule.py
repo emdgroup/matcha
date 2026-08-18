@@ -7,12 +7,14 @@ import torch
 from pydantic import ValidationError
 from torch.utils.data import StackDataset
 from torch_geometric.data import Data
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from rdkit import Chem
 
 from matcha.datamodules.classic.graph_datamodule import (
     GraphDataModule,
     Graph3DDataModule,
+    _embed_and_minimize,
+    _select_lowest_energy_conf_id,
 )
 from matcha.datamodules.base_datamodule import DataModuleRegistry
 
@@ -472,6 +474,257 @@ class TestEmbedWithTimeoutBehavior:
         assert mock_helper.call_count >= 1
         for c in mock_helper.call_args_list:
             assert c.kwargs["timeout_seconds"] == 42
+
+
+# ===================================================================
+# _select_lowest_energy_conf_id – pure ranking function (Stage 2, issue #76)
+# ===================================================================
+
+
+class TestSelectLowestEnergyConfId:
+    """Pure-Python tests for the MMFF-result ranking function."""
+
+    def test_all_converged_picks_lowest_energy(self):
+        results = [(0, 2.5), (0, 1.0), (0, 3.5)]
+        assert _select_lowest_energy_conf_id(results) == 1
+
+    def test_converged_wins_over_lower_energy_non_converged(self):
+        # Non-converged conformer has a lower energy but the issue rule says
+        # any converged conformer must win.
+        results = [(1, -5.0), (0, 2.0), (1, -10.0)]
+        assert _select_lowest_energy_conf_id(results) == 1
+
+    def test_all_non_converged_picks_lowest_energy(self):
+        results = [(1, 3.0), (1, 1.5), (1, 2.0)]
+        assert _select_lowest_energy_conf_id(results) == 1
+
+    def test_mix_finite_and_nan_non_converged_picks_lowest_finite(self):
+        results = [
+            (1, float("nan")),
+            (1, 5.0),
+            (1, float("inf")),
+            (1, 3.0),
+            (1, float("-inf")),
+        ]
+        assert _select_lowest_energy_conf_id(results) == 3
+
+    def test_all_non_finite_returns_none(self):
+        results = [
+            (0, float("nan")),
+            (1, float("inf")),
+            (1, float("-inf")),
+        ]
+        assert _select_lowest_energy_conf_id(results) is None
+
+    def test_empty_returns_none(self):
+        assert _select_lowest_energy_conf_id([]) is None
+
+
+# ===================================================================
+# _embed_and_minimize – orchestrator (Stage 2, issue #76)
+# ===================================================================
+
+
+def _sync_run_with_timeout(fn, *args, timeout_seconds, **kwargs):
+    """Bypass the thread pool — invoke the wrapped callable synchronously.
+
+    Used to keep the mocked ``EmbedMultipleConfs`` / ``MMFFOptimizeMoleculeConfs``
+    call assertions observable in unit tests, while preserving the real
+    control flow inside :func:`_embed_and_minimize`.
+    """
+    return fn(*args, **kwargs)
+
+
+class TestEmbedAndMinimize:
+    """Unit tests for the ETKDG + MMFF orchestrator with mocked RDKit calls."""
+
+    _SMILES = "CCO"
+
+    def _mol(self):
+        return Chem.MolFromSmiles(self._SMILES)
+
+    def test_happy_path_returns_mol_and_lowest_conf_id(self):
+        mol = self._mol()
+        fake_mol_h = MagicMock(name="mol_h")
+        # Conformer index 2 is the lowest-energy converged conformer.
+        fake_results = [(0, 5.0), (0, 4.0), (0, 1.0), (0, 3.0), (0, 2.0)]
+
+        with (
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.Chem.AddHs",
+                return_value=fake_mol_h,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
+                side_effect=_sync_run_with_timeout,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.EmbedMultipleConfs",
+                return_value=list(range(5)),
+            ) as mock_embed,
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.MMFFOptimizeMoleculeConfs",
+                return_value=fake_results,
+            ) as mock_mmff,
+        ):
+            result = _embed_and_minimize(mol, timeout_seconds=10.0)
+
+        assert result is not None
+        mol_h, chosen_id = result
+        assert mol_h is fake_mol_h
+        assert chosen_id == 2
+        assert mock_embed.call_count == 1
+        assert mock_mmff.call_count == 1
+        # MMFF must be called with the required kwargs.
+        _, mmff_kwargs = mock_mmff.call_args
+        assert mmff_kwargs["numThreads"] == 1
+        assert mmff_kwargs["maxIters"] == 1000
+        assert mmff_kwargs["mmffVariant"] == "MMFF94"
+        assert mmff_kwargs["nonBondedThresh"] == 100.0
+
+    def test_zero_confs_first_try_retries_with_random_coords(self):
+        mol = self._mol()
+        fake_mol_h = MagicMock(name="mol_h")
+        fake_results = [(0, 1.0)]
+
+        seen_use_random_coords: list[bool] = []
+
+        def _embed(mol_h_arg, numConfs, params):
+            seen_use_random_coords.append(bool(params.useRandomCoords))
+            if len(seen_use_random_coords) == 1:
+                return []
+            return [0]
+
+        with (
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.Chem.AddHs",
+                return_value=fake_mol_h,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
+                side_effect=_sync_run_with_timeout,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.EmbedMultipleConfs",
+                side_effect=_embed,
+            ) as mock_embed,
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.MMFFOptimizeMoleculeConfs",
+                return_value=fake_results,
+            ) as mock_mmff,
+        ):
+            result = _embed_and_minimize(mol, timeout_seconds=10.0)
+
+        assert result is not None
+        mol_h, chosen_id = result
+        assert mol_h is fake_mol_h
+        assert chosen_id == 0
+        assert mock_embed.call_count == 2
+        assert seen_use_random_coords == [False, True]
+        # RemoveAllConformers must be invoked between the two embed attempts.
+        fake_mol_h.RemoveAllConformers.assert_called_once()
+        # MMFF only runs for the successful second embed.
+        assert mock_mmff.call_count == 1
+
+    def test_zero_confs_after_retry_returns_none(self):
+        mol = self._mol()
+        fake_mol_h = MagicMock(name="mol_h")
+
+        with (
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.Chem.AddHs",
+                return_value=fake_mol_h,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
+                side_effect=_sync_run_with_timeout,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.EmbedMultipleConfs",
+                return_value=[],
+            ) as mock_embed,
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.MMFFOptimizeMoleculeConfs",
+            ) as mock_mmff,
+        ):
+            result = _embed_and_minimize(mol, timeout_seconds=10.0)
+
+        assert result is None
+        assert mock_embed.call_count == 2
+        # No MMFF call after the second failed embed.
+        assert mock_mmff.call_count == 0
+
+    def test_run_with_timeout_returns_none_returns_none(self):
+        mol = self._mol()
+
+        with patch(
+            "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
+            return_value=None,
+        ) as mock_run:
+            result = _embed_and_minimize(mol, timeout_seconds=10.0)
+
+        assert result is None
+        # Hard failure — no retry.
+        assert mock_run.call_count == 1
+
+    def test_selector_returns_none_returns_none(self):
+        mol = self._mol()
+        fake_mol_h = MagicMock(name="mol_h")
+        nan = float("nan")
+        fake_results = [(1, nan), (1, nan), (1, float("inf"))]
+
+        with (
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.Chem.AddHs",
+                return_value=fake_mol_h,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
+                side_effect=_sync_run_with_timeout,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.EmbedMultipleConfs",
+                return_value=list(range(3)),
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.MMFFOptimizeMoleculeConfs",
+                return_value=fake_results,
+            ),
+        ):
+            result = _embed_and_minimize(mol, timeout_seconds=10.0)
+
+        assert result is None
+
+    def test_random_seed_is_42(self):
+        mol = self._mol()
+        fake_mol_h = MagicMock(name="mol_h")
+        seen_seeds: list[int] = []
+
+        def _embed(mol_h_arg, numConfs, params):
+            seen_seeds.append(params.randomSeed)
+            return [0]
+
+        with (
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.Chem.AddHs",
+                return_value=fake_mol_h,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
+                side_effect=_sync_run_with_timeout,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.EmbedMultipleConfs",
+                side_effect=_embed,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.MMFFOptimizeMoleculeConfs",
+                return_value=[(0, 0.0)],
+            ),
+        ):
+            _embed_and_minimize(mol, timeout_seconds=10.0)
+
+        assert seen_seeds == [42]
 
 
 # ===================================================================
