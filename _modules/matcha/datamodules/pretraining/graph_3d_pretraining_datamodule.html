@@ -106,12 +106,15 @@
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">StackDataset</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">Data</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.coords_utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">reorder_coords_to_canonical</span><span class="p">,</span>
+    <span class="n">validate_coords</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.graph_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">Graph3DDataModule</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.pretraining.graph_pretraining_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">GraphPretrainingDataModule</span><span class="p">,</span>
@@ -269,41 +272,18 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate that user-supplied 3D coordinates match the molecules.</span>
 
-<span class="sd">        Checks that:</span>
-<span class="sd">        - ``len(coords) == len(mol_list)``</span>
-<span class="sd">        - Each ``coords[i]`` has shape ``(A_i, 3)`` where ``A_i`` is the</span>
-<span class="sd">          number of heavy atoms in the canonical SMILES of molecule *i*.</span>
+<span class="sd">        Thin delegating wrapper over</span>
+<span class="sd">        :func:`matcha.datamodules.classic.coords_utils.validate_coords`,</span>
+<span class="sd">        kept on the class to preserve the public method surface for</span>
+<span class="sd">        subclass and test callers.</span>
 
 <span class="sd">        :param mol_list: list of RDKit molecules</span>
 <span class="sd">        :param coords: list of per-molecule coord arrays</span>
-<span class="sd">        :raises ValueError: on length or shape mismatch</span>
+<span class="sd">        :raises ValueError: on length, shape, atom-count, or finite-value</span>
+<span class="sd">            violations</span>
 <span class="sd">        :return: validated ``coords`` (each entry cast to ``float32`` ndarray)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">):</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;coords length (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">coords</span><span class="p">)</span><span class="si">}</span><span class="s2">) must match &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;mol_list length (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mol_list</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span>
-            <span class="p">)</span>
-
-        <span class="n">validated</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">ci</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">coords</span><span class="p">)):</span>
-            <span class="n">ci</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">ci</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">ci</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">ci</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;coords[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] must have shape (num_atoms, 3), &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;got shape </span><span class="si">{</span><span class="nb">tuple</span><span class="p">(</span><span class="n">ci</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="p">)</span>
-
-            <span class="n">canonical_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
-            <span class="n">expected_atoms</span> <span class="o">=</span> <span class="n">canonical_mol</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span>
-
-            <span class="k">if</span> <span class="n">ci</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">expected_atoms</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;coords[</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">] has </span><span class="si">{</span><span class="n">ci</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> rows but molecule &quot;</span>
-                    <span class="sa">f</span><span class="s2">&quot;has </span><span class="si">{</span><span class="n">expected_atoms</span><span class="si">}</span><span class="s2"> canonical atoms&quot;</span>
-                <span class="p">)</span>
-            <span class="n">validated</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ci</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">validated</span>
+        <span class="k">return</span> <span class="n">validate_coords</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
 
     <span class="c1"># ------------------------------------------------------------------</span>
     <span class="c1"># Coord reordering + graph construction helper</span>
@@ -316,30 +296,17 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Reorder user-supplied coords to the canonical atom ordering.</span>
 
-<span class="sd">        :meth:`GraphDataModule._calculate_graph` reparses the molecule via its</span>
-<span class="sd">        canonical SMILES, so the atom indices on the resulting graph do not</span>
-<span class="sd">        necessarily match the original ``mol``&#39;s atom order. Coordinates</span>
-<span class="sd">        supplied by the user in the original atom order therefore need to be</span>
-<span class="sd">        remapped, otherwise ``graph.pos`` would be misaligned with ``graph.x``</span>
-<span class="sd">        and ``y_node`` — a silent bug that would train the encoder on wrong</span>
-<span class="sd">        atom-to-coord assignments.</span>
-
-<span class="sd">        Uses ``mol.GetSubstructMatch(canonical_mol)`` to obtain, for each atom</span>
-<span class="sd">        in the canonical mol, the index in the original mol.</span>
+<span class="sd">        Thin delegating wrapper over</span>
+<span class="sd">        :func:`matcha.datamodules.classic.coords_utils.reorder_coords_to_canonical`,</span>
+<span class="sd">        kept on the class to preserve the public method surface for</span>
+<span class="sd">        subclass and test callers.</span>
 
 <span class="sd">        :param mol: RDKit molecule in user-supplied atom order</span>
 <span class="sd">        :param coords_i: coordinate array of shape ``(A, 3)`` in the same</span>
 <span class="sd">            atom order as ``mol``</span>
 <span class="sd">        :return: coordinate array in canonical atom order</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">canonical_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">canonical</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
-        <span class="n">match</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetSubstructMatch</span><span class="p">(</span><span class="n">canonical_mol</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">match</span><span class="p">)</span> <span class="o">!=</span> <span class="n">canonical_mol</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">():</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;Could not map canonical atom ordering back to the input mol; &quot;</span>
-                <span class="s2">&quot;GetSubstructMatch returned an incomplete match.&quot;</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="n">coords_i</span><span class="p">[</span><span class="nb">list</span><span class="p">(</span><span class="n">match</span><span class="p">)]</span>
+        <span class="k">return</span> <span class="n">reorder_coords_to_canonical</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">coords_i</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_graph_with_node_labels_and_pos</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>

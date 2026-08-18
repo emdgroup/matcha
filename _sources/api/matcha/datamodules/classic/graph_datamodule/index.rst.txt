@@ -167,9 +167,76 @@ Module Contents
    .. py:attribute:: params
 
 
-   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, n_jobs: int | None = None, coords: list[numpy.ndarray] | None = None) -> torch.utils.data.StackDataset
 
-      Generates unscaled features for 3D graph neural networks, with optional augmentation.
+      Generates unscaled features for 3D graph neural networks.
+
+      When ``coords`` is ``None`` (the default), 3D conformers are
+      generated on the fly via ETKDG — behaviour identical to the
+      pre-existing implementation. When ``coords`` is provided (a
+      length-``N`` list of ``(A_i, 3)`` arrays), the ETKDG path is
+      skipped entirely and the user-supplied coordinates are reordered
+      to the canonical atom ordering before being attached to
+      ``graph.pos``. Virtual nodes are zero-padded on the trailing
+      rows of ``pos`` so that ``pos.shape[0] == graph.num_nodes``,
+      matching the ETKDG path exactly.
+
+      The ``coords`` argument is *all-or-nothing*: either every
+      molecule is supplied a coord array (``len(coords) == len(mol_list)``)
+      or ``coords`` is left as ``None`` and ETKDG runs for every
+      molecule. Per-molecule ``None`` entries are not supported.
+
+      Combining user-supplied ``coords`` with ``augment_resonance=True``
+      is rejected: resonance augmentation reshuffles molecules and atom
+      orderings, which would break coord alignment.
+
+      :param mol_list: list of RDKit molecules.
+      :param y: optional label array.
+      :param bound_mask: optional per-sample bound-mask (``"="`` / ``"<"``
+          / ``">"``).
+      :param n_jobs: number of parallel workers (``None`` = auto).
+      :param coords: optional per-molecule 3D coordinate arrays. Each
+          entry must have shape ``(A_i, 3)`` where ``A_i`` is the
+          canonical atom count of ``mol_list[i]``, and every entry
+          must be finite (``NaN`` / ``Inf`` are rejected up front).
+      :raises ValueError: if ``coords`` is supplied together with
+          ``augment_resonance=True``; if ``len(coords) != len(mol_list)``;
+          if any ``coords[i]`` has the wrong shape or contains
+          non-finite values.
+      :return: ``StackDataset`` with keys ``graph`` and ``y``.
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None, coords: list[numpy.ndarray] | None = None) -> torch.utils.data.StackDataset
+
+      Generates a dataset ready for 3D GNN training.
+
+      Mirrors :meth:`GraphDataModule.featurize` but threads an optional
+      ``coords`` argument through to :meth:`generate_features`. When
+      ``coords`` is provided, ETKDG conformer generation is skipped and
+      the user-supplied per-molecule coords are attached to
+      ``graph.pos`` (reordered to the canonical atom ordering, zero-
+      padded for virtual nodes so the final ``pos.shape[0]`` matches
+      ``graph.num_nodes``).
+
+      The ``coords`` argument is *all-or-nothing*: either supply a
+      length-``N`` list of ``(A_i, 3)`` arrays for every molecule, or
+      leave it as ``None`` and let ETKDG embed every molecule. Per-
+      molecule ``None`` entries are not supported.
+
+      Combining ``coords`` with ``augment_resonance=True`` is rejected
+      by :meth:`generate_features` — see there for the rationale.
+
+      :param mol_list: list of N RDKit molecules to featurize.
+      :param y: optional label array of shape ``(N, X)``.
+      :param bound_mask: optional per-sample bound-mask.
+      :param is_training: fit the Y scaler on the input if ``True``,
+          otherwise transform-only.
+      :param n_jobs: parallel workers (``None`` = auto).
+      :param coords: optional per-molecule coord arrays; see
+          :meth:`generate_features` for shape / semantics /
+          finiteness requirements.
+      :return: ``StackDataset`` with keys ``graph`` and ``y``.
 
 
 

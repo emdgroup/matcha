@@ -102,6 +102,10 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">torch_geometric.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">to_scipy_sparse_matrix</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">scipy.sparse.csgraph</span><span class="w"> </span><span class="kn">import</span> <span class="n">shortest_path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.base_datamodule</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModule</span><span class="p">,</span> <span class="n">DataModuleRegistry</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.coords_utils</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">reorder_coords_to_canonical</span><span class="p">,</span>
+    <span class="n">validate_coords</span><span class="p">,</span>
+<span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.graph_positional_encoder</span><span class="w"> </span><span class="kn">import</span> <span class="n">GraphPE</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.datamodules</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">Graph3DDataModuleInputModel</span><span class="p">,</span>
@@ -692,9 +696,51 @@
         <span class="n">graph</span><span class="o">.</span><span class="n">pos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_coords</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">graph</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_calculate_graph_with_user_pos</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">coords_i</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Data</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build a PyG :class:`Data` for ``mol`` and attach user coords to ``pos``.</span>
+
+<span class="sd">        Mirrors :meth:`_calculate_graph_with_pos` but skips ETKDG conformer</span>
+<span class="sd">        generation. Coords are reordered to the canonical atom ordering that</span>
+<span class="sd">        :meth:`_calculate_graph` produces (which reparses ``mol`` via its</span>
+<span class="sd">        canonical SMILES), cast to ``torch.float32``, and zero-padded for</span>
+<span class="sd">        virtual nodes so ``graph.pos.shape[0]`` matches ``graph.num_nodes``.</span>
+<span class="sd">        The padding order mirrors the ETKDG path exactly: real atoms first,</span>
+<span class="sd">        then virtual nodes.</span>
+
+<span class="sd">        :param Mol mol: molecule in the user-supplied atom order.</span>
+<span class="sd">        :param np.ndarray coords_i: array of shape ``(A, 3)`` in the same</span>
+<span class="sd">            atom order as ``mol``.</span>
+<span class="sd">        :param bool is_training: forwarded to :meth:`_calculate_graph`.</span>
+<span class="sd">        :returns: PyG :class:`Data` with user-supplied 3D coords on ``pos``.</span>
+<span class="sd">        :rtype: Data</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">graph</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">is_training</span><span class="p">)</span>
+        <span class="n">canonical_coords</span> <span class="o">=</span> <span class="n">reorder_coords_to_canonical</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">coords_i</span><span class="p">)</span>
+        <span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">canonical_coords</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">pad</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+                <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_virtual_nodes</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="n">pos</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pos</span><span class="p">,</span> <span class="n">pad</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">graph</span><span class="o">.</span><span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span>
+        <span class="k">return</span> <span class="n">graph</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_process_batch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Data</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a batch of molecules in a single process, attaching coords.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph_with_pos</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mol_batch</span><span class="p">]</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_process_batch_with_coords</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">batch</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Mol</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Data</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Process a batch of ``(mol, coords)`` pairs, attaching user coords.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_calculate_graph_with_user_pos</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">ci</span><span class="p">,</span> <span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span><span class="p">,</span> <span class="n">ci</span> <span class="ow">in</span> <span class="n">batch</span><span class="p">]</span>
 
 <div class="viewcode-block" id="Graph3DDataModule.generate_features">
 <a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.generate_features">[docs]</a>
@@ -704,15 +750,125 @@
         <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates unscaled features for 3D graph neural networks, with optional augmentation.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates unscaled features for 3D graph neural networks.</span>
+
+<span class="sd">        When ``coords`` is ``None`` (the default), 3D conformers are</span>
+<span class="sd">        generated on the fly via ETKDG — behaviour identical to the</span>
+<span class="sd">        pre-existing implementation. When ``coords`` is provided (a</span>
+<span class="sd">        length-``N`` list of ``(A_i, 3)`` arrays), the ETKDG path is</span>
+<span class="sd">        skipped entirely and the user-supplied coordinates are reordered</span>
+<span class="sd">        to the canonical atom ordering before being attached to</span>
+<span class="sd">        ``graph.pos``. Virtual nodes are zero-padded on the trailing</span>
+<span class="sd">        rows of ``pos`` so that ``pos.shape[0] == graph.num_nodes``,</span>
+<span class="sd">        matching the ETKDG path exactly.</span>
+
+<span class="sd">        The ``coords`` argument is *all-or-nothing*: either every</span>
+<span class="sd">        molecule is supplied a coord array (``len(coords) == len(mol_list)``)</span>
+<span class="sd">        or ``coords`` is left as ``None`` and ETKDG runs for every</span>
+<span class="sd">        molecule. Per-molecule ``None`` entries are not supported.</span>
+
+<span class="sd">        Combining user-supplied ``coords`` with ``augment_resonance=True``</span>
+<span class="sd">        is rejected: resonance augmentation reshuffles molecules and atom</span>
+<span class="sd">        orderings, which would break coord alignment.</span>
+
+<span class="sd">        :param mol_list: list of RDKit molecules.</span>
+<span class="sd">        :param y: optional label array.</span>
+<span class="sd">        :param bound_mask: optional per-sample bound-mask (``&quot;=&quot;`` / ``&quot;&lt;&quot;``</span>
+<span class="sd">            / ``&quot;&gt;&quot;``).</span>
+<span class="sd">        :param n_jobs: number of parallel workers (``None`` = auto).</span>
+<span class="sd">        :param coords: optional per-molecule 3D coordinate arrays. Each</span>
+<span class="sd">            entry must have shape ``(A_i, 3)`` where ``A_i`` is the</span>
+<span class="sd">            canonical atom count of ``mol_list[i]``, and every entry</span>
+<span class="sd">            must be finite (``NaN`` / ``Inf`` are rejected up front).</span>
+<span class="sd">        :raises ValueError: if ``coords`` is supplied together with</span>
+<span class="sd">            ``augment_resonance=True``; if ``len(coords) != len(mol_list)``;</span>
+<span class="sd">            if any ``coords[i]`` has the wrong shape or contains</span>
+<span class="sd">            non-finite values.</span>
+<span class="sd">        :return: ``StackDataset`` with keys ``graph`` and ``y``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
         <span class="c1"># validate inputs without scaling</span>
         <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_validate_input</span><span class="p">(</span>
             <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span>
         <span class="p">)</span>
 
-        <span class="c1"># Apply augmentation if enabled</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">coords</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;coords cannot be combined with augment_resonance=True: &quot;</span>
+                <span class="s2">&quot;resonance augmentation reshuffles molecules and atom &quot;</span>
+                <span class="s2">&quot;orderings, which would break coord alignment.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">coords</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># ETKDG path — unchanged behaviour.</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">:</span>
+                <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
+                    <span class="n">mol_list</span><span class="p">,</span>
+                    <span class="n">y</span><span class="p">,</span>
+                    <span class="n">bound_mask</span><span class="o">=</span><span class="n">bound_mask</span><span class="p">,</span>
+                    <span class="n">use_resonance</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span><span class="p">,</span>
+                    <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
+                <span class="p">)</span>
+
+            <span class="n">graphs</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_batch</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># User-supplied coords path — skips ETKDG entirely.</span>
+            <span class="n">coords</span> <span class="o">=</span> <span class="n">validate_coords</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">coords</span><span class="p">)</span>
+            <span class="n">graphs</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_process_batch_with_coords</span><span class="p">,</span>
+                <span class="nb">list</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">coords</span><span class="p">)),</span>
+                <span class="n">n_jobs</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">graphs</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="Graph3DDataModule.featurize">
+<a class="viewcode-back" href="../../../../api/matcha/datamodules/classic/graph_datamodule/index.html#matcha.datamodules.classic.graph_datamodule.Graph3DDataModule.featurize">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">featurize</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">mol_list</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">bound_mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">is_training</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">coords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">StackDataset</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generates a dataset ready for 3D GNN training.</span>
+
+<span class="sd">        Mirrors :meth:`GraphDataModule.featurize` but threads an optional</span>
+<span class="sd">        ``coords`` argument through to :meth:`generate_features`. When</span>
+<span class="sd">        ``coords`` is provided, ETKDG conformer generation is skipped and</span>
+<span class="sd">        the user-supplied per-molecule coords are attached to</span>
+<span class="sd">        ``graph.pos`` (reordered to the canonical atom ordering, zero-</span>
+<span class="sd">        padded for virtual nodes so the final ``pos.shape[0]`` matches</span>
+<span class="sd">        ``graph.num_nodes``).</span>
+
+<span class="sd">        The ``coords`` argument is *all-or-nothing*: either supply a</span>
+<span class="sd">        length-``N`` list of ``(A_i, 3)`` arrays for every molecule, or</span>
+<span class="sd">        leave it as ``None`` and let ETKDG embed every molecule. Per-</span>
+<span class="sd">        molecule ``None`` entries are not supported.</span>
+
+<span class="sd">        Combining ``coords`` with ``augment_resonance=True`` is rejected</span>
+<span class="sd">        by :meth:`generate_features` — see there for the rationale.</span>
+
+<span class="sd">        :param mol_list: list of N RDKit molecules to featurize.</span>
+<span class="sd">        :param y: optional label array of shape ``(N, X)``.</span>
+<span class="sd">        :param bound_mask: optional per-sample bound-mask.</span>
+<span class="sd">        :param is_training: fit the Y scaler on the input if ``True``,</span>
+<span class="sd">            otherwise transform-only.</span>
+<span class="sd">        :param n_jobs: parallel workers (``None`` = auto).</span>
+<span class="sd">        :param coords: optional per-molecule coord arrays; see</span>
+<span class="sd">            :meth:`generate_features` for shape / semantics /</span>
+<span class="sd">            finiteness requirements.</span>
+<span class="sd">        :return: ``StackDataset`` with keys ``graph`` and ``y``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Apply augmentation if enabled. Skip augmentation entirely when</span>
+        <span class="c1"># coords are supplied — the mutex is enforced (and raised) inside</span>
+        <span class="c1"># generate_features.</span>
+        <span class="k">if</span> <span class="n">is_training</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_augment_resonance</span> <span class="ow">and</span> <span class="n">coords</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">augment</span><span class="p">(</span>
                 <span class="n">mol_list</span><span class="p">,</span>
                 <span class="n">y</span><span class="p">,</span>
@@ -721,10 +877,19 @@
                 <span class="n">n_jobs</span><span class="o">=</span><span class="n">n_jobs</span><span class="p">,</span>
             <span class="p">)</span>
 
-        <span class="n">graphs</span> <span class="o">=</span> <span class="n">parallelize</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_process_batch</span><span class="p">,</span> <span class="n">mol_list</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">)</span>
+        <span class="c1"># Generate unscaled features</span>
+        <span class="n">dataset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">generate_features</span><span class="p">(</span><span class="n">mol_list</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">,</span> <span class="n">coords</span><span class="o">=</span><span class="n">coords</span><span class="p">)</span>
 
-        <span class="n">y_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">StackDataset</span><span class="p">(</span><span class="n">graph</span><span class="o">=</span><span class="n">graphs</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">y_tensor</span><span class="p">)</span></div>
+        <span class="c1"># Apply scaling based on is_training flag</span>
+        <span class="k">if</span> <span class="n">is_training</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">dataset</span><span class="p">)</span>
+
+        <span class="c1"># Handle bound mask and classification transformations</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_process_y</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">dataset</span></div>
 
 
 <div class="viewcode-block" id="Graph3DDataModule.state_dict">
