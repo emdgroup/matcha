@@ -1,5 +1,8 @@
 """Graph-based molecular featurization for 2D and 3D GNN training."""
 
+import math
+from typing import Callable, TypeVar
+
 import numpy as np
 import torch
 from chemprop import featurizers
@@ -29,25 +32,122 @@ np.random.seed(0)
 ATOM_FEAT_DIM = 72
 BOND_FEAT_DIM = 14
 
+T = TypeVar("T")
 
-def _embed_with_timeout(mol: Mol, etkdg_params, timeout_seconds: float) -> int:
-    """Run AllChem.EmbedMolecule in a thread with a timeout.
 
-    RDKit releases the GIL during its C++ distance geometry solver, so a
-    ThreadPoolExecutor future can interrupt a hung call from within a worker.
-    Using shutdown(wait=False) ensures we do not block on stuck C++ threads
-    after the timeout fires.
+def _run_with_timeout(
+    fn: Callable[..., T],
+    *args,
+    timeout_seconds: float,
+    **kwargs,
+) -> T | None:
+    """Run an arbitrary callable in a thread with a timeout.
 
-    Returns 0 on success, -1 on timeout or any exception.
+    RDKit releases the GIL during its C++ distance geometry / force-field
+    solvers, so a ThreadPoolExecutor future can interrupt a hung call from
+    within a worker. Using shutdown(wait=False) ensures we do not block on
+    stuck C++ threads after the timeout fires.
+
+    Returns the callable's result on success, ``None`` on timeout or any
+    exception.
     """
     executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(AllChem.EmbedMolecule, mol, etkdg_params)
+    future = executor.submit(fn, *args, **kwargs)
     try:
         return future.result(timeout=timeout_seconds)
     except (FuturesTimeoutError, Exception):
-        return -1
+        return None
     finally:
         executor.shutdown(wait=False)
+
+
+def _select_lowest_energy_conf_id(
+    mmff_results: list[tuple[int, float]],
+) -> int | None:
+    """Pick the conformer index with the lowest MMFF energy.
+
+    Given the ``list[(not_converged, energy)]`` returned by
+    :func:`AllChem.MMFFOptimizeMoleculeConfs`, prefer the lowest-energy
+    conformer with ``not_converged == 0`` and a finite energy. If no
+    conformer converged, fall back to the lowest finite-energy
+    non-converged conformer. Returns ``None`` when every entry is
+    non-finite or ``mmff_results`` is empty.
+    """
+    converged = [
+        (i, energy)
+        for i, (not_converged, energy) in enumerate(mmff_results)
+        if not_converged == 0 and math.isfinite(energy)
+    ]
+    if converged:
+        return min(converged, key=lambda t: t[1])[0]
+
+    non_converged = [
+        (i, energy)
+        for i, (_, energy) in enumerate(mmff_results)
+        if math.isfinite(energy)
+    ]
+    if non_converged:
+        return min(non_converged, key=lambda t: t[1])[0]
+
+    return None
+
+
+def _embed_and_minimize(
+    mol: Mol,
+    timeout_seconds: float,
+) -> tuple[Mol, int] | None:
+    """Embed a 10-conformer ETKDG pool, MMFF-minimize, and return the pick.
+
+    Adds hydrogens, embeds up to 10 conformers with a fixed
+    ``randomSeed=42`` for reproducibility, then MMFF94-minimizes them
+    with ``numThreads=1`` (featurization already runs under an outer
+    process pool, and MMFF should not oversubscribe cores). The lowest-
+    energy converged conformer wins; if none converged, the lowest
+    finite-energy non-converged one is used instead.
+
+    The full embed + MMFF sequence shares a single
+    :func:`_run_with_timeout` budget so a hung molecule does not stall
+    a worker. If the first :func:`AllChem.EmbedMultipleConfs` produces
+    zero conformers, retries once with ``useRandomCoords=True`` after
+    :meth:`RemoveAllConformers` to keep the two attempts cleanly
+    separated.
+
+    Returns ``(mol_h, chosen_conf_id)`` on success — where ``mol_h`` is
+    the H-added molecule owning the selected conformer — or ``None``
+    if the wrapped call times out or raises, both embed attempts
+    produce zero conformers, or no conformer has a finite MMFF energy.
+    """
+    mol_h = Chem.AddHs(mol)
+    etkdg_params = AllChem.ETKDGv3()
+    etkdg_params.randomSeed = 42
+
+    def _run_embed_mmff() -> list[tuple[int, float]]:
+        conf_ids = AllChem.EmbedMultipleConfs(mol_h, numConfs=10, params=etkdg_params)
+        if len(conf_ids) == 0:
+            return []
+        return AllChem.MMFFOptimizeMoleculeConfs(
+            mol_h,
+            numThreads=1,
+            maxIters=1000,
+            mmffVariant="MMFF94",
+            nonBondedThresh=100.0,
+        )
+
+    results = _run_with_timeout(_run_embed_mmff, timeout_seconds=timeout_seconds)
+    if results is None:
+        return None
+
+    if len(results) == 0:
+        mol_h.RemoveAllConformers()
+        etkdg_params.useRandomCoords = True
+        results = _run_with_timeout(_run_embed_mmff, timeout_seconds=timeout_seconds)
+        if results is None or len(results) == 0:
+            return None
+
+    chosen_id = _select_lowest_energy_conf_id(results)
+    if chosen_id is None:
+        return None
+    return (mol_h, chosen_id)
 
 
 @DataModuleRegistry.register("graph")
@@ -461,7 +561,7 @@ class Graph3DDataModule(GraphDataModule):
         compute_distances: bool = True,
         num_virtual_nodes: int = 0,
         init_virtual_nodes: bool = False,
-        embed_timeout: float = 30.0,
+        embed_timeout: float = 120.0,
         is_classification: bool = False,
         scaler_type: str = "standard",
         clip: bool = True,
@@ -512,55 +612,35 @@ class Graph3DDataModule(GraphDataModule):
         self.collate_fn_map.update({Data: collate_fn_pyg_graph})
 
     def _calculate_coords(self, mol: Mol) -> torch.Tensor:
-        """Computes the 3D atomic coordinates for a given molecule using ETKDG.
+        """Compute 3D atomic coordinates for ``mol`` via ETKDG + MMFF.
 
-        Example usage:
+        Thin adapter over :func:`_embed_and_minimize`: delegates conformer
+        generation, MMFF94 minimization and lowest-energy selection to the
+        module-level helper, then handles tensor shaping (strip added Hs,
+        pad virtual nodes, cast to ``float32``).
 
-        .. code-block:: python
-            coords = get_3D_coords(mol)
+        On helper failure (timeout, exception, or no viable conformer),
+        falls back to :func:`AllChem.Compute2DCoords` on the H-added
+        molecule so downstream code always receives a coord tensor.
 
-        :param rdkit.Chem.rdchem.Mol mol: molecule to compute a conformer for
-
-        :return torch.tensor: tensor (A,3) corresponding to the 3D coordinates
-            for each a-th atom in the ETKDG-generated conformer
+        :param rdkit.Chem.rdchem.Mol mol: molecule to compute a conformer for.
+        :return torch.Tensor: tensor of shape ``(A + num_virtual_nodes, 3)``
+            with the heavy-atom coordinates of the selected conformer,
+            followed by zero rows for any virtual nodes.
         """
-        # count number of atoms before adding H
         start_n_atoms = mol.GetNumAtoms()
 
-        # add Hs to get reasonable conformers
-        mol = Chem.AddHs(mol)
+        result = _embed_and_minimize(mol, self.params.embed_timeout)
+        if result is None:
+            mol_h = Chem.AddHs(mol)
+            AllChem.Compute2DCoords(mol_h)
+            chosen_id = 0
+        else:
+            mol_h, chosen_id = result
 
-        # Use ETKDGv3 for conformer generation
-        etkdg_params = AllChem.ETKDGv3()
+        coords = mol_h.GetConformer(chosen_id).GetPositions()
+        coords = coords[:start_n_atoms, :]
 
-        # try to embed molecule with ETKDG
-        flag = _embed_with_timeout(mol, etkdg_params, self.params.embed_timeout)
-
-        # if embedding failed, retry with random coordinates as a fallback
-        if flag == -1:
-            etkdg_params.useRandomCoords = True
-            flag = _embed_with_timeout(mol, etkdg_params, self.params.embed_timeout)
-
-        # if all embedding attempts fail, fall back to 2D coordinates
-        if flag == -1:
-            AllChem.Compute2DCoords(mol)
-
-        # get coords as numpy array of shape (N+n_H, 3)
-        try:
-            conf = mol.GetConformer()
-            coords = conf.GetPositions()
-        except Exception:
-            AllChem.Compute2DCoords(mol)
-            conf = mol.GetConformer()
-            coords = conf.GetPositions()
-
-        # slice coord array only on non-H indexes
-        non_h_idx = []
-        for idx in range(start_n_atoms):
-            non_h_idx.append(idx)
-        coords = coords[non_h_idx, :]
-
-        # add coords for virtual node
         if self.params.num_virtual_nodes > 0:
             virtual_coords = np.zeros((self.params.num_virtual_nodes, 3))
             coords = np.concatenate((coords, virtual_coords), axis=0)

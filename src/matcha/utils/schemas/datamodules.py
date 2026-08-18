@@ -119,7 +119,7 @@ class Graph3DDataModuleInputModel(BaseDataModuleFields):
     compute_distances: bool = True
     num_virtual_nodes: Annotated[int, Field(ge=0)] = 0
     init_virtual_nodes: bool = False
-    embed_timeout: Annotated[float, Field(gt=0.0)] = 30.0
+    embed_timeout: Annotated[float, Field(gt=0.0)] = 120.0
 
 
 class CombinedDataModuleInputModel(BaseDataModuleFields):
