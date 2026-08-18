@@ -1,3 +1,18 @@
+## v0.0.21 (2026-08-18)
+
+### Feat
+
+- **datamodules**: wire multi-conformer ETKDG+MMFF pipeline into Graph3DDataModule._calculate_coords
+- **datamodules**: add multi-conformer ETKDG+MMFF helpers for 3D coords
+
+### Refactor
+
+- **datamodules**: generalize embed timeout helper and bump default budget
+
+### Perf
+
+- **datamodules**: reduce conformer defaults to numConfs=5, maxIters=500
+
 ## v0.0.20 (2026-08-18)
 
 ### Feat
