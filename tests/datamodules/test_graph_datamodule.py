@@ -393,7 +393,7 @@ class TestGraphDummy:
 class TestGraph3DEmbedTimeout:
     def test_default_embed_timeout(self):
         dm = Graph3DDataModule()
-        assert dm.params.embed_timeout == 30
+        assert dm.params.embed_timeout == 120
 
     def test_custom_embed_timeout(self):
         dm = Graph3DDataModule(embed_timeout=15)
@@ -410,7 +410,7 @@ class TestGraph3DEmbedTimeout:
 
 
 # ===================================================================
-# Graph3DDataModule – _embed_with_timeout runtime behavior (Stage 2)
+# Graph3DDataModule – _run_with_timeout runtime behavior (Stage 2)
 # ===================================================================
 
 
@@ -464,14 +464,14 @@ class TestEmbedWithTimeoutBehavior:
         dm = Graph3DDataModule(embed_timeout=42)
 
         with patch(
-            "matcha.datamodules.classic.graph_datamodule._embed_with_timeout",
+            "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
             return_value=0,
         ) as mock_helper:
             dm._calculate_coords(mol)
 
         assert mock_helper.call_count >= 1
         for c in mock_helper.call_args_list:
-            assert c.args[2] == 42
+            assert c.kwargs["timeout_seconds"] == 42
 
 
 # ===================================================================

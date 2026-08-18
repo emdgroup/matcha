@@ -1,5 +1,7 @@
 """Graph-based molecular featurization for 2D and 3D GNN training."""
 
+from typing import Callable, TypeVar
+
 import numpy as np
 import torch
 from chemprop import featurizers
@@ -29,23 +31,31 @@ np.random.seed(0)
 ATOM_FEAT_DIM = 72
 BOND_FEAT_DIM = 14
 
+T = TypeVar("T")
 
-def _embed_with_timeout(mol: Mol, etkdg_params, timeout_seconds: float) -> int:
-    """Run AllChem.EmbedMolecule in a thread with a timeout.
 
-    RDKit releases the GIL during its C++ distance geometry solver, so a
-    ThreadPoolExecutor future can interrupt a hung call from within a worker.
-    Using shutdown(wait=False) ensures we do not block on stuck C++ threads
-    after the timeout fires.
+def _run_with_timeout(
+    fn: Callable[..., T],
+    *args,
+    timeout_seconds: float,
+    **kwargs,
+) -> T | None:
+    """Run an arbitrary callable in a thread with a timeout.
 
-    Returns 0 on success, -1 on timeout or any exception.
+    RDKit releases the GIL during its C++ distance geometry / force-field
+    solvers, so a ThreadPoolExecutor future can interrupt a hung call from
+    within a worker. Using shutdown(wait=False) ensures we do not block on
+    stuck C++ threads after the timeout fires.
+
+    Returns the callable's result on success, ``None`` on timeout or any
+    exception.
     """
     executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(AllChem.EmbedMolecule, mol, etkdg_params)
+    future = executor.submit(fn, *args, **kwargs)
     try:
         return future.result(timeout=timeout_seconds)
     except (FuturesTimeoutError, Exception):
-        return -1
+        return None
     finally:
         executor.shutdown(wait=False)
 
@@ -461,7 +471,7 @@ class Graph3DDataModule(GraphDataModule):
         compute_distances: bool = True,
         num_virtual_nodes: int = 0,
         init_virtual_nodes: bool = False,
-        embed_timeout: float = 30.0,
+        embed_timeout: float = 120.0,
         is_classification: bool = False,
         scaler_type: str = "standard",
         clip: bool = True,
@@ -534,15 +544,25 @@ class Graph3DDataModule(GraphDataModule):
         etkdg_params = AllChem.ETKDGv3()
 
         # try to embed molecule with ETKDG
-        flag = _embed_with_timeout(mol, etkdg_params, self.params.embed_timeout)
+        flag = _run_with_timeout(
+            AllChem.EmbedMolecule,
+            mol,
+            etkdg_params,
+            timeout_seconds=self.params.embed_timeout,
+        )
 
         # if embedding failed, retry with random coordinates as a fallback
-        if flag == -1:
+        if flag is None:
             etkdg_params.useRandomCoords = True
-            flag = _embed_with_timeout(mol, etkdg_params, self.params.embed_timeout)
+            flag = _run_with_timeout(
+                AllChem.EmbedMolecule,
+                mol,
+                etkdg_params,
+                timeout_seconds=self.params.embed_timeout,
+            )
 
         # if all embedding attempts fail, fall back to 2D coordinates
-        if flag == -1:
+        if flag is None:
             AllChem.Compute2DCoords(mol)
 
         # get coords as numpy array of shape (N+n_H, 3)
