@@ -612,65 +612,35 @@ class Graph3DDataModule(GraphDataModule):
         self.collate_fn_map.update({Data: collate_fn_pyg_graph})
 
     def _calculate_coords(self, mol: Mol) -> torch.Tensor:
-        """Computes the 3D atomic coordinates for a given molecule using ETKDG.
+        """Compute 3D atomic coordinates for ``mol`` via ETKDG + MMFF.
 
-        Example usage:
+        Thin adapter over :func:`_embed_and_minimize`: delegates conformer
+        generation, MMFF94 minimization and lowest-energy selection to the
+        module-level helper, then handles tensor shaping (strip added Hs,
+        pad virtual nodes, cast to ``float32``).
 
-        .. code-block:: python
-            coords = get_3D_coords(mol)
+        On helper failure (timeout, exception, or no viable conformer),
+        falls back to :func:`AllChem.Compute2DCoords` on the H-added
+        molecule so downstream code always receives a coord tensor.
 
-        :param rdkit.Chem.rdchem.Mol mol: molecule to compute a conformer for
-
-        :return torch.tensor: tensor (A,3) corresponding to the 3D coordinates
-            for each a-th atom in the ETKDG-generated conformer
+        :param rdkit.Chem.rdchem.Mol mol: molecule to compute a conformer for.
+        :return torch.Tensor: tensor of shape ``(A + num_virtual_nodes, 3)``
+            with the heavy-atom coordinates of the selected conformer,
+            followed by zero rows for any virtual nodes.
         """
-        # count number of atoms before adding H
         start_n_atoms = mol.GetNumAtoms()
 
-        # add Hs to get reasonable conformers
-        mol = Chem.AddHs(mol)
+        result = _embed_and_minimize(mol, self.params.embed_timeout)
+        if result is None:
+            mol_h = Chem.AddHs(mol)
+            AllChem.Compute2DCoords(mol_h)
+            chosen_id = 0
+        else:
+            mol_h, chosen_id = result
 
-        # Use ETKDGv3 for conformer generation
-        etkdg_params = AllChem.ETKDGv3()
+        coords = mol_h.GetConformer(chosen_id).GetPositions()
+        coords = coords[:start_n_atoms, :]
 
-        # try to embed molecule with ETKDG
-        flag = _run_with_timeout(
-            AllChem.EmbedMolecule,
-            mol,
-            etkdg_params,
-            timeout_seconds=self.params.embed_timeout,
-        )
-
-        # if embedding failed, retry with random coordinates as a fallback
-        if flag is None:
-            etkdg_params.useRandomCoords = True
-            flag = _run_with_timeout(
-                AllChem.EmbedMolecule,
-                mol,
-                etkdg_params,
-                timeout_seconds=self.params.embed_timeout,
-            )
-
-        # if all embedding attempts fail, fall back to 2D coordinates
-        if flag is None:
-            AllChem.Compute2DCoords(mol)
-
-        # get coords as numpy array of shape (N+n_H, 3)
-        try:
-            conf = mol.GetConformer()
-            coords = conf.GetPositions()
-        except Exception:
-            AllChem.Compute2DCoords(mol)
-            conf = mol.GetConformer()
-            coords = conf.GetPositions()
-
-        # slice coord array only on non-H indexes
-        non_h_idx = []
-        for idx in range(start_n_atoms):
-            non_h_idx.append(idx)
-        coords = coords[non_h_idx, :]
-
-        # add coords for virtual node
         if self.params.num_virtual_nodes > 0:
             virtual_coords = np.zeros((self.params.num_virtual_nodes, 3))
             coords = np.concatenate((coords, virtual_coords), axis=0)

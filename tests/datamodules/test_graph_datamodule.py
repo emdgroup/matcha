@@ -1,6 +1,5 @@
 """Tests for GraphDataModule and Graph3DDataModule."""
 
-import time
 import numpy as np
 import pytest
 import torch
@@ -9,6 +8,7 @@ from torch.utils.data import StackDataset
 from torch_geometric.data import Data
 from unittest.mock import MagicMock, patch
 from rdkit import Chem
+from rdkit.Chem import AllChem
 
 from matcha.datamodules.classic.graph_datamodule import (
     GraphDataModule,
@@ -412,48 +412,17 @@ class TestGraph3DEmbedTimeout:
 
 
 # ===================================================================
-# Graph3DDataModule – _run_with_timeout runtime behavior (Stage 2)
+# Graph3DDataModule – embed timeout dispatch in _calculate_coords (Stage 3)
 # ===================================================================
 
 
 class TestEmbedWithTimeoutBehavior:
-    """Tests for the timeout guard in _calculate_coords()."""
+    """Tests for the timeout dispatch from _calculate_coords()."""
 
     _MOL_SMILES = "c1ccccc1"
 
     def _mol(self):
         return Chem.MolFromSmiles(self._MOL_SMILES)
-
-    def test_timeout_first_call_falls_back_to_random(self):
-        mol = self._mol()
-        dm = Graph3DDataModule(embed_timeout=0.1)
-
-        call_count = [0]
-
-        def slow_first_call(m, params):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                time.sleep(0.3)  # exceeds timeout
-            return 0
-
-        with patch("rdkit.Chem.AllChem.EmbedMolecule", side_effect=slow_first_call):
-            coords = dm._calculate_coords(mol)
-
-        assert coords.shape == (mol.GetNumAtoms(), 3)
-        assert call_count[0] == 2
-
-    def test_both_timeouts_fall_back_to_2d(self):
-        mol = self._mol()
-        dm = Graph3DDataModule(embed_timeout=0.1)
-
-        def always_slow(m, params):
-            time.sleep(0.3)
-            return 0
-
-        with patch("rdkit.Chem.AllChem.EmbedMolecule", side_effect=always_slow):
-            coords = dm._calculate_coords(mol)
-
-        assert coords.shape == (mol.GetNumAtoms(), 3)
 
     def test_no_timeout_on_normal_molecule(self):
         mol = Chem.MolFromSmiles("CC(=O)O")  # acetic acid
@@ -465,15 +434,18 @@ class TestEmbedWithTimeoutBehavior:
         mol = self._mol()
         dm = Graph3DDataModule(embed_timeout=42)
 
+        mol_h = Chem.AddHs(mol)
+        AllChem.Compute2DCoords(mol_h)
+
         with patch(
-            "matcha.datamodules.classic.graph_datamodule._run_with_timeout",
-            return_value=0,
+            "matcha.datamodules.classic.graph_datamodule._embed_and_minimize",
+            return_value=(mol_h, 0),
         ) as mock_helper:
             dm._calculate_coords(mol)
 
-        assert mock_helper.call_count >= 1
-        for c in mock_helper.call_args_list:
-            assert c.kwargs["timeout_seconds"] == 42
+        assert mock_helper.call_count == 1
+        args, kwargs = mock_helper.call_args
+        assert args[1] == 42 or kwargs.get("timeout_seconds") == 42
 
 
 # ===================================================================
@@ -725,6 +697,148 @@ class TestEmbedAndMinimize:
             _embed_and_minimize(mol, timeout_seconds=10.0)
 
         assert seen_seeds == [42]
+
+
+# ===================================================================
+# Graph3DDataModule – multi-conformer + MMFF pipeline (Stage 3, issue #76)
+# ===================================================================
+
+
+class TestGraph3DMultiConformerPipeline:
+    """End-to-end tests for ``_calculate_coords`` wired to the new pipeline."""
+
+    def test_pipeline_returns_correct_shape(self):
+        mol = Chem.MolFromSmiles("CCO")  # ethanol, 3 heavy atoms
+        dm = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+        coords = dm._calculate_coords(mol)
+        assert coords.shape == (mol.GetNumAtoms(), 3)
+        assert coords.dtype == torch.float32
+
+    def test_pipeline_returns_correct_shape_with_virtual_nodes(self):
+        mol = Chem.MolFromSmiles("CCO")
+        dm = Graph3DDataModule(
+            laplacian_k=0,
+            rwse_k=0,
+            rrwp_k=0,
+            compute_distances=False,
+            num_virtual_nodes=2,
+        )
+        coords = dm._calculate_coords(mol)
+        assert coords.shape == (mol.GetNumAtoms() + 2, 3)
+        assert torch.all(coords[-2:] == 0.0)
+
+    def test_calculate_coords_uses_embed_and_minimize(self):
+        mol = Chem.MolFromSmiles("CCO")
+        dm = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+
+        # A real mol_h with one 2D conformer so slicing succeeds downstream.
+        mol_h = Chem.AddHs(mol)
+        AllChem.Compute2DCoords(mol_h)
+
+        with patch(
+            "matcha.datamodules.classic.graph_datamodule._embed_and_minimize",
+            return_value=(mol_h, 0),
+        ) as mock_helper:
+            dm._calculate_coords(mol)
+
+        assert mock_helper.call_count == 1
+        args, kwargs = mock_helper.call_args
+        passed_timeout = args[1] if len(args) > 1 else kwargs.get("timeout_seconds")
+        assert passed_timeout == dm.params.embed_timeout
+
+    def test_calculate_coords_fallback_to_2d_when_embed_and_minimize_returns_none(self):
+        mol = Chem.MolFromSmiles("CCO")
+        dm = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+
+        with (
+            patch(
+                "matcha.datamodules.classic.graph_datamodule._embed_and_minimize",
+                return_value=None,
+            ),
+            patch(
+                "matcha.datamodules.classic.graph_datamodule.AllChem.Compute2DCoords",
+                wraps=AllChem.Compute2DCoords,
+            ) as mock_2d,
+        ):
+            coords = dm._calculate_coords(mol)
+
+        assert mock_2d.call_count == 1
+        assert coords.shape == (mol.GetNumAtoms(), 3)
+        assert coords.dtype == torch.float32
+
+    def test_calculate_coords_slices_hs_from_selected_conformer_only(self):
+        """When multiple conformers are present on ``mol_h``, the sliced coords
+        must come from the conformer at ``chosen_id`` — not from any other
+        conformer on the same molecule.
+        """
+        mol = Chem.MolFromSmiles("CCO")
+        n_heavy = mol.GetNumAtoms()
+        dm = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+
+        # Build a real mol_h with 4 conformers, each with distinct positions
+        # so we can tell which one was picked.
+        mol_h = Chem.AddHs(mol)
+        n_total = mol_h.GetNumAtoms()
+        for i in range(4):
+            conf = Chem.Conformer(n_total)
+            for atom_idx in range(n_total):
+                conf.SetAtomPosition(atom_idx, (float(i), float(atom_idx), 0.0))
+            mol_h.AddConformer(conf, assignId=True)
+
+        chosen_id = 3
+        expected = mol_h.GetConformer(chosen_id).GetPositions()[:n_heavy, :]
+
+        with patch(
+            "matcha.datamodules.classic.graph_datamodule._embed_and_minimize",
+            return_value=(mol_h, chosen_id),
+        ):
+            coords = dm._calculate_coords(mol)
+
+        assert torch.allclose(coords, torch.tensor(expected, dtype=torch.float32))
+
+    def test_reproducibility_across_calls(self):
+        """``randomSeed=42`` inside ``_embed_and_minimize`` should make repeat
+        calls on the same input molecule produce identical coord tensors.
+        """
+        smi = "CC(=O)O"  # acetic acid
+        dm = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+        coords_a = dm._calculate_coords(Chem.MolFromSmiles(smi))
+        coords_b = dm._calculate_coords(Chem.MolFromSmiles(smi))
+        assert torch.equal(coords_a, coords_b)
+
+    def test_user_supplied_coords_path_does_not_invoke_embed_and_minimize(
+        self, small_mol_list, small_regression_y
+    ):
+        """Regression: ``featurize(coords=...)`` must skip ETKDG entirely,
+        so ``_embed_and_minimize`` is never called.
+        """
+        dm = Graph3DDataModule(
+            laplacian_k=0, rwse_k=0, rrwp_k=0, compute_distances=False
+        )
+        coords = _make_user_coords(small_mol_list)
+
+        with patch(
+            "matcha.datamodules.classic.graph_datamodule._embed_and_minimize",
+        ) as mock_helper:
+            dm.featurize(
+                small_mol_list,
+                small_regression_y,
+                is_training=True,
+                n_jobs=1,
+                coords=coords,
+            )
+
+        assert mock_helper.call_count == 0
 
 
 # ===================================================================
