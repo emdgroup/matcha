@@ -149,6 +149,20 @@ class TestCoordValidation:
             assert ci.shape == (_canonical_num_atoms(mol), 3)
             assert ci.dtype == np.float32
 
+    def test_nan_coords_raises(self, small_mol_list, coords_small):
+        dm = Graph3DPretrainingDataModule()
+        bad = [ci.copy() for ci in coords_small]
+        bad[1][0, 0] = np.nan
+        with pytest.raises(ValueError, match=r"coords\[1\] contains non-finite"):
+            dm._validate_coords(small_mol_list, bad)
+
+    def test_inf_coords_raises(self, small_mol_list, coords_small):
+        dm = Graph3DPretrainingDataModule()
+        bad = [ci.copy() for ci in coords_small]
+        bad[0][2, 1] = np.inf
+        with pytest.raises(ValueError, match=r"coords\[0\] contains non-finite"):
+            dm._validate_coords(small_mol_list, bad)
+
 
 # ===================================================================
 # Canonical coord reorder

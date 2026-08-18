@@ -16,12 +16,15 @@ datamodule.
 
 import numpy as np
 import torch
-from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
 from torch.utils.data import StackDataset
 from torch_geometric.data import Data
 
 from matcha.datamodules.base_datamodule import DataModuleRegistry
+from matcha.datamodules.classic.coords_utils import (
+    reorder_coords_to_canonical,
+    validate_coords,
+)
 from matcha.datamodules.classic.graph_datamodule import Graph3DDataModule
 from matcha.datamodules.pretraining.graph_pretraining_datamodule import (
     GraphPretrainingDataModule,
@@ -174,41 +177,18 @@ class Graph3DPretrainingDataModule(GraphPretrainingDataModule):
     ) -> list[np.ndarray]:
         """Validate that user-supplied 3D coordinates match the molecules.
 
-        Checks that:
-        - ``len(coords) == len(mol_list)``
-        - Each ``coords[i]`` has shape ``(A_i, 3)`` where ``A_i`` is the
-          number of heavy atoms in the canonical SMILES of molecule *i*.
+        Thin delegating wrapper over
+        :func:`matcha.datamodules.classic.coords_utils.validate_coords`,
+        kept on the class to preserve the public method surface for
+        subclass and test callers.
 
         :param mol_list: list of RDKit molecules
         :param coords: list of per-molecule coord arrays
-        :raises ValueError: on length or shape mismatch
+        :raises ValueError: on length, shape, atom-count, or finite-value
+            violations
         :return: validated ``coords`` (each entry cast to ``float32`` ndarray)
         """
-        if len(coords) != len(mol_list):
-            raise ValueError(
-                f"coords length ({len(coords)}) must match "
-                f"mol_list length ({len(mol_list)})"
-            )
-
-        validated: list[np.ndarray] = []
-        for i, (mol, ci) in enumerate(zip(mol_list, coords)):
-            ci = np.asarray(ci, dtype=np.float32)
-            if ci.ndim != 2 or ci.shape[1] != 3:
-                raise ValueError(
-                    f"coords[{i}] must have shape (num_atoms, 3), "
-                    f"got shape {tuple(ci.shape)}"
-                )
-
-            canonical_mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol, canonical=True))
-            expected_atoms = canonical_mol.GetNumAtoms()
-
-            if ci.shape[0] != expected_atoms:
-                raise ValueError(
-                    f"coords[{i}] has {ci.shape[0]} rows but molecule "
-                    f"has {expected_atoms} canonical atoms"
-                )
-            validated.append(ci)
-        return validated
+        return validate_coords(mol_list, coords)
 
     # ------------------------------------------------------------------
     # Coord reordering + graph construction helper
@@ -221,30 +201,17 @@ class Graph3DPretrainingDataModule(GraphPretrainingDataModule):
     ) -> np.ndarray:
         """Reorder user-supplied coords to the canonical atom ordering.
 
-        :meth:`GraphDataModule._calculate_graph` reparses the molecule via its
-        canonical SMILES, so the atom indices on the resulting graph do not
-        necessarily match the original ``mol``'s atom order. Coordinates
-        supplied by the user in the original atom order therefore need to be
-        remapped, otherwise ``graph.pos`` would be misaligned with ``graph.x``
-        and ``y_node`` — a silent bug that would train the encoder on wrong
-        atom-to-coord assignments.
-
-        Uses ``mol.GetSubstructMatch(canonical_mol)`` to obtain, for each atom
-        in the canonical mol, the index in the original mol.
+        Thin delegating wrapper over
+        :func:`matcha.datamodules.classic.coords_utils.reorder_coords_to_canonical`,
+        kept on the class to preserve the public method surface for
+        subclass and test callers.
 
         :param mol: RDKit molecule in user-supplied atom order
         :param coords_i: coordinate array of shape ``(A, 3)`` in the same
             atom order as ``mol``
         :return: coordinate array in canonical atom order
         """
-        canonical_mol = Chem.MolFromSmiles(Chem.MolToSmiles(mol, canonical=True))
-        match = mol.GetSubstructMatch(canonical_mol)
-        if len(match) != canonical_mol.GetNumAtoms():
-            raise ValueError(
-                "Could not map canonical atom ordering back to the input mol; "
-                "GetSubstructMatch returned an incomplete match."
-            )
-        return coords_i[list(match)]
+        return reorder_coords_to_canonical(mol, coords_i)
 
     def _calculate_graph_with_node_labels_and_pos(
         self,
