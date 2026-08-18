@@ -550,7 +550,7 @@ class TestEmbedAndMinimize:
         # MMFF must be called with the required kwargs.
         _, mmff_kwargs = mock_mmff.call_args
         assert mmff_kwargs["numThreads"] == 1
-        assert mmff_kwargs["maxIters"] == 1000
+        assert mmff_kwargs["maxIters"] == 500
         assert mmff_kwargs["mmffVariant"] == "MMFF94"
         assert mmff_kwargs["nonBondedThresh"] == 100.0
 

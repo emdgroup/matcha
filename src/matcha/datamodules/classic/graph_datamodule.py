@@ -96,9 +96,9 @@ def _embed_and_minimize(
     mol: Mol,
     timeout_seconds: float,
 ) -> tuple[Mol, int] | None:
-    """Embed a 10-conformer ETKDG pool, MMFF-minimize, and return the pick.
+    """Embed a 5-conformer ETKDG pool, MMFF-minimize, and return the pick.
 
-    Adds hydrogens, embeds up to 10 conformers with a fixed
+    Adds hydrogens, embeds up to 5 conformers with a fixed
     ``randomSeed=42`` for reproducibility, then MMFF94-minimizes them
     with ``numThreads=1`` (featurization already runs under an outer
     process pool, and MMFF should not oversubscribe cores). The lowest-
@@ -122,13 +122,13 @@ def _embed_and_minimize(
     etkdg_params.randomSeed = 42
 
     def _run_embed_mmff() -> list[tuple[int, float]]:
-        conf_ids = AllChem.EmbedMultipleConfs(mol_h, numConfs=10, params=etkdg_params)
+        conf_ids = AllChem.EmbedMultipleConfs(mol_h, numConfs=5, params=etkdg_params)
         if len(conf_ids) == 0:
             return []
         return AllChem.MMFFOptimizeMoleculeConfs(
             mol_h,
             numThreads=1,
-            maxIters=1000,
+            maxIters=500,
             mmffVariant="MMFF94",
             nonBondedThresh=100.0,
         )
