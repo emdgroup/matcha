@@ -1,3 +1,14 @@
+## v0.0.20 (2026-08-18)
+
+### Feat
+
+- **datamodules**: thread optional coords through Graph3DDataModule to skip ETKDG re-embedding
+- **datamodules**: add shared coords_utils helpers for 3D atomic coordinates
+
+### Refactor
+
+- **datamodules**: delegate 3D pretraining coord helpers to coords_utils
+
 ## v0.0.19 (2026-08-17)
 
 ### Fix
