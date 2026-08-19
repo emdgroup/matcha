@@ -12,6 +12,7 @@ from matcha.nn.optimizers import OptimizerRegistry
 from matcha.nn.layers import AdaRMSN, GraphNorm
 from matcha.torch.models.mixin import ModelMixin
 from matcha.torch.models.finetuning.lora import apply_lora
+from matcha.torch.models.finetuning.passthrough_predictor import PassthroughPredictor
 from matcha.torch.models.finetuning.pretrained_encoder_wrapper import (
     PretrainedEncoderWrapper,
 )
@@ -30,6 +31,22 @@ def _resolve_leaf_encoder(pretrain: nn.Module) -> nn.Module:
     while isinstance(pretrain, Finetuner):
         pretrain = pretrain.pretrain
     return pretrain.encoder
+
+
+def _strip_pretrained_predictor_recursive(pretrain: nn.Module) -> None:
+    """Replace every ``.predictor`` in the pretrain chain with a passthrough.
+
+    Walks any nested :class:`Finetuner` wrappers and installs a fresh
+    :class:`PassthroughPredictor` at each level, including the leaf model
+    (classic model or :class:`PretrainedEncoderWrapper`). This lets
+    ``self.pretrain.encode(batch)`` chain through with identity behavior so
+    the new prediction head consumes the leaf encoder's output directly.
+    """
+    current = pretrain
+    while isinstance(current, Finetuner):
+        current.predictor = PassthroughPredictor()
+        current = current.pretrain
+    current.predictor = PassthroughPredictor()
 
 
 @ClassicModelRegistry.register()
@@ -72,6 +89,23 @@ class Finetuner(ModelMixin, HyperparametersMixin):
     :param int lora_rank: LoRA decomposition rank, defaults to 4
     :param float lora_alpha: LoRA scaling numerator, defaults to 8.0
     :param int lora_min_dim: Minimum layer dimension for LoRA injection, defaults to 32
+    :param bool keep_existing_predictor: Whether to preserve the pretrained model's
+        predictor hidden layers in the forward path, defaults to ``True``. This
+        axis is orthogonal to ``finetuning_strategy`` and composes with both
+        ``"full"`` and ``"lora"``:
+
+        - ``True``: the pretrained predictor's hidden layers stay in place and
+          the new ``pred_hidden_dims`` MLP is stacked on top of them. Only the
+          pretrained model's final prediction head is dropped. This preserves
+          historic behavior.
+        - ``False``: the pretrained predictor is discarded end-to-end (across
+          nested :class:`Finetuner` wrappers as well) and the new
+          ``pred_hidden_dims`` MLP consumes the leaf encoder's output directly.
+          ``pretrain_output_dim`` becomes the leaf encoder's ``fp_dim``.
+
+        For pure ``origin_type="pretraining"`` artifacts the flag is a no-op:
+        there is no pretrained predictor to strip, so both settings produce
+        numerically-equal predictions.
     :param dict | None _pretrain_config: Internal config for checkpoint reconstruction
         (not a user-facing parameter)
     """
@@ -97,6 +131,7 @@ class Finetuner(ModelMixin, HyperparametersMixin):
         lora_rank: int = 4,
         lora_alpha: float = 8.0,
         lora_min_dim: int = 32,
+        keep_existing_predictor: bool = True,
         _pretrain_config: dict | None = None,
     ):
         super().__init__()
@@ -116,7 +151,13 @@ class Finetuner(ModelMixin, HyperparametersMixin):
         else:
             self._load_from_pretrained_path(path_to_pretrained)
 
-        self.pretrain.predictor.prediction_head = None
+        if keep_existing_predictor:
+            self.pretrain.predictor.prediction_head = None
+            self.pretrain_output_dim = self.pretrain.latent_dim
+        else:
+            _strip_pretrained_predictor_recursive(self.pretrain)
+            self.pretrain_output_dim = _resolve_leaf_encoder(self.pretrain).fp_dim
+
         self.automatic_optimization = False
         self._mc_dropout_flag = False
         self._label_names = self.pretrain._label_names
@@ -128,8 +169,6 @@ class Finetuner(ModelMixin, HyperparametersMixin):
                 module.eval()
                 for param in module.parameters():
                     param.requires_grad = False
-
-        self.pretrain_output_dim = self.pretrain.latent_dim
 
         self.predictor = MLP(
             input_dim=self.pretrain_output_dim,
