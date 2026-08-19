@@ -265,6 +265,7 @@ class FinetunerMixin(BaseDataModel):
     lora_rank: int = 4
     lora_alpha: float = 8.0
     lora_min_dim: int = 32
+    keep_existing_predictor: bool = True
 
 
 class ChempropFinetunerMixin(BaseDataModel):
