@@ -1013,3 +1013,149 @@ class TestFinetuningClassifierLabelEncoder:
             result_dm["label_encoder_params"]["encoder_type"] == "binary_classification"
         )
         assert result_dm["label_encoder_params"]["extra_key"] == "should_persist"
+
+
+# =========================================================================
+# keep_existing_predictor forwarding through sklearn wrappers (issue #85)
+# =========================================================================
+
+# Factories used to exercise the flag being set to False. The tabular MLP
+# encoder does not expose the ``fp_dim`` attribute that ``keep_existing_predictor=False``
+# needs at the torch layer, so we restrict the False-value forwarding tests
+# to GIN and CNN modalities. The True-value tests still cover all non-Chemprop
+# modalities since that path is unchanged from the pre-#85 behavior.
+_FLAG_FALSE_REGRESSOR_FACTORIES = [
+    pytest.param(make_gin_regressor, id="GINRegressor"),
+    pytest.param(make_cnn_regressor, id="CNNRegressor"),
+]
+
+_FLAG_FALSE_CLASSIFIER_FACTORIES = [
+    pytest.param(make_gin_classifier, id="GINClassifier"),
+    pytest.param(make_cnn_classifier, id="CNNClassifier"),
+]
+
+_FLAG_TRUE_REGRESSOR_FACTORIES = [
+    pytest.param(make_mlp_regressor, id="MLPRegressor"),
+    pytest.param(make_gin_regressor, id="GINRegressor"),
+    pytest.param(make_cnn_regressor, id="CNNRegressor"),
+]
+
+
+class TestKeepExistingPredictorForwarding:
+    """Verify keep_existing_predictor is threaded through the sklearn wrappers.
+
+    The flag exists on ``Finetuner.__init__`` but was not accepted or forwarded
+    by the sklearn wrappers before issue #85. These tests exercise the plumbing
+    end-to-end: signature acceptance, hparams forwarding to the underlying
+    torch module, a fit+predict smoke test, and the Chemprop guard.
+    """
+
+    @pytest.fixture(params=_FLAG_FALSE_REGRESSOR_FACTORIES)
+    def flag_false_regressor_path(self, request, mol_list, regression_y, tmp_path):
+        """Fit a regressor for which flag=False is supported, return its save path."""
+        factory = request.param
+        model = factory()
+        save_dir = str(tmp_path / f"pretrained_kep_{factory.__name__}")
+        model.fit(mol_list, regression_y)
+        model.save_model(save_dir)
+        return save_dir
+
+    @pytest.fixture(params=_FLAG_FALSE_CLASSIFIER_FACTORIES)
+    def flag_false_classifier_path(self, request, mol_list, classification_y, tmp_path):
+        """Fit a classifier for which flag=False is supported, return its save path."""
+        factory = request.param
+        model = factory()
+        save_dir = str(tmp_path / f"pretrained_kep_{factory.__name__}")
+        model.fit(mol_list, classification_y)
+        model.save_model(save_dir)
+        return save_dir
+
+    @pytest.fixture(params=_FLAG_TRUE_REGRESSOR_FACTORIES)
+    def flag_true_regressor_path(self, request, mol_list, regression_y, tmp_path):
+        """Fit any non-Chemprop regressor, return its save path."""
+        factory = request.param
+        model = factory()
+        save_dir = str(tmp_path / f"pretrained_kep_{factory.__name__}")
+        model.fit(mol_list, regression_y)
+        model.save_model(save_dir)
+        return save_dir
+
+    @pytest.fixture()
+    def chemprop_regressor_path(self, mol_list, regression_y, tmp_path):
+        """Fit a Chemprop regressor, save it, return the save path."""
+        model = make_chemprop_regressor()
+        save_dir = str(tmp_path / "pretrained_kep_chemprop")
+        model.fit(mol_list, regression_y)
+        model.save_model(save_dir)
+        return save_dir
+
+    def test_regressor_construction_with_keep_existing_predictor_false(
+        self, flag_false_regressor_path
+    ):
+        """FinetuningRegressor accepts keep_existing_predictor=False and forwards it."""
+        finetuner = FinetuningRegressor(
+            path_to_pretrained=flag_false_regressor_path,
+            keep_existing_predictor=False,
+            **FINETUNE_TRAIN,
+        )
+        assert finetuner._model.hparams["keep_existing_predictor"] is False
+
+    def test_regressor_construction_with_keep_existing_predictor_true(
+        self, flag_true_regressor_path
+    ):
+        """FinetuningRegressor forwards keep_existing_predictor=True (default)."""
+        finetuner = FinetuningRegressor(
+            path_to_pretrained=flag_true_regressor_path,
+            keep_existing_predictor=True,
+            **FINETUNE_TRAIN,
+        )
+        assert finetuner._model.hparams["keep_existing_predictor"] is True
+
+    def test_classifier_construction_with_keep_existing_predictor_false(
+        self, flag_false_classifier_path
+    ):
+        """FinetuningClassifier accepts keep_existing_predictor=False and forwards it."""
+        finetuner = FinetuningClassifier(
+            path_to_pretrained=flag_false_classifier_path,
+            keep_existing_predictor=False,
+            **FINETUNE_TRAIN,
+        )
+        assert finetuner._model.hparams["keep_existing_predictor"] is False
+
+    def test_regressor_fit_predict_with_flag_false(
+        self, mol_list, regression_y, tmp_path
+    ):
+        """End-to-end fit + predict works with keep_existing_predictor=False."""
+        base = make_gin_regressor()
+        save_dir = str(tmp_path / "pretrained_kep_smoke")
+        base.fit(mol_list, regression_y)
+        base.save_model(save_dir)
+
+        finetuner = FinetuningRegressor(
+            path_to_pretrained=save_dir,
+            keep_existing_predictor=False,
+            **FINETUNE_TRAIN,
+        )
+        finetuner.fit(mol_list, regression_y)
+        preds = finetuner.predict(mol_list)
+
+        assert preds.shape == (len(mol_list), 1)
+        assert np.all(np.isfinite(preds))
+
+    def test_chemprop_regressor_raises_on_flag_false(self, chemprop_regressor_path):
+        """Chemprop pretrained models reject keep_existing_predictor=False."""
+        with pytest.raises(ValueError, match="keep_existing_predictor=False"):
+            FinetuningRegressor(
+                path_to_pretrained=chemprop_regressor_path,
+                keep_existing_predictor=False,
+                **FINETUNE_TRAIN,
+            )
+
+    def test_chemprop_regressor_accepts_flag_true(self, chemprop_regressor_path):
+        """Chemprop pretrained models accept the default keep_existing_predictor=True."""
+        finetuner = FinetuningRegressor(
+            path_to_pretrained=chemprop_regressor_path,
+            keep_existing_predictor=True,
+            **FINETUNE_TRAIN,
+        )
+        assert finetuner._model is not None
