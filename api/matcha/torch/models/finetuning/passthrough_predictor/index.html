@@ -1,0 +1,176 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>matcha.torch.models.finetuning.passthrough_predictor &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../../../../../../_static/thebelab.css" />
+
+  
+      <script src="../../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../../../../../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../getting-started.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contributing</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../api-reference.html">API reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">matcha.torch.models.finetuning.passthrough_predictor</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../../_sources/api/matcha/torch/models/finetuning/passthrough_predictor/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-matcha.torch.models.finetuning.passthrough_predictor">
+<span id="matcha-torch-models-finetuning-passthrough-predictor"></span><h1>matcha.torch.models.finetuning.passthrough_predictor<a class="headerlink" href="#module-matcha.torch.models.finetuning.passthrough_predictor" title="Link to this heading"></a></h1>
+<p>Identity-only predictor for <code class="xref py py-class docutils literal notranslate"><span class="pre">Finetuner</span></code> with <code class="docutils literal notranslate"><span class="pre">keep_existing_predictor=False</span></code>.</p>
+<p>When a <code class="xref py py-class docutils literal notranslate"><span class="pre">Finetuner</span></code> is asked to discard the pretrained model’s predictor,
+every <code class="docutils literal notranslate"><span class="pre">.predictor</span></code> in the <code class="docutils literal notranslate"><span class="pre">self.pretrain</span></code> chain — including any nested
+<code class="xref py py-class docutils literal notranslate"><span class="pre">Finetuner</span></code> wrappers and the leaf classic/pretraining model — is
+replaced with a <a class="reference internal" href="#matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor" title="matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor"><code class="xref py py-class docutils literal notranslate"><span class="pre">PassthroughPredictor</span></code></a>. The result: <code class="docutils literal notranslate"><span class="pre">self.pretrain.encode(batch)</span></code>
+chains through with identity behavior at each level, and the new
+<code class="docutils literal notranslate"><span class="pre">pred_hidden_dims</span></code> MLP consumes the leaf encoder’s output directly.</p>
+<p>This module mirrors the role played by <code class="xref py py-class docutils literal notranslate"><span class="pre">_StubPredictor</span></code>
+for pure <code class="docutils literal notranslate"><span class="pre">origin_type=&quot;pretraining&quot;</span></code> artifacts: both provide the minimal
+attribute surface (<code class="xref py py-attr docutils literal notranslate"><span class="pre">prediction_head</span></code>) that <code class="xref py py-class docutils literal notranslate"><span class="pre">Finetuner</span></code> and
+<a class="reference internal" href="../../classic/base_classic_model/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel" title="matcha.torch.models.classic.base_classic_model.BaseClassicModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">BaseClassicModel</span></code></a>
+expect. <a class="reference internal" href="#matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor" title="matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor"><code class="xref py py-class docutils literal notranslate"><span class="pre">PassthroughPredictor</span></code></a> additionally exposes <code class="docutils literal notranslate"><span class="pre">.encode</span></code> and
+<code class="docutils literal notranslate"><span class="pre">.forward</span></code> because <code class="xref py py-meth docutils literal notranslate"><span class="pre">BaseClassicModel.encode()</span></code> dispatches through
+<code class="docutils literal notranslate"><span class="pre">predictor.encode</span></code> — using <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Identity.html#torch.nn.Identity" title="(in PyTorch v2.13)"><code class="xref py py-class docutils literal notranslate"><span class="pre">torch.nn.Identity</span></code></a> would raise
+<code class="docutils literal notranslate"><span class="pre">AttributeError</span></code>.</p>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor" title="matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PassthroughPredictor</span></code></a></p></td>
+<td><p>Identity predictor used when the pretrained predictor is discarded.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">matcha.torch.models.finetuning.passthrough_predictor.</span></span><span class="sig-name descname"><span class="pre">PassthroughPredictor</span></span><a class="reference internal" href="../../../../../../_modules/matcha/torch/models/finetuning/passthrough_predictor.html#PassthroughPredictor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.13)"><code class="xref py py-obj docutils literal notranslate"><span class="pre">torch.nn.Module</span></code></a></p>
+<p>Identity predictor used when the pretrained predictor is discarded.</p>
+<p>The parameter is named <code class="docutils literal notranslate"><span class="pre">mol_features</span></code> because
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">_unpack_batch_and_call()</span></code>
+uses signature-based dispatch and looks up <code class="docutils literal notranslate"><span class="pre">batch[&quot;mol_features&quot;]</span></code>.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor.prediction_head">
+<span class="sig-name descname"><span class="pre">prediction_head</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor.prediction_head" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor.encode">
+<span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../../_modules/matcha/torch/models/finetuning/passthrough_predictor.html#PassthroughPredictor.encode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor.encode" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mol_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.13)"><span class="pre">torch.Tensor</span></a></span></span><a class="reference internal" href="../../../../../../_modules/matcha/torch/models/finetuning/passthrough_predictor.html#PassthroughPredictor.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.models.finetuning.passthrough_predictor.PassthroughPredictor.forward" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

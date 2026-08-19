@@ -18,6 +18,7 @@ Submodules
    /api/matcha/torch/models/finetuning/chemprop_finetuner/index
    /api/matcha/torch/models/finetuning/finetuner/index
    /api/matcha/torch/models/finetuning/lora/index
+   /api/matcha/torch/models/finetuning/passthrough_predictor/index
    /api/matcha/torch/models/finetuning/pretrained_encoder_wrapper/index
 
 
@@ -43,7 +44,7 @@ Functions
 Package Contents
 ----------------
 
-.. py:class:: Finetuner(architecture: str, path_to_pretrained: str, pred_hidden_dims: list[int] = [256, 256], task_head_dims: list[int] | None = None, activation: str = 'relu', dropout: float = 0.1, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.0001}, pretrain_lr: float = 1e-06, pretrain_decay: float = 0.5, scheduler: str = 'cosine_annealing', scheduler_args: dict = {}, finetuning_strategy: str = 'full', lora_rank: int = 4, lora_alpha: float = 8.0, lora_min_dim: int = 32, _pretrain_config: dict | None = None)
+.. py:class:: Finetuner(architecture: str, path_to_pretrained: str, pred_hidden_dims: list[int] = [256, 256], task_head_dims: list[int] | None = None, activation: str = 'relu', dropout: float = 0.1, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.0001}, pretrain_lr: float = 1e-06, pretrain_decay: float = 0.5, scheduler: str = 'cosine_annealing', scheduler_args: dict = {}, finetuning_strategy: str = 'full', lora_rank: int = 4, lora_alpha: float = 8.0, lora_min_dim: int = 32, keep_existing_predictor: bool = True, _pretrain_config: dict | None = None)
 
    Bases: :py:obj:`matcha.torch.models.mixin.ModelMixin`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -86,6 +87,23 @@ Package Contents
    :param int lora_rank: LoRA decomposition rank, defaults to 4
    :param float lora_alpha: LoRA scaling numerator, defaults to 8.0
    :param int lora_min_dim: Minimum layer dimension for LoRA injection, defaults to 32
+   :param bool keep_existing_predictor: Whether to preserve the pretrained model's
+       predictor hidden layers in the forward path, defaults to ``True``. This
+       axis is orthogonal to ``finetuning_strategy`` and composes with both
+       ``"full"`` and ``"lora"``:
+
+       - ``True``: the pretrained predictor's hidden layers stay in place and
+         the new ``pred_hidden_dims`` MLP is stacked on top of them. Only the
+         pretrained model's final prediction head is dropped. This preserves
+         historic behavior.
+       - ``False``: the pretrained predictor is discarded end-to-end (across
+         nested :class:`Finetuner` wrappers as well) and the new
+         ``pred_hidden_dims`` MLP consumes the leaf encoder's output directly.
+         ``pretrain_output_dim`` becomes the leaf encoder's ``fp_dim``.
+
+       For pure ``origin_type="pretraining"`` artifacts the flag is a no-op:
+       there is no pretrained predictor to strip, so both settings produce
+       numerically-equal predictions.
    :param dict | None _pretrain_config: Internal config for checkpoint reconstruction
        (not a user-facing parameter)
 
@@ -98,9 +116,6 @@ Package Contents
 
 
       If set to ``False`` you are responsible for calling ``.backward()``, ``.step()``, ``.zero_grad()``.
-
-
-   .. py:attribute:: pretrain_output_dim
 
 
    .. py:attribute:: predictor

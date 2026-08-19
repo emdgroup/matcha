@@ -102,6 +102,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaRMSN</span><span class="p">,</span> <span class="n">GraphNorm</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.mixin</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelMixin</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.finetuning.lora</span><span class="w"> </span><span class="kn">import</span> <span class="n">apply_lora</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.finetuning.passthrough_predictor</span><span class="w"> </span><span class="kn">import</span> <span class="n">PassthroughPredictor</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.finetuning.pretrained_encoder_wrapper</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">PretrainedEncoderWrapper</span><span class="p">,</span>
 <span class="p">)</span>
@@ -120,6 +121,22 @@
     <span class="k">while</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pretrain</span><span class="p">,</span> <span class="n">Finetuner</span><span class="p">):</span>
         <span class="n">pretrain</span> <span class="o">=</span> <span class="n">pretrain</span><span class="o">.</span><span class="n">pretrain</span>
     <span class="k">return</span> <span class="n">pretrain</span><span class="o">.</span><span class="n">encoder</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_strip_pretrained_predictor_recursive</span><span class="p">(</span><span class="n">pretrain</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Replace every ``.predictor`` in the pretrain chain with a passthrough.</span>
+
+<span class="sd">    Walks any nested :class:`Finetuner` wrappers and installs a fresh</span>
+<span class="sd">    :class:`PassthroughPredictor` at each level, including the leaf model</span>
+<span class="sd">    (classic model or :class:`PretrainedEncoderWrapper`). This lets</span>
+<span class="sd">    ``self.pretrain.encode(batch)`` chain through with identity behavior so</span>
+<span class="sd">    the new prediction head consumes the leaf encoder&#39;s output directly.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">current</span> <span class="o">=</span> <span class="n">pretrain</span>
+    <span class="k">while</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">Finetuner</span><span class="p">):</span>
+        <span class="n">current</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">PassthroughPredictor</span><span class="p">()</span>
+        <span class="n">current</span> <span class="o">=</span> <span class="n">current</span><span class="o">.</span><span class="n">pretrain</span>
+    <span class="n">current</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">PassthroughPredictor</span><span class="p">()</span>
 
 
 <div class="viewcode-block" id="Finetuner">
@@ -164,6 +181,23 @@
 <span class="sd">    :param int lora_rank: LoRA decomposition rank, defaults to 4</span>
 <span class="sd">    :param float lora_alpha: LoRA scaling numerator, defaults to 8.0</span>
 <span class="sd">    :param int lora_min_dim: Minimum layer dimension for LoRA injection, defaults to 32</span>
+<span class="sd">    :param bool keep_existing_predictor: Whether to preserve the pretrained model&#39;s</span>
+<span class="sd">        predictor hidden layers in the forward path, defaults to ``True``. This</span>
+<span class="sd">        axis is orthogonal to ``finetuning_strategy`` and composes with both</span>
+<span class="sd">        ``&quot;full&quot;`` and ``&quot;lora&quot;``:</span>
+
+<span class="sd">        - ``True``: the pretrained predictor&#39;s hidden layers stay in place and</span>
+<span class="sd">          the new ``pred_hidden_dims`` MLP is stacked on top of them. Only the</span>
+<span class="sd">          pretrained model&#39;s final prediction head is dropped. This preserves</span>
+<span class="sd">          historic behavior.</span>
+<span class="sd">        - ``False``: the pretrained predictor is discarded end-to-end (across</span>
+<span class="sd">          nested :class:`Finetuner` wrappers as well) and the new</span>
+<span class="sd">          ``pred_hidden_dims`` MLP consumes the leaf encoder&#39;s output directly.</span>
+<span class="sd">          ``pretrain_output_dim`` becomes the leaf encoder&#39;s ``fp_dim``.</span>
+
+<span class="sd">        For pure ``origin_type=&quot;pretraining&quot;`` artifacts the flag is a no-op:</span>
+<span class="sd">        there is no pretrained predictor to strip, so both settings produce</span>
+<span class="sd">        numerically-equal predictions.</span>
 <span class="sd">    :param dict | None _pretrain_config: Internal config for checkpoint reconstruction</span>
 <span class="sd">        (not a user-facing parameter)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -189,6 +223,7 @@
         <span class="n">lora_rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span><span class="p">,</span>
         <span class="n">lora_alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span><span class="p">,</span>
         <span class="n">lora_min_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span><span class="p">,</span>
+        <span class="n">keep_existing_predictor</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">_pretrain_config</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -208,7 +243,13 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_load_from_pretrained_path</span><span class="p">(</span><span class="n">path_to_pretrained</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">prediction_head</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">keep_existing_predictor</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">prediction_head</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">latent_dim</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">_strip_pretrained_predictor_recursive</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span> <span class="o">=</span> <span class="n">_resolve_leaf_encoder</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="p">)</span><span class="o">.</span><span class="n">fp_dim</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">automatic_optimization</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mc_dropout_flag</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_label_names</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">_label_names</span>
@@ -220,8 +261,6 @@
                 <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
                 <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">module</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
                     <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">latent_dim</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
             <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span><span class="p">,</span>
