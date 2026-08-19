@@ -1,3 +1,9 @@
+## v0.0.22 (2026-08-19)
+
+### Feat
+
+- **finetuning**: add keep_existing_predictor flag to Finetuner
+
 ## v0.0.21 (2026-08-18)
 
 ### Feat
