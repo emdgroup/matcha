@@ -90,6 +90,7 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
         lora_rank: int = 4,
         lora_alpha: float = 8.0,
         lora_min_dim: int = 32,
+        keep_existing_predictor: bool = True,
         num_epochs: int = 20,
         batch_size: int = 64,
         stochastic_weight_averaging: bool = False,
@@ -127,6 +128,14 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
         :param int lora_rank: rank for LoRA adaptation
         :param float lora_alpha: scaling factor for LoRA
         :param int lora_min_dim: minimum dimension for LoRA layers
+        :param bool keep_existing_predictor: whether to preserve the pretrained
+            model's predictor hidden layers in the forward path, defaults to
+            ``True``. When ``True``, the pretrained predictor's hidden layers
+            stay in place and the new ``pred_hidden_dims`` MLP is stacked on
+            top; only the pretrained model's final prediction head is dropped.
+            When ``False``, the pretrained predictor is discarded end-to-end
+            and the new ``pred_hidden_dims`` MLP consumes the leaf encoder's
+            output directly. Not supported for Chemprop pretrained models.
         :param int num_epochs: number of training epochs
         :param int batch_size: batch size for training
         :param bool stochastic_weight_averaging: whether to apply SWA
@@ -253,9 +262,20 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
                 lora_rank=lora_rank,
                 lora_alpha=lora_alpha,
                 lora_min_dim=lora_min_dim,
+                keep_existing_predictor=keep_existing_predictor,
             )
             self._architecture = Finetuner
         elif "chemprop" in params["model"]["torch_type"]:
+            # ChempropFinetuner has no notion of a stripped-vs-kept pretrained
+            # predictor, so reject any non-default value explicitly rather
+            # than silently dropping the flag.
+            if not keep_existing_predictor:
+                raise ValueError(
+                    "keep_existing_predictor=False is not supported for "
+                    "Chemprop pretrained models; ChempropFinetuner does not "
+                    "expose a stripped-predictor mode."
+                )
+
             # Chemprop uses its own NoamLR schedule — silently override
             # any non-chemprop scheduler the caller may have left at the
             # default.  Also replace scheduler_args when they don't carry
@@ -301,6 +321,7 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
                 lora_rank=lora_rank,
                 lora_alpha=lora_alpha,
                 lora_min_dim=lora_min_dim,
+                keep_existing_predictor=keep_existing_predictor,
             )
             self._architecture = Finetuner
 
@@ -391,6 +412,7 @@ class FinetuningRegressor(BaseFinetuner, ScikitLearnRegressorMixin):
         lora_rank: int = 4,
         lora_alpha: float = 8.0,
         lora_min_dim: int = 32,
+        keep_existing_predictor: bool = True,
         num_epochs: int = 20,
         batch_size: int = 64,
         stochastic_weight_averaging: bool = False,
@@ -424,6 +446,7 @@ class FinetuningRegressor(BaseFinetuner, ScikitLearnRegressorMixin):
             lora_rank=lora_rank,
             lora_alpha=lora_alpha,
             lora_min_dim=lora_min_dim,
+            keep_existing_predictor=keep_existing_predictor,
             num_epochs=num_epochs,
             batch_size=batch_size,
             stochastic_weight_averaging=stochastic_weight_averaging,
@@ -470,6 +493,7 @@ class FinetuningClassifier(BaseFinetuner, ScikitLearnClassifierMixin):
         lora_rank: int = 4,
         lora_alpha: float = 8.0,
         lora_min_dim: int = 32,
+        keep_existing_predictor: bool = True,
         num_epochs: int = 20,
         batch_size: int = 64,
         stochastic_weight_averaging: bool = False,
@@ -509,6 +533,7 @@ class FinetuningClassifier(BaseFinetuner, ScikitLearnClassifierMixin):
             lora_rank=lora_rank,
             lora_alpha=lora_alpha,
             lora_min_dim=lora_min_dim,
+            keep_existing_predictor=keep_existing_predictor,
             num_epochs=num_epochs,
             batch_size=batch_size,
             stochastic_weight_averaging=stochastic_weight_averaging,
