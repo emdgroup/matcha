@@ -419,8 +419,8 @@ class BaseScikitLearnModel(ABC):
         :param str | None accelerator: hardware to use for predictions, if None
             it is kept as training settings, defaults to None
 
-        :param int | None devices: how many resources to use, if None
-            it is kept as training settings, defaults to None
+        :param int | None devices: unused, kept for signature compatibility with
+            the previous ``L.Trainer``-based implementation
 
         :param int | None batch_size: batch size to use, if None
             it is kept as training settings, defaults to None
@@ -436,14 +436,21 @@ class BaseScikitLearnModel(ABC):
 
         if batch_size is not None:
             self._datamodule_manager.set_batch_size(batch_size)
-        if devices is None:
-            devices = self._training_manager.params.devices
         if accelerator is None:
             accelerator = self._training_manager.params.accelerator
 
-        trainer = L.Trainer(accelerator=accelerator, devices=devices, logger=False)
-        preds = trainer.predict(self._model, datamodule=self.datamodule)
-        preds = torch.cat(preds, axis=0)
+        device = _resolve_device(accelerator, self.logger)
+        self._model.to(device)
+
+        loader = self.datamodule.predict_dataloader()
+        outputs = []
+        with torch.no_grad():
+            for i, batch in enumerate(loader):
+                batch = self._model.transfer_batch_to_device(batch, device, 0)
+                outputs.append(
+                    _call_predict_step(self._model, batch, i, 0).detach().cpu()
+                )
+        preds = torch.cat(outputs, dim=0)
         self.logger.info("Predict: inference finished")
         return preds
 
@@ -595,8 +602,8 @@ class BaseScikitLearnModel(ABC):
         :param str | None accelerator: hardware to use, if None
             it is kept as training settings, defaults to None
 
-        :param int | None devices: how many resources to use, if None
-            it is kept as training settings, defaults to None
+        :param int | None devices: unused, kept for signature compatibility with
+            the previous ``L.Trainer``-based implementation
 
         :param int | None batch_size: batch size to use, if None
             it is kept as training settings, defaults to None
@@ -613,16 +620,15 @@ class BaseScikitLearnModel(ABC):
 
         if batch_size is not None:
             self._datamodule_manager.set_batch_size(batch_size)
-        if devices is None:
-            devices = self._training_manager.params.devices
         if accelerator is None:
             accelerator = self._training_manager.params.accelerator
 
-        self._datamodule_manager.setup(stage="predict")
-        encoding = self._model.compute_learned_embedding(
-            self._datamodule_manager.predict_dataloader()
-        )
-        encoding = [enc.detach().numpy() for enc in encoding]
+        device = _resolve_device(accelerator, self.logger)
+        self._model.to(device)
+
+        loader = self.datamodule.predict_dataloader()
+        encoding = self._model.compute_learned_embedding(loader)
+        encoding = [enc.detach().cpu().numpy() for enc in encoding]
         self.logger.info("Embedding extraction: finished")
         return np.concatenate(encoding)
 
