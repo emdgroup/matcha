@@ -1,3 +1,10 @@
+## v0.0.24 (2026-09-01)
+
+### Feat
+
+- **sklearn**: route predict through a direct loop instead of L.Trainer (#89 stage 2)
+- **sklearn**: add predict-path helpers and harden dataloader construction (#89 stage 1)
+
 ## v0.0.23 (2026-08-19)
 
 ### Fix
