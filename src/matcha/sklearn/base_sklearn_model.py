@@ -1,13 +1,16 @@
 """Base classes and mixins for the scikit-learn-compatible model API."""
 
 import datetime
+import inspect
 from abc import ABC, abstractmethod
+from logging import Logger
 
 from matcha.torch.models.classic.chemprop_model import ChempropModel
 import lightning as L
 import numpy as np
 import torch
 from chemprop.data import MoleculeDataset
+from lightning.pytorch.accelerators import AcceleratorRegistry
 from rdkit.Chem.rdchem import Mol
 from torch.utils.data import StackDataset
 
@@ -63,6 +66,71 @@ _datamodule_args = [
     "compute_distance",  # graph/graph3d
     "feature_list",  # tabular
 ]
+
+
+def _call_predict_step(
+    model: L.LightningModule,
+    batch,
+    batch_idx: int = 0,
+    dataloader_idx: int = 0,
+):
+    """Invoke ``model.predict_step`` matching whatever signature it declares.
+
+    Lightning's default is ``predict_step(batch, batch_idx, dataloader_idx=0)``,
+    but Matcha subclasses commonly override with ``predict_step(batch)`` only.
+    Inspecting the signature keeps both styles working through the same loop.
+
+    :param model: the Lightning module whose ``predict_step`` will be called
+    :param batch: the input batch to pass to ``predict_step``
+    :param int batch_idx: current batch index within the dataloader
+    :param int dataloader_idx: index of the dataloader (for multi-loader predict)
+    :return: whatever ``predict_step`` returns
+    """
+    params = inspect.signature(model.predict_step).parameters
+    kwargs = {}
+    if "batch_idx" in params:
+        kwargs["batch_idx"] = batch_idx
+    if "dataloader_idx" in params:
+        kwargs["dataloader_idx"] = dataloader_idx
+    return model.predict_step(batch, **kwargs)
+
+
+def _resolve_device(accelerator: str, logger: Logger) -> torch.device:
+    """Resolve a Lightning ``accelerator`` string to a concrete ``torch.device``.
+
+    Uses Lightning's ``AcceleratorRegistry`` to consult per-backend
+    ``is_available()`` checks. ``"auto"`` walks the preferred order
+    (``cuda`` → ``mps`` → ``cpu``) and returns the first available.
+    Explicit choices that turn out to be unavailable fall back to CPU
+    with a warning.
+
+    :param str accelerator: one of ``"auto"``, ``"gpu"``, ``"cuda"``, ``"mps"``,
+        ``"cpu"`` (case-insensitive)
+    :param Logger logger: logger used to emit fallback warnings
+    :return torch.device: resolved device
+    """
+    accel = (accelerator or "auto").lower()
+    if accel == "gpu":
+        accel = "cuda"
+
+    if accel == "auto":
+        for candidate in ("cuda", "mps", "cpu"):
+            cls = AcceleratorRegistry.get(candidate, default=None)
+            if cls is not None and cls.is_available():
+                return torch.device(candidate)
+        return torch.device("cpu")
+
+    cls = AcceleratorRegistry.get(accel, default=None)
+    if cls is None:
+        logger.warning(f"Unknown accelerator '{accelerator}', falling back to CPU.")
+        return torch.device("cpu")
+    if not cls.is_available():
+        logger.warning(
+            f"Requested accelerator '{accelerator}' is not available, "
+            "falling back to CPU."
+        )
+        return torch.device("cpu")
+    return torch.device(accel)
 
 
 class BaseScikitLearnModel(ABC):
@@ -351,8 +419,8 @@ class BaseScikitLearnModel(ABC):
         :param str | None accelerator: hardware to use for predictions, if None
             it is kept as training settings, defaults to None
 
-        :param int | None devices: how many resources to use, if None
-            it is kept as training settings, defaults to None
+        :param int | None devices: unused, kept for signature compatibility with
+            the previous ``L.Trainer``-based implementation
 
         :param int | None batch_size: batch size to use, if None
             it is kept as training settings, defaults to None
@@ -368,14 +436,21 @@ class BaseScikitLearnModel(ABC):
 
         if batch_size is not None:
             self._datamodule_manager.set_batch_size(batch_size)
-        if devices is None:
-            devices = self._training_manager.params.devices
         if accelerator is None:
             accelerator = self._training_manager.params.accelerator
 
-        trainer = L.Trainer(accelerator=accelerator, devices=devices, logger=False)
-        preds = trainer.predict(self._model, datamodule=self.datamodule)
-        preds = torch.cat(preds, axis=0)
+        device = _resolve_device(accelerator, self.logger)
+        self._model.to(device)
+
+        loader = self.datamodule.predict_dataloader()
+        outputs = []
+        with torch.no_grad():
+            for i, batch in enumerate(loader):
+                batch = self._model.transfer_batch_to_device(batch, device, 0)
+                outputs.append(
+                    _call_predict_step(self._model, batch, i, 0).detach().cpu()
+                )
+        preds = torch.cat(outputs, dim=0)
         self.logger.info("Predict: inference finished")
         return preds
 
@@ -527,8 +602,8 @@ class BaseScikitLearnModel(ABC):
         :param str | None accelerator: hardware to use, if None
             it is kept as training settings, defaults to None
 
-        :param int | None devices: how many resources to use, if None
-            it is kept as training settings, defaults to None
+        :param int | None devices: unused, kept for signature compatibility with
+            the previous ``L.Trainer``-based implementation
 
         :param int | None batch_size: batch size to use, if None
             it is kept as training settings, defaults to None
@@ -545,16 +620,15 @@ class BaseScikitLearnModel(ABC):
 
         if batch_size is not None:
             self._datamodule_manager.set_batch_size(batch_size)
-        if devices is None:
-            devices = self._training_manager.params.devices
         if accelerator is None:
             accelerator = self._training_manager.params.accelerator
 
-        self._datamodule_manager.setup(stage="predict")
-        encoding = self._model.compute_learned_embedding(
-            self._datamodule_manager.predict_dataloader()
-        )
-        encoding = [enc.detach().numpy() for enc in encoding]
+        device = _resolve_device(accelerator, self.logger)
+        self._model.to(device)
+
+        loader = self.datamodule.predict_dataloader()
+        encoding = self._model.compute_learned_embedding(loader)
+        encoding = [enc.detach().cpu().numpy() for enc in encoding]
         self.logger.info("Embedding extraction: finished")
         return np.concatenate(encoding)
 

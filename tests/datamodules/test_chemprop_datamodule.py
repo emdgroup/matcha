@@ -1,7 +1,11 @@
 """Tests for ChempropDataModule."""
 
 from chemprop import data as chemprop_data
-from torch.utils.data import StackDataset
+from lightning.fabric.utilities.data import (
+    _replace_dunder_methods,
+    _update_dataloader,
+)
+from torch.utils.data import DataLoader, SequentialSampler, StackDataset
 
 from matcha.datamodules.classic.chemprop_datamodule import ChempropDataModule
 from matcha.datamodules.base_datamodule import DataModuleRegistry
@@ -143,6 +147,44 @@ class TestChempropDataloader:
         batch = next(iter(loader))
         # Chemprop batches are BatchMolGraph or similar
         assert batch is not None
+
+    def test_dataloader_saved_args_no_sampler(self, small_mol_list, small_regression_y):
+        """Regression: DataLoader must not stash `sampler` in saved kwargs.
+
+        Lightning's ``_replace_dunder_methods`` context captures the
+        ``DataLoader.__init__`` call and records its args. If ``sampler`` is
+        passed (positionally by ``chemprop.data.build_dataloader``) it is
+        stored in ``__pl_saved_kwargs``; a later ``_update_dataloader(...,
+        sampler=...)`` then raises "got multiple values for 'sampler'".
+        """
+        dm = ChempropDataModule(batch_size=4)
+        ds = dm.featurize(
+            small_mol_list, small_regression_y, is_training=False, n_jobs=1
+        )
+        with _replace_dunder_methods(DataLoader, "dataset"):
+            loader = dm._create_dataloader(ds, is_training=False)
+
+        saved_kwargs = getattr(loader, "__pl_saved_kwargs", {})
+        saved_arg_names = getattr(loader, "__pl_saved_arg_names", ())
+        assert "sampler" not in saved_kwargs
+        assert "sampler" not in saved_arg_names
+
+        # Lightning's predict path calls this with a fresh sampler — must not raise.
+        _update_dataloader(loader, sampler=SequentialSampler(loader.dataset))
+
+    def test_predict_dataloader_returns_fresh_instance(
+        self, small_mol_list, small_regression_y
+    ):
+        """`predict_dataloader()` must rebuild each call, not cache."""
+        dm = ChempropDataModule(batch_size=4)
+        ds = dm.featurize(
+            small_mol_list, small_regression_y, is_training=False, n_jobs=1
+        )
+        dm.dataset_predict = ds
+
+        l1 = dm.predict_dataloader()
+        l2 = dm.predict_dataloader()
+        assert l1 is not l2
 
 
 # ===================================================================
