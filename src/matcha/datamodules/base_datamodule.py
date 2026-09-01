@@ -193,7 +193,11 @@ class BaseDataModule(ABC, LightningDataModule):
         return self._dataloader_test
 
     def predict_dataloader(self):
-        return self._dataloader_predict
+        # Always rebuild so Lightning never reuses a loader carrying stale sampler
+        # state from a prior stage.
+        if self.dataset_predict is None:
+            return self._dataloader_predict
+        return self._create_dataloader(self.dataset_predict, is_training=False)
 
     def _validate_datamodule_input(self, x, y, bound_mask):
         """Simple validation function to check that the input dataset

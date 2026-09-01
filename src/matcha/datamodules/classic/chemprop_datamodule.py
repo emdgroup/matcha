@@ -4,11 +4,12 @@ from matcha.datamodules.base_datamodule import DataModuleRegistry
 from matcha.datamodules.classic.tabular_datamodule import TabularDataModule
 from matcha.utils.schemas.datamodules import ChempropDataModuleInputModel
 from chemprop import data, featurizers
+from chemprop.data.collate import collate_batch
 import numpy as np
 from rdkit.Chem.rdchem import Mol
 from matcha.utils import silence_nuisance_warnings
 from torch import tensor, float32
-from torch.utils.data import StackDataset
+from torch.utils.data import DataLoader, StackDataset
 
 
 @DataModuleRegistry.register("chemprop")
@@ -169,11 +170,20 @@ class ChempropDataModule(TabularDataModule):
         return StackDataset(**dataset_dict)
 
     def _create_dataloader(self, dataset, is_training):
-        return data.build_dataloader(
-            dataset,
+        # Construct DataLoader with keyword-only args so Lightning's
+        # `_replace_dunder_methods` capture records no positional `sampler`,
+        # avoiding `_update_dataloader` duplicate-kwarg failures during predict.
+        batch_size = self.params.batch_size
+        dataset_size = len(dataset)
+        drop_last = (dataset_size % batch_size == 1) and is_training
+
+        return DataLoader(
+            dataset=dataset,
+            batch_size=batch_size,
             shuffle=is_training,
-            batch_size=self.params.batch_size,
-            num_workers=0,
+            collate_fn=collate_batch,
+            num_workers=self.params.num_workers,
+            drop_last=drop_last,
         )
 
     def create_dataloader(self, dataset, is_training):
