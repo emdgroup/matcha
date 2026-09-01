@@ -296,7 +296,11 @@
 <div class="viewcode-block" id="BaseDataModule.predict_dataloader">
 <a class="viewcode-back" href="../../../api/matcha/datamodules/index.html#matcha.datamodules.base_datamodule.BaseDataModule.predict_dataloader">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">predict_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span></div>
+        <span class="c1"># Always rebuild so Lightning never reuses a loader carrying stale sampler</span>
+        <span class="c1"># state from a prior stage.</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dataset_predict</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataloader_predict</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_dataloader</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_predict</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_validate_datamodule_input</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">bound_mask</span><span class="p">):</span>
