@@ -1,5 +1,7 @@
 """Graph Transformer with 3-D distance kernels (GT3D) classic model."""
 
+from typing import Literal
+
 from lightning.pytorch.core.mixins import HyperparametersMixin
 
 from matcha.torch.encoders.gt3d import GT3D
@@ -92,6 +94,7 @@ class GT3DModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
+        uncertainty: Literal["mve"] | None = None,
     ):
         super().__init__(additional_mol_features_dim=additional_mol_features_dim)
         self.save_hyperparameters()

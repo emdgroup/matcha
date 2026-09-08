@@ -1,10 +1,13 @@
 """Sklearn-compatible Graph Transformer (GT) classifiers and regressors."""
 
+from typing import Literal
+
 from matcha.torch.models.classic import GTModel
 from matcha.sklearn.base_sklearn_model import (
     ScikitLearnModelRegistry,
     ScikitLearnClassifierMixin,
     ScikitLearnRegressorMixin,
+    _validate_mve_sklearn_kwargs,
 )
 from matcha.sklearn.graph.base_sklearn_gnn import BaseScikitLearnGNN
 
@@ -244,7 +247,9 @@ class GTRegressor(BaseScikitLearnGNN, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mve"] | None = None,
     ):
+        _validate_mve_sklearn_kwargs(uncertainty, scaler_type, loss_fn)
         self._architecture = GTModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         super(GTRegressor, self).__init__(params)

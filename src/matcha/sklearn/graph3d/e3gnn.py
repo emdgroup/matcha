@@ -2,11 +2,12 @@
 
 from matcha.sklearn.graph3d.base_sklearn_gnn3d import BaseScikitLearnGNN3D
 from matcha.torch.models.classic import E3GNNModel
-from typing import Dict
+from typing import Dict, Literal
 from matcha.sklearn.base_sklearn_model import (
     ScikitLearnModelRegistry,
     ScikitLearnClassifierMixin,
     ScikitLearnRegressorMixin,
+    _validate_mve_sklearn_kwargs,
 )
 
 
@@ -290,7 +291,9 @@ class E3GNNRegressor(BaseScikitLearnGNN3D, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mve"] | None = None,
     ):
+        _validate_mve_sklearn_kwargs(uncertainty, scaler_type, loss_fn)
         self._architecture = E3GNNModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         super(E3GNNRegressor, self).__init__(params)

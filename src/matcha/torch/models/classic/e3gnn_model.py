@@ -1,5 +1,7 @@
 """E(3)-equivariant graph neural network (E3GNN) classic model."""
 
+from typing import Literal
+
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
@@ -111,6 +113,7 @@ class E3GNNModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
+        uncertainty: Literal["mve"] | None = None,
     ):
         super().__init__(additional_mol_features_dim=additional_mol_features_dim)
         self.save_hyperparameters()

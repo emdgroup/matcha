@@ -1,5 +1,7 @@
 """Chemprop (Directed Message Passing Neural Network) classic model."""
 
+from typing import Literal
+
 from chemprop.models.model import MPNN
 from chemprop.nn import BondMessagePassing
 from chemprop.nn.predictors import (
@@ -78,7 +80,15 @@ class ChempropModel(MPNN, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "chemprop",
         scheduler_args: dict = {"warmup_epochs": 5, "max_lr": 1e-2, "final_lr": 1e-5},
+        uncertainty: Literal["mve"] | None = None,
     ):
+        if uncertainty == "mve":
+            raise NotImplementedError(
+                "ChempropModel does not support uncertainty='mve' yet: it uses "
+                "chemprop.nn.predictors.RegressionFFN from the upstream package "
+                "instead of a MATCHA BasePredictor. A MVERegressionFFN wrapper "
+                "is tracked as a follow-up to issue #95."
+            )
         self.save_hyperparameters()
         self.params = ChempropInputModel(
             enc_atom_hidden_dim=enc_atom_hidden_dim,

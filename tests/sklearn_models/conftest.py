@@ -369,3 +369,36 @@ def fitted_classifier(classifier_cls, mol_list, classification_y):
     model = classifier_cls(**kwargs)
     model.fit(mol_list, classification_y)
     return model
+
+
+# =========================================================================
+# MVE fixtures — one representative regressor per model family
+# =========================================================================
+
+_MVE_KWARGS = dict(uncertainty="mve", loss_fn="beta-nll")
+
+_MVE_REGRESSOR_CLASSES = [
+    MLPRegressor,
+    GINRegressor,
+    E3GNNRegressor,
+    RoFormerRegressor,
+]
+
+
+@pytest.fixture(params=_MVE_REGRESSOR_CLASSES, ids=lambda c: c.__name__)
+def mve_regressor_cls(request):
+    """Yield one MVE-compatible regressor class per parametrized run.
+
+    Coverage spans one representative per family (tabular, 2-D graph,
+    3-D graph, CLM) to keep CI runtime bounded.
+    """
+    return request.param
+
+
+@pytest.fixture()
+def fitted_mve_regressor(mve_regressor_cls, mol_list, regression_y):
+    """Instantiate, fit, and return an MVE regressor on the toy data."""
+    kwargs = {**_ARCH_KWARGS[mve_regressor_cls], **_MVE_KWARGS}
+    model = mve_regressor_cls(**kwargs)
+    model.fit(mol_list, regression_y)
+    return model

@@ -1,8 +1,8 @@
 """Test UncertaintyManager through the sklearn API.
 
 Model: MLPRegressor (tabular)
-Exercises: compute (MC-dropout uncertainty), create_calibrator, calibrator
-    property, params property, manual calibration flow.
+Exercises: compute (MC-dropout and MVE uncertainty), create_calibrator,
+    calibrator property, params property, manual calibration flow.
 """
 
 import numpy as np
@@ -30,6 +30,13 @@ def model_kwargs():
 @pytest.fixture()
 def fitted_model(mol_list: list[Mol], regression_y, model_kwargs):
     model = MLPRegressor(**model_kwargs)
+    model.fit(mol_list, regression_y)
+    return model
+
+
+@pytest.fixture()
+def fitted_mve_model(mol_list: list[Mol], regression_y, model_kwargs):
+    model = MLPRegressor(**model_kwargs, uncertainty="mve", loss_fn="beta-nll")
     model.fit(mol_list, regression_y)
     return model
 
@@ -155,3 +162,67 @@ class TestUncertaintyManagerCalibrateEndToEnd:
         )
         unc = fitted_model.compute_uncertainty(mol_list, num_iterations=3)
         assert np.all(unc >= 0.0)
+
+
+class TestUncertaintyManagerComputeMVE:
+    """Tests for the MVE branch of ``UncertaintyManager.compute``."""
+
+    def test_mve_uncertainty_returns_ndarray(self, fitted_mve_model, mol_list):
+        unc = fitted_mve_model.compute_uncertainty(mol_list)
+        assert isinstance(unc, np.ndarray)
+
+    def test_mve_uncertainty_shape(self, fitted_mve_model, mol_list):
+        unc = fitted_mve_model.compute_uncertainty(mol_list)
+        assert unc.shape == (len(mol_list), 1)
+
+    def test_mve_uncertainty_is_finite(self, fitted_mve_model, mol_list):
+        unc = fitted_mve_model.compute_uncertainty(mol_list)
+        assert np.all(np.isfinite(unc))
+
+    def test_mve_uncertainty_is_non_negative(self, fitted_mve_model, mol_list):
+        unc = fitted_mve_model.compute_uncertainty(mol_list)
+        assert np.all(unc >= 0.0)
+
+    def test_mve_uncertainty_matches_manual_variance_transform(
+        self, fitted_mve_model, mol_list
+    ):
+        """``_compute_mve`` must invert the target scaler's variance transform.
+
+        The scaled-space std returned by ``predict_variance_step`` should be
+        multiplied by ``y_scaler.scale_`` to land in the original label space.
+        """
+        _, log_var_scaled = fitted_mve_model._inner_predict_variance(mol_list)
+        scale = fitted_mve_model.datamodule._y_scaler.scale_
+        expected_std = np.sqrt(np.exp(log_var_scaled.numpy()) * (scale**2))
+
+        unc = fitted_mve_model.compute_uncertainty(mol_list)
+        np.testing.assert_allclose(unc, expected_std, rtol=1e-5)
+
+    def test_mve_bypasses_mc_dropout_iterations(self, fitted_mve_model, mol_list):
+        """MVE path should not depend on ``num_iterations`` — a single forward
+        pass on the same input must be deterministic between calls (dropout
+        forced off in ``predict_variance_step``)."""
+        unc_a = fitted_mve_model.compute_uncertainty(mol_list, num_iterations=1)
+        unc_b = fitted_mve_model.compute_uncertainty(mol_list, num_iterations=50)
+        np.testing.assert_allclose(unc_a, unc_b, rtol=1e-5)
+
+    def test_mve_with_calibrator_applies_calibration(
+        self, fitted_mve_model, mol_list, regression_y
+    ):
+        mgr = fitted_mve_model._uncertainty_manager
+        raw_std = fitted_mve_model.compute_uncertainty(mol_list)
+        preds = fitted_mve_model.predict(mol_list)
+
+        mgr.create_calibrator("icp_regression", {"confidence_alpha": 0.2})
+        mgr.calibrator.fit(regression_y, preds, raw_std)
+
+        calibrated_std = fitted_mve_model.compute_uncertainty(mol_list)
+        assert calibrated_std.shape == raw_std.shape
+        assert np.all(calibrated_std >= 0.0)
+        assert np.all(np.isfinite(calibrated_std))
+
+    def test_inner_predict_variance_raises_on_non_mve_model(
+        self, fitted_model, mol_list
+    ):
+        with pytest.raises(RuntimeError, match="uncertainty='mve'"):
+            fitted_model._inner_predict_variance(mol_list)

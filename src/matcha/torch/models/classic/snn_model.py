@@ -1,6 +1,6 @@
 """Self-Normalizing Neural Network (SNN) classic model for tabular molecular features."""
 
-from typing import Any
+from typing import Any, Literal
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
@@ -79,7 +79,15 @@ class SNNModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
+        uncertainty: Literal["mve"] | None = None,
     ):
+        if uncertainty == "mve":
+            raise NotImplementedError(
+                "SNNModel does not support uncertainty='mve': the "
+                "BatchEnsembleLinear head averages members before returning, "
+                "and averaging log-variances is not the correct aggregation "
+                "for MVE. Use a different regressor family for MVE."
+            )
         super().__init__(additional_mol_features_dim)
         self.save_hyperparameters()
         self.params = SNNInputModel(**self.hparams)

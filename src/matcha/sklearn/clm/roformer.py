@@ -1,11 +1,14 @@
 """Sklearn-compatible RoFormer transformer wrappers for molecular property prediction from chemical language."""
 
+from typing import Literal
+
 from matcha.sklearn.clm.base_sklearn_clm import BaseScikitLearnCLM
 from matcha.torch.models.classic import RoFormerModel
 from matcha.sklearn.base_sklearn_model import (
     ScikitLearnModelRegistry,
     ScikitLearnClassifierMixin,
     ScikitLearnRegressorMixin,
+    _validate_mve_sklearn_kwargs,
 )
 
 
@@ -290,7 +293,9 @@ class RoFormerRegressor(BaseScikitLearnCLM, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mve"] | None = None,
     ):
+        _validate_mve_sklearn_kwargs(uncertainty, scaler_type, loss_fn)
         self._architecture = RoFormerModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         super(RoFormerRegressor, self).__init__(params)

@@ -1,11 +1,14 @@
 """Sklearn-compatible MLP wrappers for molecular property prediction from tabular descriptors."""
 
+from typing import Literal
+
 from matcha.sklearn.tabular.base_sklearn_tabular import BaseScikitLearnTabular
 from matcha.torch.models.classic import MLPModel
 from matcha.sklearn.base_sklearn_model import (
     ScikitLearnModelRegistry,
     ScikitLearnClassifierMixin,
     ScikitLearnRegressorMixin,
+    _validate_mve_sklearn_kwargs,
 )
 
 
@@ -238,7 +241,9 @@ class MLPRegressor(BaseScikitLearnTabular, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mve"] | None = None,
     ):
+        _validate_mve_sklearn_kwargs(uncertainty, scaler_type, loss_fn)
         self._architecture = MLPModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         super(MLPRegressor, self).__init__(params)
