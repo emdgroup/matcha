@@ -137,6 +137,34 @@ class BaseScikitLearnCLM(BaseScikitLearnModel):
 
         self._inner_fit()
 
+    def _get_num_test_augmentations(self) -> int:
+        """Read ``num_test_augmentations`` from the datamodule, handling combined case."""
+        try:
+            return self.datamodule.params.num_test_augmentations
+        except Exception:
+            try:
+                return self.datamodule.datamodules[0].params.num_test_augmentations
+            except Exception:
+                return 0
+
+    @staticmethod
+    def _stack_augmentation_slices(
+        augmented_output: torch.Tensor, num_augmentations: int
+    ) -> torch.Tensor:
+        """Split a stacked augmented output into a ``(num_aug+1, N, D)`` tensor.
+
+        The dataset is laid out as
+        ``[orig_0, orig_1, ..., aug1_0, aug1_1, ..., aug_k_0, aug_k_1, ...]``,
+        i.e. all originals first, then each augmentation's copies.
+        """
+        n_originals = augmented_output.shape[0] // (1 + num_augmentations)
+        original = augmented_output[:n_originals]
+        augmented = [
+            augmented_output[n_originals * (1 + i) : n_originals * (2 + i)]
+            for i in range(num_augmentations)
+        ]
+        return torch.stack([original] + augmented, dim=0)
+
     def _inner_predict(
         self,
         x: list[Mol] | list[str] | StackDataset,
@@ -158,43 +186,38 @@ class BaseScikitLearnCLM(BaseScikitLearnModel):
         :returns: averaged prediction tensor of shape ``(N, num_endpoints)``.
         :rtype: torch.Tensor
         """
-        # Get the number of test augmentations before prediction, handling combined case
-        try:
-            num_augmentations = self.datamodule.params.num_test_augmentations
-        except Exception:
-            try:
-                num_augmentations = self.datamodule.datamodules[
-                    0
-                ].params.num_test_augmentations
-            except Exception:
-                num_augmentations = 0
-
+        num_augmentations = self._get_num_test_augmentations()
         augmented_output = super()._inner_predict(x, accelerator, devices, batch_size)
-
-        # If no augmentations, return as is
         if num_augmentations == 0:
             return augmented_output
+        return self._stack_augmentation_slices(
+            augmented_output, num_augmentations
+        ).mean(dim=0)
 
-        # Reshape and average across augmentations
-        # The dataset is created with structure: [orig_0, orig_1, ..., aug1_0, aug1_1, ..., aug_k_0, aug_k_1, ...]
-        # augmented_output shape: (N * (1 + num_augmentations), num_outputs)
-        n_originals = augmented_output.shape[0] // (1 + num_augmentations)
+    def _inner_predict_variance(
+        self,
+        x: list[Mol] | list[str] | StackDataset,
+        accelerator: str | None = None,
+        devices: int | None = None,
+        batch_size: int | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run the MVE forward pass with test-time augmentation averaging.
 
-        # Extract original predictions (first N samples)
-        original_preds = augmented_output[:n_originals]
+        Delegates to the parent to obtain per-augmentation ``(mean, log_var)``
+        stacks, then averages means and averages variances (arithmetic mean
+        in variance space, converted back to log-variance) across the
+        augmentations of each molecule. Returns unaggregated tensors when
+        ``num_test_augmentations == 0``.
+        """
+        num_augmentations = self._get_num_test_augmentations()
+        aug_mean, aug_log_var = super()._inner_predict_variance(
+            x, accelerator, devices, batch_size
+        )
+        if num_augmentations == 0:
+            return aug_mean, aug_log_var
 
-        # Extract and stack augmented predictions
-        # Each augmentation has n_originals samples
-        augmented_preds = []
-        for aug_idx in range(num_augmentations):
-            start_idx = n_originals * (1 + aug_idx)
-            end_idx = start_idx + n_originals
-            augmented_preds.append(augmented_output[start_idx:end_idx])
-
-        # Stack all predictions: (num_augmentations + 1, n_originals, num_outputs)
-        all_preds = torch.stack([original_preds] + augmented_preds, dim=0)
-
-        # Average across augmentations (dim=0)
-        averaged_output = all_preds.mean(dim=0)
-
-        return averaged_output
+        mean = self._stack_augmentation_slices(aug_mean, num_augmentations).mean(dim=0)
+        var = self._stack_augmentation_slices(
+            torch.exp(aug_log_var), num_augmentations
+        ).mean(dim=0)
+        return mean, torch.log(var)

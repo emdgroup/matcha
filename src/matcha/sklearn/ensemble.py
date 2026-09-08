@@ -333,6 +333,9 @@ class Ensemble:
         """
         x = self._model_box[0].transform(x, is_training=False)
 
+        if getattr(self._model_box[0]._model, "_mve_active", False):
+            return self._predict_mve(x, reduce, accelerator, devices, batch_size)
+
         pred_box = [
             model._default_predict(x, accelerator, devices, batch_size)
             for model in self._model_box
@@ -349,6 +352,46 @@ class Ensemble:
             std = np.std(pred_box, axis=2)
             std = self._calibration_manager.compute_uncertainty(std)
             return means, std
+
+    def _predict_mve(
+        self,
+        x: Any,
+        reduce: bool,
+        accelerator: str | None,
+        devices: int | None,
+        batch_size: int | None,
+    ) -> np.ndarray | tuple[np.ndarray, np.ndarray]:
+        """Aggregate MVE members via the law of total variance.
+
+        Each member yields an original-space mean and an intrinsic
+        (aleatoric) standard deviation. The ensemble total variance is
+        ``mean(std_i**2) + var(mean_i)`` — the first term is the average
+        aleatoric variance, the second the epistemic variance across
+        member means. Per-member calibrators are bypassed; the ensemble
+        calibrator is applied to the aggregated std.
+        """
+        means, stds = [], []
+        for model in self._model_box:
+            mean_i = model._default_predict(x, accelerator, devices, batch_size)
+            std_i = model._uncertainty_manager._compute_mve(
+                model, x, accelerator, devices, batch_size
+            )
+            means.append(mean_i)
+            stds.append(std_i)
+
+        means = np.stack(means, axis=2)
+        stds = np.stack(stds, axis=2)
+
+        if reduce is False:
+            if means.shape[1] == 1:
+                return means[:, 0, :]
+            return means
+
+        mu_total = np.mean(means, axis=2)
+        var_total = np.mean(stds**2, axis=2) + np.var(means, axis=2)
+        total_std = np.sqrt(var_total)
+        total_std = self._calibration_manager.compute_uncertainty(total_std)
+        return mu_total, total_std
 
     def save_model(self, path: str, quantize: bool = False):
         """Saves each member of the ensemble into the target folder.
