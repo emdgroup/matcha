@@ -131,6 +131,23 @@ Module Contents
 
 
 
+   .. py:method:: predict_variance_step(batch: dict[str, Any]) -> tuple[torch.Tensor, torch.Tensor]
+
+      Prediction step that returns the intrinsic mean and log-variance.
+
+      Only valid when the model was configured with ``uncertainty="mve"``
+      (i.e. :attr:`_mve_active` is ``True``); dropout is forced off, since
+      the MVE head produces the aleatoric variance directly and does not
+      rely on Monte-Carlo dropout sampling.
+
+      :param dict[str, Any] batch: batch of inputs to process.
+      :returns: tuple ``(mean, log_var)`` of shape ``(batch, num_endpoints)`` each.
+      :rtype: tuple[torch.Tensor, torch.Tensor]
+      :raises RuntimeError: if the model was not configured with
+          ``uncertainty="mve"``.
+
+
+
    .. py:method:: configure_optimizers()
 
       Configuration utility function to comply with the Lightning Trainer

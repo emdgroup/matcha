@@ -232,6 +232,34 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_inner_fit</span><span class="p">()</span></div>
 
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_num_test_augmentations</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Read ``num_test_augmentations`` from the datamodule, handling combined case.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_test_augmentations</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_test_augmentations</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">return</span> <span class="mi">0</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_stack_augmentation_slices</span><span class="p">(</span>
+        <span class="n">augmented_output</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">num_augmentations</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Split a stacked augmented output into a ``(num_aug+1, N, D)`` tensor.</span>
+
+<span class="sd">        The dataset is laid out as</span>
+<span class="sd">        ``[orig_0, orig_1, ..., aug1_0, aug1_1, ..., aug_k_0, aug_k_1, ...]``,</span>
+<span class="sd">        i.e. all originals first, then each augmentation&#39;s copies.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">n_originals</span> <span class="o">=</span> <span class="n">augmented_output</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">num_augmentations</span><span class="p">)</span>
+        <span class="n">original</span> <span class="o">=</span> <span class="n">augmented_output</span><span class="p">[:</span><span class="n">n_originals</span><span class="p">]</span>
+        <span class="n">augmented</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">augmented_output</span><span class="p">[</span><span class="n">n_originals</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">i</span><span class="p">)</span> <span class="p">:</span> <span class="n">n_originals</span> <span class="o">*</span> <span class="p">(</span><span class="mi">2</span> <span class="o">+</span> <span class="n">i</span><span class="p">)]</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_augmentations</span><span class="p">)</span>
+        <span class="p">]</span>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">original</span><span class="p">]</span> <span class="o">+</span> <span class="n">augmented</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_inner_predict</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">StackDataset</span><span class="p">,</span>
@@ -253,46 +281,41 @@
 <span class="sd">        :returns: averaged prediction tensor of shape ``(N, num_endpoints)``.</span>
 <span class="sd">        :rtype: torch.Tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Get the number of test augmentations before prediction, handling combined case</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">num_augmentations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_test_augmentations</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">num_augmentations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">datamodules</span><span class="p">[</span>
-                    <span class="mi">0</span>
-                <span class="p">]</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">num_test_augmentations</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="n">num_augmentations</span> <span class="o">=</span> <span class="mi">0</span>
-
+        <span class="n">num_augmentations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_num_test_augmentations</span><span class="p">()</span>
         <span class="n">augmented_output</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_inner_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
-
-        <span class="c1"># If no augmentations, return as is</span>
         <span class="k">if</span> <span class="n">num_augmentations</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="n">augmented_output</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack_augmentation_slices</span><span class="p">(</span>
+            <span class="n">augmented_output</span><span class="p">,</span> <span class="n">num_augmentations</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
-        <span class="c1"># Reshape and average across augmentations</span>
-        <span class="c1"># The dataset is created with structure: [orig_0, orig_1, ..., aug1_0, aug1_1, ..., aug_k_0, aug_k_1, ...]</span>
-        <span class="c1"># augmented_output shape: (N * (1 + num_augmentations), num_outputs)</span>
-        <span class="n">n_originals</span> <span class="o">=</span> <span class="n">augmented_output</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">num_augmentations</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_inner_predict_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]</span> <span class="o">|</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="n">StackDataset</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the MVE forward pass with test-time augmentation averaging.</span>
 
-        <span class="c1"># Extract original predictions (first N samples)</span>
-        <span class="n">original_preds</span> <span class="o">=</span> <span class="n">augmented_output</span><span class="p">[:</span><span class="n">n_originals</span><span class="p">]</span>
+<span class="sd">        Delegates to the parent to obtain per-augmentation ``(mean, log_var)``</span>
+<span class="sd">        stacks, then averages means and averages variances (arithmetic mean</span>
+<span class="sd">        in variance space, converted back to log-variance) across the</span>
+<span class="sd">        augmentations of each molecule. Returns unaggregated tensors when</span>
+<span class="sd">        ``num_test_augmentations == 0``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_augmentations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_num_test_augmentations</span><span class="p">()</span>
+        <span class="n">aug_mean</span><span class="p">,</span> <span class="n">aug_log_var</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_inner_predict_variance</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">num_augmentations</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">aug_mean</span><span class="p">,</span> <span class="n">aug_log_var</span>
 
-        <span class="c1"># Extract and stack augmented predictions</span>
-        <span class="c1"># Each augmentation has n_originals samples</span>
-        <span class="n">augmented_preds</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">for</span> <span class="n">aug_idx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_augmentations</span><span class="p">):</span>
-            <span class="n">start_idx</span> <span class="o">=</span> <span class="n">n_originals</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">aug_idx</span><span class="p">)</span>
-            <span class="n">end_idx</span> <span class="o">=</span> <span class="n">start_idx</span> <span class="o">+</span> <span class="n">n_originals</span>
-            <span class="n">augmented_preds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">augmented_output</span><span class="p">[</span><span class="n">start_idx</span><span class="p">:</span><span class="n">end_idx</span><span class="p">])</span>
-
-        <span class="c1"># Stack all predictions: (num_augmentations + 1, n_originals, num_outputs)</span>
-        <span class="n">all_preds</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">original_preds</span><span class="p">]</span> <span class="o">+</span> <span class="n">augmented_preds</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-
-        <span class="c1"># Average across augmentations (dim=0)</span>
-        <span class="n">averaged_output</span> <span class="o">=</span> <span class="n">all_preds</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-
-        <span class="k">return</span> <span class="n">averaged_output</span></div>
+        <span class="n">mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack_augmentation_slices</span><span class="p">(</span><span class="n">aug_mean</span><span class="p">,</span> <span class="n">num_augmentations</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_stack_augmentation_slices</span><span class="p">(</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">aug_log_var</span><span class="p">),</span> <span class="n">num_augmentations</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">var</span><span class="p">)</span></div>
 
 </pre></div>
 

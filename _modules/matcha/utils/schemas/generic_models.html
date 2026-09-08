@@ -88,8 +88,12 @@
            <div itemprop="articleBody">
              
   <h1>Source code for matcha.utils.schemas.generic_models</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">model_validator</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModel</span>
+
+<span class="n">_MVE_LOSS_ALIASES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;beta-nll&quot;</span><span class="p">,</span> <span class="s2">&quot;mve&quot;</span><span class="p">,</span> <span class="s2">&quot;bounded-beta-nll&quot;</span><span class="p">})</span>
+<span class="n">_MVE_INCOMPATIBLE_LOSSES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;gradnorm&quot;</span><span class="p">,</span> <span class="s2">&quot;multiloss&quot;</span><span class="p">})</span>
 
 
 <div class="viewcode-block" id="ClassicMatchaModel">
@@ -104,7 +108,38 @@
     <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
     <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span></div>
+    <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+    <span class="n">uncertainty</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;mve&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_pairing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;ClassicMatchaModel&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Enforce the MVE loss / uncertainty pairing rules.</span>
+
+<span class="sd">        1. ``uncertainty == &quot;mve&quot;`` requires a MVE-family ``loss_fn``.</span>
+<span class="sd">        2. A MVE-family ``loss_fn`` requires ``uncertainty == &quot;mve&quot;``.</span>
+<span class="sd">        3. ``uncertainty == &quot;mve&quot;`` is incompatible with ``gradnorm`` /</span>
+<span class="sd">           ``multiloss`` (head-width mismatch and multi-loss aggregation</span>
+<span class="sd">           semantics).</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">is_mve_uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span>
+        <span class="n">is_mve_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="ow">in</span> <span class="n">_MVE_LOSS_ALIASES</span>
+
+        <span class="k">if</span> <span class="n">is_mve_uncertainty</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_mve_loss</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;uncertainty=&#39;mve&#39; requires loss_fn in &quot;</span>
+                <span class="s2">&quot;{&#39;beta-nll&#39;, &#39;mve&#39;, &#39;bounded-beta-nll&#39;}, got &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;loss_fn=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_mve_loss</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_mve_uncertainty</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;loss_fn=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2"> requires uncertainty=&#39;mve&#39; &quot;</span>
+                <span class="s2">&quot;(head width mismatch).&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">is_mve_uncertainty</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="ow">in</span> <span class="n">_MVE_INCOMPATIBLE_LOSSES</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;uncertainty=&#39;mve&#39; is incompatible with loss_fn=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 
 

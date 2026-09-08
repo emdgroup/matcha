@@ -90,12 +90,11 @@
   <h1>Source code for matcha.torch.models.classic.mlp_model</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Multi-Layer Perceptron (MLP) classic model for tabular molecular features.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">BaseClassicModel</span><span class="p">,</span>
     <span class="n">ClassicModelRegistry</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.predictors.mlp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.deep_lasso</span><span class="w"> </span><span class="kn">import</span> <span class="n">deep_lasso_regularizer</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiLoss</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLPInputModel</span>
@@ -174,22 +173,35 @@
         <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">},</span>
         <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">,</span>
         <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;min_lr&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">},</span>
+        <span class="n">uncertainty</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;mve&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">additional_mol_features_dim</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">MLPInputModel</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">deep_lasso_weight</span> <span class="o">=</span> <span class="n">deep_lasso_weight</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_get_predictor_input_dim</span><span class="p">(),</span>
-            <span class="n">hidden_dims</span><span class="p">,</span>
-            <span class="n">task_head_dims</span><span class="p">,</span>
-            <span class="n">num_endpoints</span><span class="p">,</span>
-            <span class="n">dropout</span><span class="p">,</span>
-            <span class="n">activation</span><span class="p">,</span>
-            <span class="s2">&quot;batch&quot;</span><span class="p">,</span>
-        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_parse_predictor</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_train_config</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_predictor_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Translate MLP hparams to the predictor constructor kwargs.</span>
+
+<span class="sd">        :class:`MLPModel` uses bare ``hidden_dims`` / ``activation`` / ``dropout``</span>
+<span class="sd">        / ``task_head_dims`` hparams (no ``pred_`` prefix), so the base</span>
+<span class="sd">        implementation&#39;s ``pred_*`` reads do not apply. The returned dict is a</span>
+<span class="sd">        superset intentionally: ``_parse_predictor`` filters it against the</span>
+<span class="sd">        target predictor class&#39;s ``__init__`` signature, so ``task_head_dims``</span>
+<span class="sd">        is dropped on the ``MVEPredictor`` path.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;input_dim&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_predictor_input_dim</span><span class="p">(),</span>
+            <span class="s2">&quot;hidden_dims&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;hidden_dims&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;task_head_dims&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;task_head_dims&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;num_endpoints&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;dropout&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;dropout&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;activation&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;activation&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="s2">&quot;batch&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
 
 <div class="viewcode-block" id="MLPModel.training_step">
 <a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/mlp_model/index.html#matcha.torch.models.classic.MLPModel.training_step">[docs]</a>

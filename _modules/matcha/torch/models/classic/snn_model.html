@@ -90,7 +90,7 @@
   <h1>Source code for matcha.torch.models.classic.snn_model</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Self-Normalizing Neural Network (SNN) classic model for tabular molecular features.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">BaseClassicModel</span><span class="p">,</span>
     <span class="n">ClassicModelRegistry</span><span class="p">,</span>
@@ -171,7 +171,15 @@
         <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">},</span>
         <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;cosine_annealing&quot;</span><span class="p">,</span>
         <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;min_lr&quot;</span><span class="p">:</span> <span class="mf">1e-6</span><span class="p">,</span> <span class="s2">&quot;total_steps&quot;</span><span class="p">:</span> <span class="mi">50</span><span class="p">},</span>
+        <span class="n">uncertainty</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;mve&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">):</span>
+        <span class="k">if</span> <span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;SNNModel does not support uncertainty=&#39;mve&#39;: the &quot;</span>
+                <span class="s2">&quot;BatchEnsembleLinear head averages members before returning, &quot;</span>
+                <span class="s2">&quot;and averaging log-variances is not the correct aggregation &quot;</span>
+                <span class="s2">&quot;for MVE. Use a different regressor family for MVE.&quot;</span>
+            <span class="p">)</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">additional_mol_features_dim</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">SNNInputModel</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">)</span>

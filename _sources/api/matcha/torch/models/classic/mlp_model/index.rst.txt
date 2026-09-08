@@ -20,7 +20,7 @@ Classes
 Module Contents
 ---------------
 
-.. py:class:: MLPModel(additional_mol_features_dim: int = 0, hidden_dims: list[int] = [512, 512, 128], task_head_dims: list[int] | None = None, dropout: float = 0.2, activation: str = 'swish', num_endpoints: int = 1, deep_lasso_weight: float = 0.1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50})
+.. py:class:: MLPModel(additional_mol_features_dim: int = 0, hidden_dims: list[int] = [512, 512, 128], task_head_dims: list[int] | None = None, dropout: float = 0.2, activation: str = 'swish', num_endpoints: int = 1, deep_lasso_weight: float = 0.1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.001}, scheduler: str = 'cosine_annealing', scheduler_args: dict = {'min_lr': 1e-06, 'total_steps': 50}, uncertainty: Literal['mve'] | None = None)
 
    Bases: :py:obj:`matcha.torch.models.classic.base_classic_model.BaseClassicModel`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -83,9 +83,6 @@ Module Contents
    .. py:attribute:: deep_lasso_weight
       :value: 0.1
 
-
-
-   .. py:attribute:: predictor
 
 
    .. py:attribute:: encoder

@@ -48,6 +48,8 @@ Classes
    matcha.nn.losses.DropoutFocalBCELoss
    matcha.nn.losses.DropoutPoly1BCELoss
    matcha.nn.losses.DropoutWeightedBCELoss
+   matcha.nn.losses.BetaNLLLoss
+   matcha.nn.losses.BoundedBetaNLLLoss
 
 
 Module Contents
@@ -538,5 +540,82 @@ Module Contents
 
 
    :class:`DropoutLoss` with weighted BCE as the inner loss.
+
+
+.. py:class:: BetaNLLLoss(beta: float = 0.5, **_kwargs)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   β-NLL loss for Mean-Variance Estimation (Seitzer et al. 2022).
+
+   Trains a network that outputs both a mean and a log-variance per endpoint
+   against the heteroscedastic Gaussian NLL, with a stop-gradient
+   ``σ^(2β)`` reweighting factor that interpolates between MSE-like weighting
+   (``β = 1``) and vanilla NLL (``β = 0``). The recommended default from the
+   paper is ``β = 0.5``.
+
+   The loss expects predictions of shape ``(batch, 2 * num_tasks)`` — the
+   first ``num_tasks`` columns are means, the next ``num_tasks`` columns are
+   log-variances — and targets of shape ``(batch, num_tasks)`` (NaN marks
+   missing entries, masked per task). It handles multitask internally and
+   is not wrapped in :class:`MultitaskLoss`.
+
+   Reference: https://arxiv.org/abs/2203.09168
+
+   :param float beta: β hyperparameter of the β-NLL reweighting.
+       ``β = 0`` recovers vanilla Gaussian NLL; ``β = 1`` recovers MSE-like
+       weighting; ``β = 0.5`` (default) is the paper-recommended trade-off.
+
+
+   .. py:attribute:: beta
+
+
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``
+          with means in the first half and log-variances in the second half.
+      :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
+          marks missing entries.
+      :returns: Scalar loss averaged across valid entries per task, then across tasks.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: BoundedBetaNLLLoss(beta: float = 0.5, **_kwargs)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   β-NLL loss with support for censored (bounded) regression labels.
+
+   Standard β-NLL for observations with ``bound_code == 0``; censored
+   contributions are ``-log Φ((y - μ) / σ)`` for less-than bounds
+   (``bound_code == -1``) and ``-log Φ(-(y - μ) / σ)`` for greater-than
+   bounds (``bound_code == +1``), using :func:`torch.special.log_ndtr` for
+   numerical stability. This is a from-scratch loss (not a
+   :class:`BoundedLoss` wrapper); it shares the ``bounded-*`` alias family
+   for user familiarity only.
+
+   Targets have the ``(batch, num_tasks, 2)`` shape produced by the bounded
+   datamodule path: ``targets[..., 0]`` is the value, ``targets[..., 1]`` is
+   the bound code. NaN in the value marks a missing entry (masked per task).
+
+   :param float beta: β hyperparameter of the β-NLL reweighting on the
+       uncensored samples. Defaults to ``0.5`` (Seitzer et al. recommendation).
+
+
+   .. py:attribute:: beta
+
+
+   .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
+
+      :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``.
+      :param torch.Tensor targets: Targets of shape ``(batch, num_tasks, 2)``;
+          ``[..., 0]`` is the value, ``[..., 1]`` is the bound code
+          (``-1`` = less-than, ``0`` = exact, ``+1`` = greater-than).
+      :returns: Scalar loss averaged across valid entries per task, then across tasks.
+      :rtype: torch.Tensor
+
 
 

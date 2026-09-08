@@ -934,6 +934,157 @@
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">loss_fn</span><span class="o">=</span><span class="s2">&quot;weighted-bce&quot;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></div>
 
+
+
+<span class="c1"># ------------------------------------------------------------------------------#</span>
+<span class="c1">#   Mean-Variance Estimation losses (β-NLL — Seitzer et al. 2022)</span>
+<span class="c1"># ------------------------------------------------------------------------------#</span>
+
+
+<span class="n">_LOG_VAR_MIN</span> <span class="o">=</span> <span class="o">-</span><span class="mf">10.0</span>
+<span class="n">_LOG_VAR_MAX</span> <span class="o">=</span> <span class="mf">10.0</span>
+
+
+<div class="viewcode-block" id="BetaNLLLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BetaNLLLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;beta-nll&quot;</span><span class="p">,</span> <span class="s2">&quot;mve&quot;</span><span class="p">])</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BetaNLLLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;β-NLL loss for Mean-Variance Estimation (Seitzer et al. 2022).</span>
+
+<span class="sd">    Trains a network that outputs both a mean and a log-variance per endpoint</span>
+<span class="sd">    against the heteroscedastic Gaussian NLL, with a stop-gradient</span>
+<span class="sd">    ``σ^(2β)`` reweighting factor that interpolates between MSE-like weighting</span>
+<span class="sd">    (``β = 1``) and vanilla NLL (``β = 0``). The recommended default from the</span>
+<span class="sd">    paper is ``β = 0.5``.</span>
+
+<span class="sd">    The loss expects predictions of shape ``(batch, 2 * num_tasks)`` — the</span>
+<span class="sd">    first ``num_tasks`` columns are means, the next ``num_tasks`` columns are</span>
+<span class="sd">    log-variances — and targets of shape ``(batch, num_tasks)`` (NaN marks</span>
+<span class="sd">    missing entries, masked per task). It handles multitask internally and</span>
+<span class="sd">    is not wrapped in :class:`MultitaskLoss`.</span>
+
+<span class="sd">    Reference: https://arxiv.org/abs/2203.09168</span>
+
+<span class="sd">    :param float beta: β hyperparameter of the β-NLL reweighting.</span>
+<span class="sd">        ``β = 0`` recovers vanilla Gaussian NLL; ``β = 1`` recovers MSE-like</span>
+<span class="sd">        weighting; ``β = 0.5`` (default) is the paper-recommended trade-off.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_requires_mve_head</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">beta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">**</span><span class="n">_kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BetaNLLLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BetaNLLLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``</span>
+<span class="sd">            with means in the first half and log-variances in the second half.</span>
+<span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN</span>
+<span class="sd">            marks missing entries.</span>
+<span class="sd">        :returns: Scalar loss averaged across valid entries per task, then across tasks.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_tasks</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_tasks</span><span class="p">]</span>
+        <span class="n">log_var</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">num_tasks</span><span class="p">:]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">_LOG_VAR_MIN</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">_LOG_VAR_MAX</span><span class="p">)</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">log_var</span><span class="o">.</span><span class="n">exp</span><span class="p">()</span>
+
+        <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span>
+        <span class="n">targets_safe</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">targets_safe</span><span class="p">[</span><span class="n">nan_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="n">per_element</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">log_var</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">targets_safe</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">var</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">var</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="o">**</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span>
+        <span class="n">losses</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">per_element</span>
+
+        <span class="n">losses</span> <span class="o">=</span> <span class="n">losses</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="n">nan_mask</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">valid_counts</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">nan_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">per_task</span> <span class="o">=</span> <span class="n">losses</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">valid_counts</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_per_task_losses</span> <span class="o">=</span> <span class="n">per_task</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">per_task</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">per_task</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="BoundedBetaNLLLoss">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedBetaNLLLoss">[docs]</a>
+<span class="nd">@LossRegistry</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">alias</span><span class="o">=</span><span class="s2">&quot;bounded-beta-nll&quot;</span><span class="p">)</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">BoundedBetaNLLLoss</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;β-NLL loss with support for censored (bounded) regression labels.</span>
+
+<span class="sd">    Standard β-NLL for observations with ``bound_code == 0``; censored</span>
+<span class="sd">    contributions are ``-log Φ((y - μ) / σ)`` for less-than bounds</span>
+<span class="sd">    (``bound_code == -1``) and ``-log Φ(-(y - μ) / σ)`` for greater-than</span>
+<span class="sd">    bounds (``bound_code == +1``), using :func:`torch.special.log_ndtr` for</span>
+<span class="sd">    numerical stability. This is a from-scratch loss (not a</span>
+<span class="sd">    :class:`BoundedLoss` wrapper); it shares the ``bounded-*`` alias family</span>
+<span class="sd">    for user familiarity only.</span>
+
+<span class="sd">    Targets have the ``(batch, num_tasks, 2)`` shape produced by the bounded</span>
+<span class="sd">    datamodule path: ``targets[..., 0]`` is the value, ``targets[..., 1]`` is</span>
+<span class="sd">    the bound code. NaN in the value marks a missing entry (masked per task).</span>
+
+<span class="sd">    :param float beta: β hyperparameter of the β-NLL reweighting on the</span>
+<span class="sd">        uncensored samples. Defaults to ``0.5`` (Seitzer et al. recommendation).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">_requires_mve_head</span> <span class="o">=</span> <span class="kc">True</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">beta</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="o">**</span><span class="n">_kwargs</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">beta</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">beta</span><span class="p">)</span>
+
+<div class="viewcode-block" id="BoundedBetaNLLLoss.forward">
+<a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedBetaNLLLoss.forward">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``.</span>
+<span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks, 2)``;</span>
+<span class="sd">            ``[..., 0]`` is the value, ``[..., 1]`` is the bound code</span>
+<span class="sd">            (``-1`` = less-than, ``0`` = exact, ``+1`` = greater-than).</span>
+<span class="sd">        :returns: Scalar loss averaged across valid entries per task, then across tasks.</span>
+<span class="sd">        :rtype: torch.Tensor</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">num_tasks</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_tasks</span><span class="p">]</span>
+        <span class="n">log_var</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">num_tasks</span><span class="p">:]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">_LOG_VAR_MIN</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">_LOG_VAR_MAX</span><span class="p">)</span>
+        <span class="n">var</span> <span class="o">=</span> <span class="n">log_var</span><span class="o">.</span><span class="n">exp</span><span class="p">()</span>
+        <span class="n">std</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">log_var</span><span class="p">)</span><span class="o">.</span><span class="n">exp</span><span class="p">()</span>
+
+        <span class="n">values</span> <span class="o">=</span> <span class="n">targets</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">bound_code</span> <span class="o">=</span> <span class="n">targets</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span>
+
+        <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">values</span><span class="p">)</span>
+        <span class="n">values_safe</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="n">values_safe</span><span class="p">[</span><span class="n">nan_mask</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+
+        <span class="n">lt_mask</span> <span class="o">=</span> <span class="n">bound_code</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span>
+        <span class="n">gt_mask</span> <span class="o">=</span> <span class="n">bound_code</span> <span class="o">==</span> <span class="mi">1</span>
+
+        <span class="n">z</span> <span class="o">=</span> <span class="p">(</span><span class="n">values_safe</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">std</span>
+        <span class="n">gaussian_nll</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">log_var</span> <span class="o">+</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="p">(</span><span class="n">values_safe</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">/</span> <span class="n">var</span>
+        <span class="n">weight</span> <span class="o">=</span> <span class="n">var</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span> <span class="o">**</span> <span class="bp">self</span><span class="o">.</span><span class="n">beta</span>
+        <span class="n">exact_per_element</span> <span class="o">=</span> <span class="n">weight</span> <span class="o">*</span> <span class="n">gaussian_nll</span>
+
+        <span class="n">lt_per_element</span> <span class="o">=</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">log_ndtr</span><span class="p">(</span><span class="n">z</span><span class="p">)</span>
+        <span class="n">gt_per_element</span> <span class="o">=</span> <span class="o">-</span><span class="n">torch</span><span class="o">.</span><span class="n">special</span><span class="o">.</span><span class="n">log_ndtr</span><span class="p">(</span><span class="o">-</span><span class="n">z</span><span class="p">)</span>
+
+        <span class="n">per_element</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+            <span class="n">lt_mask</span><span class="p">,</span>
+            <span class="n">lt_per_element</span><span class="p">,</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">gt_mask</span><span class="p">,</span> <span class="n">gt_per_element</span><span class="p">,</span> <span class="n">exact_per_element</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">per_element</span> <span class="o">=</span> <span class="n">per_element</span><span class="o">.</span><span class="n">masked_fill</span><span class="p">(</span><span class="n">nan_mask</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
+
+        <span class="n">valid_counts</span> <span class="o">=</span> <span class="p">(</span><span class="o">~</span><span class="n">nan_mask</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">per_task</span> <span class="o">=</span> <span class="n">per_element</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">valid_counts</span> <span class="o">+</span> <span class="mf">1e-8</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_per_task_losses</span> <span class="o">=</span> <span class="n">per_task</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">clone</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">per_task</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span> <span class="o">/</span> <span class="n">per_task</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span></div>
+</div>
+
 </pre></div>
 
            </div>

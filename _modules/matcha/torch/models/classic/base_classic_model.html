@@ -99,6 +99,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.mixin</span><span class="w"> </span><span class="kn">import</span> <span class="n">ModelMixin</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">ABC</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.predictors.base_predictor</span><span class="w"> </span><span class="kn">import</span> <span class="n">BasePredictor</span><span class="p">,</span> <span class="n">PredictorRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.predictors.mlp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">silence_nuisance_warnings</span>
 
@@ -112,6 +113,8 @@
 <span class="sd">    need to define what are the encoder and predictor attributes.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
+    <span class="n">_predictor_cls</span><span class="p">:</span> <span class="nb">type</span><span class="p">[</span><span class="n">BasePredictor</span><span class="p">]</span> <span class="o">=</span> <span class="n">MLP</span>
+
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">additional_mol_features_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialise the base classic model.</span>
 
@@ -122,6 +125,7 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="n">silence_nuisance_warnings</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mc_dropout_flag</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_max_task_tracking_n</span> <span class="o">=</span> <span class="mi">100</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_additional_mol_features_dim</span> <span class="o">=</span> <span class="n">additional_mol_features_dim</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="kc">None</span>
@@ -180,21 +184,55 @@
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_init_metric_containers</span><span class="p">()</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_predictor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Utility function to parse the arguments related to the predictor.</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_predictor_kwargs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assemble the keyword arguments passed to the predictor constructor.</span>
 
-<span class="sd">        Will read the required arguments from self.hparams, as created by the</span>
-<span class="sd">        HyperparametersMixin of the child class</span>
+<span class="sd">        Base implementation reads the ``pred_*`` hparams used by every classic</span>
+<span class="sd">        model except :class:`MLPModel` and :class:`SNNModel`. Subclasses whose</span>
+<span class="sd">        hparam names differ (e.g. bare ``hidden_dims`` on ``MLPModel``) should</span>
+<span class="sd">        override this hook. The returned dict is filtered against the target</span>
+<span class="sd">        predictor class&#39;s ``__init__`` signature in :meth:`_parse_predictor`,</span>
+<span class="sd">        so returning a superset (e.g. ``task_head_dims`` for the ``MLP`` path</span>
+<span class="sd">        but not the ``MVEPredictor`` path) is safe.</span>
+
+<span class="sd">        :returns: keyword arguments to be forwarded to the predictor constructor.</span>
+<span class="sd">        :rtype: dict[str, Any]</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
-            <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_get_predictor_input_dim</span><span class="p">(),</span>
-            <span class="n">hidden_dims</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_hidden_dims&quot;</span><span class="p">],</span>
-            <span class="n">task_head_dims</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_task_head_dims&quot;</span><span class="p">],</span>
-            <span class="n">num_endpoints</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">],</span>
-            <span class="n">dropout</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_dropout&quot;</span><span class="p">],</span>
-            <span class="n">activation</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_activation&quot;</span><span class="p">],</span>
-            <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;input_dim&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_predictor_input_dim</span><span class="p">(),</span>
+            <span class="s2">&quot;hidden_dims&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_hidden_dims&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;task_head_dims&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_task_head_dims&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;num_endpoints&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;dropout&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_dropout&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;activation&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;pred_activation&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;norm&quot;</span><span class="p">:</span> <span class="s2">&quot;batch&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_predictor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate the predictor head and route around the MVE variant.</span>
+
+<span class="sd">        Selects :class:`MVEPredictor` from :data:`PredictorRegistry` when</span>
+<span class="sd">        ``hparams[&quot;uncertainty&quot;] == &quot;mve&quot;`` (setting :attr:`_mve_active` to</span>
+<span class="sd">        ``True``), otherwise falls back to the model&#39;s ``_predictor_cls``</span>
+<span class="sd">        default. Constructor kwargs come from :meth:`_predictor_kwargs`,</span>
+<span class="sd">        filtered against the target class&#39;s ``__init__`` signature so a</span>
+<span class="sd">        superset (e.g. ``task_head_dims``) is safe to return unconditionally.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="n">predictor_cls</span> <span class="o">=</span> <span class="n">PredictorRegistry</span><span class="p">[</span><span class="s2">&quot;mve&quot;</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">predictor_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predictor_cls</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span> <span class="o">=</span> <span class="kc">False</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predictor_kwargs</span><span class="p">()</span>
+        <span class="n">allowed</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">name</span>
+            <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">predictor_cls</span><span class="o">.</span><span class="fm">__init__</span><span class="p">)</span><span class="o">.</span><span class="n">parameters</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="o">!=</span> <span class="s2">&quot;self&quot;</span>
+        <span class="p">}</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">allowed</span><span class="p">}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">predictor_cls</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_unpack_batch_and_call</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">function</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span>
@@ -351,7 +389,44 @@
             <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
                     <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span></div>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span><span class="p">:</span>
+            <span class="n">num_endpoints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">]</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_endpoints</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">y_pred</span></div>
+
+
+<div class="viewcode-block" id="BaseClassicModel.predict_variance_step">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.base_classic_model.BaseClassicModel.predict_variance_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_variance_step</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prediction step that returns the intrinsic mean and log-variance.</span>
+
+<span class="sd">        Only valid when the model was configured with ``uncertainty=&quot;mve&quot;``</span>
+<span class="sd">        (i.e. :attr:`_mve_active` is ``True``); dropout is forced off, since</span>
+<span class="sd">        the MVE head produces the aleatoric variance directly and does not</span>
+<span class="sd">        rely on Monte-Carlo dropout sampling.</span>
+
+<span class="sd">        :param dict[str, Any] batch: batch of inputs to process.</span>
+<span class="sd">        :returns: tuple ``(mean, log_var)`` of shape ``(batch, num_endpoints)`` each.</span>
+<span class="sd">        :rtype: tuple[torch.Tensor, torch.Tensor]</span>
+<span class="sd">        :raises RuntimeError: if the model was not configured with</span>
+<span class="sd">            ``uncertainty=&quot;mve&quot;``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;predict_variance_step is only available when the model was &quot;</span>
+                <span class="s2">&quot;instantiated with uncertainty=&#39;mve&#39;.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
+                <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+        <span class="n">num_endpoints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">]</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_endpoints</span><span class="p">]</span>
+        <span class="n">log_var</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">num_endpoints</span><span class="p">:]</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">log_var</span></div>
 
 
 <div class="viewcode-block" id="BaseClassicModel.configure_optimizers">

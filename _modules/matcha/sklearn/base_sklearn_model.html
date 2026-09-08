@@ -124,6 +124,44 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
 
 <span class="n">torch</span><span class="o">.</span><span class="n">set_float32_matmul_precision</span><span class="p">(</span><span class="s2">&quot;high&quot;</span><span class="p">)</span>
+
+<span class="n">_MVE_INCOMPATIBLE_LOSSES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;multitask&quot;</span><span class="p">,</span> <span class="s2">&quot;multiloss&quot;</span><span class="p">,</span> <span class="s2">&quot;gradnorm&quot;</span><span class="p">})</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_sklearn_kwargs</span><span class="p">(</span>
+    <span class="n">uncertainty</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">scaler_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Reject sklearn-level MVE kwarg combinations that the schema cannot express.</span>
+
+<span class="sd">    Runs before ``super().__init__(params)`` so the caller sees a</span>
+<span class="sd">    ``ValueError`` at the sklearn constructor site rather than a pydantic</span>
+<span class="sd">    ``ValidationError`` from the underlying Lightning module. Combinations</span>
+<span class="sd">    already covered by ``ClassicMatchaModel``&#39;s pairing validator are not</span>
+<span class="sd">    re-checked here.</span>
+
+<span class="sd">    :param str | None uncertainty: value of the ``uncertainty`` kwarg</span>
+<span class="sd">    :param str | None scaler_type: value of the ``scaler_type`` kwarg</span>
+<span class="sd">    :param str | None loss_fn: value of the ``loss_fn`` kwarg</span>
+<span class="sd">    :raises ValueError: on incompatible combinations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">uncertainty</span> <span class="o">!=</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+        <span class="k">return</span>
+    <span class="k">if</span> <span class="n">scaler_type</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">scaler_type</span> <span class="o">!=</span> <span class="s2">&quot;standard&quot;</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;uncertainty=&#39;mve&#39; requires scaler_type=&#39;standard&#39; &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;(got &#39;</span><span class="si">{</span><span class="n">scaler_type</span><span class="si">}</span><span class="s2">&#39;); other scalers have no closed-form &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;variance transform.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">loss_fn</span> <span class="ow">in</span> <span class="n">_MVE_INCOMPATIBLE_LOSSES</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;uncertainty=&#39;mve&#39; is incompatible with loss_fn=&#39;</span><span class="si">{</span><span class="n">loss_fn</span><span class="si">}</span><span class="s2">&#39;. &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;Use loss_fn=&#39;beta-nll&#39; for standard regression or &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;loss_fn=&#39;bounded-beta-nll&#39; for censored labels.&quot;</span>
+        <span class="p">)</span>
+
+
 <span class="c1"># default train args</span>
 <span class="n">_train_args</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;num_epochs&quot;</span><span class="p">,</span>
@@ -548,6 +586,71 @@
         <span class="n">preds</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Predict: inference finished&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">preds</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_inner_predict_variance</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]</span> <span class="o">|</span> <span class="n">StackDataset</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the intrinsic-variance forward pass for an MVE-configured model.</span>
+
+<span class="sd">        Mirrors :meth:`_inner_predict`, but calls ``predict_variance_step`` on</span>
+<span class="sd">        the underlying Lightning model so both the mean and log-variance are</span>
+<span class="sd">        returned. The underlying model must have been instantiated with</span>
+<span class="sd">        ``uncertainty=&quot;mve&quot;``.</span>
+
+<span class="sd">        :param list[Mol] | StackDataset x: input to compute predictions for</span>
+
+<span class="sd">        :param str | None accelerator: hardware to use for predictions, if None</span>
+<span class="sd">            it is kept as training settings, defaults to None</span>
+
+<span class="sd">        :param int | None devices: unused, kept for signature compatibility with</span>
+<span class="sd">            ``_inner_predict``</span>
+
+<span class="sd">        :param int | None batch_size: batch size to use, if None it is kept as</span>
+<span class="sd">            training settings, defaults to None</span>
+
+<span class="sd">        :return tuple[torch.Tensor, torch.Tensor]: ``(mean, log_var)`` tensors,</span>
+<span class="sd">            each with shape ``(N, num_endpoints)`` on CPU</span>
+
+<span class="sd">        :raises RuntimeError: if the underlying model was not configured with</span>
+<span class="sd">            ``uncertainty=&quot;mve&quot;``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="s2">&quot;_mve_active&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;_inner_predict_variance is only available when the model was &quot;</span>
+                <span class="s2">&quot;instantiated with uncertainty=&#39;mve&#39;.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Predict (variance): beginning inference&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="p">(</span><span class="n">StackDataset</span><span class="p">,</span> <span class="n">CombinedStackDataset</span><span class="p">,</span> <span class="n">MoleculeDataset</span><span class="p">)):</span>
+            <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_datamodule_manager</span><span class="o">.</span><span class="n">set_predict_dataset</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">batch_size</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_datamodule_manager</span><span class="o">.</span><span class="n">set_batch_size</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">accelerator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">accelerator</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_training_manager</span><span class="o">.</span><span class="n">params</span><span class="o">.</span><span class="n">accelerator</span>
+
+        <span class="n">device</span> <span class="o">=</span> <span class="n">_resolve_device</span><span class="p">(</span><span class="n">accelerator</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+
+        <span class="n">loader</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="o">.</span><span class="n">predict_dataloader</span><span class="p">()</span>
+        <span class="n">means</span><span class="p">,</span> <span class="n">log_vars</span> <span class="o">=</span> <span class="p">[],</span> <span class="p">[]</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">loader</span><span class="p">:</span>
+                <span class="n">batch</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">transfer_batch_to_device</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">device</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+                <span class="n">mean</span><span class="p">,</span> <span class="n">log_var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">predict_variance_step</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+                <span class="n">means</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mean</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span>
+                <span class="n">log_vars</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">log_var</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">())</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">means</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">log_var</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">log_vars</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Predict (variance): inference finished&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">log_var</span>
 
 <div class="viewcode-block" id="BaseScikitLearnModel.transform">
 <a class="viewcode-back" href="../../../api/matcha/sklearn/base_sklearn_model/index.html#matcha.sklearn.base_sklearn_model.BaseScikitLearnModel.transform">[docs]</a>
