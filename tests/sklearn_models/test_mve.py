@@ -8,8 +8,6 @@ symmetric validation errors, and ensemble law-of-total-variance
 aggregation.
 """
 
-import os
-
 import numpy as np
 import pytest
 from pydantic import ValidationError
@@ -206,12 +204,8 @@ class TestMVECalibration:
     """calibrate_uncertainty on an MVE model fits an ICP calibrator that
     then re-shapes compute_uncertainty output."""
 
-    def test_calibrator_is_set_after_calibrate(
-        self, mol_list, regression_y
-    ):
-        model = MLPRegressor(
-            **_ARCH_KWARGS[MLPRegressor], **_MVE_KWARGS
-        )
+    def test_calibrator_is_set_after_calibrate(self, mol_list, regression_y):
+        model = MLPRegressor(**_ARCH_KWARGS[MLPRegressor], **_MVE_KWARGS)
         model.fit(mol_list, regression_y)
         assert model._uncertainty_manager.calibrator is None
         model.calibrate_uncertainty(
@@ -224,9 +218,7 @@ class TestMVECalibration:
     def test_calibrated_uncertainty_is_finite_and_non_negative(
         self, mol_list, regression_y
     ):
-        model = MLPRegressor(
-            **_ARCH_KWARGS[MLPRegressor], **_MVE_KWARGS
-        )
+        model = MLPRegressor(**_ARCH_KWARGS[MLPRegressor], **_MVE_KWARGS)
         model.fit(mol_list, regression_y)
         model.calibrate_uncertainty(
             calibration_mols=mol_list,
@@ -354,9 +346,7 @@ class TestMVEEnsemble:
         assert mean.shape == (len(mol_list), 1)
         assert std.shape == (len(mol_list), 1)
 
-    def test_ensemble_std_non_negative_and_finite(
-        self, fitted_mve_ensemble, mol_list
-    ):
+    def test_ensemble_std_non_negative_and_finite(self, fitted_mve_ensemble, mol_list):
         _, std = fitted_mve_ensemble.predict(mol_list)
         assert np.all(np.isfinite(std))
         assert np.all(std >= 0.0)
