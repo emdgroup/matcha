@@ -9,6 +9,7 @@ from matcha.nn.optimizers import OptimizerRegistry
 from matcha.utils.registry import ClassRegistry
 from matcha.torch.models.mixin import ModelMixin
 from abc import ABC
+from matcha.torch.predictors.base_predictor import BasePredictor, PredictorRegistry
 from matcha.torch.predictors.mlp import MLP
 from matcha.utils import silence_nuisance_warnings
 
@@ -20,6 +21,8 @@ class BaseClassicModel(ModelMixin, ABC):
     need to define what are the encoder and predictor attributes.
     """
 
+    _predictor_cls: type[BasePredictor] = MLP
+
     def __init__(self, additional_mol_features_dim: int = 0):
         """Initialise the base classic model.
 
@@ -30,6 +33,7 @@ class BaseClassicModel(ModelMixin, ABC):
         super().__init__()
         silence_nuisance_warnings()
         self._mc_dropout_flag = False
+        self._mve_active = False
         self._max_task_tracking_n = 100
         self._additional_mol_features_dim = additional_mol_features_dim
         self.encoder = None
@@ -88,21 +92,55 @@ class BaseClassicModel(ModelMixin, ABC):
 
         self._init_metric_containers()
 
-    def _parse_predictor(self):
-        """Utility function to parse the arguments related to the predictor.
+    def _predictor_kwargs(self) -> dict[str, Any]:
+        """Assemble the keyword arguments passed to the predictor constructor.
 
-        Will read the required arguments from self.hparams, as created by the
-        HyperparametersMixin of the child class
+        Base implementation reads the ``pred_*`` hparams used by every classic
+        model except :class:`MLPModel` and :class:`SNNModel`. Subclasses whose
+        hparam names differ (e.g. bare ``hidden_dims`` on ``MLPModel``) should
+        override this hook. The returned dict is filtered against the target
+        predictor class's ``__init__`` signature in :meth:`_parse_predictor`,
+        so returning a superset (e.g. ``task_head_dims`` for the ``MLP`` path
+        but not the ``MVEPredictor`` path) is safe.
+
+        :returns: keyword arguments to be forwarded to the predictor constructor.
+        :rtype: dict[str, Any]
         """
-        self.predictor = MLP(
-            input_dim=self._get_predictor_input_dim(),
-            hidden_dims=self.hparams["pred_hidden_dims"],
-            task_head_dims=self.hparams["pred_task_head_dims"],
-            num_endpoints=self.hparams["num_endpoints"],
-            dropout=self.hparams["pred_dropout"],
-            activation=self.hparams["pred_activation"],
-            norm="batch",
-        )
+        return {
+            "input_dim": self._get_predictor_input_dim(),
+            "hidden_dims": self.hparams["pred_hidden_dims"],
+            "task_head_dims": self.hparams["pred_task_head_dims"],
+            "num_endpoints": self.hparams["num_endpoints"],
+            "dropout": self.hparams["pred_dropout"],
+            "activation": self.hparams["pred_activation"],
+            "norm": "batch",
+        }
+
+    def _parse_predictor(self):
+        """Instantiate the predictor head and route around the MVE variant.
+
+        Selects :class:`MVEPredictor` from :data:`PredictorRegistry` when
+        ``hparams["uncertainty"] == "mve"`` (setting :attr:`_mve_active` to
+        ``True``), otherwise falls back to the model's ``_predictor_cls``
+        default. Constructor kwargs come from :meth:`_predictor_kwargs`,
+        filtered against the target class's ``__init__`` signature so a
+        superset (e.g. ``task_head_dims``) is safe to return unconditionally.
+        """
+        if self.hparams.get("uncertainty") == "mve":
+            predictor_cls = PredictorRegistry["mve"]
+            self._mve_active = True
+        else:
+            predictor_cls = self._predictor_cls
+            self._mve_active = False
+
+        kwargs = self._predictor_kwargs()
+        allowed = {
+            name
+            for name in inspect.signature(predictor_cls.__init__).parameters
+            if name != "self"
+        }
+        kwargs = {k: v for k, v in kwargs.items() if k in allowed}
+        self.predictor = predictor_cls(**kwargs)
 
     def _unpack_batch_and_call(
         self, batch: dict[str, Any], function: Callable[..., torch.Tensor]
@@ -242,7 +280,41 @@ class BaseClassicModel(ModelMixin, ABC):
             for module in self.modules():
                 if isinstance(module, torch.nn.Dropout):
                     module.eval()
-        return self.forward(batch)
+        y_pred = self.forward(batch)
+        if self._mve_active:
+            num_endpoints = self.hparams["num_endpoints"]
+            y_pred = y_pred[..., :num_endpoints]
+        return y_pred
+
+    def predict_variance_step(
+        self, batch: dict[str, Any]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Prediction step that returns the intrinsic mean and log-variance.
+
+        Only valid when the model was configured with ``uncertainty="mve"``
+        (i.e. :attr:`_mve_active` is ``True``); dropout is forced off, since
+        the MVE head produces the aleatoric variance directly and does not
+        rely on Monte-Carlo dropout sampling.
+
+        :param dict[str, Any] batch: batch of inputs to process.
+        :returns: tuple ``(mean, log_var)`` of shape ``(batch, num_endpoints)`` each.
+        :rtype: tuple[torch.Tensor, torch.Tensor]
+        :raises RuntimeError: if the model was not configured with
+            ``uncertainty="mve"``.
+        """
+        if not self._mve_active:
+            raise RuntimeError(
+                "predict_variance_step is only available when the model was "
+                "instantiated with uncertainty='mve'."
+            )
+        for module in self.modules():
+            if isinstance(module, torch.nn.Dropout):
+                module.eval()
+        y_pred = self.forward(batch)
+        num_endpoints = self.hparams["num_endpoints"]
+        mean = y_pred[..., :num_endpoints]
+        log_var = y_pred[..., num_endpoints:]
+        return mean, log_var
 
     def configure_optimizers(self):
         """Configuration utility function to comply with the Lightning Trainer

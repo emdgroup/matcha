@@ -46,7 +46,11 @@ class ModelMixin(L.LightningModule):
         :param dict loss_args: keyword arguments forwarded to the loss constructor.
         :param int num_endpoints: number of prediction endpoints.
         """
-        if num_endpoints == 1:
+        # MVE β-NLL losses handle multitask internally (they chunk the 2T-wide
+        # output themselves and NaN-mask per task), so they bypass the
+        # MultitaskLoss wrapper regardless of num_endpoints.
+        _mve_loss_aliases = ("beta-nll", "mve", "bounded-beta-nll")
+        if num_endpoints == 1 or loss_fn in _mve_loss_aliases:
             self.loss_fn = LossRegistry[loss_fn](**loss_args)
         elif num_endpoints > 1 and loss_fn not in (
             "multitask",
@@ -161,6 +165,11 @@ class ModelMixin(L.LightningModule):
                     on_epoch=True,
                     sync_dist=True,
                 )
+
+        # MVE heads emit (B, 2T); slice to means before per-task metrics so
+        # column indexing continues to align with the label tensor.
+        if getattr(self, "_mve_active", False):
+            y_pred = y_pred[..., : y.shape[1]]
 
         # very hacky, but it does the job
         # we will only track task-level metrics if the number of tasks is reasonable (e.g. under 100)
