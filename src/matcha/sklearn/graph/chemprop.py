@@ -1,5 +1,7 @@
 """Sklearn-compatible Chemprop (D-MPNN) classifiers and regressors."""
 
+from typing import Literal
+
 from matcha.sklearn.base_sklearn_model import (
     ScikitLearnRegressorMixin,
     ScikitLearnClassifierMixin,
@@ -269,7 +271,15 @@ class ChempropRegressor(BaseScikitLearnModel, ScikitLearnRegressorMixin, Chempro
         label_transform_map: str | list[str] | dict | None = None,
         scaler_type: str = "standard",
         seed: int = 0,
+        uncertainty: Literal["mve"] | None = None,
     ):
+        if uncertainty == "mve":
+            raise NotImplementedError(
+                "MVE uncertainty is not supported for ChempropRegressor: the "
+                "Chemprop head is chemprop.nn.predictors.RegressionFFN, not a "
+                "MATCHA BasePredictor. A dedicated MVERegressionFFN wrapper is "
+                "tracked as a follow-up to this feature."
+            )
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         self._architecture = ChempropModel
         super(ChempropRegressor, self).__init__(params)

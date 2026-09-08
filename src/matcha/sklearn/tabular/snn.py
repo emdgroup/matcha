@@ -1,5 +1,7 @@
 """Sklearn-compatible SNN wrappers for molecular property prediction from tabular descriptors."""
 
+from typing import Literal
+
 from matcha.sklearn.tabular.base_sklearn_tabular import BaseScikitLearnTabular
 from matcha.torch.models.classic import SNNModel
 from matcha.sklearn.base_sklearn_model import (
@@ -234,7 +236,15 @@ class SNNRegressor(BaseScikitLearnTabular, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mve"] | None = None,
     ):
+        if uncertainty == "mve":
+            raise NotImplementedError(
+                "MVE uncertainty is not supported for SNNRegressor: SNN's "
+                "BatchEnsembleLinear head averages members before returning, "
+                "and correctly propagating variance through that averaging "
+                "requires a separate design."
+            )
         self._architecture = SNNModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         super(SNNRegressor, self).__init__(params)

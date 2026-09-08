@@ -34,6 +34,44 @@ from matcha.utils.schemas.sklearn_api import (
 from matcha import __version__
 
 torch.set_float32_matmul_precision("high")
+
+_MVE_INCOMPATIBLE_LOSSES = frozenset({"multitask", "multiloss", "gradnorm"})
+
+
+def _validate_mve_sklearn_kwargs(
+    uncertainty: str | None,
+    scaler_type: str | None,
+    loss_fn: str | None,
+) -> None:
+    """Reject sklearn-level MVE kwarg combinations that the schema cannot express.
+
+    Runs before ``super().__init__(params)`` so the caller sees a
+    ``ValueError`` at the sklearn constructor site rather than a pydantic
+    ``ValidationError`` from the underlying Lightning module. Combinations
+    already covered by ``ClassicMatchaModel``'s pairing validator are not
+    re-checked here.
+
+    :param str | None uncertainty: value of the ``uncertainty`` kwarg
+    :param str | None scaler_type: value of the ``scaler_type`` kwarg
+    :param str | None loss_fn: value of the ``loss_fn`` kwarg
+    :raises ValueError: on incompatible combinations
+    """
+    if uncertainty != "mve":
+        return
+    if scaler_type is not None and scaler_type != "standard":
+        raise ValueError(
+            f"uncertainty='mve' requires scaler_type='standard' "
+            f"(got '{scaler_type}'); other scalers have no closed-form "
+            f"variance transform."
+        )
+    if loss_fn in _MVE_INCOMPATIBLE_LOSSES:
+        raise ValueError(
+            f"uncertainty='mve' is incompatible with loss_fn='{loss_fn}'. "
+            f"Use loss_fn='beta-nll' for standard regression or "
+            f"loss_fn='bounded-beta-nll' for censored labels."
+        )
+
+
 # default train args
 _train_args = [
     "num_epochs",
@@ -453,6 +491,71 @@ class BaseScikitLearnModel(ABC):
         preds = torch.cat(outputs, dim=0)
         self.logger.info("Predict: inference finished")
         return preds
+
+    def _inner_predict_variance(
+        self,
+        x: list[Mol] | StackDataset,
+        accelerator: str | None = None,
+        devices: int | None = None,
+        batch_size: int | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Run the intrinsic-variance forward pass for an MVE-configured model.
+
+        Mirrors :meth:`_inner_predict`, but calls ``predict_variance_step`` on
+        the underlying Lightning model so both the mean and log-variance are
+        returned. The underlying model must have been instantiated with
+        ``uncertainty="mve"``.
+
+        :param list[Mol] | StackDataset x: input to compute predictions for
+
+        :param str | None accelerator: hardware to use for predictions, if None
+            it is kept as training settings, defaults to None
+
+        :param int | None devices: unused, kept for signature compatibility with
+            ``_inner_predict``
+
+        :param int | None batch_size: batch size to use, if None it is kept as
+            training settings, defaults to None
+
+        :return tuple[torch.Tensor, torch.Tensor]: ``(mean, log_var)`` tensors,
+            each with shape ``(N, num_endpoints)`` on CPU
+
+        :raises RuntimeError: if the underlying model was not configured with
+            ``uncertainty="mve"``
+        """
+        if not getattr(self._model, "_mve_active", False):
+            raise RuntimeError(
+                "_inner_predict_variance is only available when the model was "
+                "instantiated with uncertainty='mve'."
+            )
+
+        self.logger.info("Predict (variance): beginning inference")
+        self._model.eval()
+        if not isinstance(x, (StackDataset, CombinedStackDataset, MoleculeDataset)):
+            x = self.transform(x, is_training=False)
+
+        self._datamodule_manager.set_predict_dataset(x)
+
+        if batch_size is not None:
+            self._datamodule_manager.set_batch_size(batch_size)
+        if accelerator is None:
+            accelerator = self._training_manager.params.accelerator
+
+        device = _resolve_device(accelerator, self.logger)
+        self._model.to(device)
+
+        loader = self.datamodule.predict_dataloader()
+        means, log_vars = [], []
+        with torch.no_grad():
+            for batch in loader:
+                batch = self._model.transfer_batch_to_device(batch, device, 0)
+                mean, log_var = self._model.predict_variance_step(batch)
+                means.append(mean.detach().cpu())
+                log_vars.append(log_var.detach().cpu())
+        mean = torch.cat(means, dim=0)
+        log_var = torch.cat(log_vars, dim=0)
+        self.logger.info("Predict (variance): inference finished")
+        return mean, log_var
 
     def transform(
         self,

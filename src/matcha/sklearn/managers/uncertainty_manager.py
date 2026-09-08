@@ -6,7 +6,7 @@ from matcha.utils.schemas.calibration import CalibratorModel
 
 
 class UncertaintyManager:
-    """Manages MC Dropout uncertainty estimation and calibration."""
+    """Manages intrinsic (MC-dropout, MVE) uncertainty estimation and calibration."""
 
     def __init__(self):
         self._calibrator = None
@@ -49,11 +49,16 @@ class UncertaintyManager:
         devices: int | None = None,
         batch_size: int | None = None,
     ) -> np.ndarray:
-        """Computes uncertainty via Monte Carlo dropout for a test set.
+        """Compute per-prediction uncertainty for a test set.
+
+        Dispatches on the underlying model's ``_mve_active`` flag: MVE models
+        return the intrinsic aleatoric standard deviation in a single forward
+        pass, while all other models fall back to Monte Carlo dropout.
 
         :param model_instance: the sklearn model instance
         :param x: input to compute uncertainty for
         :param int num_iterations: how many iterations of dropout to do
+            (ignored on the MVE branch)
         :param str | None accelerator: hardware to use for predictions
         :param int | None devices: how many resources to use
         :param int | None batch_size: batch size to use
@@ -61,16 +66,19 @@ class UncertaintyManager:
         """
         self.logger.info("Uncertainty estimation: beginning process")
 
-        model_instance._model.switch_mc_dropout()
-        pred_box = []
-        for _ in range(num_iterations):
-            pred_box.append(
-                model_instance._default_predict(x, accelerator, devices, batch_size)
-            )
-        model_instance._model.switch_mc_dropout()
-        pred_box = np.stack(pred_box, axis=2)
+        if getattr(model_instance._model, "_mve_active", False):
+            std = self._compute_mve(model_instance, x, accelerator, devices, batch_size)
+        else:
+            model_instance._model.switch_mc_dropout()
+            pred_box = []
+            for _ in range(num_iterations):
+                pred_box.append(
+                    model_instance._default_predict(x, accelerator, devices, batch_size)
+                )
+            model_instance._model.switch_mc_dropout()
+            pred_box = np.stack(pred_box, axis=2)
 
-        std = np.std(pred_box, axis=2)
+            std = np.std(pred_box, axis=2)
 
         if self._calibrator is not None:
             self.logger.info("Adjusting uncertainty estimates with the calibrator")
@@ -78,6 +86,39 @@ class UncertaintyManager:
 
         self.logger.info("Uncertainty estimation: finished")
         return std
+
+    def _compute_mve(
+        self,
+        model_instance,
+        x,
+        accelerator: str | None = None,
+        devices: int | None = None,
+        batch_size: int | None = None,
+    ) -> np.ndarray:
+        """Compute intrinsic per-prediction standard deviation from an MVE model.
+
+        Runs one forward pass through the MVE head, exponentiates the predicted
+        log-variance, and inverts the target scaler's variance transform so the
+        returned std is in the original label space. Only valid when
+        ``model_instance._model._mve_active`` is True.
+
+        :param model_instance: the sklearn model instance
+        :param x: input to compute uncertainty for
+        :param str | None accelerator: hardware to use for predictions
+        :param int | None devices: how many resources to use
+        :param int | None batch_size: batch size to use
+        :return np.ndarray: per-endpoint standard deviation with shape (N, T)
+        """
+        _, log_var = model_instance._inner_predict_variance(
+            x, accelerator, devices, batch_size
+        )
+        var = np.exp(log_var.numpy())
+        scale = getattr(
+            model_instance._datamodule_manager.datamodule._y_scaler, "scale_", None
+        )
+        if scale is not None:
+            var = var * (scale**2)
+        return np.sqrt(var)
 
     def calibrate(
         self,
