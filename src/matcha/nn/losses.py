@@ -739,3 +739,142 @@ class DropoutWeightedBCELoss(DropoutLoss):
 
     def __init__(self, **kwargs):
         super().__init__(loss_fn="weighted-bce", **kwargs)
+
+
+# ------------------------------------------------------------------------------#
+#   Mean-Variance Estimation losses (β-NLL — Seitzer et al. 2022)
+# ------------------------------------------------------------------------------#
+
+
+_LOG_VAR_MIN = -10.0
+_LOG_VAR_MAX = 10.0
+
+
+@LossRegistry.register(alias=["beta-nll", "mve"])
+class BetaNLLLoss(nn.Module):
+    """β-NLL loss for Mean-Variance Estimation (Seitzer et al. 2022).
+
+    Trains a network that outputs both a mean and a log-variance per endpoint
+    against the heteroscedastic Gaussian NLL, with a stop-gradient
+    ``σ^(2β)`` reweighting factor that interpolates between MSE-like weighting
+    (``β = 1``) and vanilla NLL (``β = 0``). The recommended default from the
+    paper is ``β = 0.5``.
+
+    The loss expects predictions of shape ``(batch, 2 * num_tasks)`` — the
+    first ``num_tasks`` columns are means, the next ``num_tasks`` columns are
+    log-variances — and targets of shape ``(batch, num_tasks)`` (NaN marks
+    missing entries, masked per task). It handles multitask internally and
+    is not wrapped in :class:`MultitaskLoss`.
+
+    Reference: https://arxiv.org/abs/2203.09168
+
+    :param float beta: β hyperparameter of the β-NLL reweighting.
+        ``β = 0`` recovers vanilla Gaussian NLL; ``β = 1`` recovers MSE-like
+        weighting; ``β = 0.5`` (default) is the paper-recommended trade-off.
+    """
+
+    _requires_mve_head = True
+
+    def __init__(self, beta: float = 0.5, **_kwargs):
+        super().__init__()
+        self.beta = float(beta)
+
+    def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``
+            with means in the first half and log-variances in the second half.
+        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
+            marks missing entries.
+        :returns: Scalar loss averaged across valid entries per task, then across tasks.
+        :rtype: torch.Tensor
+        """
+        num_tasks = targets.shape[-1]
+        mean = outputs[..., :num_tasks]
+        log_var = outputs[..., num_tasks:].clamp(min=_LOG_VAR_MIN, max=_LOG_VAR_MAX)
+        var = log_var.exp()
+
+        nan_mask = torch.isnan(targets)
+        targets_safe = targets.clone()
+        targets_safe[nan_mask] = 0.0
+
+        per_element = 0.5 * log_var + 0.5 * (targets_safe - mean) ** 2 / var
+        weight = var.detach() ** self.beta
+        losses = weight * per_element
+
+        losses = losses.masked_fill(nan_mask, 0.0)
+        valid_counts = (~nan_mask).sum(dim=0)
+        per_task = losses.sum(dim=0) / (valid_counts + 1e-8)
+        self._per_task_losses = per_task.detach().clone()
+        return per_task.sum() / per_task.numel()
+
+
+@LossRegistry.register(alias="bounded-beta-nll")
+class BoundedBetaNLLLoss(nn.Module):
+    """β-NLL loss with support for censored (bounded) regression labels.
+
+    Standard β-NLL for observations with ``bound_code == 0``; censored
+    contributions are ``-log Φ((y - μ) / σ)`` for less-than bounds
+    (``bound_code == -1``) and ``-log Φ(-(y - μ) / σ)`` for greater-than
+    bounds (``bound_code == +1``), using :func:`torch.special.log_ndtr` for
+    numerical stability. This is a from-scratch loss (not a
+    :class:`BoundedLoss` wrapper); it shares the ``bounded-*`` alias family
+    for user familiarity only.
+
+    Targets have the ``(batch, num_tasks, 2)`` shape produced by the bounded
+    datamodule path: ``targets[..., 0]`` is the value, ``targets[..., 1]`` is
+    the bound code. NaN in the value marks a missing entry (masked per task).
+
+    :param float beta: β hyperparameter of the β-NLL reweighting on the
+        uncensored samples. Defaults to ``0.5`` (Seitzer et al. recommendation).
+    """
+
+    _requires_mve_head = True
+
+    def __init__(self, beta: float = 0.5, **_kwargs):
+        super().__init__()
+        self.beta = float(beta)
+
+    def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """
+        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``.
+        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks, 2)``;
+            ``[..., 0]`` is the value, ``[..., 1]`` is the bound code
+            (``-1`` = less-than, ``0`` = exact, ``+1`` = greater-than).
+        :returns: Scalar loss averaged across valid entries per task, then across tasks.
+        :rtype: torch.Tensor
+        """
+        num_tasks = targets.shape[1]
+        mean = outputs[..., :num_tasks]
+        log_var = outputs[..., num_tasks:].clamp(min=_LOG_VAR_MIN, max=_LOG_VAR_MAX)
+        var = log_var.exp()
+        std = (0.5 * log_var).exp()
+
+        values = targets[..., 0]
+        bound_code = targets[..., 1]
+
+        nan_mask = torch.isnan(values)
+        values_safe = values.clone()
+        values_safe[nan_mask] = 0.0
+
+        lt_mask = bound_code == -1
+        gt_mask = bound_code == 1
+
+        z = (values_safe - mean) / std
+        gaussian_nll = 0.5 * log_var + 0.5 * (values_safe - mean) ** 2 / var
+        weight = var.detach() ** self.beta
+        exact_per_element = weight * gaussian_nll
+
+        lt_per_element = -torch.special.log_ndtr(z)
+        gt_per_element = -torch.special.log_ndtr(-z)
+
+        per_element = torch.where(
+            lt_mask,
+            lt_per_element,
+            torch.where(gt_mask, gt_per_element, exact_per_element),
+        )
+        per_element = per_element.masked_fill(nan_mask, 0.0)
+
+        valid_counts = (~nan_mask).sum(dim=0)
+        per_task = per_element.sum(dim=0) / (valid_counts + 1e-8)
+        self._per_task_losses = per_task.detach().clone()
+        return per_task.sum() / per_task.numel()
