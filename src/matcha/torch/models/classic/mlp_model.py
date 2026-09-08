@@ -1,11 +1,10 @@
 """Multi-Layer Perceptron (MLP) classic model for tabular molecular features."""
 
-from typing import Any
+from typing import Any, Literal
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
 )
-from matcha.torch.predictors.mlp import MLP
 from matcha.nn.deep_lasso import deep_lasso_regularizer
 from matcha.nn.losses import MultiLoss
 from matcha.utils.schemas import MLPInputModel
@@ -82,22 +81,35 @@ class MLPModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
+        uncertainty: Literal["mve"] | None = None,
     ):
         super().__init__(additional_mol_features_dim)
         self.save_hyperparameters()
         self.params = MLPInputModel(**self.hparams)
         self.deep_lasso_weight = deep_lasso_weight
-        self.predictor = MLP(
-            self._get_predictor_input_dim(),
-            hidden_dims,
-            task_head_dims,
-            num_endpoints,
-            dropout,
-            activation,
-            "batch",
-        )
         self.encoder = None
+        self._parse_predictor()
         self._parse_train_config()
+
+    def _predictor_kwargs(self) -> dict[str, Any]:
+        """Translate MLP hparams to the predictor constructor kwargs.
+
+        :class:`MLPModel` uses bare ``hidden_dims`` / ``activation`` / ``dropout``
+        / ``task_head_dims`` hparams (no ``pred_`` prefix), so the base
+        implementation's ``pred_*`` reads do not apply. The returned dict is a
+        superset intentionally: ``_parse_predictor`` filters it against the
+        target predictor class's ``__init__`` signature, so ``task_head_dims``
+        is dropped on the ``MVEPredictor`` path.
+        """
+        return {
+            "input_dim": self._get_predictor_input_dim(),
+            "hidden_dims": self.hparams["hidden_dims"],
+            "task_head_dims": self.hparams["task_head_dims"],
+            "num_endpoints": self.hparams["num_endpoints"],
+            "dropout": self.hparams["dropout"],
+            "activation": self.hparams["activation"],
+            "norm": "batch",
+        }
 
     def training_step(self, batch: dict[str, Any], batch_idx):
         """Training step with deep lasso regularisation.

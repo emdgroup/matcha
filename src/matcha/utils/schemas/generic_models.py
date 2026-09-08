@@ -1,5 +1,9 @@
-from typing import Any
+from typing import Any, Literal
+from pydantic import model_validator
 from matcha.utils.schemas.base import BaseDataModel
+
+_MVE_LOSS_ALIASES = frozenset({"beta-nll", "mve", "bounded-beta-nll"})
+_MVE_INCOMPATIBLE_LOSSES = frozenset({"gradnorm", "multiloss"})
 
 
 class ClassicMatchaModel(BaseDataModel):
@@ -13,6 +17,37 @@ class ClassicMatchaModel(BaseDataModel):
     optimizer_args: dict[str, Any]
     scheduler: str
     scheduler_args: dict[str, Any]
+    uncertainty: Literal["mve"] | None = None
+
+    @model_validator(mode="after")
+    def _validate_mve_pairing(self) -> "ClassicMatchaModel":
+        """Enforce the MVE loss / uncertainty pairing rules.
+
+        1. ``uncertainty == "mve"`` requires a MVE-family ``loss_fn``.
+        2. A MVE-family ``loss_fn`` requires ``uncertainty == "mve"``.
+        3. ``uncertainty == "mve"`` is incompatible with ``gradnorm`` /
+           ``multiloss`` (head-width mismatch and multi-loss aggregation
+           semantics).
+        """
+        is_mve_uncertainty = self.uncertainty == "mve"
+        is_mve_loss = self.loss_fn in _MVE_LOSS_ALIASES
+
+        if is_mve_uncertainty and not is_mve_loss:
+            raise ValueError(
+                "uncertainty='mve' requires loss_fn in "
+                "{'beta-nll', 'mve', 'bounded-beta-nll'}, got "
+                f"loss_fn={self.loss_fn!r}."
+            )
+        if is_mve_loss and not is_mve_uncertainty:
+            raise ValueError(
+                f"loss_fn={self.loss_fn!r} requires uncertainty='mve' "
+                "(head width mismatch)."
+            )
+        if is_mve_uncertainty and self.loss_fn in _MVE_INCOMPATIBLE_LOSSES:
+            raise ValueError(
+                f"uncertainty='mve' is incompatible with loss_fn={self.loss_fn!r}."
+            )
+        return self
 
 
 class PretrainingMatchaModel(BaseDataModel):
