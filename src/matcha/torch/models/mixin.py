@@ -168,7 +168,7 @@ class ModelMixin(L.LightningModule):
 
         # MVE heads emit (B, 2T); slice to means before per-task metrics so
         # column indexing continues to align with the label tensor.
-        if getattr(self, "_mve_active", False):
+        if getattr(self, "uncertainty_method", "mc-dropout") == "mve":
             y_pred = y_pred[..., : y.shape[1]]
 
         # very hacky, but it does the job

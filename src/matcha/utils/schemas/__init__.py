@@ -5,6 +5,9 @@ PyTorch model architectures, scikit-learn wrappers, datamodule configurations,
 molecular datasets, explainability, and calibration settings.
 """
 
+# Generic model helpers
+from matcha.utils.schemas.generic_models import UncertaintyMethod
+
 # Torch API schemas
 from matcha.utils.schemas.torch_api import (
     GINInputModel,
@@ -64,6 +67,8 @@ from matcha.utils.schemas.calibration import (
 )
 
 __all__ = [
+    # Generic helpers
+    "UncertaintyMethod",
     # Torch API
     "GINInputModel",
     "AttentiveFPInputModel",

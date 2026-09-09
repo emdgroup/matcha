@@ -40,7 +40,7 @@ class _ToyClassicModel(BaseClassicModel, HyperparametersMixin):
         pred_activation: str = "relu",
         pred_dropout: float = 0.0,
         num_endpoints: int = 1,
-        uncertainty: str | None = None,
+        uncertainty: str = "mc-dropout",
         loss_fn: str = "mse",
         loss_args: dict = {},
         optimizer: str = "adam",
@@ -61,16 +61,45 @@ def _make_batch(batch: int, input_dim: int, num_endpoints: int) -> dict[str, Any
     }
 
 
+class TestUncertaintyMethodProperty:
+    """``uncertainty_method`` is the single canonical source for uncertainty
+    dispatch across the codebase — replaces the retired ``_mve_active``
+    boolean side-effect flag."""
+
+    def test_default_construction_reports_mc_dropout(self):
+        model = _ToyClassicModel(num_endpoints=2)
+        assert model.uncertainty_method == "mc-dropout"
+
+    def test_mve_construction_reports_mve(self):
+        model = _ToyClassicModel(num_endpoints=2, uncertainty="mve", loss_fn="beta-nll")
+        assert model.uncertainty_method == "mve"
+
+    def test_falls_back_to_mc_dropout_when_hparam_missing(self):
+        """Defensive path for raw checkpoints saved before the enum landed —
+        an absent ``uncertainty`` key must still be interpretable."""
+        model = _ToyClassicModel(num_endpoints=2)
+        # Simulate the legacy checkpoint case by dropping the hparam entirely.
+        del model.hparams["uncertainty"]
+        assert model.uncertainty_method == "mc-dropout"
+
+    def test_falls_back_to_mc_dropout_when_hparam_is_none(self):
+        """Legacy YAML configs with ``uncertainty: null`` may still show up in
+        raw hparam dicts on old checkpoints — the property normalizes them."""
+        model = _ToyClassicModel(num_endpoints=2)
+        model.hparams["uncertainty"] = None
+        assert model.uncertainty_method == "mc-dropout"
+
+
 class TestParsePredictorDispatch:
     def test_default_uses_predictor_cls_attribute(self):
         model = _ToyClassicModel(num_endpoints=2)
         assert isinstance(model.predictor, MLP)
-        assert model._mve_active is False
+        assert model.uncertainty_method == "mc-dropout"
 
     def test_uncertainty_mve_swaps_to_mve_predictor(self):
         model = _ToyClassicModel(num_endpoints=3, uncertainty="mve", loss_fn="beta-nll")
         assert isinstance(model.predictor, MVEPredictor)
-        assert model._mve_active is True
+        assert model.uncertainty_method == "mve"
 
     def test_mve_predictor_output_width_is_double(self):
         model = _ToyClassicModel(num_endpoints=3, uncertainty="mve", loss_fn="beta-nll")
@@ -92,7 +121,7 @@ class TestParsePredictorDispatch:
 
 
 class TestPredictStepSlicing:
-    def test_slices_means_when_mve_active(self):
+    def test_slices_means_when_uncertainty_is_mve(self):
         model = _ToyClassicModel(num_endpoints=3, uncertainty="mve", loss_fn="beta-nll")
         model.eval()
         batch = _make_batch(batch=4, input_dim=8, num_endpoints=3)
@@ -126,7 +155,7 @@ class TestPredictVarianceStep:
         mean_from_predict = model.predict_step(batch)
         assert torch.allclose(mean_from_variance, mean_from_predict)
 
-    def test_raises_when_not_mve_active(self):
+    def test_raises_when_uncertainty_is_not_mve(self):
         model = _ToyClassicModel(num_endpoints=2)
         batch = _make_batch(batch=3, input_dim=8, num_endpoints=2)
         with pytest.raises(RuntimeError, match="uncertainty='mve'"):
@@ -154,12 +183,13 @@ class TestParseLossFnMVEBypass:
 
 
 class TestValidationStepMVESlicing:
-    def test_step_completes_without_shape_error_when_mve_active(self, monkeypatch):
-        """Without the ``_mve_active`` slice, the per-task metric loop would
-        index into log-variance columns and mis-associate them with task
-        labels. Runs the mixin ``validation_step`` end-to-end with a stubbed
-        ``log`` (no Trainer attached) and asserts the loop completes with a
-        finite loss."""
+    def test_step_completes_without_shape_error_when_uncertainty_is_mve(
+        self, monkeypatch
+    ):
+        """Without the MVE slice, the per-task metric loop would index into
+        log-variance columns and mis-associate them with task labels. Runs the
+        mixin ``validation_step`` end-to-end with a stubbed ``log`` (no
+        Trainer attached) and asserts the loop completes with a finite loss."""
         from matcha.torch.models.mixin import ModelMixin
 
         model = _ToyClassicModel(num_endpoints=2, uncertainty="mve", loss_fn="beta-nll")

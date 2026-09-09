@@ -226,3 +226,50 @@ class TestUncertaintyManagerComputeMVE:
     ):
         with pytest.raises(RuntimeError, match="uncertainty='mve'"):
             fitted_model._inner_predict_variance(mol_list)
+
+
+class TestUncertaintyManagerDispatch:
+    """The compute() dispatch selects a branch from the model's uncertainty_method."""
+
+    class _StubModel:
+        """Minimal model_instance stub — only ``_model.uncertainty_method`` is read."""
+
+        def __init__(self, method: str):
+            self._model = type("_M", (), {"uncertainty_method": method})()
+
+    @pytest.mark.parametrize("method", ["mc-dropout", "mve"])
+    def test_dispatch_selects_correct_branch(self, monkeypatch, method):
+        mgr = UncertaintyManager()
+        calls = {"mc-dropout": 0, "mve": 0}
+
+        def fake_mc(self, *args, **kwargs):
+            calls["mc-dropout"] += 1
+            return np.zeros((1, 1))
+
+        def fake_mve(self, *args, **kwargs):
+            calls["mve"] += 1
+            return np.zeros((1, 1))
+
+        monkeypatch.setattr(UncertaintyManager, "_compute_mc_dropout", fake_mc)
+        monkeypatch.setattr(UncertaintyManager, "_compute_mve", fake_mve)
+
+        mgr.compute(self._StubModel(method), x=None)
+        assert calls[method] == 1
+        other = "mve" if method == "mc-dropout" else "mc-dropout"
+        assert calls[other] == 0
+
+    def test_dispatch_raises_on_unknown_method(self, monkeypatch):
+        mgr = UncertaintyManager()
+        # Bypass the concrete branches so an unknown method reliably hits the fallback.
+        monkeypatch.setattr(
+            UncertaintyManager,
+            "_compute_mc_dropout",
+            lambda self, *a, **kw: np.zeros((1, 1)),
+        )
+        monkeypatch.setattr(
+            UncertaintyManager,
+            "_compute_mve",
+            lambda self, *a, **kw: np.zeros((1, 1)),
+        )
+        with pytest.raises(NotImplementedError, match="Unknown uncertainty method"):
+            mgr.compute(self._StubModel("deep-ensemble"), x=None)

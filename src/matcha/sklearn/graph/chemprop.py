@@ -9,6 +9,7 @@ from matcha.sklearn.base_sklearn_model import (
 )
 from matcha.torch.models.classic import ChempropModel
 from matcha.sklearn.base_sklearn_model import ScikitLearnModelRegistry
+from matcha.utils.schemas import UncertaintyMethod
 
 from matcha.datamodules.classic.rdkit_engine import Engine
 import numpy as np
@@ -140,6 +141,7 @@ class ChempropClassifier(
         label_encoder_params: dict = {},
         label_transform_map: str | list[str] | dict | None = None,
         seed: int = 0,
+        uncertainty: Literal["mc-dropout"] = "mc-dropout",
     ):
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         self._architecture = ChempropModel
@@ -271,7 +273,7 @@ class ChempropRegressor(BaseScikitLearnModel, ScikitLearnRegressorMixin, Chempro
         label_transform_map: str | list[str] | dict | None = None,
         scaler_type: str = "standard",
         seed: int = 0,
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         if uncertainty == "mve":
             raise NotImplementedError(

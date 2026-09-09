@@ -1,13 +1,11 @@
 """1-D Convolutional Neural Network (CNN) classic model for chemical language."""
 
-from typing import Literal
-
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
 )
 from matcha.torch.encoders.cnn import CNN
-from matcha.utils.schemas import CNNInputModel
+from matcha.utils.schemas import CNNInputModel, UncertaintyMethod
 
 from lightning.pytorch.core.mixins import HyperparametersMixin
 
@@ -81,7 +79,7 @@ class CNNModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         super().__init__(additional_mol_features_dim=additional_mol_features_dim)
         self.save_hyperparameters()

@@ -1,6 +1,6 @@
 """Self-Normalizing Neural Network (SNN) classic model for tabular molecular features."""
 
-from typing import Any, Literal
+from typing import Any
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
@@ -8,7 +8,7 @@ from matcha.torch.models.classic.base_classic_model import (
 from matcha.torch.predictors.snn import SNN
 from matcha.nn.deep_lasso import deep_lasso_regularizer
 from matcha.nn.losses import MultiLoss
-from matcha.utils.schemas import SNNInputModel
+from matcha.utils.schemas import SNNInputModel, UncertaintyMethod
 
 from lightning.pytorch.core.mixins import HyperparametersMixin
 
@@ -79,7 +79,7 @@ class SNNModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         if uncertainty == "mve":
             raise NotImplementedError(

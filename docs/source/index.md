@@ -121,6 +121,7 @@ contributing/adding-a-model
 contributing/adding-a-pretraining-model
 contributing/adding-a-fingerprint
 contributing/adding-a-loss
+contributing/adding-an-uncertainty-method
 ```
 
 ```{toctree}

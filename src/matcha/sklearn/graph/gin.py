@@ -7,9 +7,9 @@ from matcha.sklearn.base_sklearn_model import (
     ScikitLearnModelRegistry,
     ScikitLearnClassifierMixin,
     ScikitLearnRegressorMixin,
-    _validate_mve_sklearn_kwargs,
 )
 from matcha.sklearn.graph.base_sklearn_gnn import BaseScikitLearnGNN
+from matcha.utils.schemas import UncertaintyMethod
 
 
 @ScikitLearnModelRegistry.register()
@@ -147,6 +147,7 @@ class GINClassifier(BaseScikitLearnGNN, ScikitLearnClassifierMixin):
         label_transform_map: str | list[str] | dict | None = None,
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mc-dropout"] = "mc-dropout",
     ):
         self._architecture = GINModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
@@ -292,9 +293,8 @@ class GINRegressor(BaseScikitLearnGNN, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
-        _validate_mve_sklearn_kwargs(uncertainty, scaler_type, loss_fn)
         self._architecture = GINModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         super(GINRegressor, self).__init__(params)

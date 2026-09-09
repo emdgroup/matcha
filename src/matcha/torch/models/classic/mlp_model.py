@@ -1,13 +1,13 @@
 """Multi-Layer Perceptron (MLP) classic model for tabular molecular features."""
 
-from typing import Any, Literal
+from typing import Any
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
 )
 from matcha.nn.deep_lasso import deep_lasso_regularizer
 from matcha.nn.losses import MultiLoss
-from matcha.utils.schemas import MLPInputModel
+from matcha.utils.schemas import MLPInputModel, UncertaintyMethod
 
 from lightning.pytorch.core.mixins import HyperparametersMixin
 
@@ -81,7 +81,7 @@ class MLPModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         super().__init__(additional_mol_features_dim)
         self.save_hyperparameters()

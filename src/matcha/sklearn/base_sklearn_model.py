@@ -35,42 +35,6 @@ from matcha import __version__
 
 torch.set_float32_matmul_precision("high")
 
-_MVE_INCOMPATIBLE_LOSSES = frozenset({"multitask", "multiloss", "gradnorm"})
-
-
-def _validate_mve_sklearn_kwargs(
-    uncertainty: str | None,
-    scaler_type: str | None,
-    loss_fn: str | None,
-) -> None:
-    """Reject sklearn-level MVE kwarg combinations that the schema cannot express.
-
-    Runs before ``super().__init__(params)`` so the caller sees a
-    ``ValueError`` at the sklearn constructor site rather than a pydantic
-    ``ValidationError`` from the underlying Lightning module. Combinations
-    already covered by ``ClassicMatchaModel``'s pairing validator are not
-    re-checked here.
-
-    :param str | None uncertainty: value of the ``uncertainty`` kwarg
-    :param str | None scaler_type: value of the ``scaler_type`` kwarg
-    :param str | None loss_fn: value of the ``loss_fn`` kwarg
-    :raises ValueError: on incompatible combinations
-    """
-    if uncertainty != "mve":
-        return
-    if scaler_type is not None and scaler_type != "standard":
-        raise ValueError(
-            f"uncertainty='mve' requires scaler_type='standard' "
-            f"(got '{scaler_type}'); other scalers have no closed-form "
-            f"variance transform."
-        )
-    if loss_fn in _MVE_INCOMPATIBLE_LOSSES:
-        raise ValueError(
-            f"uncertainty='mve' is incompatible with loss_fn='{loss_fn}'. "
-            f"Use loss_fn='beta-nll' for standard regression or "
-            f"loss_fn='bounded-beta-nll' for censored labels."
-        )
-
 
 # default train args
 _train_args = [
@@ -253,6 +217,11 @@ class BaseScikitLearnModel(ABC):
 
         # Create metadata
         self._metadata = MetadataInputModel(**self._init_metadata())
+
+        # Trigger composed-schema validation eagerly so cross-schema pairing
+        # rules (e.g. MVE uncertainty ↔ scaler_type='standard') surface at
+        # construction time rather than at the first serialization step.
+        _ = self.params
 
     def _start_setup(self):
         """Initialize basic attributes and delegate managers."""
@@ -523,7 +492,7 @@ class BaseScikitLearnModel(ABC):
         :raises RuntimeError: if the underlying model was not configured with
             ``uncertainty="mve"``
         """
-        if not getattr(self._model, "_mve_active", False):
+        if getattr(self._model, "uncertainty_method", "mc-dropout") != "mve":
             raise RuntimeError(
                 "_inner_predict_variance is only available when the model was "
                 "instantiated with uncertainty='mve'."

@@ -1,5 +1,7 @@
 """Pydantic schemas for scikit-learn-compatible matcha model configurations."""
 
+from pydantic import model_validator
+
 from matcha.utils.schemas.base import BaseDataModel
 from typing import Dict, Literal, Optional, Any
 from matcha.utils.schemas.datamodules import DataModuleModel
@@ -75,6 +77,20 @@ class ScikitLearnInputModel(BaseDataModel):
     calibration: CalibratorModel | None
     mlflow: MLFlowInputModel | None
     tuning: TuningInputModel | None
+
+    @model_validator(mode="after")
+    def _validate_mve_scaler_pairing(self) -> "ScikitLearnInputModel":
+        # MVE variance heads only train stably against a standard-scaled target;
+        # quantile-transformed targets break the parametric-variance assumption.
+        if getattr(self.model, "uncertainty", None) != "mve":
+            return self
+        scaler_type = getattr(self.datamodule, "scaler_type", None)
+        if scaler_type != "standard":
+            raise ValueError(
+                "uncertainty='mve' requires datamodule.scaler_type='standard', "
+                f"got scaler_type={scaler_type!r}."
+            )
+        return self
 
 
 class ScikitLearnEnsembleInputModel(BaseDataModel):

@@ -1,11 +1,17 @@
-"""Tests for the ``ClassicMatchaModel`` MVE-pairing validator.
+"""Tests for the ``ClassicMatchaModel`` uncertainty enum and MVE-pairing validator.
 
-The validator on :class:`matcha.utils.schemas.generic_models.ClassicMatchaModel`
-enforces three symmetric rules on the ``uncertainty`` / ``loss_fn`` pairing:
+The schema on :class:`matcha.utils.schemas.generic_models.ClassicMatchaModel`
+enforces two orthogonal concerns:
 
-1. ``uncertainty="mve"`` requires a MVE-family ``loss_fn``.
-2. A MVE-family ``loss_fn`` requires ``uncertainty="mve"``.
-3. ``uncertainty="mve"`` is incompatible with ``gradnorm`` / ``multiloss``.
+* ``uncertainty`` is an explicit enum (``Literal["mc-dropout", "mve"]``) that
+  defaults to ``"mc-dropout"``. Legacy configs with ``uncertainty=None`` are
+  normalized to ``"mc-dropout"`` for backwards compatibility.
+* Three symmetric MVE / loss pairing rules:
+
+  1. ``uncertainty="mve"`` requires a MVE-family ``loss_fn``.
+  2. A MVE-family ``loss_fn`` requires ``uncertainty="mve"``.
+  3. ``uncertainty="mve"`` is incompatible with ``multitask`` / ``multiloss`` /
+     ``gradnorm``.
 """
 
 import pytest
@@ -25,15 +31,31 @@ _BASE_ARGS = dict(
 )
 
 
+class TestClassicMatchaModelUncertaintyEnum:
+    """Explicit enum surface and backwards compatibility with legacy ``None``."""
+
+    def test_default_uncertainty_is_mc_dropout(self):
+        m = ClassicMatchaModel(loss_fn="mse", **_BASE_ARGS)
+        assert m.uncertainty == "mc-dropout"
+
+    def test_explicit_mc_dropout_accepted(self):
+        m = ClassicMatchaModel(loss_fn="mse", uncertainty="mc-dropout", **_BASE_ARGS)
+        assert m.uncertainty == "mc-dropout"
+
+    def test_legacy_none_normalized_to_mc_dropout(self):
+        m = ClassicMatchaModel(loss_fn="mse", uncertainty=None, **_BASE_ARGS)
+        assert m.uncertainty == "mc-dropout"
+
+    @pytest.mark.parametrize("bad", ["foo", "dropout", "MVE", "mc_dropout"])
+    def test_invalid_literal_rejected(self, bad):
+        with pytest.raises(ValidationError):
+            ClassicMatchaModel(loss_fn="mse", uncertainty=bad, **_BASE_ARGS)
+
+
 class TestClassicMatchaModelMVEPairing:
     """Symmetric validation rules on the MVE / loss pairing."""
 
     # -- happy paths -----------------------------------------------------
-
-    def test_default_no_uncertainty_plain_loss(self):
-        m = ClassicMatchaModel(loss_fn="mse", **_BASE_ARGS)
-        assert m.uncertainty is None
-        assert m.loss_fn == "mse"
 
     @pytest.mark.parametrize("loss", ["beta-nll", "mve", "bounded-beta-nll"])
     def test_mve_uncertainty_with_matching_loss(self, loss):
@@ -55,9 +77,9 @@ class TestClassicMatchaModelMVEPairing:
         with pytest.raises(ValidationError, match=r"requires uncertainty='mve'"):
             ClassicMatchaModel(loss_fn=loss, **_BASE_ARGS)
 
-    # -- rule 3: MVE + gradnorm / multiloss incompatible -----------------
+    # -- rule 3: MVE + multitask / multiloss / gradnorm incompatible -----
 
-    @pytest.mark.parametrize("loss", ["gradnorm", "multiloss"])
+    @pytest.mark.parametrize("loss", ["gradnorm", "multiloss", "multitask"])
     def test_mve_uncertainty_rejects_multi_task_loss(self, loss):
         with pytest.raises(ValidationError, match=r"requires loss_fn in"):
             ClassicMatchaModel(loss_fn=loss, uncertainty="mve", **_BASE_ARGS)

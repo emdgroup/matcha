@@ -1,7 +1,5 @@
 """Chemprop (Directed Message Passing Neural Network) classic model."""
 
-from typing import Literal
-
 from chemprop.models.model import MPNN
 from chemprop.nn import BondMessagePassing
 from chemprop.nn.predictors import (
@@ -13,7 +11,7 @@ from chemprop.nn.agg import AttentiveAggregation
 from chemprop.nn.metrics import LossFunctionRegistry as ChempropLossRegistry
 from lightning.pytorch.core.mixins import HyperparametersMixin
 import torch
-from matcha.utils.schemas import ChempropInputModel
+from matcha.utils.schemas import ChempropInputModel, UncertaintyMethod
 from matcha.torch.models.classic.base_classic_model import ClassicModelRegistry
 
 
@@ -80,7 +78,7 @@ class ChempropModel(MPNN, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "chemprop",
         scheduler_args: dict = {"warmup_epochs": 5, "max_lr": 1e-2, "final_lr": 1e-5},
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         if uncertainty == "mve":
             raise NotImplementedError(

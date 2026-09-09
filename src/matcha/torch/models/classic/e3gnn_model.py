@@ -1,13 +1,11 @@
 """E(3)-equivariant graph neural network (E3GNN) classic model."""
 
-from typing import Literal
-
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
 )
 from matcha.torch.encoders.e3gnn import E3GNN
-from matcha.utils.schemas import E3GNNInputModel
+from matcha.utils.schemas import E3GNNInputModel, UncertaintyMethod
 
 from lightning.pytorch.core.mixins import HyperparametersMixin
 
@@ -113,7 +111,7 @@ class E3GNNModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         super().__init__(additional_mol_features_dim=additional_mol_features_dim)
         self.save_hyperparameters()

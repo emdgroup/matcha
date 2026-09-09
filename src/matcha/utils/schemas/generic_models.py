@@ -1,9 +1,11 @@
-from typing import Any, Literal
-from pydantic import model_validator
+from typing import Any, Literal, TypeAlias
+from pydantic import field_validator, model_validator
 from matcha.utils.schemas.base import BaseDataModel
 
+UncertaintyMethod: TypeAlias = Literal["mc-dropout", "mve"]
+
 _MVE_LOSS_ALIASES = frozenset({"beta-nll", "mve", "bounded-beta-nll"})
-_MVE_INCOMPATIBLE_LOSSES = frozenset({"gradnorm", "multiloss"})
+_MVE_INCOMPATIBLE_LOSSES = frozenset({"multitask", "multiloss", "gradnorm"})
 
 
 class ClassicMatchaModel(BaseDataModel):
@@ -17,7 +19,16 @@ class ClassicMatchaModel(BaseDataModel):
     optimizer_args: dict[str, Any]
     scheduler: str
     scheduler_args: dict[str, Any]
-    uncertainty: Literal["mve"] | None = None
+    uncertainty: UncertaintyMethod = "mc-dropout"
+
+    @field_validator("uncertainty", mode="before")
+    @classmethod
+    def _normalize_legacy_uncertainty(cls, value: Any) -> Any:
+        # Legacy configs stored uncertainty=None to mean "MC dropout"; normalize
+        # so the explicit enum covers historical YAML without a breaking change.
+        if value is None:
+            return "mc-dropout"
+        return value
 
     @model_validator(mode="after")
     def _validate_mve_pairing(self) -> "ClassicMatchaModel":
@@ -25,9 +36,9 @@ class ClassicMatchaModel(BaseDataModel):
 
         1. ``uncertainty == "mve"`` requires a MVE-family ``loss_fn``.
         2. A MVE-family ``loss_fn`` requires ``uncertainty == "mve"``.
-        3. ``uncertainty == "mve"`` is incompatible with ``gradnorm`` /
-           ``multiloss`` (head-width mismatch and multi-loss aggregation
-           semantics).
+        3. ``uncertainty == "mve"`` is incompatible with ``multitask`` /
+           ``multiloss`` / ``gradnorm`` (head-width mismatch and multi-loss
+           aggregation semantics).
         """
         is_mve_uncertainty = self.uncertainty == "mve"
         is_mve_loss = self.loss_fn in _MVE_LOSS_ALIASES

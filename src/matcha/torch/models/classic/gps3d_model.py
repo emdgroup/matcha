@@ -1,14 +1,12 @@
 """GPS Graph Transformer with 3-D distance kernels (GPS3D) classic model."""
 
-from typing import Literal
-
 from matcha.torch.models.classic.base_classic_model import (
     BaseClassicModel,
     ClassicModelRegistry,
 )
 from matcha.torch.encoders.gps3d import GPS3D
 from lightning.pytorch.core.mixins import HyperparametersMixin
-from matcha.utils.schemas import GPS3DInputModel
+from matcha.utils.schemas import GPS3DInputModel, UncertaintyMethod
 
 
 @ClassicModelRegistry.register()
@@ -98,7 +96,7 @@ class GPS3DModel(BaseClassicModel, HyperparametersMixin):
         optimizer_args: dict = {"lr": 1e-3},
         scheduler: str = "cosine_annealing",
         scheduler_args: dict = {"min_lr": 1e-6, "total_steps": 50},
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         super().__init__(additional_mol_features_dim=additional_mol_features_dim)
         self.save_hyperparameters()
