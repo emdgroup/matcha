@@ -8,6 +8,45 @@ _MVE_LOSS_ALIASES = frozenset({"beta-nll", "mve", "bounded-beta-nll"})
 _MVE_INCOMPATIBLE_LOSSES = frozenset({"multitask", "multiloss", "gradnorm"})
 
 
+def _validate_mve_pairing_rules(
+    loss_fn: str,
+    uncertainty: str,
+    mve_aliases: frozenset[str] = _MVE_LOSS_ALIASES,
+    incompatible: frozenset[str] = _MVE_INCOMPATIBLE_LOSSES,
+) -> None:
+    """Enforce the MVE loss / uncertainty pairing rules.
+
+    1. ``uncertainty == "mve"`` requires ``loss_fn`` in ``mve_aliases``.
+    2. A ``loss_fn`` in ``mve_aliases`` requires ``uncertainty == "mve"``.
+    3. ``uncertainty == "mve"`` is incompatible with ``incompatible`` losses
+       (head-width mismatch, multi-loss aggregation semantics).
+
+    :param str loss_fn: user-configured loss alias.
+    :param str uncertainty: user-configured uncertainty method.
+    :param frozenset[str] mve_aliases: loss aliases that select an MVE head
+        on this path (matcha default: β-NLL family; chemprop paths pass
+        ``frozenset({"mve"})``).
+    :param frozenset[str] incompatible: loss aliases that MVE cannot compose
+        with regardless of the alias set (multitask wrappers, gradnorm).
+    :raises ValueError: if any of the three pairing rules is violated.
+    """
+    is_mve_uncertainty = uncertainty == "mve"
+    is_mve_loss = loss_fn in mve_aliases
+
+    if is_mve_uncertainty and not is_mve_loss:
+        allowed = sorted(mve_aliases)
+        raise ValueError(
+            f"uncertainty='mve' requires loss_fn in {allowed!r}, got "
+            f"loss_fn={loss_fn!r}."
+        )
+    if is_mve_loss and not is_mve_uncertainty:
+        raise ValueError(
+            f"loss_fn={loss_fn!r} requires uncertainty='mve' (head width mismatch)."
+        )
+    if is_mve_uncertainty and loss_fn in incompatible:
+        raise ValueError(f"uncertainty='mve' is incompatible with loss_fn={loss_fn!r}.")
+
+
 class ClassicMatchaModel(BaseDataModel):
     """Base schema for all standard matcha models defining shared training parameters."""
 
@@ -32,32 +71,7 @@ class ClassicMatchaModel(BaseDataModel):
 
     @model_validator(mode="after")
     def _validate_mve_pairing(self) -> "ClassicMatchaModel":
-        """Enforce the MVE loss / uncertainty pairing rules.
-
-        1. ``uncertainty == "mve"`` requires a MVE-family ``loss_fn``.
-        2. A MVE-family ``loss_fn`` requires ``uncertainty == "mve"``.
-        3. ``uncertainty == "mve"`` is incompatible with ``multitask`` /
-           ``multiloss`` / ``gradnorm`` (head-width mismatch and multi-loss
-           aggregation semantics).
-        """
-        is_mve_uncertainty = self.uncertainty == "mve"
-        is_mve_loss = self.loss_fn in _MVE_LOSS_ALIASES
-
-        if is_mve_uncertainty and not is_mve_loss:
-            raise ValueError(
-                "uncertainty='mve' requires loss_fn in "
-                "{'beta-nll', 'mve', 'bounded-beta-nll'}, got "
-                f"loss_fn={self.loss_fn!r}."
-            )
-        if is_mve_loss and not is_mve_uncertainty:
-            raise ValueError(
-                f"loss_fn={self.loss_fn!r} requires uncertainty='mve' "
-                "(head width mismatch)."
-            )
-        if is_mve_uncertainty and self.loss_fn in _MVE_INCOMPATIBLE_LOSSES:
-            raise ValueError(
-                f"uncertainty='mve' is incompatible with loss_fn={self.loss_fn!r}."
-            )
+        _validate_mve_pairing_rules(self.loss_fn, self.uncertainty)
         return self
 
 

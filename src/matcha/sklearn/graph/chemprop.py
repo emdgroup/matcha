@@ -275,13 +275,6 @@ class ChempropRegressor(BaseScikitLearnModel, ScikitLearnRegressorMixin, Chempro
         seed: int = 0,
         uncertainty: UncertaintyMethod = "mc-dropout",
     ):
-        if uncertainty == "mve":
-            raise NotImplementedError(
-                "MVE uncertainty is not supported for ChempropRegressor: the "
-                "Chemprop head is chemprop.nn.predictors.RegressionFFN, not a "
-                "MATCHA BasePredictor. A dedicated MVERegressionFFN wrapper is "
-                "tracked as a follow-up to this feature."
-            )
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         self._architecture = ChempropModel
         super(ChempropRegressor, self).__init__(params)

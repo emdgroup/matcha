@@ -376,12 +376,24 @@ def fitted_classifier(classifier_cls, mol_list, classification_y):
 # =========================================================================
 
 _MVE_KWARGS = dict(uncertainty="mve", loss_fn="beta-nll")
+# ChempropRegressor is wired to chemprop's own MveFFN + MVELoss (alias "mve").
+# β-NLL and bounded-β-NLL remain matcha-only.
+_MVE_KWARGS_CHEMPROP = dict(uncertainty="mve", loss_fn="mve")
+
+_MVE_LOSS_KWARGS: dict[type, dict] = {ChempropRegressor: _MVE_KWARGS_CHEMPROP}
+
+
+def _mve_kwargs_for(cls: type) -> dict:
+    """MVE loss + uncertainty kwargs for a given regressor class."""
+    return _MVE_LOSS_KWARGS.get(cls, _MVE_KWARGS)
+
 
 _MVE_REGRESSOR_CLASSES = [
     MLPRegressor,
     GINRegressor,
     E3GNNRegressor,
     RoFormerRegressor,
+    ChempropRegressor,
 ]
 
 
@@ -390,7 +402,7 @@ def mve_regressor_cls(request):
     """Yield one MVE-compatible regressor class per parametrized run.
 
     Coverage spans one representative per family (tabular, 2-D graph,
-    3-D graph, CLM) to keep CI runtime bounded.
+    3-D graph, CLM, chemprop) to keep CI runtime bounded.
     """
     return request.param
 
@@ -398,7 +410,7 @@ def mve_regressor_cls(request):
 @pytest.fixture()
 def fitted_mve_regressor(mve_regressor_cls, mol_list, regression_y):
     """Instantiate, fit, and return an MVE regressor on the toy data."""
-    kwargs = {**_ARCH_KWARGS[mve_regressor_cls], **_MVE_KWARGS}
+    kwargs = {**_ARCH_KWARGS[mve_regressor_cls], **_mve_kwargs_for(mve_regressor_cls)}
     model = mve_regressor_cls(**kwargs)
     model.fit(mol_list, regression_y)
     return model

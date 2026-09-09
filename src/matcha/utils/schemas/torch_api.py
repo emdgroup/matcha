@@ -1,7 +1,7 @@
 """Pydantic schemas for PyTorch-based model architectures in matcha."""
 
 import pydantic as pyd
-from typing import Annotated, Literal, Sequence
+from typing import Annotated, Any, Literal, Sequence
 from matcha.utils.schemas.generic_models import (
     ClassicMatchaModel,
     PretrainingMatchaModel,
@@ -25,8 +25,12 @@ from matcha.utils.schemas.generic_models import (
     SNNMixin,
     FinetunerMixin,
     ChempropFinetunerMixin,
+    UncertaintyMethod,
+    _validate_mve_pairing_rules,
 )
 from matcha.utils.schemas.base import BaseDataModel
+
+_CHEMPROP_MVE_ALIASES = frozenset({"mve"})
 
 
 class GINInputModel(ClassicMatchaModel, GraphMixin, GINMixin):
@@ -213,6 +217,27 @@ class ChempropInputModel(BaseDataModel):
     optimizer_args: dict
     scheduler: str
     scheduler_args: dict
+    uncertainty: UncertaintyMethod = "mc-dropout"
+
+    @pyd.field_validator("uncertainty", mode="before")
+    @classmethod
+    def _normalize_legacy_uncertainty(cls, value: Any) -> Any:
+        # Match ClassicMatchaModel's legacy None -> "mc-dropout" behaviour so
+        # pre-issue-99 YAML configs continue to validate.
+        if value is None:
+            return "mc-dropout"
+        return value
+
+    @pyd.model_validator(mode="after")
+    def _validate_mve_pairing(self) -> "ChempropInputModel":
+        # Chemprop paths only accept chemprop's own MVELoss (alias "mve").
+        # β-NLL and bounded-β-NLL are matcha-only.
+        _validate_mve_pairing_rules(
+            self.loss_fn,
+            self.uncertainty,
+            mve_aliases=_CHEMPROP_MVE_ALIASES,
+        )
+        return self
 
 
 TorchModel = (
