@@ -962,7 +962,7 @@ class TestBetaNLLLoss:
 
     def test_output_scalar_single_task(self):
         loss_fn = BetaNLLLoss(beta=0.5)
-        preds = torch.randn(8, 2)  # 1 task: mean + log_var
+        preds = torch.randn(8, 1, 2)  # 1 task: (mean, log_var) along last axis
         targets = torch.randn(8, 1)
         loss = loss_fn(preds, targets)
         assert loss.dim() == 0
@@ -971,7 +971,7 @@ class TestBetaNLLLoss:
     def test_output_scalar_multitask(self, multitask_targets):
         num_tasks = multitask_targets.shape[1]
         loss_fn = BetaNLLLoss(beta=0.5)
-        preds = torch.randn(multitask_targets.shape[0], 2 * num_tasks)
+        preds = torch.randn(multitask_targets.shape[0], num_tasks, 2)
         loss = loss_fn(preds, multitask_targets.clone())
         assert loss.dim() == 0
         assert torch.isfinite(loss)
@@ -982,7 +982,7 @@ class TestBetaNLLLoss:
         mean = torch.randn(16, num_tasks)
         log_var = torch.randn(16, num_tasks) * 0.5
         targets = torch.randn(16, num_tasks)
-        preds = torch.cat([mean, log_var], dim=-1)
+        preds = torch.stack([mean, log_var], dim=-1)
 
         loss_fn = BetaNLLLoss(beta=0.5)
         loss = loss_fn(preds, targets)
@@ -994,7 +994,7 @@ class TestBetaNLLLoss:
         mean = torch.randn(16, 2)
         log_var = torch.randn(16, 2) * 0.3
         targets = torch.randn(16, 2)
-        preds = torch.cat([mean, log_var], dim=-1)
+        preds = torch.stack([mean, log_var], dim=-1)
 
         vanilla_per_element = (
             0.5 * log_var + 0.5 * (targets - mean) ** 2 / log_var.exp()
@@ -1011,7 +1011,7 @@ class TestBetaNLLLoss:
         mean = torch.randn(16, 2)
         log_var = torch.randn(16, 2) * 0.3
         targets = torch.randn(16, 2)
-        preds = torch.cat([mean, log_var], dim=-1)
+        preds = torch.stack([mean, log_var], dim=-1)
 
         loss_fn = BetaNLLLoss(beta=1.0)
         loss = loss_fn(preds, targets)
@@ -1020,14 +1020,14 @@ class TestBetaNLLLoss:
 
     def test_gradient_flows_to_mean_and_log_var(self):
         loss_fn = BetaNLLLoss(beta=0.5)
-        preds = torch.randn(8, 4, requires_grad=True)
+        preds = torch.randn(8, 2, 2, requires_grad=True)
         targets = torch.randn(8, 2)
         loss = loss_fn(preds, targets)
         loss.backward()
         assert preds.grad is not None
-        # Grad on both halves must be non-zero.
-        assert torch.any(preds.grad[:, :2] != 0)
-        assert torch.any(preds.grad[:, 2:] != 0)
+        # Grad on both channels must be non-zero.
+        assert torch.any(preds.grad[..., 0] != 0)
+        assert torch.any(preds.grad[..., 1] != 0)
 
     def test_sigma_reweighting_factor_is_detached(self):
         """The σ^(2β) weight must not contribute a gradient to log_var beyond
@@ -1049,7 +1049,7 @@ class TestBetaNLLLoss:
 
         # BetaNLLLoss with detach.
         log_var2 = torch.zeros(16, 2, requires_grad=True)
-        preds = torch.cat([mean, log_var2], dim=-1)
+        preds = torch.stack([mean, log_var2], dim=-1)
         loss = BetaNLLLoss(beta=0.5)(preds, targets)
         grad_detach = torch.autograd.grad(loss, log_var2)[0]
 
@@ -1059,20 +1059,20 @@ class TestBetaNLLLoss:
 
     def test_extreme_log_var_stays_finite(self):
         """log_var outside the clamp range must not produce NaN/inf loss."""
-        preds = torch.zeros(4, 4)
-        preds[:, 2:] = 1e6  # extreme log_var
+        preds = torch.zeros(4, 2, 2)
+        preds[..., 1] = 1e6  # extreme log_var
         targets = torch.zeros(4, 2)
         loss = BetaNLLLoss(beta=0.5)(preds, targets)
         assert torch.isfinite(loss)
 
-        preds[:, 2:] = -1e6
+        preds[..., 1] = -1e6
         loss = BetaNLLLoss(beta=0.5)(preds, targets)
         assert torch.isfinite(loss)
 
     def test_nan_targets_masked_per_task(self):
         """Entries with NaN targets should not contribute to the loss."""
         num_tasks = 3
-        preds = torch.randn(8, 2 * num_tasks)
+        preds = torch.randn(8, num_tasks, 2)
         targets = torch.randn(8, num_tasks)
         targets[0, 1] = float("nan")
         targets[3, 0] = float("nan")
@@ -1081,7 +1081,7 @@ class TestBetaNLLLoss:
 
     def test_all_nan_column_finite(self):
         num_tasks = 3
-        preds = torch.randn(8, 2 * num_tasks)
+        preds = torch.randn(8, num_tasks, 2)
         targets = torch.full((8, num_tasks), float("nan"))
         targets[:, 0] = torch.randn(8)
         loss = BetaNLLLoss(beta=0.5)(preds, targets)
@@ -1090,7 +1090,7 @@ class TestBetaNLLLoss:
     def test_per_task_losses_attribute(self, multitask_targets):
         num_tasks = multitask_targets.shape[1]
         loss_fn = BetaNLLLoss(beta=0.5)
-        preds = torch.randn(multitask_targets.shape[0], 2 * num_tasks)
+        preds = torch.randn(multitask_targets.shape[0], num_tasks, 2)
         loss_fn(preds, multitask_targets.clone())
         assert hasattr(loss_fn, "_per_task_losses")
         assert loss_fn._per_task_losses.shape == (num_tasks,)
@@ -1111,7 +1111,7 @@ class TestBoundedBetaNLLLoss:
 
     def test_output_scalar_single_task(self):
         loss_fn = BoundedBetaNLLLoss(beta=0.5)
-        preds = torch.randn(8, 2)  # 1 task: mean + log_var
+        preds = torch.randn(8, 1, 2)  # 1 task: (mean, log_var) along last axis
         targets = torch.zeros(8, 1, 2)
         targets[..., 0] = torch.randn(8, 1)
         loss = loss_fn(preds, targets)
@@ -1120,7 +1120,7 @@ class TestBoundedBetaNLLLoss:
 
     def test_output_scalar_multitask(self):
         loss_fn = BoundedBetaNLLLoss(beta=0.5)
-        preds = torch.randn(8, 4)  # 2 tasks
+        preds = torch.randn(8, 2, 2)  # 2 tasks
         targets = torch.zeros(8, 2, 2)
         targets[..., 0] = torch.randn(8, 2)
         targets[:, 0, 1] = -1
@@ -1137,7 +1137,7 @@ class TestBoundedBetaNLLLoss:
         mean = torch.randn(16, num_tasks)
         log_var = torch.randn(16, num_tasks) * 0.3
         values = torch.randn(16, num_tasks)
-        preds = torch.cat([mean, log_var], dim=-1)
+        preds = torch.stack([mean, log_var], dim=-1)
         targets = torch.stack([values, torch.zeros_like(values)], dim=-1)
 
         loss = BoundedBetaNLLLoss(beta=0.5)(preds, targets)
@@ -1149,7 +1149,7 @@ class TestBoundedBetaNLLLoss:
         equal ``-log_ndtr((y - μ) / σ)``."""
         mean = torch.tensor([[0.0]])
         log_var = torch.tensor([[0.0]])  # σ = 1
-        preds = torch.cat([mean, log_var], dim=-1)
+        preds = torch.stack([mean, log_var], dim=-1)
         targets = torch.tensor([[[1.5, -1.0]]])
 
         loss = BoundedBetaNLLLoss(beta=0.5)(preds, targets)
@@ -1161,7 +1161,7 @@ class TestBoundedBetaNLLLoss:
         ``-log_ndtr(-(y - μ) / σ)``."""
         mean = torch.tensor([[0.0]])
         log_var = torch.tensor([[0.0]])
-        preds = torch.cat([mean, log_var], dim=-1)
+        preds = torch.stack([mean, log_var], dim=-1)
         targets = torch.tensor([[[-0.5, 1.0]]])
 
         loss = BoundedBetaNLLLoss(beta=0.5)(preds, targets)
@@ -1169,7 +1169,7 @@ class TestBoundedBetaNLLLoss:
         assert torch.allclose(loss, expected, atol=1e-6)
 
     def test_gradient_flows(self):
-        preds = torch.randn(8, 4, requires_grad=True)
+        preds = torch.randn(8, 2, 2, requires_grad=True)
         targets = torch.zeros(8, 2, 2)
         targets[..., 0] = torch.randn(8, 2)
         targets[:, 0, 1] = -1
@@ -1180,7 +1180,7 @@ class TestBoundedBetaNLLLoss:
         assert torch.any(preds.grad != 0)
 
     def test_nan_values_masked(self):
-        preds = torch.randn(8, 4)
+        preds = torch.randn(8, 2, 2)
         targets = torch.zeros(8, 2, 2)
         targets[..., 0] = torch.randn(8, 2)
         targets[0, 0, 0] = float("nan")
@@ -1189,8 +1189,8 @@ class TestBoundedBetaNLLLoss:
         assert torch.isfinite(loss)
 
     def test_extreme_log_var_stays_finite(self):
-        preds = torch.zeros(4, 4)
-        preds[:, 2:] = 1e6
+        preds = torch.zeros(4, 2, 2)
+        preds[..., 1] = 1e6
         targets = torch.zeros(4, 2, 2)
         targets[..., 0] = torch.zeros(4, 2)
         loss = BoundedBetaNLLLoss(beta=0.5)(preds, targets)

@@ -13,10 +13,11 @@ class MVEPredictor(BasePredictor):
     Reuses the :class:`MLP`-style ``LnBnDr`` hidden body and splits the
     prediction into two parallel :class:`torch.nn.Linear` heads: one producing
     the per-endpoint means and one producing the per-endpoint log-variances.
-    Their outputs are concatenated along the feature axis, so
-    :meth:`forward` returns a tensor of shape ``(batch, 2 * num_endpoints)``
-    with means in the first ``num_endpoints`` columns and log-variances in
-    the next ``num_endpoints`` columns.
+    Their outputs are stacked along a trailing axis, so :meth:`forward`
+    returns a tensor of shape ``(batch, num_endpoints, 2)`` with means at
+    ``[..., 0]`` and log-variances at ``[..., 1]``. This matches the layout
+    chemprop's ``MveFFN`` produces, so third-party MVE heads can drop into
+    matcha without a reshape adapter.
 
     Predicting the log-variance (rather than the variance) keeps the head
     unconstrained and numerically stable; downstream β-NLL losses
@@ -30,8 +31,8 @@ class MVEPredictor(BasePredictor):
     :param int input_dim: Input feature dimensionality.
     :param hidden_dims: Shape of the shared hidden body. ``None`` skips it.
     :type hidden_dims: list[int] or None
-    :param int num_endpoints: Number of prediction endpoints. The head output
-        width is ``2 * num_endpoints``.
+    :param int num_endpoints: Number of prediction endpoints. The trailing
+        axis of the forward output has size 2 (mean, log-variance).
     :param float dropout: Dropout rate applied inside each ``LnBnDr`` block.
     :param str activation: Activation name resolved via
         :data:`matcha.nn.activations.ActivationRegistry`.
@@ -82,17 +83,16 @@ class MVEPredictor(BasePredictor):
         return self.mean_head
 
     def forward(self, mol_features: torch.Tensor) -> torch.Tensor:
-        """Run the shared body then both heads and concatenate their outputs.
+        """Run the shared body then both heads and stack their outputs.
 
         :param torch.Tensor mol_features: Input tensor from the encoder of
             shape ``(batch, input_dim)``.
-        :returns: Concatenated tensor of shape ``(batch, 2 * num_endpoints)``
-            with means in ``[..., :num_endpoints]`` and log-variances in
-            ``[..., num_endpoints:]``.
+        :returns: Stacked tensor of shape ``(batch, num_endpoints, 2)`` with
+            means at ``[..., 0]`` and log-variances at ``[..., 1]``.
         :rtype: torch.Tensor
         """
         if self.layers is not None:
             mol_features = self.encode(mol_features)
         mean = self.mean_head(mol_features)
         log_var = self.log_var_head(mol_features)
-        return torch.cat([mean, log_var], dim=-1)
+        return torch.stack([mean, log_var], dim=-1)

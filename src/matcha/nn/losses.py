@@ -760,11 +760,11 @@ class BetaNLLLoss(nn.Module):
     (``β = 1``) and vanilla NLL (``β = 0``). The recommended default from the
     paper is ``β = 0.5``.
 
-    The loss expects predictions of shape ``(batch, 2 * num_tasks)`` — the
-    first ``num_tasks`` columns are means, the next ``num_tasks`` columns are
-    log-variances — and targets of shape ``(batch, num_tasks)`` (NaN marks
-    missing entries, masked per task). It handles multitask internally and
-    is not wrapped in :class:`MultitaskLoss`.
+    The loss expects predictions of shape ``(batch, num_tasks, 2)`` — with
+    means at ``[..., 0]`` and log-variances at ``[..., 1]`` — and targets of
+    shape ``(batch, num_tasks)`` (NaN marks missing entries, masked per
+    task). It handles multitask internally and is not wrapped in
+    :class:`MultitaskLoss`.
 
     Reference: https://arxiv.org/abs/2203.09168
 
@@ -781,16 +781,16 @@ class BetaNLLLoss(nn.Module):
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """
-        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``
-            with means in the first half and log-variances in the second half.
+        :param torch.Tensor outputs: Predictions of shape
+            ``(batch, num_tasks, 2)`` with means at ``[..., 0]`` and
+            log-variances at ``[..., 1]``.
         :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
             marks missing entries.
         :returns: Scalar loss averaged across valid entries per task, then across tasks.
         :rtype: torch.Tensor
         """
-        num_tasks = targets.shape[-1]
-        mean = outputs[..., :num_tasks]
-        log_var = outputs[..., num_tasks:].clamp(min=_LOG_VAR_MIN, max=_LOG_VAR_MAX)
+        mean = outputs[..., 0]
+        log_var = outputs[..., 1].clamp(min=_LOG_VAR_MIN, max=_LOG_VAR_MAX)
         var = log_var.exp()
 
         nan_mask = torch.isnan(targets)
@@ -836,16 +836,17 @@ class BoundedBetaNLLLoss(nn.Module):
 
     def forward(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """
-        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``.
+        :param torch.Tensor outputs: Predictions of shape
+            ``(batch, num_tasks, 2)`` with means at ``[..., 0]`` and
+            log-variances at ``[..., 1]``.
         :param torch.Tensor targets: Targets of shape ``(batch, num_tasks, 2)``;
             ``[..., 0]`` is the value, ``[..., 1]`` is the bound code
             (``-1`` = less-than, ``0`` = exact, ``+1`` = greater-than).
         :returns: Scalar loss averaged across valid entries per task, then across tasks.
         :rtype: torch.Tensor
         """
-        num_tasks = targets.shape[1]
-        mean = outputs[..., :num_tasks]
-        log_var = outputs[..., num_tasks:].clamp(min=_LOG_VAR_MIN, max=_LOG_VAR_MAX)
+        mean = outputs[..., 0]
+        log_var = outputs[..., 1].clamp(min=_LOG_VAR_MIN, max=_LOG_VAR_MAX)
         var = log_var.exp()
         std = (0.5 * log_var).exp()
 

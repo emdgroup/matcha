@@ -22,7 +22,7 @@ class TestMVEPredictor:
         [None, [], [32], [32, 16], [64, 32, 16]],
     )
     @pytest.mark.parametrize("num_endpoints", [1, 3, 7])
-    def test_forward_shape_is_double_num_endpoints(self, hidden_dims, num_endpoints):
+    def test_forward_shape_is_batch_endpoints_two(self, hidden_dims, num_endpoints):
         input_dim = 12
         batch = 5
         head = MVEPredictor(
@@ -35,7 +35,7 @@ class TestMVEPredictor:
         )
         head.eval()
         out = head(torch.randn(batch, input_dim))
-        assert out.shape == (batch, 2 * num_endpoints)
+        assert out.shape == (batch, num_endpoints, 2)
 
     @pytest.mark.parametrize(
         "hidden_dims, expected_latent",
@@ -116,9 +116,10 @@ class TestMVEPredictor:
         assert head.mean_head is not head.log_var_head
         assert not torch.equal(head.mean_head.weight, head.log_var_head.weight)
 
-    def test_output_splits_into_mean_and_log_var_halves(self):
-        """The forward output must be a concatenation of mean and log_var,
-        so slicing to num_endpoints must equal the mean head's output."""
+    def test_output_splits_into_mean_and_log_var_channels(self):
+        """The forward output must be a stack of mean and log_var along the
+        trailing axis, so ``[..., 0]`` and ``[..., 1]`` must equal the
+        respective head outputs."""
         head = MVEPredictor(
             input_dim=8,
             hidden_dims=None,
@@ -132,5 +133,5 @@ class TestMVEPredictor:
         out = head(x)
         expected_mean = head.mean_head(x)
         expected_log_var = head.log_var_head(x)
-        assert torch.allclose(out[:, :3], expected_mean, atol=1e-6)
-        assert torch.allclose(out[:, 3:], expected_log_var, atol=1e-6)
+        assert torch.allclose(out[..., 0], expected_mean, atol=1e-6)
+        assert torch.allclose(out[..., 1], expected_log_var, atol=1e-6)
