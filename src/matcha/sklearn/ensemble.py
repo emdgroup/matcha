@@ -333,7 +333,10 @@ class Ensemble:
         """
         x = self._model_box[0].transform(x, is_training=False)
 
-        if getattr(self._model_box[0]._model, "_mve_active", False):
+        if (
+            getattr(self._model_box[0]._model, "uncertainty_method", "mc-dropout")
+            == "mve"
+        ):
             return self._predict_mve(x, reduce, accelerator, devices, batch_size)
 
         pred_box = [

@@ -9,6 +9,7 @@ from matcha.sklearn.base_sklearn_model import (
     ScikitLearnClassifierMixin,
     ScikitLearnRegressorMixin,
 )
+from matcha.utils.schemas import UncertaintyMethod
 
 
 @ScikitLearnModelRegistry.register()
@@ -117,6 +118,7 @@ class SNNClassifier(BaseScikitLearnTabular, ScikitLearnClassifierMixin):
         label_transform_map: str | list[str] | dict | None = None,
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mc-dropout"] = "mc-dropout",
     ):
         self._architecture = SNNModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
@@ -236,7 +238,7 @@ class SNNRegressor(BaseScikitLearnTabular, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
         if uncertainty == "mve":
             raise NotImplementedError(

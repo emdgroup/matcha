@@ -13,7 +13,7 @@ import pytest
 from pydantic import ValidationError
 
 from matcha.sklearn import Ensemble, autoload
-from matcha.sklearn.tabular import MLPRegressor, SNNRegressor
+from matcha.sklearn.tabular import MLPClassifier, MLPRegressor, SNNRegressor
 from matcha.sklearn.graph import ChempropRegressor
 
 from .conftest import _ARCH_KWARGS, _MVE_KWARGS
@@ -188,11 +188,11 @@ class TestMVESaveLoad:
 
         np.testing.assert_allclose(std_before, std_after, rtol=1e-2)
 
-    def test_loaded_model_is_mve_active(self, fitted_mve_regressor, tmp_path):
+    def test_loaded_model_reports_mve_method(self, fitted_mve_regressor, tmp_path):
         save_dir = str(tmp_path / "mve_model")
         fitted_mve_regressor.save_model(save_dir)
         loaded = autoload(save_dir, accelerator="cpu")
-        assert getattr(loaded._model, "_mve_active", False) is True
+        assert loaded._model.uncertainty_method == "mve"
 
 
 # =========================================================================
@@ -262,7 +262,7 @@ class TestMVEValidationErrors:
             )
 
     def test_mve_with_non_standard_scaler_raises(self):
-        with pytest.raises(ValueError, match="standard"):
+        with pytest.raises(ValidationError, match="standard"):
             MLPRegressor(
                 **_ARCH_KWARGS[MLPRegressor],
                 uncertainty="mve",
@@ -271,7 +271,7 @@ class TestMVEValidationErrors:
             )
 
     def test_mve_with_multitask_loss_raises(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             MLPRegressor(
                 **_ARCH_KWARGS[MLPRegressor],
                 uncertainty="mve",
@@ -279,7 +279,7 @@ class TestMVEValidationErrors:
             )
 
     def test_mve_with_gradnorm_loss_raises(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ValidationError):
             MLPRegressor(
                 **_ARCH_KWARGS[MLPRegressor],
                 uncertainty="mve",
@@ -319,6 +319,30 @@ class TestMVEValidationErrors:
                 uncertainty="mve",
                 loss_fn="beta-nll",
             )
+
+    def test_classifier_rejects_mve(self):
+        # Classifiers narrow the surface to Literal["mc-dropout"]; a caller
+        # requesting MVE trips the Pydantic pairing rule (classifier losses
+        # are not in the MVE-family loss set).
+        with pytest.raises(ValidationError):
+            MLPClassifier(
+                **_ARCH_KWARGS[MLPClassifier],
+                uncertainty="mve",
+            )
+
+
+# =========================================================================
+# Backwards-compat regression — legacy uncertainty=None YAML configs
+# =========================================================================
+
+
+class TestMVEBackwardsCompat:
+    """Legacy configs with ``uncertainty=None`` still validate and behave as MC dropout."""
+
+    def test_legacy_none_normalizes_to_mc_dropout(self, mol_list, regression_y):
+        model = MLPRegressor(**_ARCH_KWARGS[MLPRegressor], uncertainty=None)
+        model.fit(mol_list, regression_y)
+        assert model._model.uncertainty_method == "mc-dropout"
 
 
 # =========================================================================

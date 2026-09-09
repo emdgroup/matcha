@@ -55,13 +55,6 @@ class BaseClassicModel(ModelMixin, ABC):
         """
         return self.hparams.get("uncertainty") or "mc-dropout"
 
-    # Compatibility shim for the sklearn layer read sites (stage 3 removes both
-    # this property and the corresponding readers). New code must use
-    # ``uncertainty_method``.
-    @property
-    def _mve_active(self) -> bool:
-        return self.uncertainty_method == "mve"
-
     @property
     def latent_dim(self) -> int:
         """Dimensionality of the learned representation, i.e. the output of the

@@ -7,8 +7,8 @@ from matcha.sklearn.base_sklearn_model import (
     ScikitLearnModelRegistry,
     ScikitLearnClassifierMixin,
     ScikitLearnRegressorMixin,
-    _validate_mve_sklearn_kwargs,
 )
+from matcha.utils.schemas import UncertaintyMethod
 from matcha.sklearn.graph.base_sklearn_gnn import BaseScikitLearnGNN
 
 
@@ -127,6 +127,7 @@ class GPSClassifier(BaseScikitLearnGNN, ScikitLearnClassifierMixin):
         label_transform_map: str | list[str] | dict | None = None,
         augment_resonance: bool = False,
         seed: int = 0,
+        uncertainty: Literal["mc-dropout"] = "mc-dropout",
     ):
         self._architecture = GPSModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
@@ -253,9 +254,8 @@ class GPSRegressor(BaseScikitLearnGNN, ScikitLearnRegressorMixin):
         scaler_type: str = "standard",
         augment_resonance: bool = False,
         seed: int = 0,
-        uncertainty: Literal["mve"] | None = None,
+        uncertainty: UncertaintyMethod = "mc-dropout",
     ):
-        _validate_mve_sklearn_kwargs(uncertainty, scaler_type, loss_fn)
         self._architecture = GPSModel
         params = {k: v for k, v in locals().items() if k not in ["self", "__class__"]}
         super(GPSRegressor, self).__init__(params)
