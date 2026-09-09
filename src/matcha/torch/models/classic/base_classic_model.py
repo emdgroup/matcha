@@ -33,7 +33,6 @@ class BaseClassicModel(ModelMixin, ABC):
         super().__init__()
         silence_nuisance_warnings()
         self._mc_dropout_flag = False
-        self._mve_active = False
         self._max_task_tracking_n = 100
         self._additional_mol_features_dim = additional_mol_features_dim
         self.encoder = None
@@ -44,6 +43,24 @@ class BaseClassicModel(ModelMixin, ABC):
     def additional_mol_features_dim(self) -> int:
         """Dimensionality of extra molecular features appended to the encoder output."""
         return self._additional_mol_features_dim
+
+    @property
+    def uncertainty_method(self) -> str:
+        """Configured uncertainty method (``"mc-dropout"`` or ``"mve"``).
+
+        Reads the value from ``self.hparams`` and falls back to ``"mc-dropout"``
+        when the key is missing or set to ``None`` (defensive for raw
+        checkpoints saved before the enum landed). Every uncertainty branch
+        site in the codebase should derive from this single source of truth.
+        """
+        return self.hparams.get("uncertainty") or "mc-dropout"
+
+    # Compatibility shim for the sklearn layer read sites (stage 3 removes both
+    # this property and the corresponding readers). New code must use
+    # ``uncertainty_method``.
+    @property
+    def _mve_active(self) -> bool:
+        return self.uncertainty_method == "mve"
 
     @property
     def latent_dim(self) -> int:
@@ -120,18 +137,16 @@ class BaseClassicModel(ModelMixin, ABC):
         """Instantiate the predictor head and route around the MVE variant.
 
         Selects :class:`MVEPredictor` from :data:`PredictorRegistry` when
-        ``hparams["uncertainty"] == "mve"`` (setting :attr:`_mve_active` to
-        ``True``), otherwise falls back to the model's ``_predictor_cls``
-        default. Constructor kwargs come from :meth:`_predictor_kwargs`,
-        filtered against the target class's ``__init__`` signature so a
-        superset (e.g. ``task_head_dims``) is safe to return unconditionally.
+        :attr:`uncertainty_method` is ``"mve"``, otherwise falls back to the
+        model's ``_predictor_cls`` default. Constructor kwargs come from
+        :meth:`_predictor_kwargs`, filtered against the target class's
+        ``__init__`` signature so a superset (e.g. ``task_head_dims``) is safe
+        to return unconditionally.
         """
-        if self.hparams.get("uncertainty") == "mve":
+        if self.uncertainty_method == "mve":
             predictor_cls = PredictorRegistry["mve"]
-            self._mve_active = True
         else:
             predictor_cls = self._predictor_cls
-            self._mve_active = False
 
         kwargs = self._predictor_kwargs()
         allowed = {
@@ -281,7 +296,7 @@ class BaseClassicModel(ModelMixin, ABC):
                 if isinstance(module, torch.nn.Dropout):
                     module.eval()
         y_pred = self.forward(batch)
-        if self._mve_active:
+        if self.uncertainty_method == "mve":
             num_endpoints = self.hparams["num_endpoints"]
             y_pred = y_pred[..., :num_endpoints]
         return y_pred
@@ -291,10 +306,9 @@ class BaseClassicModel(ModelMixin, ABC):
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Prediction step that returns the intrinsic mean and log-variance.
 
-        Only valid when the model was configured with ``uncertainty="mve"``
-        (i.e. :attr:`_mve_active` is ``True``); dropout is forced off, since
-        the MVE head produces the aleatoric variance directly and does not
-        rely on Monte-Carlo dropout sampling.
+        Only valid when the model was configured with ``uncertainty="mve"``;
+        dropout is forced off, since the MVE head produces the aleatoric
+        variance directly and does not rely on Monte-Carlo dropout sampling.
 
         :param dict[str, Any] batch: batch of inputs to process.
         :returns: tuple ``(mean, log_var)`` of shape ``(batch, num_endpoints)`` each.
@@ -302,7 +316,7 @@ class BaseClassicModel(ModelMixin, ABC):
         :raises RuntimeError: if the model was not configured with
             ``uncertainty="mve"``.
         """
-        if not self._mve_active:
+        if self.uncertainty_method != "mve":
             raise RuntimeError(
                 "predict_variance_step is only available when the model was "
                 "instantiated with uncertainty='mve'."
