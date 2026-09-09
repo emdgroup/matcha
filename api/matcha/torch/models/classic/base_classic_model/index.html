@@ -58,6 +58,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../../contributing/adding-an-uncertainty-method.html">Adding a new uncertainty method</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
 <ul>
@@ -135,6 +136,16 @@ need to define what are the encoder and predictor attributes.</p>
 <dt class="sig sig-object py" id="matcha.torch.models.classic.base_classic_model.BaseClassicModel.additional_mol_features_dim">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">additional_mol_features_dim</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></em><a class="headerlink" href="#matcha.torch.models.classic.base_classic_model.BaseClassicModel.additional_mol_features_dim" title="Link to this definition"></a></dt>
 <dd><p>Dimensionality of extra molecular features appended to the encoder output.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="matcha.torch.models.classic.base_classic_model.BaseClassicModel.uncertainty_method">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">uncertainty_method</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></em><a class="headerlink" href="#matcha.torch.models.classic.base_classic_model.BaseClassicModel.uncertainty_method" title="Link to this definition"></a></dt>
+<dd><p>Configured uncertainty method (<code class="docutils literal notranslate"><span class="pre">&quot;mc-dropout&quot;</span></code> or <code class="docutils literal notranslate"><span class="pre">&quot;mve&quot;</span></code>).</p>
+<p>Reads the value from <code class="docutils literal notranslate"><span class="pre">self.hparams</span></code> and falls back to <code class="docutils literal notranslate"><span class="pre">&quot;mc-dropout&quot;</span></code>
+when the key is missing or set to <code class="docutils literal notranslate"><span class="pre">None</span></code> (defensive for raw
+checkpoints saved before the enum landed). Every uncertainty branch
+site in the codebase should derive from this single source of truth.</p>
 </dd></dl>
 
 <dl class="py property">
@@ -243,10 +254,9 @@ embeddings of</p>
 <dt class="sig sig-object py" id="matcha.torch.models.classic.base_classic_model.BaseClassicModel.predict_variance_step">
 <span class="sig-name descname"><span class="pre">predict_variance_step</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)"><span class="pre">tuple</span></a><span class="p"><span class="pre">[</span></span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><span class="pre">torch.Tensor</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../../../../../_modules/matcha/torch/models/classic/base_classic_model.html#BaseClassicModel.predict_variance_step"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.torch.models.classic.base_classic_model.BaseClassicModel.predict_variance_step" title="Link to this definition"></a></dt>
 <dd><p>Prediction step that returns the intrinsic mean and log-variance.</p>
-<p>Only valid when the model was configured with <code class="docutils literal notranslate"><span class="pre">uncertainty=&quot;mve&quot;</span></code>
-(i.e. <code class="xref py py-attr docutils literal notranslate"><span class="pre">_mve_active</span></code> is <code class="docutils literal notranslate"><span class="pre">True</span></code>); dropout is forced off, since
-the MVE head produces the aleatoric variance directly and does not
-rely on Monte-Carlo dropout sampling.</p>
+<p>Only valid when the model was configured with <code class="docutils literal notranslate"><span class="pre">uncertainty=&quot;mve&quot;</span></code>;
+dropout is forced off, since the MVE head produces the aleatoric
+variance directly and does not rely on Monte-Carlo dropout sampling.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>batch</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Any</em><em>]</em>) – batch of inputs to process.</p>

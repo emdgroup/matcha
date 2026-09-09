@@ -56,6 +56,18 @@ Module Contents
       Dimensionality of extra molecular features appended to the encoder output.
 
 
+   .. py:property:: uncertainty_method
+      :type: str
+
+
+      Configured uncertainty method (``"mc-dropout"`` or ``"mve"``).
+
+      Reads the value from ``self.hparams`` and falls back to ``"mc-dropout"``
+      when the key is missing or set to ``None`` (defensive for raw
+      checkpoints saved before the enum landed). Every uncertainty branch
+      site in the codebase should derive from this single source of truth.
+
+
    .. py:property:: latent_dim
       :type: int
 
@@ -135,10 +147,9 @@ Module Contents
 
       Prediction step that returns the intrinsic mean and log-variance.
 
-      Only valid when the model was configured with ``uncertainty="mve"``
-      (i.e. :attr:`_mve_active` is ``True``); dropout is forced off, since
-      the MVE head produces the aleatoric variance directly and does not
-      rely on Monte-Carlo dropout sampling.
+      Only valid when the model was configured with ``uncertainty="mve"``;
+      dropout is forced off, since the MVE head produces the aleatoric
+      variance directly and does not rely on Monte-Carlo dropout sampling.
 
       :param dict[str, Any] batch: batch of inputs to process.
       :returns: tuple ``(mean, log_var)`` of shape ``(batch, num_endpoints)`` each.

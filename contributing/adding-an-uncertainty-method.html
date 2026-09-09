@@ -1,0 +1,194 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adding a new uncertainty method &mdash; MATCHA  documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=4ae1632d" />
+      <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+      <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+
+  
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../_static/thebelab-helper.js"></script>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@jupyter-widgets/html-manager@^1.0.1/dist/embed-amd.js"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="API reference" href="../api-reference.html" />
+    <link rel="prev" title="Adding a new loss function" href="adding-a-loss.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            MATCHA
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../getting-started.html">Getting started</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Contributing</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="adding-a-model.html">Adding a new model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
+<li class="toctree-l1"><a class="reference internal" href="adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Adding a new uncertainty method</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#extend-the-literal-src-matcha-utils-schemas-generic-models-py">1. Extend the literal — <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/generic_models.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#add-a-manager-branch-src-matcha-sklearn-managers-uncertainty-manager-py">2. Add a manager branch — <code class="docutils literal notranslate"><span class="pre">src/matcha/sklearn/managers/uncertainty_manager.py</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#propagate-the-signature-lightning-models-sklearn-estimators">3. Propagate the signature — Lightning models + sklearn estimators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tests">4. Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#checklist">Checklist</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api-reference.html">API reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">MATCHA</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Adding a new uncertainty method</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/contributing/adding-an-uncertainty-method.md.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="adding-a-new-uncertainty-method">
+<h1>Adding a new uncertainty method<a class="headerlink" href="#adding-a-new-uncertainty-method" title="Link to this heading"></a></h1>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This page is written for LLM agents contributing to MATCHA. It trades prose for a step-by-step recipe with concrete file paths and code snippets.</p>
+</div>
+<p>Uncertainty methods are dispatched by the <code class="docutils literal notranslate"><span class="pre">UncertaintyMethod</span></code> literal enum defined in <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/generic_models.py</span></code>. Currently the enum covers <code class="docutils literal notranslate"><span class="pre">&quot;mc-dropout&quot;</span></code> (default) and <code class="docutils literal notranslate"><span class="pre">&quot;mve&quot;</span></code>. Adding a new method — e.g. deep ensembles or evidential regression — is a three-edit change: extend the literal, add a manager branch, and declare any pairing rules.</p>
+<hr class="docutils" />
+<section id="extend-the-literal-src-matcha-utils-schemas-generic-models-py">
+<h2>1. Extend the literal — <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/generic_models.py</span></code><a class="headerlink" href="#extend-the-literal-src-matcha-utils-schemas-generic-models-py" title="Link to this heading"></a></h2>
+<p>Widen the <code class="docutils literal notranslate"><span class="pre">UncertaintyMethod</span></code> type alias with the new kebab-case value:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/matcha/utils/schemas/generic_models.py</span>
+<span class="n">UncertaintyMethod</span><span class="p">:</span> <span class="n">TypeAlias</span> <span class="o">=</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;mc-dropout&quot;</span><span class="p">,</span> <span class="s2">&quot;mve&quot;</span><span class="p">,</span> <span class="s2">&quot;evidential&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>If the new method has pairing constraints with <code class="docutils literal notranslate"><span class="pre">loss_fn</span></code> or <code class="docutils literal notranslate"><span class="pre">scaler_type</span></code>, declare them alongside the existing <code class="docutils literal notranslate"><span class="pre">_validate_mve_pairing</span></code> (<code class="docutils literal notranslate"><span class="pre">ClassicMatchaModel</span></code>) and <code class="docutils literal notranslate"><span class="pre">_validate_mve_scaler_pairing</span></code> (<code class="docutils literal notranslate"><span class="pre">ScikitLearnInputModel</span></code> in <code class="docutils literal notranslate"><span class="pre">sklearn_api.py</span></code>). Every uncertainty-related validation lives in the Pydantic layer — do not add checks at the sklearn constructor site.</p>
+</section>
+<section id="add-a-manager-branch-src-matcha-sklearn-managers-uncertainty-manager-py">
+<h2>2. Add a manager branch — <code class="docutils literal notranslate"><span class="pre">src/matcha/sklearn/managers/uncertainty_manager.py</span></code><a class="headerlink" href="#add-a-manager-branch-src-matcha-sklearn-managers-uncertainty-manager-py" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">UncertaintyManager.compute</span></code> dispatches by explicit value. Add a new <code class="docutils literal notranslate"><span class="pre">elif</span></code> branch and a <code class="docutils literal notranslate"><span class="pre">_compute_&lt;method&gt;</span></code> helper (mirror <code class="docutils literal notranslate"><span class="pre">_compute_mc_dropout</span></code> / <code class="docutils literal notranslate"><span class="pre">_compute_mve</span></code>):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># src/matcha/sklearn/managers/uncertainty_manager.py</span>
+<span class="n">method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="s2">&quot;uncertainty_method&quot;</span><span class="p">,</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">:</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_mc_dropout</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_mve</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;evidential&quot;</span><span class="p">:</span>
+    <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_evidential</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="k">else</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown uncertainty method: </span><span class="si">{</span><span class="n">method</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">else</span></code> branch is the safety net — any literal value without a registered manager branch fails fast.</p>
+</section>
+<section id="propagate-the-signature-lightning-models-sklearn-estimators">
+<h2>3. Propagate the signature — Lightning models + sklearn estimators<a class="headerlink" href="#propagate-the-signature-lightning-models-sklearn-estimators" title="Link to this heading"></a></h2>
+<p>Every classic Lightning model in <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/classic/*_model.py</span></code> accepts <code class="docutils literal notranslate"><span class="pre">uncertainty:</span> <span class="pre">UncertaintyMethod</span> <span class="pre">=</span> <span class="pre">&quot;mc-dropout&quot;</span></code>. Extending the literal is enough for those signatures. Every sklearn <strong>regressor</strong> under <code class="docutils literal notranslate"><span class="pre">sklearn/{tabular,graph,graph3d,clm}/*.py</span></code> uses the same <code class="docutils literal notranslate"><span class="pre">UncertaintyMethod</span></code> alias — again nothing to touch. Sklearn <strong>classifiers</strong> narrow their type to <code class="docutils literal notranslate"><span class="pre">Literal[&quot;mc-dropout&quot;]</span></code> (MVE is regression-only). If the new method is classifier-compatible, widen the classifier signature site-by-site.</p>
+</section>
+<section id="tests">
+<h2>4. Tests<a class="headerlink" href="#tests" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/utils/schemas/test_generic_models.py</span></code>: parametrize the “invalid uncertainty literal” test to confirm the new value is accepted; add pairing-rejection cases if applicable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tests/sklearn_managers/test_uncertainty_manager.py</span></code>: extend <code class="docutils literal notranslate"><span class="pre">TestUncertaintyManagerDispatch::test_dispatch_selects_correct_branch</span></code> with the new method.</p></li>
+<li><p>End-to-end integration test under <code class="docutils literal notranslate"><span class="pre">tests/sklearn_models/</span></code> mirroring <code class="docutils literal notranslate"><span class="pre">test_mve.py</span></code> — a fit / predict round-trip that exercises the new branch.</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="checklist">
+<h2>Checklist<a class="headerlink" href="#checklist" title="Link to this heading"></a></h2>
+<ul class="contains-task-list simple">
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Kebab-case literal value added to <code class="docutils literal notranslate"><span class="pre">UncertaintyMethod</span></code> in <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/generic_models.py</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">_compute_&lt;method&gt;</span></code> helper + <code class="docutils literal notranslate"><span class="pre">elif</span></code> branch in <code class="docutils literal notranslate"><span class="pre">src/matcha/sklearn/managers/uncertainty_manager.py</span></code>.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Pairing rules (loss / scaler compatibility) declared as Pydantic validators, not at the sklearn constructor site.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Classifier signature widened only if the method is classifier-compatible.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Dispatch + pairing tests added.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> <code class="docutils literal notranslate"><span class="pre">uv</span> <span class="pre">run</span> <span class="pre">pytest</span> <span class="pre">-k</span> <span class="pre">'not</span> <span class="pre">gpu'</span></code> passes locally.</p></li>
+<li class="task-list-item"><p><input class="task-list-item-checkbox" disabled="disabled" type="checkbox"> Codecov PR check stays green (see <code class="docutils literal notranslate"><span class="pre">CONTRIBUTING.md</span></code> → Testing).</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="adding-a-loss.html" class="btn btn-neutral float-left" title="Adding a new loss function" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../api-reference.html" class="btn btn-neutral float-right" title="API reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Merck KGaA, Darmstadt, Germany.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

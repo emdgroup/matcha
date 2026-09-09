@@ -58,6 +58,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-an-uncertainty-method.html">Adding a new uncertainty method</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
 <ul>
@@ -142,9 +143,12 @@
 <dt class="sig sig-object py" id="matcha.sklearn.managers.uncertainty_manager.UncertaintyManager.compute">
 <span class="sig-name descname"><span class="pre">compute</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_instance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_iterations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">accelerator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">devices</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.5)"><span class="pre">numpy.ndarray</span></a></span></span><a class="reference internal" href="../../../../../_modules/matcha/sklearn/managers/uncertainty_manager.html#UncertaintyManager.compute"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#matcha.sklearn.managers.uncertainty_manager.UncertaintyManager.compute" title="Link to this definition"></a></dt>
 <dd><p>Compute per-prediction uncertainty for a test set.</p>
-<p>Dispatches on the underlying model’s <code class="docutils literal notranslate"><span class="pre">_mve_active</span></code> flag: MVE models
-return the intrinsic aleatoric standard deviation in a single forward
-pass, while all other models fall back to Monte Carlo dropout.</p>
+<p>Dispatches on the underlying model’s <code class="docutils literal notranslate"><span class="pre">uncertainty_method</span></code> value:
+<code class="docutils literal notranslate"><span class="pre">&quot;mve&quot;</span></code> returns the intrinsic aleatoric standard deviation in a
+single forward pass; <code class="docutils literal notranslate"><span class="pre">&quot;mc-dropout&quot;</span></code> runs the stochastic-forward-pass
+loop and takes the sample standard deviation. Unknown values raise
+<code class="docutils literal notranslate"><span class="pre">NotImplementedError</span></code> so that extending the enum requires
+registering an explicit branch here.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -159,6 +163,10 @@ pass, while all other models fall back to Monte Carlo dropout.</p>
 </dd>
 <dt class="field-even">Return np.ndarray<span class="colon">:</span></dt>
 <dd class="field-even"><p>array with the uncertainty for each prediction</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#NotImplementedError" title="(in Python v3.14)"><strong>NotImplementedError</strong></a> – if the model’s <code class="docutils literal notranslate"><span class="pre">uncertainty_method</span></code>
+value has no registered branch here</p>
 </dd>
 </dl>
 </dd></dl>

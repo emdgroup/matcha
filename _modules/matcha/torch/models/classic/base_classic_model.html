@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-an-uncertainty-method.html">Adding a new uncertainty method</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
 <ul>
@@ -125,7 +126,6 @@
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="n">silence_nuisance_warnings</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mc_dropout_flag</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_max_task_tracking_n</span> <span class="o">=</span> <span class="mi">100</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_additional_mol_features_dim</span> <span class="o">=</span> <span class="n">additional_mol_features_dim</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">encoder</span> <span class="o">=</span> <span class="kc">None</span>
@@ -136,6 +136,17 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">additional_mol_features_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Dimensionality of extra molecular features appended to the encoder output.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_additional_mol_features_dim</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uncertainty_method</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configured uncertainty method (``&quot;mc-dropout&quot;`` or ``&quot;mve&quot;``).</span>
+
+<span class="sd">        Reads the value from ``self.hparams`` and falls back to ``&quot;mc-dropout&quot;``</span>
+<span class="sd">        when the key is missing or set to ``None`` (defensive for raw</span>
+<span class="sd">        checkpoints saved before the enum landed). Every uncertainty branch</span>
+<span class="sd">        site in the codebase should derive from this single source of truth.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;mc-dropout&quot;</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">latent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
@@ -212,18 +223,16 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Instantiate the predictor head and route around the MVE variant.</span>
 
 <span class="sd">        Selects :class:`MVEPredictor` from :data:`PredictorRegistry` when</span>
-<span class="sd">        ``hparams[&quot;uncertainty&quot;] == &quot;mve&quot;`` (setting :attr:`_mve_active` to</span>
-<span class="sd">        ``True``), otherwise falls back to the model&#39;s ``_predictor_cls``</span>
-<span class="sd">        default. Constructor kwargs come from :meth:`_predictor_kwargs`,</span>
-<span class="sd">        filtered against the target class&#39;s ``__init__`` signature so a</span>
-<span class="sd">        superset (e.g. ``task_head_dims``) is safe to return unconditionally.</span>
+<span class="sd">        :attr:`uncertainty_method` is ``&quot;mve&quot;``, otherwise falls back to the</span>
+<span class="sd">        model&#39;s ``_predictor_cls`` default. Constructor kwargs come from</span>
+<span class="sd">        :meth:`_predictor_kwargs`, filtered against the target class&#39;s</span>
+<span class="sd">        ``__init__`` signature so a superset (e.g. ``task_head_dims``) is safe</span>
+<span class="sd">        to return unconditionally.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty_method</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
             <span class="n">predictor_cls</span> <span class="o">=</span> <span class="n">PredictorRegistry</span><span class="p">[</span><span class="s2">&quot;mve&quot;</span><span class="p">]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span> <span class="o">=</span> <span class="kc">True</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">predictor_cls</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predictor_cls</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predictor_kwargs</span><span class="p">()</span>
         <span class="n">allowed</span> <span class="o">=</span> <span class="p">{</span>
@@ -390,7 +399,7 @@
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
                     <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
         <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty_method</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
             <span class="n">num_endpoints</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="p">[</span><span class="s2">&quot;num_endpoints&quot;</span><span class="p">]</span>
             <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_endpoints</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">y_pred</span></div>
@@ -403,10 +412,9 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Prediction step that returns the intrinsic mean and log-variance.</span>
 
-<span class="sd">        Only valid when the model was configured with ``uncertainty=&quot;mve&quot;``</span>
-<span class="sd">        (i.e. :attr:`_mve_active` is ``True``); dropout is forced off, since</span>
-<span class="sd">        the MVE head produces the aleatoric variance directly and does not</span>
-<span class="sd">        rely on Monte-Carlo dropout sampling.</span>
+<span class="sd">        Only valid when the model was configured with ``uncertainty=&quot;mve&quot;``;</span>
+<span class="sd">        dropout is forced off, since the MVE head produces the aleatoric</span>
+<span class="sd">        variance directly and does not rely on Monte-Carlo dropout sampling.</span>
 
 <span class="sd">        :param dict[str, Any] batch: batch of inputs to process.</span>
 <span class="sd">        :returns: tuple ``(mean, log_var)`` of shape ``(batch, num_endpoints)`` each.</span>
@@ -414,7 +422,7 @@
 <span class="sd">        :raises RuntimeError: if the model was not configured with</span>
 <span class="sd">            ``uncertainty=&quot;mve&quot;``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mve_active</span><span class="p">:</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty_method</span> <span class="o">!=</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
                 <span class="s2">&quot;predict_variance_step is only available when the model was &quot;</span>
                 <span class="s2">&quot;instantiated with uncertainty=&#39;mve&#39;.&quot;</span>

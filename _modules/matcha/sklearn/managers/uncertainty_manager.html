@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-an-uncertainty-method.html">Adding a new uncertainty method</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
 <ul>
@@ -148,9 +149,12 @@
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute per-prediction uncertainty for a test set.</span>
 
-<span class="sd">        Dispatches on the underlying model&#39;s ``_mve_active`` flag: MVE models</span>
-<span class="sd">        return the intrinsic aleatoric standard deviation in a single forward</span>
-<span class="sd">        pass, while all other models fall back to Monte Carlo dropout.</span>
+<span class="sd">        Dispatches on the underlying model&#39;s ``uncertainty_method`` value:</span>
+<span class="sd">        ``&quot;mve&quot;`` returns the intrinsic aleatoric standard deviation in a</span>
+<span class="sd">        single forward pass; ``&quot;mc-dropout&quot;`` runs the stochastic-forward-pass</span>
+<span class="sd">        loop and takes the sample standard deviation. Unknown values raise</span>
+<span class="sd">        ``NotImplementedError`` so that extending the enum requires</span>
+<span class="sd">        registering an explicit branch here.</span>
 
 <span class="sd">        :param model_instance: the sklearn model instance</span>
 <span class="sd">        :param x: input to compute uncertainty for</span>
@@ -160,22 +164,21 @@
 <span class="sd">        :param int | None devices: how many resources to use</span>
 <span class="sd">        :param int | None batch_size: batch size to use</span>
 <span class="sd">        :return np.ndarray: array with the uncertainty for each prediction</span>
+<span class="sd">        :raises NotImplementedError: if the model&#39;s ``uncertainty_method``</span>
+<span class="sd">            value has no registered branch here</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uncertainty estimation: beginning process&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="s2">&quot;_mve_active&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="n">method</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="s2">&quot;uncertainty_method&quot;</span><span class="p">,</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">:</span>
+            <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_mc_dropout</span><span class="p">(</span>
+                <span class="n">model_instance</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">num_iterations</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span>
+            <span class="p">)</span>
+        <span class="k">elif</span> <span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
             <span class="n">std</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_compute_mve</span><span class="p">(</span><span class="n">model_instance</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">switch_mc_dropout</span><span class="p">()</span>
-            <span class="n">pred_box</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_iterations</span><span class="p">):</span>
-                <span class="n">pred_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                    <span class="n">model_instance</span><span class="o">.</span><span class="n">_default_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">switch_mc_dropout</span><span class="p">()</span>
-            <span class="n">pred_box</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">pred_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-
-            <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">pred_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown uncertainty method: </span><span class="si">{</span><span class="n">method</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_calibrator</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Adjusting uncertainty estimates with the calibrator&quot;</span><span class="p">)</span>
@@ -184,6 +187,39 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Uncertainty estimation: finished&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">std</span></div>
 
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_compute_mc_dropout</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">model_instance</span><span class="p">,</span>
+        <span class="n">x</span><span class="p">,</span>
+        <span class="n">num_iterations</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">accelerator</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">devices</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute per-prediction standard deviation via Monte Carlo dropout.</span>
+
+<span class="sd">        Enables dropout at inference time, runs ``num_iterations`` stochastic</span>
+<span class="sd">        forward passes, and reports the sample standard deviation across</span>
+<span class="sd">        passes. Requires the underlying model to expose ``switch_mc_dropout``.</span>
+
+<span class="sd">        :param model_instance: the sklearn model instance</span>
+<span class="sd">        :param x: input to compute uncertainty for</span>
+<span class="sd">        :param int num_iterations: how many iterations of dropout to run</span>
+<span class="sd">        :param str | None accelerator: hardware to use for predictions</span>
+<span class="sd">        :param int | None devices: how many resources to use</span>
+<span class="sd">        :param int | None batch_size: batch size to use</span>
+<span class="sd">        :return np.ndarray: per-endpoint standard deviation with shape (N, T)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">switch_mc_dropout</span><span class="p">()</span>
+        <span class="n">pred_box</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">num_iterations</span><span class="p">):</span>
+            <span class="n">pred_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="n">model_instance</span><span class="o">.</span><span class="n">_default_predict</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
+            <span class="p">)</span>
+        <span class="n">model_instance</span><span class="o">.</span><span class="n">_model</span><span class="o">.</span><span class="n">switch_mc_dropout</span><span class="p">()</span>
+        <span class="n">pred_box</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">pred_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">pred_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_compute_mve</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -198,7 +234,7 @@
 <span class="sd">        Runs one forward pass through the MVE head, exponentiates the predicted</span>
 <span class="sd">        log-variance, and inverts the target scaler&#39;s variance transform so the</span>
 <span class="sd">        returned std is in the original label space. Only valid when</span>
-<span class="sd">        ``model_instance._model._mve_active`` is True.</span>
+<span class="sd">        ``model_instance._model.uncertainty_method == &quot;mve&quot;``.</span>
 
 <span class="sd">        :param model_instance: the sklearn model instance</span>
 <span class="sd">        :param x: input to compute uncertainty for</span>

@@ -49,9 +49,12 @@ Module Contents
 
       Compute per-prediction uncertainty for a test set.
 
-      Dispatches on the underlying model's ``_mve_active`` flag: MVE models
-      return the intrinsic aleatoric standard deviation in a single forward
-      pass, while all other models fall back to Monte Carlo dropout.
+      Dispatches on the underlying model's ``uncertainty_method`` value:
+      ``"mve"`` returns the intrinsic aleatoric standard deviation in a
+      single forward pass; ``"mc-dropout"`` runs the stochastic-forward-pass
+      loop and takes the sample standard deviation. Unknown values raise
+      ``NotImplementedError`` so that extending the enum requires
+      registering an explicit branch here.
 
       :param model_instance: the sklearn model instance
       :param x: input to compute uncertainty for
@@ -61,6 +64,8 @@ Module Contents
       :param int | None devices: how many resources to use
       :param int | None batch_size: batch size to use
       :return np.ndarray: array with the uncertainty for each prediction
+      :raises NotImplementedError: if the model's ``uncertainty_method``
+          value has no registered branch here
 
 
 

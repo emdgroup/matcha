@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../contributing/adding-an-uncertainty-method.html">Adding a new uncertainty method</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
 <ul>
@@ -433,7 +434,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">is_training</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="s2">&quot;_mve_active&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">_model</span><span class="p">,</span> <span class="s2">&quot;uncertainty_method&quot;</span><span class="p">,</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">)</span>
+            <span class="o">==</span> <span class="s2">&quot;mve&quot;</span>
+        <span class="p">):</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_predict_mve</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">reduce</span><span class="p">,</span> <span class="n">accelerator</span><span class="p">,</span> <span class="n">devices</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
 
         <span class="n">pred_box</span> <span class="o">=</span> <span class="p">[</span>

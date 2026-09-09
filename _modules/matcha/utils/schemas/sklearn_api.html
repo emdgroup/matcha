@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../contributing/adding-an-uncertainty-method.html">Adding a new uncertainty method</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
 <ul>
@@ -89,6 +90,8 @@
              
   <h1>Source code for matcha.utils.schemas.sklearn_api</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Pydantic schemas for scikit-learn-compatible matcha model configurations.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">model_validator</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModel</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Any</span>
@@ -181,7 +184,21 @@
     <span class="n">task_type</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;regression&quot;</span><span class="p">,</span> <span class="s2">&quot;binary_classification&quot;</span><span class="p">]</span>
     <span class="n">calibration</span><span class="p">:</span> <span class="n">CalibratorModel</span> <span class="o">|</span> <span class="kc">None</span>
     <span class="n">mlflow</span><span class="p">:</span> <span class="n">MLFlowInputModel</span> <span class="o">|</span> <span class="kc">None</span>
-    <span class="n">tuning</span><span class="p">:</span> <span class="n">TuningInputModel</span> <span class="o">|</span> <span class="kc">None</span></div>
+    <span class="n">tuning</span><span class="p">:</span> <span class="n">TuningInputModel</span> <span class="o">|</span> <span class="kc">None</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_scaler_pairing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;ScikitLearnInputModel&quot;</span><span class="p">:</span>
+        <span class="c1"># MVE variance heads only train stably against a standard-scaled target;</span>
+        <span class="c1"># quantile-transformed targets break the parametric-variance assumption.</span>
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;uncertainty&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span>
+        <span class="n">scaler_type</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">datamodule</span><span class="p">,</span> <span class="s2">&quot;scaler_type&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">scaler_type</span> <span class="o">!=</span> <span class="s2">&quot;standard&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;uncertainty=&#39;mve&#39; requires datamodule.scaler_type=&#39;standard&#39;, &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;got scaler_type=</span><span class="si">{</span><span class="n">scaler_type</span><span class="si">!r}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 
 

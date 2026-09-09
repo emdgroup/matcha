@@ -57,6 +57,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-pretraining-model.html">Adding a new pretraining model</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-fingerprint.html">Adding a new fingerprint or descriptor set</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-a-loss.html">Adding a new loss function</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../../contributing/adding-an-uncertainty-method.html">Adding a new uncertainty method</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">API reference</span></p>
 <ul>
@@ -90,8 +91,6 @@
   <h1>Source code for matcha.torch.models.classic.chemprop_model</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Chemprop (Directed Message Passing Neural Network) classic model.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
-
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.models.model</span><span class="w"> </span><span class="kn">import</span> <span class="n">MPNN</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn</span><span class="w"> </span><span class="kn">import</span> <span class="n">BondMessagePassing</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.predictors</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
@@ -103,7 +102,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">LossFunctionRegistry</span> <span class="k">as</span> <span class="n">ChempropLossRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropInputModel</span><span class="p">,</span> <span class="n">UncertaintyMethod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassicModelRegistry</span>
 
 
@@ -172,7 +171,7 @@
         <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;lr&quot;</span><span class="p">:</span> <span class="mf">1e-3</span><span class="p">},</span>
         <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;chemprop&quot;</span><span class="p">,</span>
         <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span> <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">},</span>
-        <span class="n">uncertainty</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;mve&quot;</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">uncertainty</span><span class="p">:</span> <span class="n">UncertaintyMethod</span> <span class="o">=</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
