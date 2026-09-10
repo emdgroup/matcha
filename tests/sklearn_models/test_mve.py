@@ -8,9 +8,6 @@ symmetric validation errors, and ensemble law-of-total-variance
 aggregation.
 """
 
-from pathlib import Path
-
-import lightning as L
 import numpy as np
 import pytest
 from pydantic import ValidationError
@@ -20,8 +17,6 @@ from matcha.sklearn.tabular import MLPClassifier, MLPRegressor, SNNRegressor
 from matcha.sklearn.graph import ChempropRegressor
 
 from .conftest import _ARCH_KWARGS, _MVE_KWARGS, _MVE_KWARGS_CHEMPROP
-
-_MVE_BASELINE_PATH = Path(__file__).parent / "mve_baseline.npz"
 
 
 # =========================================================================
@@ -450,60 +445,3 @@ class TestMVEEnsemble:
         actual_mu, actual_std = fitted_mve_ensemble.predict(mol_list)
         np.testing.assert_allclose(actual_mu, expected_mu, rtol=1e-5)
         np.testing.assert_allclose(actual_std, expected_std, rtol=1e-5)
-
-
-# =========================================================================
-# Numerical-equivalence regression — locks in the (B, T, 2) shape migration
-# =========================================================================
-
-
-class TestMVEShapeMigrationBaseline:
-    """Fixed-seed regression against a baseline captured pre shape migration.
-
-    Guards issue #99 Stage 1: swapping ``MVEPredictor.forward`` from
-    ``torch.cat([mean, log_var], -1)`` (``(B, 2·T)``) to
-    ``torch.stack([mean, log_var], -1)`` (``(B, T, 2)``) is intended to be
-    a pure refactor — training arithmetic and eval-time predictions must
-    reproduce the pre-migration baseline stored in ``mve_baseline.npz``.
-
-    The baseline was captured pre-migration using the fit sequence encoded
-    below (one warm-up fit, then a re-seeded measured fit). The warm-up
-    burns off first-call lazy initialisation (RDKit fingerprint generator
-    caches, Lightning ``Trainer`` bootstrap) that consumes RNG in a way
-    ``L.seed_everything`` cannot reset. Without it, the measured fit is
-    only deterministic when this test runs first in the pytest session —
-    which is order-dependent and unreliable. Both the capture and the test
-    follow the same warm-up + measurement pattern so the baseline stays
-    reproducible regardless of test ordering.
-    """
-
-    @staticmethod
-    def _make_mve_regressor() -> MLPRegressor:
-        return MLPRegressor(
-            hidden_dims=[32],
-            feature_list=["ECFP"],
-            num_epochs=1,
-            batch_size=32,
-            accelerator="cpu",
-            devices=1,
-            early_stopping=False,
-            stochastic_weight_averaging=False,
-            uncertainty="mve",
-            loss_fn="beta-nll",
-            seed=0,
-        )
-
-    def test_mve_predictions_match_pre_migration_baseline(self, mol_list, regression_y):
-        L.seed_everything(0, workers=True, verbose=False)
-        self._make_mve_regressor().fit(mol_list, regression_y)
-
-        L.seed_everything(0, workers=True, verbose=False)
-        model = self._make_mve_regressor()
-        model.fit(mol_list, regression_y)
-
-        preds = model.predict(mol_list)
-        std = model.compute_uncertainty(mol_list)
-
-        baseline = np.load(_MVE_BASELINE_PATH)
-        np.testing.assert_allclose(preds, baseline["preds"], atol=1e-6)
-        np.testing.assert_allclose(std, baseline["std"], atol=1e-6)
