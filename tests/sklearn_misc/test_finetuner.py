@@ -1341,7 +1341,17 @@ class TestChempropFinetuningRegressorMVE:
                 **FINETUNE_TRAIN,
             )
 
-    def test_rejects_mve_pretrained_model(self, mve_chemprop_pretrained_path, tmp_path):
+    @pytest.mark.parametrize(
+        ("uncertainty", "loss_fn"),
+        [("mc-dropout", "mse"), ("mve", "mve")],
+    )
+    def test_rejects_mve_pretrained_model(
+        self,
+        uncertainty,
+        loss_fn,
+        mve_chemprop_pretrained_path,
+        tmp_path,
+    ):
         from matcha.utils.serialization import load_yaml, save_yaml
 
         source = tmp_path / "mve_source"
@@ -1355,7 +1365,7 @@ class TestChempropFinetuningRegressorMVE:
         with pytest.raises(ValueError, match="MVE-pretrained Chemprop"):
             FinetuningRegressor(
                 path_to_pretrained=str(source),
-                uncertainty="mve",
-                loss_fn="mve",
+                uncertainty=uncertainty,
+                loss_fn=loss_fn,
                 **FINETUNE_TRAIN,
             )

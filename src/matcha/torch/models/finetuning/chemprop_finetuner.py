@@ -194,10 +194,9 @@ class ChempropFinetuner(ChempropModel):
             if isinstance(self.predictor, TargetFFN):
                 # Same FFN type — just swap criterion and resize output layer
                 self.predictor.criterion = ChempropLossRegistry[loss_fn]()
-                output_dim = (
-                    num_endpoints * 2 if uncertainty == "mve" else num_endpoints
+                new_layer = nn.Linear(
+                    pretrained_params["pred_hidden_dim"], num_endpoints
                 )
-                new_layer = nn.Linear(pretrained_params["pred_hidden_dim"], output_dim)
                 self.predictor.ffn[-1][-1] = new_layer
             else:
                 # FFN type mismatch — instantiate correct type and transfer weights

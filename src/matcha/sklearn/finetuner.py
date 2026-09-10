@@ -279,10 +279,10 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
                     "Chemprop pretrained models; ChempropFinetuner does not "
                     "expose a stripped-predictor mode."
                 )
-            if uncertainty == "mve" and params["model"].get("uncertainty") == "mve":
+            if params["model"].get("uncertainty") == "mve":
                 raise ValueError(
-                    "finetuning an MVE-pretrained Chemprop model with a new MVE "
-                    "head is not supported."
+                    "finetuning an MVE-pretrained Chemprop model is not supported; "
+                    "start from a non-MVE pretrained checkpoint."
                 )
 
             # Chemprop uses its own NoamLR schedule — silently override

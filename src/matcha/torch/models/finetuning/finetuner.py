@@ -155,6 +155,7 @@ class Finetuner(ModelMixin, HyperparametersMixin):
         else:
             self._load_from_pretrained_path(path_to_pretrained)
 
+        # Pretraining-origin encoder wrappers have no pretrained uncertainty head.
         if (
             keep_existing_predictor
             and getattr(self.pretrain, "uncertainty_method", "mc-dropout") == "mve"
@@ -663,7 +664,7 @@ class Finetuner(ModelMixin, HyperparametersMixin):
                 "predict_variance_step is only available when the model was "
                 "instantiated with uncertainty='mve'."
             )
-        for module in self.predictor.modules():
+        for module in self.modules():
             if isinstance(module, torch.nn.Dropout):
                 module.eval()
         y_pred = self.forward(batch)

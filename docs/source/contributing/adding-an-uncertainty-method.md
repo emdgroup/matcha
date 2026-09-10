@@ -59,8 +59,10 @@ log_var = torch.log(output[..., 1].clamp_min(1e-6))
 ```
 
 `ChempropModel.predict_variance_step` is the reference implementation for this
-softplus-variance to log-variance adapter. Keeping the adapter at that boundary
-lets `UncertaintyManager` consume every MVE model through the same interface.
+softplus-variance to log-variance adapter and uses the module-level
+`_MVE_VAR_EPS = 1e-6` constant as the clamp floor. Keeping the adapter at that
+boundary lets `UncertaintyManager` consume every MVE model through the same
+interface.
 
 ## 4. Tests
 
