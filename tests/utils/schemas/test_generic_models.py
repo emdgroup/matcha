@@ -17,7 +17,11 @@ enforces two orthogonal concerns:
 import pytest
 from pydantic import ValidationError
 
-from matcha.utils.schemas.generic_models import ClassicMatchaModel
+from matcha.utils.schemas.generic_models import (
+    ChempropFinetunerMixin,
+    ClassicMatchaModel,
+    FinetunerMixin,
+)
 
 
 _BASE_ARGS = dict(
@@ -50,6 +54,68 @@ class TestClassicMatchaModelUncertaintyEnum:
     def test_invalid_literal_rejected(self, bad):
         with pytest.raises(ValidationError):
             ClassicMatchaModel(loss_fn="mse", uncertainty=bad, **_BASE_ARGS)
+
+
+_FINETUNER_ARGS = dict(
+    architecture="ginmodel",
+    path_to_pretrained="model",
+    pred_hidden_dims=[32],
+    activation="relu",
+    dropout=0.0,
+    num_endpoints=1,
+    loss_args={},
+    optimizer="adam",
+    optimizer_args={"lr": 1e-3},
+    pretrain_lr=1e-4,
+    pretrain_decay=0.5,
+    scheduler="cosine_annealing",
+    scheduler_args={"min_lr": 1e-6, "total_steps": 10},
+)
+
+_CHEMPROP_FINETUNER_ARGS = dict(
+    path_to_pretrained="model",
+    num_endpoints=1,
+    optimizer="chemprop",
+    optimizer_args={"lr": 1e-3},
+    scheduler_args={"warmup_epochs": 1, "max_lr": 1e-3, "final_lr": 1e-5},
+    pred_hidden_dim=32,
+    pred_num_layers=1,
+    pred_dropout=0.0,
+    pred_activation="relu",
+)
+
+
+class TestFinetunerMVEPairing:
+    def test_matcha_finetuner_accepts_beta_nll(self):
+        model = FinetunerMixin(
+            **_FINETUNER_ARGS,
+            uncertainty="mve",
+            loss_fn="beta-nll",
+        )
+        assert model.uncertainty == "mve"
+
+    def test_matcha_finetuner_rejects_non_mve_loss(self):
+        with pytest.raises(ValidationError, match="requires loss_fn"):
+            FinetunerMixin(
+                **_FINETUNER_ARGS,
+                uncertainty="mve",
+                loss_fn="mse",
+            )
+
+    def test_chemprop_finetuner_accepts_only_mve_alias(self):
+        model = ChempropFinetunerMixin(
+            **_CHEMPROP_FINETUNER_ARGS,
+            uncertainty="mve",
+            loss_fn="mve",
+        )
+        assert model.uncertainty == "mve"
+
+        with pytest.raises(ValidationError, match="requires loss_fn"):
+            ChempropFinetunerMixin(
+                **_CHEMPROP_FINETUNER_ARGS,
+                uncertainty="mve",
+                loss_fn="beta-nll",
+            )
 
 
 class TestClassicMatchaModelMVEPairing:

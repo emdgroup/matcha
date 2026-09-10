@@ -43,6 +43,25 @@ The `else` branch is the safety net — any literal value without a registered m
 
 Every classic Lightning model in `src/matcha/torch/models/classic/*_model.py` accepts `uncertainty: UncertaintyMethod = "mc-dropout"`. Extending the literal is enough for those signatures. Every sklearn **regressor** under `sklearn/{tabular,graph,graph3d,clm}/*.py` uses the same `UncertaintyMethod` alias — again nothing to touch. Sklearn **classifiers** narrow their type to `Literal["mc-dropout"]` (MVE is regression-only). If the new method is classifier-compatible, widen the classifier signature site-by-site.
 
+## MVE head convention
+
+MVE-family heads return `(N, T, 2)`, where `[..., 0]` is the predictive mean
+and `[..., 1]` is the log-variance. Matcha's `MVEPredictor` emits this layout
+directly, and finetuners inherit the convention from their selected prediction
+head.
+
+External heads that emit a positive variance instead of a log-variance should
+adapt only the variance component at the model boundary:
+
+```python
+mean = output[..., 0]
+log_var = torch.log(output[..., 1].clamp_min(1e-6))
+```
+
+`ChempropModel.predict_variance_step` is the reference implementation for this
+softplus-variance to log-variance adapter. Keeping the adapter at that boundary
+lets `UncertaintyManager` consume every MVE model through the same interface.
+
 ## 4. Tests
 
 - `tests/utils/schemas/test_generic_models.py`: parametrize the "invalid uncertainty literal" test to confirm the new value is accepted; add pairing-rejection cases if applicable.

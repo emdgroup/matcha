@@ -326,6 +326,12 @@ class FinetunerMixin(BaseDataModel):
     lora_alpha: float = 8.0
     lora_min_dim: int = 32
     keep_existing_predictor: bool = True
+    uncertainty: UncertaintyMethod = "mc-dropout"
+
+    @model_validator(mode="after")
+    def _validate_mve_pairing(self) -> "FinetunerMixin":
+        _validate_mve_pairing_rules(self.loss_fn, self.uncertainty)
+        return self
 
 
 class ChempropFinetunerMixin(BaseDataModel):
@@ -341,3 +347,13 @@ class ChempropFinetunerMixin(BaseDataModel):
     pred_num_layers: int
     pred_dropout: float
     pred_activation: str
+    uncertainty: UncertaintyMethod = "mc-dropout"
+
+    @model_validator(mode="after")
+    def _validate_mve_pairing(self) -> "ChempropFinetunerMixin":
+        _validate_mve_pairing_rules(
+            self.loss_fn,
+            self.uncertainty,
+            mve_aliases=frozenset({"mve"}),
+        )
+        return self
