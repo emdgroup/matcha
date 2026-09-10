@@ -1,3 +1,26 @@
+## v0.0.25 (2026-09-10)
+
+### Feat
+
+- **finetuning**: add MVE uncertainty support (#99 stages 3-4)
+- **chemprop**: wire chemprop MveFFN + MVELoss into ChempropRegressor (#99 stage 2)
+- **sklearn**: aggregate MVE ensembles via law of total variance and cover the pathway end-to-end (#95 stage 5)
+- **sklearn**: expose uncertainty="mve" on regressors and add MVE branch to UncertaintyManager (#95 stage 4)
+- **torch**: wire uncertainty kwarg through classic models with schema-level MVE pairing validator (#95 stage 3)
+- **torch**: route MVE dispatch through _parse_predictor and validation slice (#95 stage 2)
+- **nn**: add β-NLL losses and MVE predictor head (#95 stage 1)
+
+### Fix
+
+- **finetuning**: reject MVE-pretrained Chemprop models
+
+### Refactor
+
+- **torch**: migrate MVE output layout to (B, T, 2) (#99 stage 1)
+- **sklearn**: dispatch uncertainty by explicit method and retire the parallel sklearn validator (#97 stage 3)
+- **torch**: introduce uncertainty_method property and widen classic-model uncertainty enum (#97 stage 2)
+- **schemas**: promote uncertainty to explicit enum and consolidate MVE validation in Pydantic (#97 stage 1)
+
 ## v0.0.24 (2026-09-01)
 
 ### Feat
