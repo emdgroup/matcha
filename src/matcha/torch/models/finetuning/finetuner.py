@@ -7,6 +7,7 @@ LoRA (Low-Rank Adaptation) as finetuning strategies.
 from matcha.torch.models.classic.base_classic_model import ClassicModelRegistry
 from matcha.utils.serialization import load_yaml
 from matcha.torch.predictors import MLP
+from matcha.torch.predictors.base_predictor import PredictorRegistry
 from matcha.nn.losses import MultiLoss
 from matcha.nn.optimizers import OptimizerRegistry
 from matcha.nn.layers import AdaRMSN, GraphNorm
@@ -21,7 +22,7 @@ import torch
 from typing import Any
 from torch import nn
 from lightning.pytorch.core.mixins import HyperparametersMixin
-from matcha.utils.schemas import FinetunerInputModel
+from matcha.utils.schemas import FinetunerInputModel, UncertaintyMethod
 
 _SELF_CONTAINED_SENTINEL = "__self_contained__"
 
@@ -75,6 +76,8 @@ class Finetuner(ModelMixin, HyperparametersMixin):
     :param str activation: Activation function for prediction head, defaults to 'relu'
     :param float dropout: Dropout rate for prediction head, defaults to 0.1
     :param int num_endpoints: Number of prediction targets, defaults to 1
+    :param UncertaintyMethod uncertainty: Uncertainty method, defaults to
+        ``"mc-dropout"``
     :param str loss_fn: Loss function name, defaults to 'mse'
     :param dict loss_args: Additional loss function arguments
     :param str optimizer: Optimizer name, defaults to 'adam'
@@ -119,6 +122,7 @@ class Finetuner(ModelMixin, HyperparametersMixin):
         activation: str = "relu",
         dropout: float = 0.1,
         num_endpoints: int = 1,
+        uncertainty: UncertaintyMethod = "mc-dropout",
         loss_fn: str = "mse",
         loss_args: dict = {},
         optimizer: str = "adam",
@@ -151,6 +155,16 @@ class Finetuner(ModelMixin, HyperparametersMixin):
         else:
             self._load_from_pretrained_path(path_to_pretrained)
 
+        # Pretraining-origin encoder wrappers have no pretrained uncertainty head.
+        if (
+            keep_existing_predictor
+            and getattr(self.pretrain, "uncertainty_method", "mc-dropout") == "mve"
+        ):
+            raise ValueError(
+                "keep_existing_predictor=True is not supported for an MVE-pretrained "
+                "model; set keep_existing_predictor=False."
+            )
+
         if keep_existing_predictor:
             self.pretrain.predictor.prediction_head = None
             self.pretrain_output_dim = self.pretrain.latent_dim
@@ -170,15 +184,25 @@ class Finetuner(ModelMixin, HyperparametersMixin):
                 for param in module.parameters():
                     param.requires_grad = False
 
-        self.predictor = MLP(
-            input_dim=self.pretrain_output_dim,
-            hidden_dims=pred_hidden_dims,
-            task_head_dims=task_head_dims,
-            num_endpoints=num_endpoints,
-            dropout=dropout,
-            activation=activation,
-            norm="batch",
-        )
+        if uncertainty == "mve":
+            self.predictor = PredictorRegistry["mve"](
+                input_dim=self.pretrain_output_dim,
+                hidden_dims=pred_hidden_dims,
+                num_endpoints=num_endpoints,
+                dropout=dropout,
+                activation=activation,
+                norm="batch",
+            )
+        else:
+            self.predictor = MLP(
+                input_dim=self.pretrain_output_dim,
+                hidden_dims=pred_hidden_dims,
+                task_head_dims=task_head_dims,
+                num_endpoints=num_endpoints,
+                dropout=dropout,
+                activation=activation,
+                norm="batch",
+            )
 
         self._parse_loss_fn(loss_fn, loss_args, num_endpoints)
 
@@ -517,6 +541,11 @@ class Finetuner(ModelMixin, HyperparametersMixin):
         return self.predictor.forward(mol_features)
 
     @property
+    def uncertainty_method(self) -> str:
+        """Configured uncertainty method."""
+        return self.hparams.get("uncertainty") or "mc-dropout"
+
+    @property
     def latent_dim(self) -> int:
         """Dimensionality of the learned representation, i.e. the output of the
         hidden layers right before the prediction head."""
@@ -621,7 +650,25 @@ class Finetuner(ModelMixin, HyperparametersMixin):
             for module in self.predictor.modules():
                 if isinstance(module, torch.nn.Dropout):
                     module.eval()
-        return self.forward(batch)
+        y_pred = self.forward(batch)
+        if self.uncertainty_method == "mve":
+            y_pred = y_pred[..., 0]
+        return y_pred
+
+    def predict_variance_step(
+        self, batch: dict[str, Any]
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Return intrinsic means and log-variances for MVE finetuners."""
+        if self.uncertainty_method != "mve":
+            raise RuntimeError(
+                "predict_variance_step is only available when the model was "
+                "instantiated with uncertainty='mve'."
+            )
+        for module in self.modules():
+            if isinstance(module, torch.nn.Dropout):
+                module.eval()
+        y_pred = self.forward(batch)
+        return y_pred[..., 0], y_pred[..., 1]
 
     def configure_optimizers(self):
         """Configure optimizers and schedulers for Lightning Trainer.

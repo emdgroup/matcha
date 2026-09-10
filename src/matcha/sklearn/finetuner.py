@@ -18,6 +18,7 @@ from matcha.sklearn.managers import FinetunerTrainingManager
 from matcha.utils import load_yaml, load_pickle
 import numpy as np
 import torch
+from matcha.utils.schemas import UncertaintyMethod
 from matcha.utils.schemas.sklearn_api import TrainingInputModel, MetadataInputModel
 from rdkit.Chem.rdchem import Mol
 from torch.utils.data import StackDataset
@@ -78,6 +79,7 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
         activation: str = "relu",
         dropout: float = 0.1,
         num_endpoints: int = 1,
+        uncertainty: UncertaintyMethod = "mc-dropout",
         loss_fn: str = "mse",
         loss_args: dict = {},
         optimizer: str = "adam",
@@ -116,6 +118,7 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
         :param str activation: activation function name for the prediction head
         :param float dropout: dropout rate for the prediction head
         :param int num_endpoints: number of output endpoints (tasks)
+        :param UncertaintyMethod uncertainty: uncertainty method for regression
         :param str loss_fn: loss function name
         :param dict loss_args: additional arguments for the loss function
         :param str optimizer: optimizer name
@@ -250,6 +253,7 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
                 activation=activation,
                 dropout=dropout,
                 num_endpoints=num_endpoints,
+                uncertainty=uncertainty,
                 loss_fn=loss_fn,
                 loss_args=loss_args,
                 optimizer=optimizer,
@@ -275,6 +279,11 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
                     "Chemprop pretrained models; ChempropFinetuner does not "
                     "expose a stripped-predictor mode."
                 )
+            if params["model"].get("uncertainty") == "mve":
+                raise ValueError(
+                    "finetuning an MVE-pretrained Chemprop model is not supported; "
+                    "start from a non-MVE pretrained checkpoint."
+                )
 
             # Chemprop uses its own NoamLR schedule — silently override
             # any non-chemprop scheduler the caller may have left at the
@@ -287,6 +296,7 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
             model = ChempropFinetuner(
                 path_to_pretrained,
                 num_endpoints=num_endpoints,
+                uncertainty=uncertainty,
                 loss_fn=loss_fn,
                 optimizer_args=optimizer_args,
                 scheduler_args=scheduler_args,
@@ -309,6 +319,7 @@ class BaseFinetuner(BaseScikitLearnModel, HyperparametersMixin):
                 activation=activation,
                 dropout=dropout,
                 num_endpoints=num_endpoints,
+                uncertainty=uncertainty,
                 loss_fn=loss_fn,
                 loss_args=loss_args,
                 optimizer=optimizer,
@@ -400,6 +411,7 @@ class FinetuningRegressor(BaseFinetuner, ScikitLearnRegressorMixin):
         activation: str = "relu",
         dropout: float = 0.1,
         num_endpoints: int = 1,
+        uncertainty: UncertaintyMethod = "mc-dropout",
         loss_fn: str = "mse",
         loss_args: dict = {},
         optimizer: str = "adam",
@@ -434,6 +446,7 @@ class FinetuningRegressor(BaseFinetuner, ScikitLearnRegressorMixin):
             activation=activation,
             dropout=dropout,
             num_endpoints=num_endpoints,
+            uncertainty=uncertainty,
             loss_fn=loss_fn,
             loss_args=loss_args,
             optimizer=optimizer,

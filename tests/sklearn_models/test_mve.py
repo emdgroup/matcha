@@ -16,7 +16,7 @@ from matcha.sklearn import Ensemble, autoload
 from matcha.sklearn.tabular import MLPClassifier, MLPRegressor, SNNRegressor
 from matcha.sklearn.graph import ChempropRegressor
 
-from .conftest import _ARCH_KWARGS, _MVE_KWARGS
+from .conftest import _ARCH_KWARGS, _MVE_KWARGS, _MVE_KWARGS_CHEMPROP
 
 
 # =========================================================================
@@ -117,6 +117,34 @@ class TestMVEMultitask:
 
     def test_multitask_std_non_negative(self, fitted_multitask_mve, mol_list):
         std = fitted_multitask_mve.compute_uncertainty(mol_list)
+        assert np.all(std >= 0.0)
+
+
+class TestMVEMultitaskChemprop:
+    """Multitask MVE on the chemprop path: chemprop's MveFFN emits (N, T, 2)
+    directly, so per-task means and per-task variances must survive routing
+    through ChempropRegressor's sklearn wrapper unchanged."""
+
+    @pytest.fixture()
+    def fitted_multitask_chemprop_mve(self, mol_list, multitask_regression_y_t3):
+        model = ChempropRegressor(
+            **_ARCH_KWARGS[ChempropRegressor],
+            **_MVE_KWARGS_CHEMPROP,
+            num_endpoints=3,
+        )
+        model.fit(mol_list, multitask_regression_y_t3)
+        return model
+
+    def test_multitask_predict_shape(self, fitted_multitask_chemprop_mve, mol_list):
+        preds = fitted_multitask_chemprop_mve.predict(mol_list)
+        assert preds.shape == (len(mol_list), 3)
+
+    def test_multitask_std_shape(self, fitted_multitask_chemprop_mve, mol_list):
+        std = fitted_multitask_chemprop_mve.compute_uncertainty(mol_list)
+        assert std.shape == (len(mol_list), 3)
+
+    def test_multitask_std_non_negative(self, fitted_multitask_chemprop_mve, mol_list):
+        std = fitted_multitask_chemprop_mve.compute_uncertainty(mol_list)
         assert np.all(std >= 0.0)
 
 
@@ -230,6 +258,28 @@ class TestMVECalibration:
         assert np.all(np.isfinite(std))
         assert np.all(std >= 0.0)
 
+    def test_chemprop_calibrator_is_set_and_produces_finite_std(
+        self, mol_list, regression_y
+    ):
+        # Guards the chemprop MVE path through UncertaintyManager.calibrate:
+        # softplus → log-variance adapter in ChempropModel.predict_variance_step
+        # must survive the calibrator fit + apply round-trip.
+        model = ChempropRegressor(
+            **_ARCH_KWARGS[ChempropRegressor], **_MVE_KWARGS_CHEMPROP
+        )
+        model.fit(mol_list, regression_y)
+        assert model._uncertainty_manager.calibrator is None
+        model.calibrate_uncertainty(
+            calibration_mols=mol_list,
+            calibration_y=regression_y,
+            algorithm="icp_regression",
+        )
+        assert model._uncertainty_manager.calibrator is not None
+        std = model.compute_uncertainty(mol_list)
+        assert std.shape == (len(mol_list), 1)
+        assert np.all(np.isfinite(std))
+        assert np.all(std >= 0.0)
+
 
 # =========================================================================
 # Symmetric validation — every rejection path listed in the plan
@@ -302,22 +352,23 @@ class TestMVEValidationErrors:
                 loss_fn="beta-nll",
             )
 
-    def test_chemprop_regressor_mve_raises(self):
-        with pytest.raises(NotImplementedError):
+    def test_chemprop_regressor_mve_beta_nll_raises(self):
+        # Chemprop paths only accept chemprop's own MVELoss (alias "mve");
+        # β-NLL / bounded-β-NLL stay matcha-only. See
+        # ChempropInputModel._validate_mve_pairing.
+        with pytest.raises(ValidationError):
             ChempropRegressor(
-                enc_num_layers=1,
-                enc_atom_hidden_dim=32,
-                pred_hidden_dim=32,
-                pred_num_layers=1,
-                feature_list=None,
-                num_epochs=1,
-                batch_size=32,
-                accelerator="cpu",
-                devices=1,
-                early_stopping=False,
-                stochastic_weight_averaging=False,
+                **_ARCH_KWARGS[ChempropRegressor],
                 uncertainty="mve",
                 loss_fn="beta-nll",
+            )
+
+    def test_chemprop_regressor_mve_bounded_beta_nll_raises(self):
+        with pytest.raises(ValidationError):
+            ChempropRegressor(
+                **_ARCH_KWARGS[ChempropRegressor],
+                uncertainty="mve",
+                loss_fn="bounded-beta-nll",
             )
 
     def test_classifier_rejects_mve(self):

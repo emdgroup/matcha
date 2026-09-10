@@ -25,6 +25,7 @@ from matcha.torch.models.finetuning.passthrough_predictor import PassthroughPred
 from matcha.torch.models.finetuning.pretrained_encoder_wrapper import (
     PretrainedEncoderWrapper,
 )
+from matcha.torch.predictors.mve import MVEPredictor
 
 
 GIN_PRETRAIN_PARAMS = {
@@ -450,6 +451,67 @@ class TestKeepExistingPredictorNested:
         with torch.no_grad():
             out = model.forward(batch)
         assert out.shape == (2, 1)
+
+
+class TestFinetunerMVE:
+    @pytest.mark.parametrize("strategy", ["full", "lora"])
+    def test_mve_head_predict_and_variance_shapes(self, strategy):
+        config = {
+            "origin_type": "classic",
+            "pretrain_params": GIN_PRETRAIN_PARAMS,
+            "source_class": None,
+        }
+        model = Finetuner(
+            architecture="ginmodel",
+            path_to_pretrained=_SELF_CONTAINED_SENTINEL,
+            pred_hidden_dims=[32],
+            num_endpoints=3,
+            uncertainty="mve",
+            loss_fn="beta-nll",
+            dropout=0.0,
+            optimizer_args={"lr": 1e-4},
+            scheduler_args={"min_lr": 1e-6, "total_steps": 50},
+            finetuning_strategy=strategy,
+            _pretrain_config=config,
+        )
+
+        raw = model.forward({"graph": _make_graph_batch(batch_size=2)})
+        point = model.predict_step({"graph": _make_graph_batch(batch_size=2)})
+        mean, log_var = model.predict_variance_step(
+            {"graph": _make_graph_batch(batch_size=2)}
+        )
+
+        assert isinstance(model.predictor, MVEPredictor)
+        assert model.uncertainty_method == "mve"
+        assert raw.shape == (2, 3, 2)
+        assert point.shape == mean.shape == log_var.shape == (2, 3)
+        torch.testing.assert_close(point, raw[..., 0])
+        torch.testing.assert_close(mean, raw[..., 0])
+        torch.testing.assert_close(log_var, raw[..., 1])
+
+    def test_mve_pretrained_predictor_is_rejected_when_preserved(self):
+        pretrain_params = {
+            **GIN_PRETRAIN_PARAMS,
+            "uncertainty": "mve",
+            "loss_fn": "beta-nll",
+        }
+        config = {
+            "origin_type": "classic",
+            "pretrain_params": pretrain_params,
+            "source_class": None,
+        }
+
+        with pytest.raises(ValueError, match="keep_existing_predictor=True"):
+            Finetuner(
+                architecture="ginmodel",
+                path_to_pretrained=_SELF_CONTAINED_SENTINEL,
+                pred_hidden_dims=[32],
+                uncertainty="mve",
+                loss_fn="beta-nll",
+                optimizer_args={"lr": 1e-4},
+                scheduler_args={"min_lr": 1e-6, "total_steps": 50},
+                _pretrain_config=config,
+            )
 
 
 class TestKeepExistingPredictorCheckpointRoundTrip:

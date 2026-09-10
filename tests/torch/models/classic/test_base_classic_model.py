@@ -101,11 +101,11 @@ class TestParsePredictorDispatch:
         assert isinstance(model.predictor, MVEPredictor)
         assert model.uncertainty_method == "mve"
 
-    def test_mve_predictor_output_width_is_double(self):
+    def test_mve_predictor_output_shape_is_batch_endpoints_two(self):
         model = _ToyClassicModel(num_endpoints=3, uncertainty="mve", loss_fn="beta-nll")
         model.eval()
         out = model.predictor(torch.randn(4, 8))
-        assert out.shape == (4, 6)
+        assert out.shape == (4, 3, 2)
 
     def test_kwargs_filtered_against_target_signature(self):
         """MVEPredictor takes no ``task_head_dims`` — the base kwargs hook

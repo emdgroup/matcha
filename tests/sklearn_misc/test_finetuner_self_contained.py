@@ -5,8 +5,11 @@ Verifies that `Finetuner.__init__` and `ChempropFinetuner.__init__` with
 a valid module graph with correct dimensions, without any filesystem access.
 """
 
+from contextlib import nullcontext
+
 import pytest
 import torch
+from chemprop.nn.predictors import MveFFN
 
 from matcha.torch.models.finetuning.finetuner import Finetuner, _SELF_CONTAINED_SENTINEL
 from matcha.torch.models.finetuning.chemprop_finetuner import ChempropFinetuner
@@ -408,3 +411,77 @@ class TestSelfContainedChempropOrigin:
                 path_to_pretrained=_SELF_CONTAINED_SENTINEL,
                 _pretrain_config=None,
             )
+
+
+class TestSelfContainedChempropMVE:
+    @pytest.mark.parametrize("pred_hidden_dim", [32, None])
+    def test_mve_head_handles_full_checkpoint_cases(self, pred_hidden_dim):
+        config = {
+            "origin_type": "chemprop",
+            "pretrain_params": CHEMPROP_PRETRAIN_PARAMS,
+        }
+        context = (
+            pytest.warns(UserWarning, match="Replacing predictor")
+            if pred_hidden_dim is None
+            else nullcontext()
+        )
+        with context:
+            model = ChempropFinetuner(
+                path_to_pretrained=_SELF_CONTAINED_SENTINEL,
+                pred_hidden_dim=pred_hidden_dim,
+                pred_num_layers=1,
+                pred_dropout=0.0,
+                pred_activation="relu",
+                num_endpoints=3,
+                uncertainty="mve",
+                loss_fn="mve",
+                optimizer_args={"lr": 1e-5},
+                scheduler_args={
+                    "warmup_epochs": 5,
+                    "max_lr": 1e-4,
+                    "final_lr": 1e-5,
+                },
+                _pretrain_config=config,
+            )
+
+        output = model.predictor(torch.randn(4, model.predictor.ffn.input_dim))
+        assert isinstance(model.predictor, MveFFN)
+        assert model.uncertainty_method == "mve"
+        assert output.shape == (4, 3, 2)
+
+    def test_regression_to_mve_transfers_hidden_weights(self):
+        from matcha.torch.models.classic.chemprop_model import ChempropModel
+
+        config = {
+            "origin_type": "chemprop",
+            "pretrain_params": CHEMPROP_PRETRAIN_PARAMS,
+        }
+        torch.manual_seed(7)
+        pretrained = ChempropModel(**CHEMPROP_PRETRAIN_PARAMS)
+        expected_hidden_state = {
+            key: value.clone()
+            for key, value in pretrained.predictor.ffn.state_dict().items()
+            if key.startswith("0.")
+        }
+
+        torch.manual_seed(7)
+        with pytest.warns(UserWarning, match="Replacing predictor"):
+            model = ChempropFinetuner(
+                path_to_pretrained=_SELF_CONTAINED_SENTINEL,
+                pred_hidden_dim=None,
+                num_endpoints=3,
+                uncertainty="mve",
+                loss_fn="mve",
+                optimizer_args={"lr": 1e-5},
+                scheduler_args={
+                    "warmup_epochs": 5,
+                    "max_lr": 1e-4,
+                    "final_lr": 1e-5,
+                },
+                _pretrain_config=config,
+            )
+
+        actual_state = model.predictor.ffn.state_dict()
+        for key, expected in expected_hidden_state.items():
+            torch.testing.assert_close(actual_state[key], expected)
+        assert actual_state["1.2.weight"].shape[0] == 6

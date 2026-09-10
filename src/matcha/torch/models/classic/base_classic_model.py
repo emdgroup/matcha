@@ -290,8 +290,7 @@ class BaseClassicModel(ModelMixin, ABC):
                     module.eval()
         y_pred = self.forward(batch)
         if self.uncertainty_method == "mve":
-            num_endpoints = self.hparams["num_endpoints"]
-            y_pred = y_pred[..., :num_endpoints]
+            y_pred = y_pred[..., 0]
         return y_pred
 
     def predict_variance_step(
@@ -318,9 +317,8 @@ class BaseClassicModel(ModelMixin, ABC):
             if isinstance(module, torch.nn.Dropout):
                 module.eval()
         y_pred = self.forward(batch)
-        num_endpoints = self.hparams["num_endpoints"]
-        mean = y_pred[..., :num_endpoints]
-        log_var = y_pred[..., num_endpoints:]
+        mean = y_pred[..., 0]
+        log_var = y_pred[..., 1]
         return mean, log_var
 
     def configure_optimizers(self):

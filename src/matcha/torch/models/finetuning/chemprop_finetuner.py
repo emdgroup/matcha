@@ -9,10 +9,11 @@ import os
 import torch
 from torch import nn
 from chemprop.nn.metrics import LossFunctionRegistry as ChempropLossRegistry
-from matcha.utils.schemas import ChempropFinetunerInputModel
+from matcha.utils.schemas import ChempropFinetunerInputModel, UncertaintyMethod
 from chemprop.nn.predictors import (
     RegressionFFN,
     BinaryClassificationFFN,
+    MveFFN,
 )
 from chemprop.nn import BondMessagePassing
 from matcha.torch.models.classic.base_classic_model import ClassicModelRegistry
@@ -50,6 +51,8 @@ class ChempropFinetuner(ChempropModel):
     :param float pred_dropout: Dropout rate for the FFN, defaults to 0.2
     :param str pred_activation: Activation function for the FFN, defaults to 'relu'
     :param int num_endpoints: Number of prediction targets, defaults to 1
+    :param UncertaintyMethod uncertainty: Uncertainty method, defaults to
+        ``"mc-dropout"``
     :param str loss_fn: Loss function name, defaults to 'mse'
     :param str optimizer: Optimizer name, defaults to 'chemprop'
     :param dict optimizer_args: Optimizer arguments, defaults to {"lr": 1e-5}
@@ -64,6 +67,7 @@ class ChempropFinetuner(ChempropModel):
         pred_dropout: float = 0.2,
         pred_activation: str = "relu",
         num_endpoints: int = 1,
+        uncertainty: UncertaintyMethod = "mc-dropout",
         loss_fn: str = "mse",
         optimizer: str = "chemprop",
         optimizer_args: dict = {"lr": 1e-5},
@@ -96,9 +100,11 @@ class ChempropFinetuner(ChempropModel):
             optimizer=optimizer,
             optimizer_args=optimizer_args,
             scheduler_args=scheduler_args,
+            uncertainty=uncertainty,
         )
         self.hparams["pretrain_params"] = pretrained_params
         self.hparams["path_to_pretrained"] = path_to_pretrained
+        self.hparams["uncertainty"] = uncertainty
 
         # Load pretrained weights (skipped for self-contained — Lightning
         # restores weights via load_state_dict after __init__)
@@ -143,7 +149,9 @@ class ChempropFinetuner(ChempropModel):
         self.warmup_epochs = scheduler_args["warmup_epochs"]
 
         # Determine the correct FFN class for the target loss function
-        if loss_fn in ("bce", "ce"):
+        if uncertainty == "mve":
+            TargetFFN = MveFFN
+        elif loss_fn in ("bce", "ce"):
             TargetFFN = BinaryClassificationFFN
         else:
             TargetFFN = RegressionFFN

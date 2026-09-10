@@ -5,6 +5,7 @@ from chemprop.nn import BondMessagePassing
 from chemprop.nn.predictors import (
     RegressionFFN,
     BinaryClassificationFFN,
+    MveFFN,
 )
 from chemprop.nn.agg import AggregationRegistry as ChempropAggRegistry
 from chemprop.nn.agg import AttentiveAggregation
@@ -13,6 +14,10 @@ from lightning.pytorch.core.mixins import HyperparametersMixin
 import torch
 from matcha.utils.schemas import ChempropInputModel, UncertaintyMethod
 from matcha.torch.models.classic.base_classic_model import ClassicModelRegistry
+
+# Clamp value for chemprop's softplus-variance before taking the log, so
+# numerically-zero variances do not overflow into ``-inf`` log-variance.
+_MVE_VAR_EPS = 1e-6
 
 
 @ClassicModelRegistry.register()
@@ -80,13 +85,6 @@ class ChempropModel(MPNN, HyperparametersMixin):
         scheduler_args: dict = {"warmup_epochs": 5, "max_lr": 1e-2, "final_lr": 1e-5},
         uncertainty: UncertaintyMethod = "mc-dropout",
     ):
-        if uncertainty == "mve":
-            raise NotImplementedError(
-                "ChempropModel does not support uncertainty='mve' yet: it uses "
-                "chemprop.nn.predictors.RegressionFFN from the upstream package "
-                "instead of a MATCHA BasePredictor. A MVERegressionFFN wrapper "
-                "is tracked as a follow-up to issue #95."
-            )
         self.save_hyperparameters()
         self.params = ChempropInputModel(
             enc_atom_hidden_dim=enc_atom_hidden_dim,
@@ -105,6 +103,7 @@ class ChempropModel(MPNN, HyperparametersMixin):
             optimizer_args=optimizer_args,
             scheduler=scheduler,
             scheduler_args=scheduler_args,
+            uncertainty=uncertainty,
         )
         mp = BondMessagePassing(
             d_h=enc_atom_hidden_dim,
@@ -118,7 +117,9 @@ class ChempropModel(MPNN, HyperparametersMixin):
         elif enc_readout == "attentive":
             agg = AttentiveAggregation(output_size=enc_atom_hidden_dim)
 
-        if loss_fn in ("bce", "ce"):
+        if uncertainty == "mve":
+            MLP = MveFFN
+        elif loss_fn in ("bce", "ce"):
             MLP = BinaryClassificationFFN
         else:
             MLP = RegressionFFN
@@ -143,6 +144,66 @@ class ChempropModel(MPNN, HyperparametersMixin):
             max_lr=scheduler_args["max_lr"],
             final_lr=scheduler_args["final_lr"],
         )
+
+    @property
+    def uncertainty_method(self) -> str:
+        """Configured uncertainty method (``"mc-dropout"`` or ``"mve"``).
+
+        Mirrors :attr:`BaseClassicModel.uncertainty_method` so
+        :class:`~matcha.sklearn.managers.uncertainty_manager.UncertaintyManager`
+        can dispatch on the same value regardless of the model family.
+        """
+        return self.hparams.get("uncertainty") or "mc-dropout"
+
+    def predict_step(self, batch, batch_idx=0, dataloader_idx=0):
+        """Prediction step returning point predictions.
+
+        For MVE-configured models, chemprop's :class:`MveFFN` emits
+        ``(N, num_endpoints, 2)`` where ``[..., 0]`` is the mean and
+        ``[..., 1]`` is the softplus-variance. We slice out the mean so
+        the sklearn surface sees the same ``(N, T)`` layout as any other
+        regressor. Chemprop does not support MC-dropout inference, so no
+        branching on ``self.mc_dropout_flag`` is needed here.
+        """
+        y_pred = super().predict_step(batch, batch_idx, dataloader_idx)
+        if self.uncertainty_method == "mve":
+            y_pred = y_pred[..., 0]
+        return y_pred
+
+    def predict_variance_step(self, batch):
+        """Return the intrinsic mean and log-variance for an MVE-configured model.
+
+        Chemprop's :class:`MveFFN` produces ``(N, num_endpoints, 2)`` with
+        ``[..., 0]`` a mean and ``[..., 1]`` a softplus-parameterised
+        variance (strictly positive). Matcha's
+        :meth:`~matcha.sklearn.managers.uncertainty_manager.UncertaintyManager._compute_mve`
+        expects a log-variance so it can exponentiate it back to a variance
+        and unscale it. The softplus → log conversion is the sole adapter
+        between chemprop's convention and matcha's; it is clamped by
+        :data:`_MVE_VAR_EPS` to keep ``log`` finite when the softplus output
+        rounds to zero.
+
+        :param batch: chemprop batch object.
+        :returns: tuple ``(mean, log_var)``, each with shape
+            ``(batch, num_endpoints)``.
+        :rtype: tuple[torch.Tensor, torch.Tensor]
+        :raises RuntimeError: if the model was not configured with
+            ``uncertainty="mve"``.
+        """
+        if self.uncertainty_method != "mve":
+            raise RuntimeError(
+                "predict_variance_step is only available when the model was "
+                "instantiated with uncertainty='mve'."
+            )
+        for module in self.modules():
+            if isinstance(module, torch.nn.Dropout):
+                module.eval()
+        bmg, V_d, X_d, *_ = batch
+        with torch.no_grad():
+            y_pred = self(bmg, V_d, X_d)
+        mean = y_pred[..., 0]
+        log_var = torch.log(y_pred[..., 1].clamp_min(_MVE_VAR_EPS))
+        return mean, log_var
 
     def compute_learned_embedding(self, dataloader) -> list:
         """Extract learned fingerprints for all batches in a dataloader.
