@@ -96,6 +96,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.predictors</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">RegressionFFN</span><span class="p">,</span>
     <span class="n">BinaryClassificationFFN</span><span class="p">,</span>
+    <span class="n">MveFFN</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.agg</span><span class="w"> </span><span class="kn">import</span> <span class="n">AggregationRegistry</span> <span class="k">as</span> <span class="n">ChempropAggRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chemprop.nn.agg</span><span class="w"> </span><span class="kn">import</span> <span class="n">AttentiveAggregation</span>
@@ -104,6 +105,10 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ChempropInputModel</span><span class="p">,</span> <span class="n">UncertaintyMethod</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassicModelRegistry</span>
+
+<span class="c1"># Clamp value for chemprop&#39;s softplus-variance before taking the log, so</span>
+<span class="c1"># numerically-zero variances do not overflow into ``-inf`` log-variance.</span>
+<span class="n">_MVE_VAR_EPS</span> <span class="o">=</span> <span class="mf">1e-6</span>
 
 
 <div class="viewcode-block" id="ChempropModel">
@@ -173,13 +178,6 @@
         <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;warmup_epochs&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span> <span class="s2">&quot;max_lr&quot;</span><span class="p">:</span> <span class="mf">1e-2</span><span class="p">,</span> <span class="s2">&quot;final_lr&quot;</span><span class="p">:</span> <span class="mf">1e-5</span><span class="p">},</span>
         <span class="n">uncertainty</span><span class="p">:</span> <span class="n">UncertaintyMethod</span> <span class="o">=</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">,</span>
     <span class="p">):</span>
-        <span class="k">if</span> <span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
-                <span class="s2">&quot;ChempropModel does not support uncertainty=&#39;mve&#39; yet: it uses &quot;</span>
-                <span class="s2">&quot;chemprop.nn.predictors.RegressionFFN from the upstream package &quot;</span>
-                <span class="s2">&quot;instead of a MATCHA BasePredictor. A MVERegressionFFN wrapper &quot;</span>
-                <span class="s2">&quot;is tracked as a follow-up to issue #95.&quot;</span>
-            <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">save_hyperparameters</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">params</span> <span class="o">=</span> <span class="n">ChempropInputModel</span><span class="p">(</span>
             <span class="n">enc_atom_hidden_dim</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">,</span>
@@ -198,6 +196,7 @@
             <span class="n">optimizer_args</span><span class="o">=</span><span class="n">optimizer_args</span><span class="p">,</span>
             <span class="n">scheduler</span><span class="o">=</span><span class="n">scheduler</span><span class="p">,</span>
             <span class="n">scheduler_args</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">,</span>
+            <span class="n">uncertainty</span><span class="o">=</span><span class="n">uncertainty</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">mp</span> <span class="o">=</span> <span class="n">BondMessagePassing</span><span class="p">(</span>
             <span class="n">d_h</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">,</span>
@@ -211,7 +210,9 @@
         <span class="k">elif</span> <span class="n">enc_readout</span> <span class="o">==</span> <span class="s2">&quot;attentive&quot;</span><span class="p">:</span>
             <span class="n">agg</span> <span class="o">=</span> <span class="n">AttentiveAggregation</span><span class="p">(</span><span class="n">output_size</span><span class="o">=</span><span class="n">enc_atom_hidden_dim</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">loss_fn</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;bce&quot;</span><span class="p">,</span> <span class="s2">&quot;ce&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="n">MLP</span> <span class="o">=</span> <span class="n">MveFFN</span>
+        <span class="k">elif</span> <span class="n">loss_fn</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;bce&quot;</span><span class="p">,</span> <span class="s2">&quot;ce&quot;</span><span class="p">):</span>
             <span class="n">MLP</span> <span class="o">=</span> <span class="n">BinaryClassificationFFN</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">MLP</span> <span class="o">=</span> <span class="n">RegressionFFN</span>
@@ -236,6 +237,72 @@
             <span class="n">max_lr</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;max_lr&quot;</span><span class="p">],</span>
             <span class="n">final_lr</span><span class="o">=</span><span class="n">scheduler_args</span><span class="p">[</span><span class="s2">&quot;final_lr&quot;</span><span class="p">],</span>
         <span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uncertainty_method</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configured uncertainty method (``&quot;mc-dropout&quot;`` or ``&quot;mve&quot;``).</span>
+
+<span class="sd">        Mirrors :attr:`BaseClassicModel.uncertainty_method` so</span>
+<span class="sd">        :class:`~matcha.sklearn.managers.uncertainty_manager.UncertaintyManager`</span>
+<span class="sd">        can dispatch on the same value regardless of the model family.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;mc-dropout&quot;</span>
+
+<div class="viewcode-block" id="ChempropModel.predict_step">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel.predict_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">,</span> <span class="n">batch_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">dataloader_idx</span><span class="o">=</span><span class="mi">0</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Prediction step returning point predictions.</span>
+
+<span class="sd">        For MVE-configured models, chemprop&#39;s :class:`MveFFN` emits</span>
+<span class="sd">        ``(N, num_endpoints, 2)`` where ``[..., 0]`` is the mean and</span>
+<span class="sd">        ``[..., 1]`` is the softplus-variance. We slice out the mean so</span>
+<span class="sd">        the sklearn surface sees the same ``(N, T)`` layout as any other</span>
+<span class="sd">        regressor. Chemprop does not support MC-dropout inference, so no</span>
+<span class="sd">        branching on ``self.mc_dropout_flag`` is needed here.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">predict_step</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">batch_idx</span><span class="p">,</span> <span class="n">dataloader_idx</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty_method</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">y_pred</span></div>
+
+
+<div class="viewcode-block" id="ChempropModel.predict_variance_step">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel.predict_variance_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_variance_step</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return the intrinsic mean and log-variance for an MVE-configured model.</span>
+
+<span class="sd">        Chemprop&#39;s :class:`MveFFN` produces ``(N, num_endpoints, 2)`` with</span>
+<span class="sd">        ``[..., 0]`` a mean and ``[..., 1]`` a softplus-parameterised</span>
+<span class="sd">        variance (strictly positive). Matcha&#39;s</span>
+<span class="sd">        :meth:`~matcha.sklearn.managers.uncertainty_manager.UncertaintyManager._compute_mve`</span>
+<span class="sd">        expects a log-variance so it can exponentiate it back to a variance</span>
+<span class="sd">        and unscale it. The softplus → log conversion is the sole adapter</span>
+<span class="sd">        between chemprop&#39;s convention and matcha&#39;s; it is clamped by</span>
+<span class="sd">        :data:`_MVE_VAR_EPS` to keep ``log`` finite when the softplus output</span>
+<span class="sd">        rounds to zero.</span>
+
+<span class="sd">        :param batch: chemprop batch object.</span>
+<span class="sd">        :returns: tuple ``(mean, log_var)``, each with shape</span>
+<span class="sd">            ``(batch, num_endpoints)``.</span>
+<span class="sd">        :rtype: tuple[torch.Tensor, torch.Tensor]</span>
+<span class="sd">        :raises RuntimeError: if the model was not configured with</span>
+<span class="sd">            ``uncertainty=&quot;mve&quot;``.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty_method</span> <span class="o">!=</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;predict_variance_step is only available when the model was &quot;</span>
+                <span class="s2">&quot;instantiated with uncertainty=&#39;mve&#39;.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
+                <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        <span class="n">bmg</span><span class="p">,</span> <span class="n">V_d</span><span class="p">,</span> <span class="n">X_d</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span> <span class="o">=</span> <span class="n">batch</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">bmg</span><span class="p">,</span> <span class="n">V_d</span><span class="p">,</span> <span class="n">X_d</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">log_var</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">clamp_min</span><span class="p">(</span><span class="n">_MVE_VAR_EPS</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">mean</span><span class="p">,</span> <span class="n">log_var</span></div>
+
 
 <div class="viewcode-block" id="ChempropModel.compute_learned_embedding">
 <a class="viewcode-back" href="../../../../../api/matcha/torch/models/classic/index.html#matcha.torch.models.classic.chemprop_model.ChempropModel.compute_learned_embedding">[docs]</a>

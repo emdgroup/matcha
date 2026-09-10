@@ -71,6 +71,53 @@ Module Contents
    .. py:attribute:: params
 
 
+   .. py:property:: uncertainty_method
+      :type: str
+
+
+      Configured uncertainty method (``"mc-dropout"`` or ``"mve"``).
+
+      Mirrors :attr:`BaseClassicModel.uncertainty_method` so
+      :class:`~matcha.sklearn.managers.uncertainty_manager.UncertaintyManager`
+      can dispatch on the same value regardless of the model family.
+
+
+   .. py:method:: predict_step(batch, batch_idx=0, dataloader_idx=0)
+
+      Prediction step returning point predictions.
+
+      For MVE-configured models, chemprop's :class:`MveFFN` emits
+      ``(N, num_endpoints, 2)`` where ``[..., 0]`` is the mean and
+      ``[..., 1]`` is the softplus-variance. We slice out the mean so
+      the sklearn surface sees the same ``(N, T)`` layout as any other
+      regressor. Chemprop does not support MC-dropout inference, so no
+      branching on ``self.mc_dropout_flag`` is needed here.
+
+
+
+   .. py:method:: predict_variance_step(batch)
+
+      Return the intrinsic mean and log-variance for an MVE-configured model.
+
+      Chemprop's :class:`MveFFN` produces ``(N, num_endpoints, 2)`` with
+      ``[..., 0]`` a mean and ``[..., 1]`` a softplus-parameterised
+      variance (strictly positive). Matcha's
+      :meth:`~matcha.sklearn.managers.uncertainty_manager.UncertaintyManager._compute_mve`
+      expects a log-variance so it can exponentiate it back to a variance
+      and unscale it. The softplus → log conversion is the sole adapter
+      between chemprop's convention and matcha's; it is clamped by
+      :data:`_MVE_VAR_EPS` to keep ``log`` finite when the softplus output
+      rounds to zero.
+
+      :param batch: chemprop batch object.
+      :returns: tuple ``(mean, log_var)``, each with shape
+          ``(batch, num_endpoints)``.
+      :rtype: tuple[torch.Tensor, torch.Tensor]
+      :raises RuntimeError: if the model was not configured with
+          ``uncertainty="mve"``.
+
+
+
    .. py:method:: compute_learned_embedding(dataloader) -> list
 
       Extract learned fingerprints for all batches in a dataloader.

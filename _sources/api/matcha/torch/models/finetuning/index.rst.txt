@@ -44,7 +44,7 @@ Functions
 Package Contents
 ----------------
 
-.. py:class:: Finetuner(architecture: str, path_to_pretrained: str, pred_hidden_dims: list[int] = [256, 256], task_head_dims: list[int] | None = None, activation: str = 'relu', dropout: float = 0.1, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.0001}, pretrain_lr: float = 1e-06, pretrain_decay: float = 0.5, scheduler: str = 'cosine_annealing', scheduler_args: dict = {}, finetuning_strategy: str = 'full', lora_rank: int = 4, lora_alpha: float = 8.0, lora_min_dim: int = 32, keep_existing_predictor: bool = True, _pretrain_config: dict | None = None)
+.. py:class:: Finetuner(architecture: str, path_to_pretrained: str, pred_hidden_dims: list[int] = [256, 256], task_head_dims: list[int] | None = None, activation: str = 'relu', dropout: float = 0.1, num_endpoints: int = 1, uncertainty: matcha.utils.schemas.UncertaintyMethod = 'mc-dropout', loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.0001}, pretrain_lr: float = 1e-06, pretrain_decay: float = 0.5, scheduler: str = 'cosine_annealing', scheduler_args: dict = {}, finetuning_strategy: str = 'full', lora_rank: int = 4, lora_alpha: float = 8.0, lora_min_dim: int = 32, keep_existing_predictor: bool = True, _pretrain_config: dict | None = None)
 
    Bases: :py:obj:`matcha.torch.models.mixin.ModelMixin`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -73,6 +73,8 @@ Package Contents
    :param str activation: Activation function for prediction head, defaults to 'relu'
    :param float dropout: Dropout rate for prediction head, defaults to 0.1
    :param int num_endpoints: Number of prediction targets, defaults to 1
+   :param UncertaintyMethod uncertainty: Uncertainty method, defaults to
+       ``"mc-dropout"``
    :param str loss_fn: Loss function name, defaults to 'mse'
    :param dict loss_args: Additional loss function arguments
    :param str optimizer: Optimizer name, defaults to 'adam'
@@ -118,9 +120,6 @@ Package Contents
       If set to ``False`` you are responsible for calling ``.backward()``, ``.step()``, ``.zero_grad()``.
 
 
-   .. py:attribute:: predictor
-
-
    .. py:method:: forward(batch: dict[str, Any]) -> torch.Tensor
 
       Simple forward function for the training and prediction step. Depending
@@ -130,6 +129,13 @@ Package Contents
 
       :return torch.Tensor: batched predictions
 
+
+
+   .. py:property:: uncertainty_method
+      :type: str
+
+
+      Configured uncertainty method.
 
 
    .. py:property:: latent_dim
@@ -185,6 +191,12 @@ Package Contents
 
 
 
+   .. py:method:: predict_variance_step(batch: dict[str, Any]) -> tuple[torch.Tensor, torch.Tensor]
+
+      Return intrinsic means and log-variances for MVE finetuners.
+
+
+
    .. py:method:: configure_optimizers()
 
       Configure optimizers and schedulers for Lightning Trainer.
@@ -194,7 +206,7 @@ Package Contents
 
 
 
-.. py:class:: ChempropFinetuner(path_to_pretrained: str, pred_hidden_dim: int | None = 300, pred_num_layers: int = 2, pred_dropout: float = 0.2, pred_activation: str = 'relu', num_endpoints: int = 1, loss_fn: str = 'mse', optimizer: str = 'chemprop', optimizer_args: dict = {'lr': 1e-05}, scheduler_args: dict = {'warmup_epochs': 5, 'max_lr': 0.0001, 'final_lr': 1e-05}, _pretrain_config: dict | None = None)
+.. py:class:: ChempropFinetuner(path_to_pretrained: str, pred_hidden_dim: int | None = 300, pred_num_layers: int = 2, pred_dropout: float = 0.2, pred_activation: str = 'relu', num_endpoints: int = 1, uncertainty: matcha.utils.schemas.UncertaintyMethod = 'mc-dropout', loss_fn: str = 'mse', optimizer: str = 'chemprop', optimizer_args: dict = {'lr': 1e-05}, scheduler_args: dict = {'warmup_epochs': 5, 'max_lr': 0.0001, 'final_lr': 1e-05}, _pretrain_config: dict | None = None)
 
    Bases: :py:obj:`matcha.torch.models.classic.ChempropModel`
 
@@ -229,6 +241,8 @@ Package Contents
    :param float pred_dropout: Dropout rate for the FFN, defaults to 0.2
    :param str pred_activation: Activation function for the FFN, defaults to 'relu'
    :param int num_endpoints: Number of prediction targets, defaults to 1
+   :param UncertaintyMethod uncertainty: Uncertainty method, defaults to
+       ``"mc-dropout"``
    :param str loss_fn: Loss function name, defaults to 'mse'
    :param str optimizer: Optimizer name, defaults to 'chemprop'
    :param dict optimizer_args: Optimizer arguments, defaults to {"lr": 1e-5}

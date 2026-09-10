@@ -23,7 +23,7 @@ Classes
 Module Contents
 ---------------
 
-.. py:class:: Finetuner(architecture: str, path_to_pretrained: str, pred_hidden_dims: list[int] = [256, 256], task_head_dims: list[int] | None = None, activation: str = 'relu', dropout: float = 0.1, num_endpoints: int = 1, loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.0001}, pretrain_lr: float = 1e-06, pretrain_decay: float = 0.5, scheduler: str = 'cosine_annealing', scheduler_args: dict = {}, finetuning_strategy: str = 'full', lora_rank: int = 4, lora_alpha: float = 8.0, lora_min_dim: int = 32, keep_existing_predictor: bool = True, _pretrain_config: dict | None = None)
+.. py:class:: Finetuner(architecture: str, path_to_pretrained: str, pred_hidden_dims: list[int] = [256, 256], task_head_dims: list[int] | None = None, activation: str = 'relu', dropout: float = 0.1, num_endpoints: int = 1, uncertainty: matcha.utils.schemas.UncertaintyMethod = 'mc-dropout', loss_fn: str = 'mse', loss_args: dict = {}, optimizer: str = 'adam', optimizer_args: dict = {'lr': 0.0001}, pretrain_lr: float = 1e-06, pretrain_decay: float = 0.5, scheduler: str = 'cosine_annealing', scheduler_args: dict = {}, finetuning_strategy: str = 'full', lora_rank: int = 4, lora_alpha: float = 8.0, lora_min_dim: int = 32, keep_existing_predictor: bool = True, _pretrain_config: dict | None = None)
 
    Bases: :py:obj:`matcha.torch.models.mixin.ModelMixin`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
 
@@ -52,6 +52,8 @@ Module Contents
    :param str activation: Activation function for prediction head, defaults to 'relu'
    :param float dropout: Dropout rate for prediction head, defaults to 0.1
    :param int num_endpoints: Number of prediction targets, defaults to 1
+   :param UncertaintyMethod uncertainty: Uncertainty method, defaults to
+       ``"mc-dropout"``
    :param str loss_fn: Loss function name, defaults to 'mse'
    :param dict loss_args: Additional loss function arguments
    :param str optimizer: Optimizer name, defaults to 'adam'
@@ -97,9 +99,6 @@ Module Contents
       If set to ``False`` you are responsible for calling ``.backward()``, ``.step()``, ``.zero_grad()``.
 
 
-   .. py:attribute:: predictor
-
-
    .. py:method:: forward(batch: dict[str, Any]) -> torch.Tensor
 
       Simple forward function for the training and prediction step. Depending
@@ -109,6 +108,13 @@ Module Contents
 
       :return torch.Tensor: batched predictions
 
+
+
+   .. py:property:: uncertainty_method
+      :type: str
+
+
+      Configured uncertainty method.
 
 
    .. py:property:: latent_dim
@@ -161,6 +167,12 @@ Module Contents
       :param dict[str, Any] batch: batch of inputs to process
 
       :return torch.Tensor: predictions for the batch
+
+
+
+   .. py:method:: predict_variance_step(batch: dict[str, Any]) -> tuple[torch.Tensor, torch.Tensor]
+
+      Return intrinsic means and log-variances for MVE finetuners.
 
 
 

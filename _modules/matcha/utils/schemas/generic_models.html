@@ -99,6 +99,45 @@
 <span class="n">_MVE_INCOMPATIBLE_LOSSES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;multitask&quot;</span><span class="p">,</span> <span class="s2">&quot;multiloss&quot;</span><span class="p">,</span> <span class="s2">&quot;gradnorm&quot;</span><span class="p">})</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_pairing_rules</span><span class="p">(</span>
+    <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">uncertainty</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">mve_aliases</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">_MVE_LOSS_ALIASES</span><span class="p">,</span>
+    <span class="n">incompatible</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">_MVE_INCOMPATIBLE_LOSSES</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Enforce the MVE loss / uncertainty pairing rules.</span>
+
+<span class="sd">    1. ``uncertainty == &quot;mve&quot;`` requires ``loss_fn`` in ``mve_aliases``.</span>
+<span class="sd">    2. A ``loss_fn`` in ``mve_aliases`` requires ``uncertainty == &quot;mve&quot;``.</span>
+<span class="sd">    3. ``uncertainty == &quot;mve&quot;`` is incompatible with ``incompatible`` losses</span>
+<span class="sd">       (head-width mismatch, multi-loss aggregation semantics).</span>
+
+<span class="sd">    :param str loss_fn: user-configured loss alias.</span>
+<span class="sd">    :param str uncertainty: user-configured uncertainty method.</span>
+<span class="sd">    :param frozenset[str] mve_aliases: loss aliases that select an MVE head</span>
+<span class="sd">        on this path (matcha default: β-NLL family; chemprop paths pass</span>
+<span class="sd">        ``frozenset({&quot;mve&quot;})``).</span>
+<span class="sd">    :param frozenset[str] incompatible: loss aliases that MVE cannot compose</span>
+<span class="sd">        with regardless of the alias set (multitask wrappers, gradnorm).</span>
+<span class="sd">    :raises ValueError: if any of the three pairing rules is violated.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">is_mve_uncertainty</span> <span class="o">=</span> <span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span>
+    <span class="n">is_mve_loss</span> <span class="o">=</span> <span class="n">loss_fn</span> <span class="ow">in</span> <span class="n">mve_aliases</span>
+
+    <span class="k">if</span> <span class="n">is_mve_uncertainty</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_mve_loss</span><span class="p">:</span>
+        <span class="n">allowed</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">mve_aliases</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;uncertainty=&#39;mve&#39; requires loss_fn in </span><span class="si">{</span><span class="n">allowed</span><span class="si">!r}</span><span class="s2">, got &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;loss_fn=</span><span class="si">{</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2">.&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_mve_loss</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_mve_uncertainty</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;loss_fn=</span><span class="si">{</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2"> requires uncertainty=&#39;mve&#39; (head width mismatch).&quot;</span>
+        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">is_mve_uncertainty</span> <span class="ow">and</span> <span class="n">loss_fn</span> <span class="ow">in</span> <span class="n">incompatible</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;uncertainty=&#39;mve&#39; is incompatible with loss_fn=</span><span class="si">{</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2">.&quot;</span><span class="p">)</span>
+
+
 <div class="viewcode-block" id="ClassicMatchaModel">
 <a class="viewcode-back" href="../../../../api/matcha/utils/schemas/generic_models/index.html#matcha.utils.schemas.generic_models.ClassicMatchaModel">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">ClassicMatchaModel</span><span class="p">(</span><span class="n">BaseDataModel</span><span class="p">):</span>
@@ -125,32 +164,7 @@
 
     <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_pairing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;ClassicMatchaModel&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Enforce the MVE loss / uncertainty pairing rules.</span>
-
-<span class="sd">        1. ``uncertainty == &quot;mve&quot;`` requires a MVE-family ``loss_fn``.</span>
-<span class="sd">        2. A MVE-family ``loss_fn`` requires ``uncertainty == &quot;mve&quot;``.</span>
-<span class="sd">        3. ``uncertainty == &quot;mve&quot;`` is incompatible with ``multitask`` /</span>
-<span class="sd">           ``multiloss`` / ``gradnorm`` (head-width mismatch and multi-loss</span>
-<span class="sd">           aggregation semantics).</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">is_mve_uncertainty</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span>
-        <span class="n">is_mve_loss</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="ow">in</span> <span class="n">_MVE_LOSS_ALIASES</span>
-
-        <span class="k">if</span> <span class="n">is_mve_uncertainty</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_mve_loss</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;uncertainty=&#39;mve&#39; requires loss_fn in &quot;</span>
-                <span class="s2">&quot;{&#39;beta-nll&#39;, &#39;mve&#39;, &#39;bounded-beta-nll&#39;}, got &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;loss_fn=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2">.&quot;</span>
-            <span class="p">)</span>
-        <span class="k">if</span> <span class="n">is_mve_loss</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_mve_uncertainty</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;loss_fn=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2"> requires uncertainty=&#39;mve&#39; &quot;</span>
-                <span class="s2">&quot;(head width mismatch).&quot;</span>
-            <span class="p">)</span>
-        <span class="k">if</span> <span class="n">is_mve_uncertainty</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span> <span class="ow">in</span> <span class="n">_MVE_INCOMPATIBLE_LOSSES</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;uncertainty=&#39;mve&#39; is incompatible with loss_fn=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="si">!r}</span><span class="s2">.&quot;</span>
-            <span class="p">)</span>
+        <span class="n">_validate_mve_pairing_rules</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
 
@@ -464,7 +478,13 @@
     <span class="n">lora_rank</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
     <span class="n">lora_alpha</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">8.0</span>
     <span class="n">lora_min_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">32</span>
-    <span class="n">keep_existing_predictor</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span></div>
+    <span class="n">keep_existing_predictor</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="n">uncertainty</span><span class="p">:</span> <span class="n">UncertaintyMethod</span> <span class="o">=</span> <span class="s2">&quot;mc-dropout&quot;</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_pairing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;FinetunerMixin&quot;</span><span class="p">:</span>
+        <span class="n">_validate_mve_pairing_rules</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 
 
@@ -482,7 +502,17 @@
     <span class="n">pred_hidden_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
     <span class="n">pred_num_layers</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">pred_dropout</span><span class="p">:</span> <span class="nb">float</span>
-    <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span></div>
+    <span class="n">pred_activation</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">uncertainty</span><span class="p">:</span> <span class="n">UncertaintyMethod</span> <span class="o">=</span> <span class="s2">&quot;mc-dropout&quot;</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_pairing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;ChempropFinetunerMixin&quot;</span><span class="p">:</span>
+        <span class="n">_validate_mve_pairing_rules</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">,</span>
+            <span class="n">mve_aliases</span><span class="o">=</span><span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;mve&quot;</span><span class="p">}),</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 </pre></div>
 

@@ -764,11 +764,11 @@ against the heteroscedastic Gaussian NLL, with a stop-gradient
 <code class="docutils literal notranslate"><span class="pre">σ^(2β)</span></code> reweighting factor that interpolates between MSE-like weighting
 (<code class="docutils literal notranslate"><span class="pre">β</span> <span class="pre">=</span> <span class="pre">1</span></code>) and vanilla NLL (<code class="docutils literal notranslate"><span class="pre">β</span> <span class="pre">=</span> <span class="pre">0</span></code>). The recommended default from the
 paper is <code class="docutils literal notranslate"><span class="pre">β</span> <span class="pre">=</span> <span class="pre">0.5</span></code>.</p>
-<p>The loss expects predictions of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">num_tasks)</span></code> — the
-first <code class="docutils literal notranslate"><span class="pre">num_tasks</span></code> columns are means, the next <code class="docutils literal notranslate"><span class="pre">num_tasks</span></code> columns are
-log-variances — and targets of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks)</span></code> (NaN marks
-missing entries, masked per task). It handles multitask internally and
-is not wrapped in <a class="reference internal" href="#matcha.nn.losses.MultitaskLoss" title="matcha.nn.losses.MultitaskLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultitaskLoss</span></code></a>.</p>
+<p>The loss expects predictions of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks,</span> <span class="pre">2)</span></code> — with
+means at <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">0]</span></code> and log-variances at <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1]</span></code> — and targets of
+shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks)</span></code> (NaN marks missing entries, masked per
+task). It handles multitask internally and is not wrapped in
+<a class="reference internal" href="#matcha.nn.losses.MultitaskLoss" title="matcha.nn.losses.MultitaskLoss"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultitaskLoss</span></code></a>.</p>
 <p>Reference: <a class="reference external" href="https://arxiv.org/abs/2203.09168">https://arxiv.org/abs/2203.09168</a></p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -788,8 +788,9 @@ weighting; <code class="docutils literal notranslate"><span class="pre">β</span
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><em>torch.Tensor</em></a>) – Predictions of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">num_tasks)</span></code>
-with means in the first half and log-variances in the second half.</p></li>
+<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><em>torch.Tensor</em></a>) – Predictions of shape
+<code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks,</span> <span class="pre">2)</span></code> with means at <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">0]</span></code> and
+log-variances at <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1]</span></code>.</p></li>
 <li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><em>torch.Tensor</em></a>) – Targets of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks)</span></code>; NaN
 marks missing entries.</p></li>
 </ul>
@@ -837,7 +838,9 @@ uncensored samples. Defaults to <code class="docutils literal notranslate"><span
 <dd><dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><em>torch.Tensor</em></a>) – Predictions of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">2</span> <span class="pre">*</span> <span class="pre">num_tasks)</span></code>.</p></li>
+<li><p><strong>outputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><em>torch.Tensor</em></a>) – Predictions of shape
+<code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks,</span> <span class="pre">2)</span></code> with means at <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">0]</span></code> and
+log-variances at <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1]</span></code>.</p></li>
 <li><p><strong>targets</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.14)"><em>torch.Tensor</em></a>) – Targets of shape <code class="docutils literal notranslate"><span class="pre">(batch,</span> <span class="pre">num_tasks,</span> <span class="pre">2)</span></code>;
 <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">0]</span></code> is the value, <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1]</span></code> is the bound code
 (<code class="docutils literal notranslate"><span class="pre">-1</span></code> = less-than, <code class="docutils literal notranslate"><span class="pre">0</span></code> = exact, <code class="docutils literal notranslate"><span class="pre">+1</span></code> = greater-than).</p></li>

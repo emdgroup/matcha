@@ -106,10 +106,11 @@
 <span class="sd">    Reuses the :class:`MLP`-style ``LnBnDr`` hidden body and splits the</span>
 <span class="sd">    prediction into two parallel :class:`torch.nn.Linear` heads: one producing</span>
 <span class="sd">    the per-endpoint means and one producing the per-endpoint log-variances.</span>
-<span class="sd">    Their outputs are concatenated along the feature axis, so</span>
-<span class="sd">    :meth:`forward` returns a tensor of shape ``(batch, 2 * num_endpoints)``</span>
-<span class="sd">    with means in the first ``num_endpoints`` columns and log-variances in</span>
-<span class="sd">    the next ``num_endpoints`` columns.</span>
+<span class="sd">    Their outputs are stacked along a trailing axis, so :meth:`forward`</span>
+<span class="sd">    returns a tensor of shape ``(batch, num_endpoints, 2)`` with means at</span>
+<span class="sd">    ``[..., 0]`` and log-variances at ``[..., 1]``. This matches the layout</span>
+<span class="sd">    chemprop&#39;s ``MveFFN`` produces, so third-party MVE heads can drop into</span>
+<span class="sd">    matcha without a reshape adapter.</span>
 
 <span class="sd">    Predicting the log-variance (rather than the variance) keeps the head</span>
 <span class="sd">    unconstrained and numerically stable; downstream β-NLL losses</span>
@@ -123,8 +124,8 @@
 <span class="sd">    :param int input_dim: Input feature dimensionality.</span>
 <span class="sd">    :param hidden_dims: Shape of the shared hidden body. ``None`` skips it.</span>
 <span class="sd">    :type hidden_dims: list[int] or None</span>
-<span class="sd">    :param int num_endpoints: Number of prediction endpoints. The head output</span>
-<span class="sd">        width is ``2 * num_endpoints``.</span>
+<span class="sd">    :param int num_endpoints: Number of prediction endpoints. The trailing</span>
+<span class="sd">        axis of the forward output has size 2 (mean, log-variance).</span>
 <span class="sd">    :param float dropout: Dropout rate applied inside each ``LnBnDr`` block.</span>
 <span class="sd">    :param str activation: Activation name resolved via</span>
 <span class="sd">        :data:`matcha.nn.activations.ActivationRegistry`.</span>
@@ -177,20 +178,19 @@
 <div class="viewcode-block" id="MVEPredictor.forward">
 <a class="viewcode-back" href="../../../../api/matcha/torch/predictors/mve/index.html#matcha.torch.predictors.MVEPredictor.forward">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol_features</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the shared body then both heads and concatenate their outputs.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run the shared body then both heads and stack their outputs.</span>
 
 <span class="sd">        :param torch.Tensor mol_features: Input tensor from the encoder of</span>
 <span class="sd">            shape ``(batch, input_dim)``.</span>
-<span class="sd">        :returns: Concatenated tensor of shape ``(batch, 2 * num_endpoints)``</span>
-<span class="sd">            with means in ``[..., :num_endpoints]`` and log-variances in</span>
-<span class="sd">            ``[..., num_endpoints:]``.</span>
+<span class="sd">        :returns: Stacked tensor of shape ``(batch, num_endpoints, 2)`` with</span>
+<span class="sd">            means at ``[..., 0]`` and log-variances at ``[..., 1]``.</span>
 <span class="sd">        :rtype: torch.Tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">layers</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">mol_features</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">mol_features</span><span class="p">)</span>
         <span class="n">mean</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mean_head</span><span class="p">(</span><span class="n">mol_features</span><span class="p">)</span>
         <span class="n">log_var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">log_var_head</span><span class="p">(</span><span class="n">mol_features</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">mean</span><span class="p">,</span> <span class="n">log_var</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="n">mean</span><span class="p">,</span> <span class="n">log_var</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span></div>
 </div>
 
 </pre></div>

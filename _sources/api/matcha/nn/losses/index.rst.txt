@@ -555,11 +555,11 @@ Module Contents
    (``β = 1``) and vanilla NLL (``β = 0``). The recommended default from the
    paper is ``β = 0.5``.
 
-   The loss expects predictions of shape ``(batch, 2 * num_tasks)`` — the
-   first ``num_tasks`` columns are means, the next ``num_tasks`` columns are
-   log-variances — and targets of shape ``(batch, num_tasks)`` (NaN marks
-   missing entries, masked per task). It handles multitask internally and
-   is not wrapped in :class:`MultitaskLoss`.
+   The loss expects predictions of shape ``(batch, num_tasks, 2)`` — with
+   means at ``[..., 0]`` and log-variances at ``[..., 1]`` — and targets of
+   shape ``(batch, num_tasks)`` (NaN marks missing entries, masked per
+   task). It handles multitask internally and is not wrapped in
+   :class:`MultitaskLoss`.
 
    Reference: https://arxiv.org/abs/2203.09168
 
@@ -573,8 +573,9 @@ Module Contents
 
    .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
 
-      :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``
-          with means in the first half and log-variances in the second half.
+      :param torch.Tensor outputs: Predictions of shape
+          ``(batch, num_tasks, 2)`` with means at ``[..., 0]`` and
+          log-variances at ``[..., 1]``.
       :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN
           marks missing entries.
       :returns: Scalar loss averaged across valid entries per task, then across tasks.
@@ -610,7 +611,9 @@ Module Contents
 
    .. py:method:: forward(outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor
 
-      :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``.
+      :param torch.Tensor outputs: Predictions of shape
+          ``(batch, num_tasks, 2)`` with means at ``[..., 0]`` and
+          log-variances at ``[..., 1]``.
       :param torch.Tensor targets: Targets of shape ``(batch, num_tasks, 2)``;
           ``[..., 0]`` is the value, ``[..., 1]`` is the bound code
           (``-1`` = less-than, ``0`` = exact, ``+1`` = greater-than).

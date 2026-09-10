@@ -98,6 +98,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.models.classic.base_classic_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClassicModelRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.serialization</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.predictors</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.torch.predictors.base_predictor</span><span class="w"> </span><span class="kn">import</span> <span class="n">PredictorRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.losses</span><span class="w"> </span><span class="kn">import</span> <span class="n">MultiLoss</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.optimizers</span><span class="w"> </span><span class="kn">import</span> <span class="n">OptimizerRegistry</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.nn.layers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaRMSN</span><span class="p">,</span> <span class="n">GraphNorm</span>
@@ -112,7 +113,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">torch</span><span class="w"> </span><span class="kn">import</span> <span class="n">nn</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">lightning.pytorch.core.mixins</span><span class="w"> </span><span class="kn">import</span> <span class="n">HyperparametersMixin</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">FinetunerInputModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">FinetunerInputModel</span><span class="p">,</span> <span class="n">UncertaintyMethod</span>
 
 <span class="n">_SELF_CONTAINED_SENTINEL</span> <span class="o">=</span> <span class="s2">&quot;__self_contained__&quot;</span>
 
@@ -168,6 +169,8 @@
 <span class="sd">    :param str activation: Activation function for prediction head, defaults to &#39;relu&#39;</span>
 <span class="sd">    :param float dropout: Dropout rate for prediction head, defaults to 0.1</span>
 <span class="sd">    :param int num_endpoints: Number of prediction targets, defaults to 1</span>
+<span class="sd">    :param UncertaintyMethod uncertainty: Uncertainty method, defaults to</span>
+<span class="sd">        ``&quot;mc-dropout&quot;``</span>
 <span class="sd">    :param str loss_fn: Loss function name, defaults to &#39;mse&#39;</span>
 <span class="sd">    :param dict loss_args: Additional loss function arguments</span>
 <span class="sd">    :param str optimizer: Optimizer name, defaults to &#39;adam&#39;</span>
@@ -212,6 +215,7 @@
         <span class="n">activation</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;relu&quot;</span><span class="p">,</span>
         <span class="n">dropout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">,</span>
         <span class="n">num_endpoints</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">uncertainty</span><span class="p">:</span> <span class="n">UncertaintyMethod</span> <span class="o">=</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">,</span>
         <span class="n">loss_fn</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;mse&quot;</span><span class="p">,</span>
         <span class="n">loss_args</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">=</span> <span class="p">{},</span>
         <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;adam&quot;</span><span class="p">,</span>
@@ -244,6 +248,16 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_load_from_pretrained_path</span><span class="p">(</span><span class="n">path_to_pretrained</span><span class="p">)</span>
 
+        <span class="c1"># Pretraining-origin encoder wrappers have no pretrained uncertainty head.</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">keep_existing_predictor</span>
+            <span class="ow">and</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="p">,</span> <span class="s2">&quot;uncertainty_method&quot;</span><span class="p">,</span> <span class="s2">&quot;mc-dropout&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;keep_existing_predictor=True is not supported for an MVE-pretrained &quot;</span>
+                <span class="s2">&quot;model; set keep_existing_predictor=False.&quot;</span>
+            <span class="p">)</span>
+
         <span class="k">if</span> <span class="n">keep_existing_predictor</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">prediction_head</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pretrain</span><span class="o">.</span><span class="n">latent_dim</span>
@@ -263,15 +277,25 @@
                 <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">module</span><span class="o">.</span><span class="n">parameters</span><span class="p">():</span>
                     <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="o">=</span> <span class="kc">False</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
-            <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span><span class="p">,</span>
-            <span class="n">hidden_dims</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">,</span>
-            <span class="n">task_head_dims</span><span class="o">=</span><span class="n">task_head_dims</span><span class="p">,</span>
-            <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
-            <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
-            <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
-            <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">uncertainty</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">PredictorRegistry</span><span class="p">[</span><span class="s2">&quot;mve&quot;</span><span class="p">](</span>
+                <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span><span class="p">,</span>
+                <span class="n">hidden_dims</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">,</span>
+                <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span>
+                <span class="n">input_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">pretrain_output_dim</span><span class="p">,</span>
+                <span class="n">hidden_dims</span><span class="o">=</span><span class="n">pred_hidden_dims</span><span class="p">,</span>
+                <span class="n">task_head_dims</span><span class="o">=</span><span class="n">task_head_dims</span><span class="p">,</span>
+                <span class="n">num_endpoints</span><span class="o">=</span><span class="n">num_endpoints</span><span class="p">,</span>
+                <span class="n">dropout</span><span class="o">=</span><span class="n">dropout</span><span class="p">,</span>
+                <span class="n">activation</span><span class="o">=</span><span class="n">activation</span><span class="p">,</span>
+                <span class="n">norm</span><span class="o">=</span><span class="s2">&quot;batch&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_parse_loss_fn</span><span class="p">(</span><span class="n">loss_fn</span><span class="p">,</span> <span class="n">loss_args</span><span class="p">,</span> <span class="n">num_endpoints</span><span class="p">)</span>
 
@@ -613,6 +637,11 @@
 
 
     <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">uncertainty_method</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Configured uncertainty method.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">hparams</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;mc-dropout&quot;</span>
+
+    <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">latent_dim</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Dimensionality of the learned representation, i.e. the output of the</span>
 <span class="sd">        hidden layers right before the prediction head.&quot;&quot;&quot;</span>
@@ -728,7 +757,28 @@
             <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">predictor</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
                     <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span></div>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty_method</span> <span class="o">==</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">y_pred</span></div>
+
+
+<div class="viewcode-block" id="Finetuner.predict_variance_step">
+<a class="viewcode-back" href="../../../../../api/matcha/torch/models/finetuning/index.html#matcha.torch.models.finetuning.finetuner.Finetuner.predict_variance_step">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict_variance_step</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">batch</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return intrinsic means and log-variances for MVE finetuners.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty_method</span> <span class="o">!=</span> <span class="s2">&quot;mve&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;predict_variance_step is only available when the model was &quot;</span>
+                <span class="s2">&quot;instantiated with uncertainty=&#39;mve&#39;.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">for</span> <span class="n">module</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">():</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">):</span>
+                <span class="n">module</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">y_pred</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span></div>
 
 
 <div class="viewcode-block" id="Finetuner.configure_optimizers">

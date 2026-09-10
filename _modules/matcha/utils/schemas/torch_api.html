@@ -92,7 +92,7 @@
 <span></span><span class="sd">&quot;&quot;&quot;Pydantic schemas for PyTorch-based model architectures in matcha.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pyd</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Sequence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Sequence</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.generic_models</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">ClassicMatchaModel</span><span class="p">,</span>
     <span class="n">PretrainingMatchaModel</span><span class="p">,</span>
@@ -116,8 +116,12 @@
     <span class="n">SNNMixin</span><span class="p">,</span>
     <span class="n">FinetunerMixin</span><span class="p">,</span>
     <span class="n">ChempropFinetunerMixin</span><span class="p">,</span>
+    <span class="n">UncertaintyMethod</span><span class="p">,</span>
+    <span class="n">_validate_mve_pairing_rules</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDataModel</span>
+
+<span class="n">_CHEMPROP_MVE_ALIASES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">&quot;mve&quot;</span><span class="p">})</span>
 
 
 <div class="viewcode-block" id="GINInputModel">
@@ -362,7 +366,28 @@
     <span class="n">optimizer</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">optimizer_args</span><span class="p">:</span> <span class="nb">dict</span>
     <span class="n">scheduler</span><span class="p">:</span> <span class="nb">str</span>
-    <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span></div>
+    <span class="n">scheduler_args</span><span class="p">:</span> <span class="nb">dict</span>
+    <span class="n">uncertainty</span><span class="p">:</span> <span class="n">UncertaintyMethod</span> <span class="o">=</span> <span class="s2">&quot;mc-dropout&quot;</span>
+
+    <span class="nd">@pyd</span><span class="o">.</span><span class="n">field_validator</span><span class="p">(</span><span class="s2">&quot;uncertainty&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_normalize_legacy_uncertainty</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+        <span class="c1"># Match ClassicMatchaModel&#39;s legacy None -&gt; &quot;mc-dropout&quot; behaviour so</span>
+        <span class="c1"># pre-issue-99 YAML configs continue to validate.</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;mc-dropout&quot;</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="nd">@pyd</span><span class="o">.</span><span class="n">model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_mve_pairing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;ChempropInputModel&quot;</span><span class="p">:</span>
+        <span class="c1"># Chemprop paths only accept chemprop&#39;s own MVELoss (alias &quot;mve&quot;).</span>
+        <span class="c1"># β-NLL and bounded-β-NLL are matcha-only.</span>
+        <span class="n">_validate_mve_pairing_rules</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss_fn</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uncertainty</span><span class="p">,</span>
+            <span class="n">mve_aliases</span><span class="o">=</span><span class="n">_CHEMPROP_MVE_ALIASES</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 
 

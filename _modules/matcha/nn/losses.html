@@ -958,11 +958,11 @@
 <span class="sd">    (``β = 1``) and vanilla NLL (``β = 0``). The recommended default from the</span>
 <span class="sd">    paper is ``β = 0.5``.</span>
 
-<span class="sd">    The loss expects predictions of shape ``(batch, 2 * num_tasks)`` — the</span>
-<span class="sd">    first ``num_tasks`` columns are means, the next ``num_tasks`` columns are</span>
-<span class="sd">    log-variances — and targets of shape ``(batch, num_tasks)`` (NaN marks</span>
-<span class="sd">    missing entries, masked per task). It handles multitask internally and</span>
-<span class="sd">    is not wrapped in :class:`MultitaskLoss`.</span>
+<span class="sd">    The loss expects predictions of shape ``(batch, num_tasks, 2)`` — with</span>
+<span class="sd">    means at ``[..., 0]`` and log-variances at ``[..., 1]`` — and targets of</span>
+<span class="sd">    shape ``(batch, num_tasks)`` (NaN marks missing entries, masked per</span>
+<span class="sd">    task). It handles multitask internally and is not wrapped in</span>
+<span class="sd">    :class:`MultitaskLoss`.</span>
 
 <span class="sd">    Reference: https://arxiv.org/abs/2203.09168</span>
 
@@ -981,16 +981,16 @@
 <a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BetaNLLLoss.forward">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``</span>
-<span class="sd">            with means in the first half and log-variances in the second half.</span>
+<span class="sd">        :param torch.Tensor outputs: Predictions of shape</span>
+<span class="sd">            ``(batch, num_tasks, 2)`` with means at ``[..., 0]`` and</span>
+<span class="sd">            log-variances at ``[..., 1]``.</span>
 <span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks)``; NaN</span>
 <span class="sd">            marks missing entries.</span>
 <span class="sd">        :returns: Scalar loss averaged across valid entries per task, then across tasks.</span>
 <span class="sd">        :rtype: torch.Tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">num_tasks</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">mean</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_tasks</span><span class="p">]</span>
-        <span class="n">log_var</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">num_tasks</span><span class="p">:]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">_LOG_VAR_MIN</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">_LOG_VAR_MAX</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">log_var</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">_LOG_VAR_MIN</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">_LOG_VAR_MAX</span><span class="p">)</span>
         <span class="n">var</span> <span class="o">=</span> <span class="n">log_var</span><span class="o">.</span><span class="n">exp</span><span class="p">()</span>
 
         <span class="n">nan_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span>
@@ -1042,16 +1042,17 @@
 <a class="viewcode-back" href="../../../api/matcha/nn/losses/index.html#matcha.nn.losses.BoundedBetaNLLLoss.forward">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">outputs</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">targets</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        :param torch.Tensor outputs: Predictions of shape ``(batch, 2 * num_tasks)``.</span>
+<span class="sd">        :param torch.Tensor outputs: Predictions of shape</span>
+<span class="sd">            ``(batch, num_tasks, 2)`` with means at ``[..., 0]`` and</span>
+<span class="sd">            log-variances at ``[..., 1]``.</span>
 <span class="sd">        :param torch.Tensor targets: Targets of shape ``(batch, num_tasks, 2)``;</span>
 <span class="sd">            ``[..., 0]`` is the value, ``[..., 1]`` is the bound code</span>
 <span class="sd">            (``-1`` = less-than, ``0`` = exact, ``+1`` = greater-than).</span>
 <span class="sd">        :returns: Scalar loss averaged across valid entries per task, then across tasks.</span>
 <span class="sd">        :rtype: torch.Tensor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">num_tasks</span> <span class="o">=</span> <span class="n">targets</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">mean</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="p">:</span><span class="n">num_tasks</span><span class="p">]</span>
-        <span class="n">log_var</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="n">num_tasks</span><span class="p">:]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">_LOG_VAR_MIN</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">_LOG_VAR_MAX</span><span class="p">)</span>
+        <span class="n">mean</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="n">log_var</span> <span class="o">=</span> <span class="n">outputs</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="n">_LOG_VAR_MIN</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="n">_LOG_VAR_MAX</span><span class="p">)</span>
         <span class="n">var</span> <span class="o">=</span> <span class="n">log_var</span><span class="o">.</span><span class="n">exp</span><span class="p">()</span>
         <span class="n">std</span> <span class="o">=</span> <span class="p">(</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">log_var</span><span class="p">)</span><span class="o">.</span><span class="n">exp</span><span class="p">()</span>
 

@@ -64,6 +64,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#extend-the-literal-src-matcha-utils-schemas-generic-models-py">1. Extend the literal — <code class="docutils literal notranslate"><span class="pre">src/matcha/utils/schemas/generic_models.py</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#add-a-manager-branch-src-matcha-sklearn-managers-uncertainty-manager-py">2. Add a manager branch — <code class="docutils literal notranslate"><span class="pre">src/matcha/sklearn/managers/uncertainty_manager.py</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#propagate-the-signature-lightning-models-sklearn-estimators">3. Propagate the signature — Lightning models + sklearn estimators</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mve-head-convention">MVE head convention</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#tests">4. Tests</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#checklist">Checklist</a></li>
 </ul>
@@ -136,6 +137,24 @@
 <section id="propagate-the-signature-lightning-models-sklearn-estimators">
 <h2>3. Propagate the signature — Lightning models + sklearn estimators<a class="headerlink" href="#propagate-the-signature-lightning-models-sklearn-estimators" title="Link to this heading"></a></h2>
 <p>Every classic Lightning model in <code class="docutils literal notranslate"><span class="pre">src/matcha/torch/models/classic/*_model.py</span></code> accepts <code class="docutils literal notranslate"><span class="pre">uncertainty:</span> <span class="pre">UncertaintyMethod</span> <span class="pre">=</span> <span class="pre">&quot;mc-dropout&quot;</span></code>. Extending the literal is enough for those signatures. Every sklearn <strong>regressor</strong> under <code class="docutils literal notranslate"><span class="pre">sklearn/{tabular,graph,graph3d,clm}/*.py</span></code> uses the same <code class="docutils literal notranslate"><span class="pre">UncertaintyMethod</span></code> alias — again nothing to touch. Sklearn <strong>classifiers</strong> narrow their type to <code class="docutils literal notranslate"><span class="pre">Literal[&quot;mc-dropout&quot;]</span></code> (MVE is regression-only). If the new method is classifier-compatible, widen the classifier signature site-by-site.</p>
+</section>
+<section id="mve-head-convention">
+<h2>MVE head convention<a class="headerlink" href="#mve-head-convention" title="Link to this heading"></a></h2>
+<p>MVE-family heads return <code class="docutils literal notranslate"><span class="pre">(N,</span> <span class="pre">T,</span> <span class="pre">2)</span></code>, where <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">0]</span></code> is the predictive mean
+and <code class="docutils literal notranslate"><span class="pre">[...,</span> <span class="pre">1]</span></code> is the log-variance. Matcha’s <code class="docutils literal notranslate"><span class="pre">MVEPredictor</span></code> emits this layout
+directly, and finetuners inherit the convention from their selected prediction
+head.</p>
+<p>External heads that emit a positive variance instead of a log-variance should
+adapt only the variance component at the model boundary:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mean</span> <span class="o">=</span> <span class="n">output</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+<span class="n">log_var</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">output</span><span class="p">[</span><span class="o">...</span><span class="p">,</span> <span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">clamp_min</span><span class="p">(</span><span class="mf">1e-6</span><span class="p">))</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">ChempropModel.predict_variance_step</span></code> is the reference implementation for this
+softplus-variance to log-variance adapter and uses the module-level
+<code class="docutils literal notranslate"><span class="pre">_MVE_VAR_EPS</span> <span class="pre">=</span> <span class="pre">1e-6</span></code> constant as the clamp floor. Keeping the adapter at that
+boundary lets <code class="docutils literal notranslate"><span class="pre">UncertaintyManager</span></code> consume every MVE model through the same
+interface.</p>
 </section>
 <section id="tests">
 <h2>4. Tests<a class="headerlink" href="#tests" title="Link to this heading"></a></h2>
