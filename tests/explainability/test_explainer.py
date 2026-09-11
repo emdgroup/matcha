@@ -1,5 +1,8 @@
 """Tests for matcha.explainability.explainer (MatchaExplainer and MatchaExplanation)."""
 
+from unittest.mock import Mock
+
+import numpy as np
 import pandas as pd
 import pytest
 from rdkit import Chem
@@ -188,9 +191,7 @@ class TestMatchaExplainerGenerateAnalogues:
         )
 
         assert exp.generate_analogues(mol) == []
-        assert calls == [
-            (mol, exp._pos_params, exp._nitrogen_walk_params, False, 2.5)
-        ]
+        assert calls == [(mol, exp._pos_params, exp._nitrogen_walk_params, False, 2.5)]
 
     def test_generation_timeout_propagates(self):
         exp = MatchaExplainer(generation_timeout=0)
@@ -229,7 +230,6 @@ class TestMatchaExplainerDecompose:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestMatchaExplainerLimeDesc:
     """Tests for MatchaExplainer._run_lime_desc."""
 
@@ -257,7 +257,6 @@ class TestMatchaExplainerLimeDesc:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestMatchaExplainerLimeEcfp:
     """Tests for MatchaExplainer._run_lime_ecfp."""
 
@@ -285,7 +284,6 @@ class TestMatchaExplainerLimeEcfp:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestMatchaExplainerExplain:
     """Tests for MatchaExplainer.explain (end-to-end)."""
 
@@ -336,6 +334,49 @@ class TestMatchaExplainerExplain:
             small_mol_list, small_regression_targets, bootstrap_num=3
         )
         assert result._mol is not None
+
+    @pytest.mark.parametrize(
+        ("molecule_count", "predictions", "bootstrap_num", "message"),
+        [
+            (3, np.array([1.0, 2.0]), 1, "molecule and prediction counts must match"),
+            (
+                3,
+                np.array([[1.0], [2.0], [3.0]]),
+                1,
+                "predictions must be one-dimensional",
+            ),
+            (2, np.array([1.0, 2.0]), 1, "at least 3 molecules"),
+            (3, np.array([1.0, 2.0, 3.0]), 0, "bootstrap_num must be at least 1"),
+            (
+                3,
+                np.array([1.0, 2.0, 3.0]),
+                3,
+                r"bootstrap_num \(3\) cannot exceed available feature count \(2\)",
+            ),
+        ],
+    )
+    def test_rejects_invalid_lime_inputs_before_running_either_path(
+        self,
+        monkeypatch,
+        small_mol_list,
+        molecule_count,
+        predictions,
+        bootstrap_num,
+        message,
+    ):
+        explainer = MatchaExplainer(lime_descriptor_set=["MolWt", "MolLogP"])
+        descriptor_lime = Mock()
+        fingerprint_lime = Mock()
+        monkeypatch.setattr(explainer, "_run_lime_desc", descriptor_lime)
+        monkeypatch.setattr(explainer, "_run_lime_ecfp", fingerprint_lime)
+
+        with pytest.raises(ValueError, match=message):
+            explainer.explain(
+                small_mol_list[:molecule_count], predictions, bootstrap_num
+            )
+
+        descriptor_lime.assert_not_called()
+        fingerprint_lime.assert_not_called()
 
 
 # ===================================================================

@@ -1,4 +1,4 @@
-from matcha.utils.logging import get_default_logger
+from math import ceil
 
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import KFold
@@ -61,8 +61,6 @@ _default = [
     "fr_SH",
 ]
 _fp_default = {"nBits": 1024, "radius": 3, "useFeatures": False}
-
-logger = get_default_logger(__name__)
 
 
 class LIME:
@@ -159,24 +157,36 @@ class LIME:
 
         :returns: Coefficient matrix of shape ``(bootstrap_num, n_features)``.
         """
-        sample_cv = KFold(n_splits=bootstrap_num)
-        feat_cv = KFold(n_splits=bootstrap_num)
-        sample_idx = [x[0] for x in sample_cv.split(feats)]
-        feat_idx = [x[0] for x in feat_cv.split(np.arange(feats.shape[1]))]
+        n_rows, feature_count = feats.shape
+        sample_splits = max(bootstrap_num, ceil(n_rows / (n_rows - 2)))
+        sample_idx = [
+            train_rows for train_rows, _ in KFold(n_splits=sample_splits).split(feats)
+        ][:bootstrap_num]
+        if bootstrap_num == 1:
+            feat_idx = [np.arange(feature_count)]
+        else:
+            feat_idx = [
+                train_columns
+                for train_columns, _ in KFold(n_splits=bootstrap_num).split(
+                    np.arange(feature_count)
+                )
+            ]
 
-        self._coeff_box = np.zeros((bootstrap_num, feats.shape[1]))
-        for i in range(bootstrap_num):
-            slice = feats[sample_idx[i], :]
-            slice = feats[:, feat_idx[i]]
-            slice = StandardScaler().fit_transform(slice)
+        self._model_box = []
+        self._r2_box = []
+        self._coeff_box = np.full((bootstrap_num, feature_count), np.nan)
+        for fit_index, (sample_rows, feature_columns) in enumerate(
+            zip(sample_idx, feat_idx)
+        ):
+            fit_features = feats[np.ix_(sample_rows, feature_columns)]
+            fit_features = StandardScaler().fit_transform(fit_features)
+            fit_targets = y[sample_rows]
             model = Ridge()
-            model.fit(slice, y)
-            preds = model.predict(slice)
-            r2 = r2_score(y, preds)
-            self._r2_box.append(r2)
+            model.fit(fit_features, fit_targets)
+            predictions = model.predict(fit_features)
+            self._r2_box.append(r2_score(fit_targets, predictions))
             self._model_box.append(model)
-            coeffs = model.coef_
-            self._coeff_box[i, feat_idx[i]] = coeffs
+            self._coeff_box[fit_index, feature_columns] = model.coef_
 
         return self._coeff_box
 
@@ -252,48 +262,51 @@ class LIME:
             ``Standard deviation``, sorted by coefficient magnitude. The last
             row contains the local fit R-squared summary.
         """
-        # check if rdkit molecules or arbitrary array
-        # choose names for columns in the output dataframe
+        targets = np.asarray(Y)
+        if targets.ndim != 1:
+            raise ValueError("LIME targets must be one-dimensional.")
+        if len(X) != len(targets):
+            raise ValueError(
+                "LIME molecule and target counts must match: "
+                f"received {len(X)} molecules and {len(targets)} targets."
+            )
+        if len(X) < 3:
+            raise ValueError(f"LIME requires at least 3 molecules; received {len(X)}.")
+        if bootstrap_num < 1:
+            raise ValueError("bootstrap_num must be at least 1.")
+
         if self._use_fingerprints:
             feats = self._get_ecfps(X, self._fingerprint_params_set)
-            columns = [f"F_{i}" for i in range(len(feats[0]))]
+            columns = [f"F_{i}" for i in range(feats.shape[1])]
         else:
             feats = self._get_features(X, self.descriptor_set)
             columns = self._descriptor_set
 
-        if len(X) < bootstrap_num:
-            logger.warning(
-                f"Less than {bootstrap_num} records were found, replacing with {len(X) - 1}"
+        feature_count = feats.shape[1]
+        if bootstrap_num > feature_count:
+            raise ValueError(
+                f"bootstrap_num ({bootstrap_num}) cannot exceed available feature "
+                f"count ({feature_count})."
             )
-            bootstrap_num = len(X) - 1
 
-        if feats.shape[1] <= bootstrap_num:
-            logger.warning(
-                f"bootstrap_num is higher than the number of descriptors, replacing with {feats.shape[1] - 1}"
-            )
-            bootstrap_num = feats.shape[1] - 1
-
-        coeff_box = self._fit(feats, Y, bootstrap_num)
-        coeff_median = np.median(coeff_box, axis=0)
-        coeff_box[coeff_box == 0.0] = np.nan
-
-        # Use nanstd but guard against all-NaN slices (DOF <= 0).
-        # Columns that were never assigned a coefficient (all NaN) get std = 0.
-        # this issue can arise if the counterfactuals generated are either
-        # not informative (e.g. constant descriptors) or too few
-        coeff_std = np.nanstd(coeff_box, axis=0)
-        coeff_std = np.nan_to_num(coeff_std, nan=0.0)
+        requested_fits = min(bootstrap_num, len(X))
+        coeff_box = self._fit(feats, targets, requested_fits)
+        coeff_median = np.zeros(feature_count)
+        coeff_std = np.zeros(feature_count)
+        for column_index in range(feature_count):
+            selected_coefficients = coeff_box[:, column_index]
+            selected_coefficients = selected_coefficients[
+                ~np.isnan(selected_coefficients)
+            ]
+            if selected_coefficients.size:
+                coeff_median[column_index] = np.median(selected_coefficients)
+                coeff_std[column_index] = np.std(selected_coefficients)
 
         if self.scale_coeff:
-            # Safe division: where coeff_median is zero, relative_error stays 0
-            relative_error = np.divide(
-                coeff_std,
-                coeff_median,
-                out=np.zeros_like(coeff_std),
-                where=coeff_median != 0,
-            )
-            coeff_median = coeff_median / np.abs(np.sum(coeff_median))
-            coeff_std = np.abs(coeff_median * relative_error)
+            coefficient_norm = np.sum(np.abs(coeff_median))
+            if coefficient_norm != 0:
+                coeff_median = coeff_median / coefficient_norm
+                coeff_std = coeff_std / coefficient_norm
 
         df_out = pd.DataFrame(
             {
