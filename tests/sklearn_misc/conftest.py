@@ -95,6 +95,22 @@ BASE_TRAIN = dict(
     stochastic_weight_averaging=False,
 )
 
+FINETUNE_TRAIN = dict(
+    num_epochs=1,
+    batch_size=32,
+    accelerator="cpu",
+    devices=1,
+    early_stopping=False,
+    stochastic_weight_averaging=False,
+    pred_hidden_dims=[32],
+    finetuning_strategy="full",
+)
+
+FINETUNE_TRAIN_NO_OVERRIDE = {
+    **FINETUNE_TRAIN,
+    "pred_hidden_dims": None,
+}
+
 GRAPH_PE_OFF = dict(
     rwse_k=0,
     laplacian_k=0,
