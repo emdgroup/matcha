@@ -53,17 +53,14 @@ class TestLayerRegistry:
 
 
 class TestAdaRMSN:
-    def test_output_shape(self):
-        norm = AdaRMSN(dim=32)
-        x = torch.randn(8, 32)
-        out = norm(x)
-        assert out.shape == (8, 32)
-
-    def test_output_3d(self):
-        norm = AdaRMSN(dim=16)
-        x = torch.randn(4, 10, 16)
-        out = norm(x)
-        assert out.shape == (4, 10, 16)
+    def test_output_shape_2d_and_3d(self):
+        for dim, input_shape in [(32, (8, 32)), (16, (4, 10, 16))]:
+            norm = AdaRMSN(dim=dim)
+            x = torch.randn(*input_shape)
+            out = norm(x)
+            assert out.shape == input_shape, (
+                f"AdaRMSN(dim={dim}) output shape mismatch for input {input_shape}"
+            )
 
     def test_output_is_finite(self):
         norm = AdaRMSN(dim=32)
@@ -91,41 +88,19 @@ class TestAdaRMSN:
 
 
 class TestLnBnDr:
-    def test_output_shape(self):
-        layer = LnBnDr(
-            input_dim=32,
-            output_dim=16,
-            dropout=0.1,
-            activation="relu",
-            norm="layer",
-        )
+    def test_output_shape_across_optional_branches(self):
+        configs = [
+            {"dropout": 0.1, "activation": "relu", "norm": "layer"},
+            {"dropout": 0.0, "activation": None, "norm": "layer"},
+            {"dropout": 0.0, "activation": "relu", "norm": None},
+        ]
         x = torch.randn(8, 32)
-        out = layer(x)
-        assert out.shape == (8, 16)
-
-    def test_output_shape_no_activation(self):
-        layer = LnBnDr(
-            input_dim=32,
-            output_dim=16,
-            dropout=0.0,
-            activation=None,
-            norm="layer",
-        )
-        x = torch.randn(8, 32)
-        out = layer(x)
-        assert out.shape == (8, 16)
-
-    def test_output_shape_no_norm(self):
-        layer = LnBnDr(
-            input_dim=32,
-            output_dim=16,
-            dropout=0.0,
-            activation="relu",
-            norm=None,
-        )
-        x = torch.randn(8, 32)
-        out = layer(x)
-        assert out.shape == (8, 16)
+        for cfg in configs:
+            layer = LnBnDr(input_dim=32, output_dim=16, **cfg)
+            out = layer(x)
+            assert out.shape == (8, 16), (
+                f"LnBnDr output shape mismatch for config {cfg}"
+            )
 
     def test_in_out_features(self):
         layer = LnBnDr(
@@ -151,18 +126,20 @@ class TestLnBnDr:
         out.sum().backward()
         assert x.grad is not None
 
-    @pytest.mark.parametrize("activation", ["relu", "gelu", "swish", "tanh"])
-    def test_various_activations(self, activation):
-        layer = LnBnDr(
-            input_dim=32,
-            output_dim=16,
-            dropout=0.0,
-            activation=activation,
-            norm="layer",
-        )
+    def test_various_activations(self):
         x = torch.randn(8, 32)
-        out = layer(x)
-        assert out.shape == (8, 16)
+        for activation in ("relu", "gelu", "swish", "tanh"):
+            layer = LnBnDr(
+                input_dim=32,
+                output_dim=16,
+                dropout=0.0,
+                activation=activation,
+                norm="layer",
+            )
+            out = layer(x)
+            assert out.shape == (8, 16), (
+                f"LnBnDr with activation={activation!r} output shape mismatch"
+            )
 
 
 # ===================================================================

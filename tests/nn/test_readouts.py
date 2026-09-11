@@ -69,19 +69,21 @@ class TestReadoutRegistry:
 
 
 class TestPyGAggregationWrapperInterface:
-    @pytest.mark.parametrize(
-        "key,aggregation_class",
-        [
-            ("sum", aggr.SumAggregation),
-            ("mean", aggr.MeanAggregation),
-            ("max", aggr.MaxAggregation),
-            ("min", aggr.MinAggregation),
-        ],
-    )
-    def test_simple_alias_uses_expected_aggregation(self, key, aggregation_class):
-        readout = ReadoutRegistry[key]()
-        assert isinstance(readout, PyGAggregationWrapper)
-        assert isinstance(readout.aggregation, aggregation_class)
+    def test_simple_aliases_use_expected_aggregations(self):
+        expected = {
+            "sum": aggr.SumAggregation,
+            "mean": aggr.MeanAggregation,
+            "max": aggr.MaxAggregation,
+            "min": aggr.MinAggregation,
+        }
+        for key, aggregation_class in expected.items():
+            readout = ReadoutRegistry[key]()
+            assert isinstance(readout, PyGAggregationWrapper), (
+                f"ReadoutRegistry['{key}'] should be a PyGAggregationWrapper"
+            )
+            assert isinstance(readout.aggregation, aggregation_class), (
+                f"ReadoutRegistry['{key}'] should wrap {aggregation_class.__name__}"
+            )
 
     def test_routes_graph_batch_and_features(self):
         aggregation = MagicMock(return_value=sentinel.output)
@@ -101,22 +103,14 @@ class TestPyGAggregationWrapperInterface:
 
 
 class TestVirtualNodePooling:
-    def test_output_shape(self):
-        g1 = Data(x=torch.randn(3, 16))
-        g2 = Data(x=torch.randn(2, 16))
-        batch = Batch.from_data_list([g1, g2])
-
-        readout = VirtualNodePooling()
-        out = readout(batch, batch.x)
-        assert out.shape == (2, 16)
-
-    def test_extracts_last_node(self):
-        """Should extract the feature of the last node in each graph."""
+    def test_extracts_last_node_per_graph(self):
         g1 = Data(x=torch.tensor([[1.0, 0.0], [0.0, 1.0], [2.0, 3.0]]))
         g2 = Data(x=torch.tensor([[4.0, 5.0], [6.0, 7.0]]))
         batch = Batch.from_data_list([g1, g2])
 
         readout = VirtualNodePooling()
         out = readout(batch, batch.x)
+
+        assert out.shape == (2, 2)
         assert torch.allclose(out[0], torch.tensor([2.0, 3.0]))
         assert torch.allclose(out[1], torch.tensor([6.0, 7.0]))
