@@ -1,5 +1,8 @@
 """Tests for explainability input schemas."""
 
+import pytest
+from pydantic import ValidationError
+
 from matcha.utils.schemas.explainability import ExplainerInputModel
 
 
@@ -35,3 +38,23 @@ def test_reverse_can_be_disabled():
     )
 
     assert model.reverse_positional_analogue_scanning is False
+
+
+def test_generation_timeout_defaults_to_sixty_seconds():
+    model = ExplainerInputModel(**_valid_params())
+
+    assert model.generation_timeout == 60.0
+
+
+def test_generation_timeout_accepts_zero():
+    model = ExplainerInputModel(**_valid_params(), generation_timeout=0)
+
+    assert model.generation_timeout == 0.0
+
+
+@pytest.mark.parametrize("generation_timeout", [-1, float("inf"), float("nan")])
+def test_generation_timeout_rejects_invalid_values(generation_timeout):
+    with pytest.raises(ValidationError):
+        ExplainerInputModel(
+            **_valid_params(), generation_timeout=generation_timeout
+        )

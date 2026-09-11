@@ -108,7 +108,7 @@ class TestMatchaExplainerInit:
             is False
         )
 
-    def test_reverse_is_trailing_positional_argument(self):
+    def test_reverse_and_timeout_are_trailing_positional_arguments(self):
         positional = {"substituents": ["C"], "anchors": [], "num_sub": 1}
         nitrogen = {"num_sub": 2}
         exp = MatchaExplainer(
@@ -119,6 +119,7 @@ class TestMatchaExplainerInit:
             False,
             False,
             False,
+            2.5,
         )
 
         assert exp._pos_params == positional
@@ -128,6 +129,10 @@ class TestMatchaExplainerInit:
         assert exp._scale_coeff is False
         assert exp._remove_noise is False
         assert exp._reverse_positional_analogue_scanning is False
+        assert exp._generation_timeout == 2.5
+
+    def test_generation_timeout_defaults_to_sixty_seconds(self):
+        assert MatchaExplainer()._generation_timeout == 60.0
 
     def test_default_positional_parameters_are_copied(self, monkeypatch):
         defaults = {
@@ -165,11 +170,11 @@ class TestMatchaExplainerGenerateAnalogues:
         result = default_explainer.generate_analogues(single_mol)
         assert len(result) > 0
 
-    def test_forwards_reverse_setting(self, monkeypatch):
+    def test_forwards_reverse_setting_and_generation_timeout(self, monkeypatch):
         calls = []
 
-        def generate(cls, mol, pos_params, nitrogen_params, reverse):
-            calls.append((mol, pos_params, nitrogen_params, reverse))
+        def generate(cls, mol, pos_params, nitrogen_params, reverse, timeout):
+            calls.append((mol, pos_params, nitrogen_params, reverse, timeout))
             return []
 
         monkeypatch.setattr(
@@ -178,10 +183,20 @@ class TestMatchaExplainerGenerateAnalogues:
             classmethod(generate),
         )
         mol = Chem.MolFromSmiles("Cc1ccccc1")
-        exp = MatchaExplainer(reverse_positional_analogue_scanning=False)
+        exp = MatchaExplainer(
+            reverse_positional_analogue_scanning=False, generation_timeout=2.5
+        )
 
         assert exp.generate_analogues(mol) == []
-        assert calls == [(mol, exp._pos_params, exp._nitrogen_walk_params, False)]
+        assert calls == [
+            (mol, exp._pos_params, exp._nitrogen_walk_params, False, 2.5)
+        ]
+
+    def test_generation_timeout_propagates(self):
+        exp = MatchaExplainer(generation_timeout=0)
+
+        with pytest.raises(TimeoutError, match="no partial results"):
+            exp.generate_analogues(Chem.MolFromSmiles("c1ccccc1"))
 
     def test_reverse_noops_when_positional_generation_is_disabled(self):
         exp = MatchaExplainer(

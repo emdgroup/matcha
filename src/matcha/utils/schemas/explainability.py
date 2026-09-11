@@ -1,3 +1,7 @@
+from typing import Annotated
+
+from pydantic import Field
+
 from matcha.utils.schemas.base import BaseDataModel
 
 
@@ -11,3 +15,4 @@ class ExplainerInputModel(BaseDataModel):
     lime_scale_coeff: bool
     lime_remove_noise: bool
     reverse_positional_analogue_scanning: bool = True
+    generation_timeout: Annotated[float, Field(ge=0, allow_inf_nan=False)] = 60.0

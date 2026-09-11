@@ -176,13 +176,25 @@ class TestPositionalAnalogueScanning:
         )
         assert len(result) > 0
 
-    def test_timeout_respected(self, single_mol):
-        """With a very short timeout, should still return a list (possibly truncated)."""
-        result = AnalogueGenerator.positional_analogue_scanning(
-            single_mol,
-            timeout=0,  # immediate timeout
+    def test_timeout_raises_during_enumeration(self, single_mol, monkeypatch):
+        now = 0.0
+
+        def expire_during_attachment(cls, mol, anchor_idx, substituent, **kwargs):
+            nonlocal now
+            now = 2.0
+            return Chem.RWMol(mol)
+
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: now
         )
-        assert isinstance(result, list)
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attach_substituent",
+            classmethod(expire_during_attachment),
+        )
+
+        with pytest.raises(TimeoutError, match="no partial results"):
+            AnalogueGenerator.positional_analogue_scanning(single_mol, timeout=1)
 
     def test_all_results_sanitizable(self, single_mol):
         result = AnalogueGenerator.positional_analogue_scanning(single_mol)
@@ -219,6 +231,56 @@ class TestAttachSubstituent:
     def test_out_of_bounds_anchor_propagates(self, benzene_mol):
         with pytest.raises(RuntimeError):
             AnalogueGenerator._attach_substituent(benzene_mol, 9999, "F")
+
+    def test_deadline_checked_before_sanitization(self, benzene_mol, monkeypatch):
+        sanitize_calls = 0
+
+        def record_sanitize(mol):
+            nonlocal sanitize_calls
+            sanitize_calls += 1
+            return mol
+
+        monkeypatch.setattr(Chem, "SanitizeMol", record_sanitize)
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: 2.0
+        )
+
+        with pytest.raises(TimeoutError, match="attachment"):
+            AnalogueGenerator._attach_substituent(
+                benzene_mol,
+                0,
+                "F",
+                deadline=1.0,
+                timeout_budget=1.0,
+                stage="attachment",
+            )
+
+        assert sanitize_calls == 0
+
+    def test_deadline_checked_after_sanitization(self, benzene_mol, monkeypatch):
+        now = 0.0
+        sanitize = Chem.SanitizeMol
+
+        def advance_clock(mol):
+            nonlocal now
+            result = sanitize(mol)
+            now = 2.0
+            return result
+
+        monkeypatch.setattr(Chem, "SanitizeMol", advance_clock)
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: now
+        )
+
+        with pytest.raises(TimeoutError, match="attachment"):
+            AnalogueGenerator._attach_substituent(
+                benzene_mol,
+                0,
+                "F",
+                deadline=1.0,
+                timeout_budget=1.0,
+                stage="attachment",
+            )
 
 
 # ===================================================================
@@ -297,9 +359,23 @@ class TestNitrogenWalk:
         with pytest.raises(RuntimeError, match="unexpected failure"):
             AnalogueGenerator.nitrogen_walk(benzene_mol)
 
-    def test_timeout_respected(self, benzene_mol):
-        result = AnalogueGenerator.nitrogen_walk(benzene_mol, timeout=0)
-        assert isinstance(result, list)
+    def test_timeout_raises_during_enumeration(self, benzene_mol, monkeypatch):
+        now = 0.0
+        sanitize = Chem.SanitizeMol
+
+        def expire_during_sanitization(mol):
+            nonlocal now
+            result = sanitize(mol)
+            now = 2.0
+            return result
+
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: now
+        )
+        monkeypatch.setattr(Chem, "SanitizeMol", expire_during_sanitization)
+
+        with pytest.raises(TimeoutError, match="no partial results"):
+            AnalogueGenerator.nitrogen_walk(benzene_mol, timeout=1)
 
 
 # ===================================================================
@@ -376,6 +452,28 @@ class TestReversePositionalAnalogueScanning:
         )
 
         assert result == []
+
+    def test_timeout_raises_during_enumeration(self, benzene_mol, monkeypatch):
+        now = 0.0
+
+        def expire_during_removal(cls, mol, atom_indices, **kwargs):
+            nonlocal now
+            now = 2.0
+            return Chem.RWMol(mol)
+
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: now
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator, "_remove_atoms", classmethod(expire_during_removal)
+        )
+
+        with pytest.raises(TimeoutError, match="no partial results"):
+            AnalogueGenerator.reverse_positional_analogue_scanning(
+                Chem.MolFromSmiles("Cc1ccccc1"),
+                substituents=["C"],
+                timeout=1,
+            )
 
 
 # ===================================================================
@@ -499,7 +597,7 @@ class TestGenerateAnalogues:
             classmethod(lambda cls, mol_in, **kwargs: []),
         )
 
-        def record_reverse(cls, mol_in, substituents):
+        def record_reverse(cls, mol_in, substituents, **kwargs):
             reverse_inputs.append(mol_in)
             return []
 
@@ -527,6 +625,149 @@ class TestGenerateAnalogues:
             smi = Chem.MolToSmiles(m)
             assert smi is not None
             assert Chem.MolFromSmiles(smi) is not None
+
+    def test_generation_timeout_raises_actionable_error(self, benzene_mol):
+        with pytest.raises(TimeoutError) as exc_info:
+            AnalogueGenerator.generate_analogues(
+                benzene_mol,
+                positional_analogue_scanning_params={
+                    "substituents": ["F"],
+                    "anchors": ["[cH]"],
+                    "num_sub": 1,
+                },
+                nitrogen_walk_params=None,
+                generation_timeout=0,
+            )
+
+        message = str(exc_info.value)
+        assert "0" in message
+        assert "query forward PAS" in message
+        assert "no partial results" in message
+        assert "increase generation_timeout" in message
+        assert "disable a strategy" in message
+        assert "narrow the vocabulary" in message
+
+    def test_aggregate_propagates_one_absolute_deadline(
+        self, benzene_mol, monkeypatch
+    ):
+        calls = []
+
+        def record_pas(cls, mol_in, **kwargs):
+            calls.append((kwargs["_stage"], kwargs["_deadline"]))
+            return []
+
+        def record_reverse(cls, mol_in, substituents, **kwargs):
+            calls.append((kwargs["_stage"], kwargs["_deadline"]))
+            return []
+
+        def record_nitrogen(cls, mol_in, **kwargs):
+            calls.append((kwargs["_stage"], kwargs["_deadline"]))
+            return []
+
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: 10.0
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator, "positional_analogue_scanning", classmethod(record_pas)
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "reverse_positional_analogue_scanning",
+            classmethod(record_reverse),
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator, "nitrogen_walk", classmethod(record_nitrogen)
+        )
+
+        AnalogueGenerator.generate_analogues(benzene_mol, generation_timeout=2.5)
+
+        assert calls == [
+            ("query forward PAS", 12.5),
+            ("query reverse PAS", 12.5),
+            ("query nitrogen walk", 12.5),
+            ("scaffold forward PAS", 12.5),
+            ("scaffold nitrogen walk", 12.5),
+        ]
+
+    @pytest.mark.parametrize(
+        ("reverse_enabled", "nitrogen_params", "expected_stage"),
+        [
+            (True, None, "query reverse PAS"),
+            (False, {"num_sub": 1, "timeout": 1}, "query nitrogen walk"),
+        ],
+    )
+    def test_strategy_timeout_is_measured_from_aggregate_start(
+        self,
+        benzene_mol,
+        monkeypatch,
+        reverse_enabled,
+        nitrogen_params,
+        expected_stage,
+    ):
+        now = 0.0
+
+        def finish_forward(cls, mol_in, **kwargs):
+            nonlocal now
+            now = 2.0
+            return []
+
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: now
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "positional_analogue_scanning",
+            classmethod(finish_forward),
+        )
+
+        with pytest.raises(TimeoutError, match=expected_stage):
+            AnalogueGenerator.generate_analogues(
+                benzene_mol,
+                positional_analogue_scanning_params={
+                    "substituents": ["C"],
+                    "anchors": ["[cH]"],
+                    "num_sub": 1,
+                    "timeout": 1,
+                },
+                nitrogen_walk_params=nitrogen_params,
+                reverse_positional_analogue_scanning=reverse_enabled,
+                generation_timeout=10,
+            )
+
+    def test_aggregate_expires_before_second_pass(self, benzene_mol, monkeypatch):
+        now = 0.0
+        analogue = Chem.MolFromSmiles("Fc1ccccc1")
+
+        def generate_forward(cls, mol_in, **kwargs):
+            nonlocal now
+            if kwargs["_stage"] == "query forward PAS":
+                return [analogue]
+            if kwargs["_stage"] == "scaffold forward PAS":
+                now = 3.0
+                return []
+            pytest.fail("second-pass generation started after deadline expiry")
+
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: now
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "positional_analogue_scanning",
+            classmethod(generate_forward),
+        )
+
+        with pytest.raises(TimeoutError, match="second-pass generation"):
+            AnalogueGenerator.generate_analogues(
+                benzene_mol,
+                positional_analogue_scanning_params={
+                    "substituents": ["F"],
+                    "anchors": ["[cH]"],
+                    "num_sub": 1,
+                },
+                nitrogen_walk_params=None,
+                reverse_positional_analogue_scanning=False,
+                generation_timeout=2,
+            )
 
 
 # ===================================================================

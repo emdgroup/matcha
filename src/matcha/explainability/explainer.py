@@ -247,6 +247,7 @@ class MatchaExplainer:
         lime_scale_coeff: bool = True,
         lime_remove_noise: bool = True,
         reverse_positional_analogue_scanning: bool = True,
+        generation_timeout: float = 60.0,
     ):
         """Initialize the MatchaExplainer.
 
@@ -264,6 +265,8 @@ class MatchaExplainer:
             in the explanation. Defaults to True.
         :param bool reverse_positional_analogue_scanning: Whether to remove
             peripheral groups from the PAS vocabulary. Defaults to True.
+        :param float generation_timeout: Maximum total analogue-generation time
+            in seconds. Defaults to 60. Zero causes immediate expiry.
         """
         validated = ExplainerInputModel(
             positional_analogue_scanning_params=positional_analogue_scanning_params,
@@ -273,6 +276,7 @@ class MatchaExplainer:
             lime_scale_coeff=lime_scale_coeff,
             lime_remove_noise=lime_remove_noise,
             reverse_positional_analogue_scanning=reverse_positional_analogue_scanning,
+            generation_timeout=generation_timeout,
         )
 
         if positional_analogue_scanning_params == {}:
@@ -290,6 +294,7 @@ class MatchaExplainer:
         self._reverse_positional_analogue_scanning = (
             validated.reverse_positional_analogue_scanning
         )
+        self._generation_timeout = validated.generation_timeout
 
     def _run_lime_desc(self, mols, predictions, bootstrap_num) -> tuple:
         """Run LIME analysis using RDKit descriptors.
@@ -335,6 +340,7 @@ class MatchaExplainer:
             self._pos_params,
             self._nitrogen_walk_params,
             self._reverse_positional_analogue_scanning,
+            self._generation_timeout,
         )
 
     def decompose(self, mol: Mol) -> list[Mol]:
