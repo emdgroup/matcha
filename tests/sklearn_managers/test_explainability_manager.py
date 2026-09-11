@@ -8,12 +8,15 @@ molecules (analogues + the query molecule).  We keep ``lime_bootstrap_num``
 small (3) and enable all analogue generators so there is enough data.
 """
 
+from unittest.mock import Mock
+
 import pytest
 from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
 
-from matcha.sklearn.tabular import SNNRegressor
+import matcha.sklearn.managers.explainability_manager as manager_module
 from matcha.sklearn.managers import ExplainabilityManager
+from matcha.sklearn.tabular import SNNRegressor
 
 
 @pytest.fixture()
@@ -72,3 +75,37 @@ class TestExplainabilityManagerExplain:
             }
         )
         assert mgr.explainer is not None
+
+    def test_implicit_explainer_reuses_reverse_default(self, monkeypatch):
+        implicit = Mock()
+        implicit.generate_analogues.return_value = []
+        constructor = Mock(return_value=implicit)
+        monkeypatch.setattr(manager_module, "MatchaExplainer", constructor)
+        mgr = ExplainabilityManager()
+        expected = object()
+        monkeypatch.setattr(mgr, "_get_explanations", Mock(return_value=expected))
+
+        result = mgr.explain(Mock(), _EXPLAIN_MOL)
+
+        assert result is expected
+        assert "reverse_positional_analogue_scanning" not in constructor.call_args.kwargs
+
+    def test_caller_configured_reverse_setting_is_honored(self, monkeypatch):
+        mgr = ExplainabilityManager()
+        mgr.create_explainer(
+            {
+                "positional_analogue_scanning_params": None,
+                "nitrogen_walk_params": None,
+                "reverse_positional_analogue_scanning": False,
+            }
+        )
+        configured = mgr.explainer
+        expected = object()
+        monkeypatch.setattr(configured, "generate_analogues", Mock(return_value=[]))
+        monkeypatch.setattr(mgr, "_get_explanations", Mock(return_value=expected))
+
+        result = mgr.explain(Mock(), _EXPLAIN_MOL)
+
+        assert result is expected
+        assert configured._reverse_positional_analogue_scanning is False
+        configured.generate_analogues.assert_called_once_with(_EXPLAIN_MOL)

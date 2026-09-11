@@ -1,18 +1,21 @@
-from matcha.explainability.lime import LIME
-from matcha.explainability.analogue_generator import AnalogueGenerator
-from rdkit.Chem.rdchem import Mol
-from rdkit.Chem import MolToSmiles
-from rdkit.Chem.Draw import SimilarityMaps, rdMolDraw2D as Draw
-from PIL import Image
+import collections as cl
+from copy import deepcopy
 import io
+
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
+from PIL import Image
 import plotly.colors as pc
-import collections as cl
+import plotly.graph_objects as go
+from rdkit.Chem import MolToSmiles
+from rdkit.Chem.Draw import SimilarityMaps, rdMolDraw2D as Draw
+from rdkit.Chem.rdchem import Mol
 import sklearn.preprocessing as skp
-from matcha.utils.schemas import ExplainerInputModel
+
+from matcha.explainability.analogue_generator import AnalogueGenerator
+from matcha.explainability.lime import LIME
 from matcha.utils.logging import get_default_logger
+from matcha.utils.schemas import ExplainerInputModel
 
 logger = get_default_logger(__name__)
 
@@ -243,6 +246,7 @@ class MatchaExplainer:
         lime_fingerprint_params: dict | None = None,
         lime_scale_coeff: bool = True,
         lime_remove_noise: bool = True,
+        reverse_positional_analogue_scanning: bool = True,
     ):
         """Initialize the MatchaExplainer.
 
@@ -258,18 +262,21 @@ class MatchaExplainer:
             Defaults to True.
         :param bool lime_remove_noise: Whether to filter unreliable coefficients
             in the explanation. Defaults to True.
+        :param bool reverse_positional_analogue_scanning: Whether to remove
+            peripheral groups from the PAS vocabulary. Defaults to True.
         """
-        ExplainerInputModel(
+        validated = ExplainerInputModel(
             positional_analogue_scanning_params=positional_analogue_scanning_params,
             nitrogen_walk_params=nitrogen_walk_params,
             lime_descriptor_set=lime_descriptor_set,
             lime_fingerprint_params=lime_fingerprint_params,
             lime_scale_coeff=lime_scale_coeff,
             lime_remove_noise=lime_remove_noise,
+            reverse_positional_analogue_scanning=reverse_positional_analogue_scanning,
         )
 
         if positional_analogue_scanning_params == {}:
-            self._pos_params = _pos_params
+            self._pos_params = deepcopy(_pos_params)
         else:
             self._pos_params = positional_analogue_scanning_params
         if nitrogen_walk_params == {}:
@@ -280,6 +287,9 @@ class MatchaExplainer:
         self._fingerprint_params = lime_fingerprint_params
         self._scale_coeff = lime_scale_coeff
         self._remove_noise = lime_remove_noise
+        self._reverse_positional_analogue_scanning = (
+            validated.reverse_positional_analogue_scanning
+        )
 
     def _run_lime_desc(self, mols, predictions, bootstrap_num) -> tuple:
         """Run LIME analysis using RDKit descriptors.
@@ -324,6 +334,7 @@ class MatchaExplainer:
             mol,
             self._pos_params,
             self._nitrogen_walk_params,
+            self._reverse_positional_analogue_scanning,
         )
 
     def decompose(self, mol: Mol) -> list[Mol]:

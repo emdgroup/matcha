@@ -8,6 +8,22 @@ from rdkit.Chem.rdchem import Mol, MolSanitizeException
 from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
 
 
+_DEFAULT_SUBSTITUENTS = [
+    "F",
+    "I",
+    "Br",
+    "Cl",
+    "O",
+    "C",
+    "[*]C(F)(F)F",
+    "[*]C#N",
+    "[*]OC",
+    "[*]C1CC1",
+    "[*]C(=O)N",
+    "[*]S(=O)(=O)C",
+]
+
+
 class AnalogueGenerator:
     """Generator of structural analogues for molecular explainability.
 
@@ -25,24 +41,12 @@ class AnalogueGenerator:
         cls,
         mol: Mol,
         positional_analogue_scanning_params: dict | None = {
-            "substituents": [
-                "F",
-                "I",
-                "Br",
-                "Cl",
-                "O",
-                "C",
-                "[*]C(F)(F)F",
-                "[*]C#N",
-                "[*]OC",
-                "[*]C1CC1",
-                "[*]C(=O)N",
-                "[*]S(=O)(=O)C",
-            ],
+            "substituents": _DEFAULT_SUBSTITUENTS,
             "anchors": ["[cH]", "C"],
             "num_sub": 1,
         },
         nitrogen_walk_params: dict | None = {"num_sub": 1},
+        reverse_positional_analogue_scanning: bool = True,
     ) -> list[Mol]:
         """Generate structural analogues of a molecule using scaffold-based and pairwise strategies.
 
@@ -57,6 +61,8 @@ class AnalogueGenerator:
             ``substituents``, ``anchors``, ``num_sub``.
         :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.
             Set to None to skip. Keys: ``num_sub``.
+        :param bool reverse_positional_analogue_scanning: Whether to remove
+            peripheral groups from the forward PAS vocabulary. Defaults to True.
 
         :returns: List of unique, sanitized RDKit molecule objects (excluding
             the input molecule).
@@ -68,6 +74,20 @@ class AnalogueGenerator:
                 mol_in=mol, **positional_analogue_scanning_params
             )
             if positional_analogue_scanning_params is not None
+            else []
+        )
+        reverse_substituents = (
+            positional_analogue_scanning_params.get(
+                "substituents", _DEFAULT_SUBSTITUENTS
+            )
+            if positional_analogue_scanning_params is not None
+            else None
+        )
+        reverse_mol = (
+            cls.reverse_positional_analogue_scanning(
+                mol_in=mol, substituents=reverse_substituents
+            )
+            if reverse_positional_analogue_scanning
             else []
         )
         nw_mol = (
@@ -98,7 +118,15 @@ class AnalogueGenerator:
             if nitrogen_walk_params is not None:
                 pas_nw += cls.nitrogen_walk(mol_in=analogue, **nitrogen_walk_params)
 
-        all_analogues = pas_mol + nw_mol + pas_scaffold + nw_scaffold + pas_pas + pas_nw
+        all_analogues = (
+            pas_mol
+            + reverse_mol
+            + nw_mol
+            + pas_scaffold
+            + nw_scaffold
+            + pas_pas
+            + pas_nw
+        )
 
         return cls._remove_duplicate(mol, all_analogues)
 
@@ -106,20 +134,7 @@ class AnalogueGenerator:
     def positional_analogue_scanning(
         cls,
         mol_in: Mol,
-        substituents: list = [
-            "F",
-            "I",
-            "Br",
-            "Cl",
-            "O",
-            "C",
-            "[*]C(F)(F)F",
-            "[*]C#N",
-            "[*]OC",
-            "[*]C1CC1",
-            "[*]C(=O)N",
-            "[*]S(=O)(=O)C",
-        ],
+        substituents: list = _DEFAULT_SUBSTITUENTS,
         anchors: list = ["[cH]", "C"],
         num_sub: int = 1,
         timeout: int = 60,
@@ -176,6 +191,68 @@ class AnalogueGenerator:
                         new_mol = result
                     if success:
                         out_mol_list.append(new_mol)
+            if time.time() - start > timeout:
+                break
+
+        return cls._remove_duplicate(mol_in, out_mol_list)
+
+    @classmethod
+    def reverse_positional_analogue_scanning(
+        cls,
+        mol_in: Mol,
+        substituents: list | None,
+        timeout: int = 60,
+    ) -> list[Mol]:
+        """Remove one peripheral group from the forward PAS vocabulary.
+
+        :param Mol mol_in: Input RDKit molecule.
+        :param list | None substituents: Forward PAS substituent vocabulary.
+        :param int timeout: Maximum runtime in seconds. Defaults to 60.
+
+        :returns: List of unique, deduplicated parent molecules.
+        """
+        if not substituents:
+            return []
+
+        out_mol_list = []
+        start = time.time()
+        for substituent in substituents:
+            fragment, dummy_idx = cls._validate_substituent(substituent)
+            if dummy_idx is None:
+                atomic_num = fragment.GetAtomWithIdx(0).GetAtomicNum()
+                for atom in mol_in.GetAtoms():
+                    if atom.GetAtomicNum() != atomic_num or atom.GetDegree() != 1:
+                        continue
+                    parent = cls._remove_atoms(mol_in, [atom.GetIdx()])
+                    if parent is not None:
+                        out_mol_list.append(parent)
+            else:
+                dummy = fragment.GetAtomWithIdx(dummy_idx)
+                attachment_idx = dummy.GetNeighbors()[0].GetIdx()
+                query = Chem.RWMol(fragment)
+                query.RemoveAtom(dummy_idx)
+                if dummy_idx < attachment_idx:
+                    attachment_idx -= 1
+                Chem.SanitizeMol(query)
+
+                for match in mol_in.GetSubstructMatches(query):
+                    matched = set(match)
+                    boundary = [
+                        (atom_idx, neighbor.GetIdx())
+                        for atom_idx in match
+                        for neighbor in mol_in.GetAtomWithIdx(atom_idx).GetNeighbors()
+                        if neighbor.GetIdx() not in matched
+                    ]
+                    if len(boundary) != 1 or boundary[0][0] != match[attachment_idx]:
+                        continue
+
+                    remove_indices = list(match)
+                    if len(remove_indices) > 1:
+                        remove_indices.remove(match[attachment_idx])
+                    parent = cls._remove_atoms(mol_in, remove_indices)
+                    if parent is not None and parent.GetNumAtoms() > 1:
+                        out_mol_list.append(parent)
+
             if time.time() - start > timeout:
                 break
 
@@ -279,6 +356,21 @@ class AnalogueGenerator:
         except MolSanitizeException:
             return None
         return new_mol
+
+    @classmethod
+    def _remove_atoms(cls, mol: Mol, atom_indices: list[int]) -> Mol | None:
+        parent = Chem.RWMol(mol)
+        for atom_idx in sorted(atom_indices, reverse=True):
+            parent.RemoveAtom(atom_idx)
+        if parent.GetNumAtoms() == 0:
+            return None
+        try:
+            Chem.SanitizeMol(parent)
+        except MolSanitizeException:
+            return None
+        if len(Chem.GetMolFrags(parent)) != 1:
+            return None
+        return parent
 
     @classmethod
     def _remove_duplicate(cls, target: Mol, analogues: list[Mol]) -> list[Mol]:

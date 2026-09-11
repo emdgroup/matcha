@@ -303,6 +303,82 @@ class TestNitrogenWalk:
 
 
 # ===================================================================
+# AnalogueGenerator – reverse positional analogue scanning
+# ===================================================================
+
+
+class TestReversePositionalAnalogueScanning:
+    """Tests for reverse positional analogue scanning."""
+
+    @pytest.mark.parametrize(
+        ("smiles", "expected_smiles"),
+        [("Cc1ccccc1", "c1ccccc1"), ("CCc1ccccc1", "Cc1ccccc1")],
+    )
+    def test_removes_one_terminal_bare_atom(self, smiles, expected_smiles):
+        result = AnalogueGenerator.reverse_positional_analogue_scanning(
+            Chem.MolFromSmiles(smiles), substituents=["C"]
+        )
+
+        assert [Chem.MolToSmiles(mol) for mol in result] == [expected_smiles]
+
+    def test_does_not_remove_ring_atom(self):
+        result = AnalogueGenerator.reverse_positional_analogue_scanning(
+            Chem.MolFromSmiles("C1CCCCC1"), substituents=["C"]
+        )
+
+        assert result == []
+
+    def test_does_not_remove_internal_chain_atom(self):
+        result = AnalogueGenerator.reverse_positional_analogue_scanning(
+            Chem.MolFromSmiles("CCC"), substituents=["C"]
+        )
+
+        assert [Chem.MolToSmiles(mol) for mol in result] == ["CC"]
+
+    def test_removes_only_one_matching_group_per_candidate(self):
+        result = AnalogueGenerator.reverse_positional_analogue_scanning(
+            Chem.MolFromSmiles("Cc1ccc(C)cc1"), substituents=["C"]
+        )
+
+        assert [Chem.MolToSmiles(mol) for mol in result] == ["Cc1ccccc1"]
+        assert "c1ccccc1" not in [Chem.MolToSmiles(mol) for mol in result]
+
+    @pytest.mark.parametrize(
+        ("smiles", "substituent", "expected_smiles"),
+        [
+            ("Oc1ccccc1", "[*]O", "c1ccccc1"),
+            ("COc1ccccc1", "[*]OC", "Oc1ccccc1"),
+        ],
+    )
+    def test_removes_one_peripheral_fragment(
+        self, smiles, substituent, expected_smiles
+    ):
+        result = AnalogueGenerator.reverse_positional_analogue_scanning(
+            Chem.MolFromSmiles(smiles), substituents=[substituent]
+        )
+
+        assert [Chem.MolToSmiles(mol) for mol in result] == [expected_smiles]
+
+    @pytest.mark.parametrize(
+        ("smiles", "substituent"), [("CCOCC", "[*]OC"), ("CO", "[*]O")]
+    )
+    def test_rejects_non_peripheral_or_empty_parent(self, smiles, substituent):
+        result = AnalogueGenerator.reverse_positional_analogue_scanning(
+            Chem.MolFromSmiles(smiles), substituents=[substituent]
+        )
+
+        assert result == []
+
+    @pytest.mark.parametrize("substituents", [None, []])
+    def test_empty_vocabulary_is_a_silent_noop(self, benzene_mol, substituents):
+        result = AnalogueGenerator.reverse_positional_analogue_scanning(
+            benzene_mol, substituents=substituents
+        )
+
+        assert result == []
+
+
+# ===================================================================
 # AnalogueGenerator – decompose
 # ===================================================================
 
@@ -379,6 +455,71 @@ class TestGenerateAnalogues:
             nitrogen_walk_params=None,
         )
         assert result == []
+
+    def test_reverse_can_be_disabled(self):
+        mol = Chem.MolFromSmiles("Cc1ccccc1")
+        params = {"substituents": ["C"], "anchors": [], "num_sub": 1}
+
+        enabled = AnalogueGenerator.generate_analogues(
+            mol,
+            positional_analogue_scanning_params=params,
+            nitrogen_walk_params=None,
+        )
+        disabled = AnalogueGenerator.generate_analogues(
+            mol,
+            positional_analogue_scanning_params=params,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=False,
+        )
+
+        assert "c1ccccc1" in [Chem.MolToSmiles(analogue) for analogue in enabled]
+        assert "c1ccccc1" not in [Chem.MolToSmiles(analogue) for analogue in disabled]
+
+    def test_reverse_noops_when_forward_vocabulary_is_unavailable(self, single_mol):
+        result = AnalogueGenerator.generate_analogues(
+            single_mol,
+            positional_analogue_scanning_params=None,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=True,
+        )
+
+        assert result == []
+
+    def test_reverse_runs_once_on_the_original_query(self, benzene_mol, monkeypatch):
+        reverse_inputs = []
+
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "positional_analogue_scanning",
+            classmethod(lambda cls, mol_in, **kwargs: []),
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "nitrogen_walk",
+            classmethod(lambda cls, mol_in, **kwargs: []),
+        )
+
+        def record_reverse(cls, mol_in, substituents):
+            reverse_inputs.append(mol_in)
+            return []
+
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "reverse_positional_analogue_scanning",
+            classmethod(record_reverse),
+        )
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params={
+                "substituents": ["C"],
+                "anchors": ["[cH]"],
+                "num_sub": 1,
+            },
+        )
+
+        assert reverse_inputs == [benzene_mol]
+        assert reverse_inputs[0] is benzene_mol
 
     def test_all_results_valid_molecules(self, single_mol):
         result = AnalogueGenerator.generate_analogues(single_mol)

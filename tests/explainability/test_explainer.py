@@ -6,6 +6,7 @@ from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
 import plotly.graph_objects as go
 
+import matcha.explainability.explainer as explainer_module
 from matcha.explainability.explainer import MatchaExplainer, MatchaExplanation
 
 
@@ -98,6 +99,51 @@ class TestMatchaExplainerInit:
         exp = MatchaExplainer(lime_remove_noise=False)
         assert exp._remove_noise is False
 
+    def test_reverse_defaults_on_and_can_be_disabled(self):
+        assert MatchaExplainer()._reverse_positional_analogue_scanning is True
+        assert (
+            MatchaExplainer(
+                reverse_positional_analogue_scanning=False
+            )._reverse_positional_analogue_scanning
+            is False
+        )
+
+    def test_reverse_is_trailing_positional_argument(self):
+        positional = {"substituents": ["C"], "anchors": [], "num_sub": 1}
+        nitrogen = {"num_sub": 2}
+        exp = MatchaExplainer(
+            positional,
+            nitrogen,
+            ["MolWt"],
+            {"radius": 2},
+            False,
+            False,
+            False,
+        )
+
+        assert exp._pos_params == positional
+        assert exp._nitrogen_walk_params == nitrogen
+        assert exp._descriptor_set == ["MolWt"]
+        assert exp._fingerprint_params == {"radius": 2}
+        assert exp._scale_coeff is False
+        assert exp._remove_noise is False
+        assert exp._reverse_positional_analogue_scanning is False
+
+    def test_default_positional_parameters_are_copied(self, monkeypatch):
+        defaults = {
+            "substituents": ["F"],
+            "anchors": ["[cH]"],
+            "num_sub": 1,
+        }
+        monkeypatch.setattr(explainer_module, "_pos_params", defaults)
+
+        first = MatchaExplainer()
+        second = MatchaExplainer()
+        first._pos_params["substituents"].append("Cl")
+
+        assert second._pos_params["substituents"] == ["F"]
+        assert defaults["substituents"] == ["F"]
+
 
 # ===================================================================
 # MatchaExplainer – generate_analogues
@@ -118,6 +164,32 @@ class TestMatchaExplainerGenerateAnalogues:
     def test_generates_analogues(self, default_explainer, single_mol):
         result = default_explainer.generate_analogues(single_mol)
         assert len(result) > 0
+
+    def test_forwards_reverse_setting(self, monkeypatch):
+        calls = []
+
+        def generate(cls, mol, pos_params, nitrogen_params, reverse):
+            calls.append((mol, pos_params, nitrogen_params, reverse))
+            return []
+
+        monkeypatch.setattr(
+            explainer_module.AnalogueGenerator,
+            "generate_analogues",
+            classmethod(generate),
+        )
+        mol = Chem.MolFromSmiles("Cc1ccccc1")
+        exp = MatchaExplainer(reverse_positional_analogue_scanning=False)
+
+        assert exp.generate_analogues(mol) == []
+        assert calls == [(mol, exp._pos_params, exp._nitrogen_walk_params, False)]
+
+    def test_reverse_noops_when_positional_generation_is_disabled(self):
+        exp = MatchaExplainer(
+            positional_analogue_scanning_params=None,
+            nitrogen_walk_params=None,
+        )
+
+        assert exp.generate_analogues(Chem.MolFromSmiles("Cc1ccccc1")) == []
 
 
 # ===================================================================

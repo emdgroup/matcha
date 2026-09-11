@@ -10,3 +10,4 @@ class ExplainerInputModel(BaseDataModel):
     lime_fingerprint_params: dict | None
     lime_scale_coeff: bool
     lime_remove_noise: bool
+    reverse_positional_analogue_scanning: bool = True
