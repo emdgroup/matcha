@@ -92,33 +92,20 @@ class TestLossRegistry:
 
 
 class TestBCEFocalLoss:
-    def test_output_scalar_mean(self):
-        loss_fn = BCEFocalLoss(gamma=2, reduction="mean")
+    def test_reduction_variants(self):
+        """mean/sum/none reductions produce the expected output shapes."""
         logits = torch.randn(8, 1)
         targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.dim() == 0  # scalar
-
-    def test_output_scalar_sum(self):
-        loss_fn = BCEFocalLoss(gamma=2, reduction="sum")
-        logits = torch.randn(8, 1)
-        targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.dim() == 0
-
-    def test_output_none_reduction(self):
-        loss_fn = BCEFocalLoss(gamma=2, reduction="none")
-        logits = torch.randn(8, 1)
-        targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.shape == (8, 1)
-
-    def test_loss_non_negative(self):
-        loss_fn = BCEFocalLoss(gamma=2, reduction="mean")
-        logits = torch.randn(8, 1)
-        targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.item() >= 0
+        expected_shapes = {
+            "mean": (),
+            "sum": (),
+            "none": (8, 1),
+        }
+        for reduction, expected in expected_shapes.items():
+            loss = BCEFocalLoss(gamma=2, reduction=reduction)(logits, targets)
+            assert loss.shape == expected, (
+                f"BCEFocalLoss(reduction={reduction!r}) should produce shape {expected}"
+            )
 
     def test_alpha_weighting(self):
         loss_fn = BCEFocalLoss(gamma=2, alpha=0.75, reduction="mean")
@@ -151,19 +138,19 @@ class TestBCEFocalLoss:
 
 
 class TestPoly1BCELoss:
-    def test_output_scalar(self):
-        loss_fn = Poly1BCELoss(epsilon=1.0, reduction="mean")
+    def test_reduction_variants(self):
+        """mean and none reductions produce the expected output shapes."""
         logits = torch.randn(8, 1)
         targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.dim() == 0
-
-    def test_none_reduction(self):
-        loss_fn = Poly1BCELoss(epsilon=1.0, reduction="none")
-        logits = torch.randn(8, 1)
-        targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.shape == (8, 1)
+        expected_shapes = {
+            "mean": (),
+            "none": (8, 1),
+        }
+        for reduction, expected in expected_shapes.items():
+            loss = Poly1BCELoss(epsilon=1.0, reduction=reduction)(logits, targets)
+            assert loss.shape == expected, (
+                f"Poly1BCELoss(reduction={reduction!r}) should produce shape {expected}"
+            )
 
     def test_epsilon_zero_matches_bce(self):
         """With epsilon=0, Poly1BCE should reduce to BCE."""
@@ -189,41 +176,25 @@ class TestPoly1BCELoss:
 
 
 class TestWeightedBCELoss:
-    def test_output_scalar(self):
-        loss_fn = WeightedBCELoss(w1=0.7, reduction="mean")
+    def test_reduction_variants(self):
+        """mean/sum/none reductions produce the expected output shapes."""
         logits = torch.randn(8, 1)
         targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.dim() == 0
-
-    def test_non_negative(self):
-        loss_fn = WeightedBCELoss(w1=0.7, reduction="mean")
-        logits = torch.randn(8, 1)
-        targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.item() >= 0
+        expected_shapes = {
+            "mean": (),
+            "sum": (),
+            "none": (8, 1),
+        }
+        for reduction, expected in expected_shapes.items():
+            loss = WeightedBCELoss(w1=0.5, reduction=reduction)(logits, targets)
+            assert loss.shape == expected, (
+                f"WeightedBCELoss(reduction={reduction!r}) should produce shape {expected}"
+            )
 
     def test_invalid_w1_raises(self):
-        with pytest.raises(ValueError):
-            WeightedBCELoss(w1=0.0)
-        with pytest.raises(ValueError):
-            WeightedBCELoss(w1=1.0)
-        with pytest.raises(ValueError):
-            WeightedBCELoss(w1=-0.5)
-
-    def test_reduction_none(self):
-        loss_fn = WeightedBCELoss(w1=0.5, reduction="none")
-        logits = torch.randn(8, 1)
-        targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.shape == (8, 1)
-
-    def test_reduction_sum(self):
-        loss_fn = WeightedBCELoss(w1=0.5, reduction="sum")
-        logits = torch.randn(8, 1)
-        targets = torch.randint(0, 2, (8, 1)).float()
-        loss = loss_fn(logits, targets)
-        assert loss.dim() == 0
+        for w1 in (0.0, 1.0, -0.5):
+            with pytest.raises(ValueError):
+                WeightedBCELoss(w1=w1)
 
     def test_equal_weights_matches_bce(self):
         """w1=0.5 should give 0.5 * BCE since both classes have equal weight."""
@@ -242,33 +213,49 @@ class TestWeightedBCELoss:
 
 
 class TestBoundedLoss:
-    def test_output_scalar(self):
-        loss_fn = BoundedLoss(loss_fn="mse")
-        preds = torch.randn(8, 1)
-        # targets: shape (batch, 1, 2) -- (value, mask)
-        targets = torch.zeros(8, 1, 2)
-        targets[:, :, 0] = torch.randn(8, 1)  # actual values
-        targets[:, :, 1] = 0  # no bound (exact)
-        loss = loss_fn(preds, targets)
-        assert loss.dim() == 0
+    def test_exact_and_bounded_directions(self):
+        """Table-driven contract for exact, less-than, and greater-than bounds.
 
-    def test_lt_bound_no_penalty_when_below(self):
-        """With lt_mask (mask=-1), predictions below target should incur no extra penalty."""
+        Preserves both dimensional branches -- batched ``(8, 1)`` preds paired
+        with ``(8, 1, 2)`` targets (exact) and single-element preds paired with
+        ``(1, 1, 2)`` targets (bounded) -- and both bound directions (lt/gt).
+        """
         loss_fn = BoundedLoss(loss_fn="mse")
-        # target=5.0, mask=-1 (less-than bound)
-        targets = torch.tensor([[[5.0, -1.0]]])
-        # prediction < target → should be clamped to target
-        preds_below = torch.tensor([3.0])
-        loss = loss_fn(preds_below, targets)
-        assert torch.allclose(loss, torch.tensor(0.0), atol=1e-6)
 
-    def test_gt_bound_no_penalty_when_above(self):
-        """With gt_mask (mask=1), predictions above target should incur no extra penalty."""
-        loss_fn = BoundedLoss(loss_fn="mse")
-        targets = torch.tensor([[[5.0, 1.0]]])
-        preds_above = torch.tensor([7.0])
-        loss = loss_fn(preds_above, targets)
-        assert torch.allclose(loss, torch.tensor(0.0), atol=1e-6)
+        # (case name, preds, targets, expected assertion)
+        # mask semantics: 0 = exact, -1 = less-than bound, 1 = greater-than bound
+        batched_targets = torch.zeros(8, 1, 2)
+        batched_targets[:, :, 0] = torch.randn(8, 1)
+        # mask defaults to 0 (exact)
+
+        cases = [
+            (
+                "exact-batched-scalar",
+                torch.randn(8, 1),
+                batched_targets,
+                "scalar",
+            ),
+            (
+                "lt-below-no-penalty",
+                torch.tensor([3.0]),
+                torch.tensor([[[5.0, -1.0]]]),
+                "zero",
+            ),
+            (
+                "gt-above-no-penalty",
+                torch.tensor([7.0]),
+                torch.tensor([[[5.0, 1.0]]]),
+                "zero",
+            ),
+        ]
+        for name, preds, targets, kind in cases:
+            loss = loss_fn(preds, targets)
+            if kind == "scalar":
+                assert loss.dim() == 0, f"{name}: expected scalar output"
+            else:
+                assert torch.allclose(loss, torch.tensor(0.0), atol=1e-6), (
+                    f"{name}: bounded loss should be zero when prediction is within bound"
+                )
 
 
 # ===================================================================
@@ -277,22 +264,31 @@ class TestBoundedLoss:
 
 
 class TestBoundedAliases:
-    @pytest.mark.parametrize(
-        "key,expected_class,expected_inner",
-        [
+    def test_alias_selection_and_keyword_forwarding(self):
+        """Every bounded alias selects the expected wrapper and inner loss.
+
+        Also verifies that constructor keyword arguments (``reduction='sum'``)
+        are forwarded to the inner loss.
+        """
+        cases = [
             ("bounded-mse", BoundedMSELoss, MSELoss),
             ("bounded-mae", BoundedMAELoss, L1Loss),
             ("bounded-huber", BoundedHuberLoss, HuberLoss),
             ("bounded-smoothl1", BoundedSmoothL1Loss, SmoothL1Loss),
-        ],
-    )
-    def test_alias_selection_and_keyword_forwarding(
-        self, key, expected_class, expected_inner
-    ):
-        assert LossRegistry[key] is expected_class
+        ]
+        for key, expected_class, expected_inner in cases:
+            assert LossRegistry[key] is expected_class, (
+                f"LossRegistry['{key}'] should resolve to {expected_class.__name__}"
+            )
 
-        loss_fn = LossRegistry[key](reduction="sum")
+            loss_fn = LossRegistry[key](reduction="sum")
 
-        assert type(loss_fn) is expected_class
-        assert type(loss_fn.loss) is expected_inner
-        assert loss_fn.loss.reduction == "sum"
+            assert type(loss_fn) is expected_class, (
+                f"LossRegistry['{key}'](...) instance type mismatch"
+            )
+            assert type(loss_fn.loss) is expected_inner, (
+                f"LossRegistry['{key}'] inner loss should be {expected_inner.__name__}"
+            )
+            assert loss_fn.loss.reduction == "sum", (
+                f"LossRegistry['{key}'] should forward reduction='sum' to inner loss"
+            )

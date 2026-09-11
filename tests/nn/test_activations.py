@@ -54,28 +54,36 @@ class TestActivationRegistry:
 class TestGEGLU:
     """GEGLU splits the last dim in half, so input dim must be even."""
 
-    def test_output_shape_halves_last_dim(self):
-        act = ActivationRegistry["geglu"]()
-        x = torch.randn(4, 64)
-        out = act(x)
-        assert out.shape == (4, 32)
+    def test_geglu_contract(self):
+        """Deterministic contract across 2-D and 3-D inputs.
 
-    def test_output_shape_3d(self):
+        Verifies: halved last dim, ``value * gelu(gate)`` formula, finite
+        output, and gradient shape after backward.
+        """
+        torch.manual_seed(0)
         act = ActivationRegistry["geglu"]()
-        x = torch.randn(2, 10, 64)
-        out = act(x)
-        assert out.shape == (2, 10, 32)
+        cases = [
+            ((4, 64), (4, 32)),
+            ((2, 10, 64), (2, 10, 32)),
+        ]
+        for in_shape, expected_shape in cases:
+            x = torch.randn(*in_shape, requires_grad=True)
+            out = act(x)
 
-    def test_output_is_finite(self):
-        act = ActivationRegistry["geglu"]()
-        x = torch.randn(4, 64)
-        out = act(x)
-        assert torch.isfinite(out).all()
+            assert out.shape == expected_shape, (
+                f"input shape {in_shape} should halve last dim to {expected_shape}"
+            )
 
-    def test_grad_flows(self):
-        act = ActivationRegistry["geglu"]()
-        x = torch.randn(4, 64, requires_grad=True)
-        out = act(x)
-        out.sum().backward()
-        assert x.grad is not None
-        assert x.grad.shape == x.shape
+            value, gate = x.chunk(2, dim=-1)
+            expected = value * torch.nn.functional.gelu(gate)
+            assert torch.allclose(out, expected, atol=1e-6), (
+                f"GEGLU({in_shape}) should equal value * gelu(gate)"
+            )
+
+            assert torch.isfinite(out).all(), (
+                f"GEGLU output for shape {in_shape} must be finite"
+            )
+
+            out.sum().backward()
+            assert x.grad is not None
+            assert x.grad.shape == x.shape
