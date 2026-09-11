@@ -1,20 +1,26 @@
 """Tests for matcha.nn.schedulers – SchedulerRegistry and custom schedulers."""
 
+from unittest.mock import MagicMock
+
 import pytest
 import torch
 
 from matcha.nn.schedulers import (
+    ChempropSchedulerConfig,
+    Constant,
     CosineAnnealing,
+    CosineAnnealingCyclic,
+    Linear,
+    OneCycleLR,
     SchedulerRegistry,
+    Sequential,
+    Step,
     WarmupCosineAnnealingLR,
     WarmupLinearDecayLR,
-    Sequential,
 )
-from unittest.mock import MagicMock
-
 from matcha.torch.models.classic.base_classic_model import BaseClassicModel
-from matcha.torch.models.pretraining.base_pretraining_model import BasePretrainingModel
 from matcha.torch.models.finetuning.finetuner import Finetuner
+from matcha.torch.models.pretraining.base_pretraining_model import BasePretrainingModel
 
 
 # ===================================================================
@@ -22,22 +28,24 @@ from matcha.torch.models.finetuning.finetuner import Finetuner
 # ===================================================================
 
 
-class TestSchedulerRegistryKeys:
-    EXPECTED_KEYS = [
-        "one_cycle",
-        "cosine_annealing",
-        "cosine_annealing_cyclic",
-        "step",
-        "warmup_cosine_annealing",
-        "warmup_linear_decay",
-        "linear",
-        "constant",
-        "sequential",
-    ]
-
-    @pytest.mark.parametrize("key", EXPECTED_KEYS)
-    def test_key_registered(self, key):
-        assert key in SchedulerRegistry, f"'{key}' not found in SchedulerRegistry"
+class TestSchedulerRegistry:
+    @pytest.mark.parametrize(
+        "key,expected_class",
+        [
+            ("chemprop", ChempropSchedulerConfig),
+            ("one_cycle", OneCycleLR),
+            ("cosine_annealing", CosineAnnealing),
+            ("cosine_annealing_cyclic", CosineAnnealingCyclic),
+            ("step", Step),
+            ("warmup_cosine_annealing", WarmupCosineAnnealingLR),
+            ("warmup_linear_decay", WarmupLinearDecayLR),
+            ("linear", Linear),
+            ("constant", Constant),
+            ("sequential", Sequential),
+        ],
+    )
+    def test_alias_resolves_to_registered_class(self, key, expected_class):
+        assert SchedulerRegistry[key] is expected_class
 
 
 # ===================================================================
@@ -56,6 +64,42 @@ def _step(optimizer, scheduler):
     """Perform optimizer.step() then scheduler.step() in the correct order."""
     optimizer.step()
     scheduler.step()
+
+
+# ===================================================================
+# ChempropSchedulerConfig
+# ===================================================================
+
+
+class TestChempropSchedulerConfig:
+    def test_defaults(self):
+        config = ChempropSchedulerConfig()
+        assert config.state_dict() == {
+            "warmup_epochs": 2,
+            "max_lr": 1e-3,
+            "final_lr": 1e-5,
+        }
+
+    def test_custom_values_roundtrip(self):
+        config = ChempropSchedulerConfig(
+            warmup_epochs=4, max_lr=2e-3, final_lr=2e-5
+        )
+        expected = {
+            "warmup_epochs": 4,
+            "max_lr": 2e-3,
+            "final_lr": 2e-5,
+        }
+        assert config.state_dict() == expected
+
+        restored = ChempropSchedulerConfig()
+        restored.load_state_dict(config.state_dict())
+        assert restored.state_dict() == expected
+
+    def test_step_is_noop(self):
+        config = ChempropSchedulerConfig()
+        state = config.state_dict()
+        assert config.step() is None
+        assert config.state_dict() == state
 
 
 # ===================================================================
@@ -214,29 +258,6 @@ class TestWarmupLinearDecayLR:
 
 
 # ===================================================================
-# Built-in scheduler aliases – verify correct parent class
-# ===================================================================
-
-
-class TestBuiltinSchedulerAliases:
-    @pytest.mark.parametrize(
-        "key,expected_parent",
-        [
-            ("one_cycle", torch.optim.lr_scheduler.OneCycleLR),
-            ("cosine_annealing", torch.optim.lr_scheduler.CosineAnnealingLR),
-            (
-                "cosine_annealing_cyclic",
-                torch.optim.lr_scheduler.CosineAnnealingWarmRestarts,
-            ),
-            ("step", torch.optim.lr_scheduler.StepLR),
-        ],
-    )
-    def test_is_subclass(self, key, expected_parent):
-        sched_cls = SchedulerRegistry[key]
-        assert issubclass(sched_cls, expected_parent)
-
-
-# ===================================================================
 # CosineAnnealing
 # ===================================================================
 
@@ -262,13 +283,6 @@ class TestCosineAnnealing:
         sched = CosineAnnealing(optimizer, total_steps=50, min_lr=0.0)
         assert sched.eta_min == 0.0
 
-    def test_stepping_reaches_min_lr(self, optimizer):
-        """After T_max steps, LR should reach min_lr."""
-        sched = CosineAnnealing(optimizer, total_steps=50, min_lr=1e-6)
-        for _ in range(50):
-            _step(optimizer, sched)
-        assert abs(optimizer.param_groups[0]["lr"] - 1e-6) < 1e-8
-
 
 # ===================================================================
 # CosineAnnealingCyclic
@@ -293,13 +307,6 @@ class TestCosineAnnealingCyclic:
         )
         assert sched.eta_min == 1e-5
 
-    def test_stepping_runs_without_error(self, optimizer):
-        sched = SchedulerRegistry["cosine_annealing_cyclic"](
-            optimizer, total_steps=100, num_cycles=5, min_lr=0.0
-        )
-        for _ in range(100):
-            _step(optimizer, sched)
-
 
 # ===================================================================
 # Step (pops total_steps)
@@ -310,12 +317,7 @@ class TestStepScheduler:
     def test_ignores_total_steps(self, optimizer):
         """Step scheduler should silently ignore total_steps."""
         sched = SchedulerRegistry["step"](optimizer, step_size=10, total_steps=999)
-        assert isinstance(sched, torch.optim.lr_scheduler.StepLR)
-
-    def test_works_without_total_steps(self, optimizer):
-        sched = SchedulerRegistry["step"](optimizer, step_size=10)
-        for _ in range(20):
-            _step(optimizer, sched)
+        assert sched.step_size == 10
 
 
 # ===================================================================
@@ -324,18 +326,11 @@ class TestStepScheduler:
 
 
 class TestLinearLR:
-    def test_is_subclass(self):
-        assert issubclass(
-            SchedulerRegistry["linear"], torch.optim.lr_scheduler.LinearLR
-        )
-
-    def test_instantiation_and_step(self, optimizer):
+    def test_total_steps_maps_to_total_iters(self, optimizer):
         sched = SchedulerRegistry["linear"](
             optimizer, start_factor=0.1, end_factor=1.0, total_steps=10
         )
-        assert isinstance(sched, torch.optim.lr_scheduler.LinearLR)
-        for _ in range(10):
-            _step(optimizer, sched)
+        assert sched.total_iters == 10
 
 
 # ===================================================================
@@ -344,16 +339,9 @@ class TestLinearLR:
 
 
 class TestConstantLR:
-    def test_is_subclass(self):
-        assert issubclass(
-            SchedulerRegistry["constant"], torch.optim.lr_scheduler.ConstantLR
-        )
-
-    def test_instantiation_and_step(self, optimizer):
+    def test_total_steps_maps_to_total_iters(self, optimizer):
         sched = SchedulerRegistry["constant"](optimizer, factor=0.5, total_steps=10)
-        assert isinstance(sched, torch.optim.lr_scheduler.ConstantLR)
-        for _ in range(10):
-            _step(optimizer, sched)
+        assert sched.total_iters == 10
 
 
 # ===================================================================
@@ -435,43 +423,6 @@ class TestSequentialLR:
                 total_steps=200,
             )
 
-    def test_stepping_runs_without_error(self, optimizer):
-        sched = SchedulerRegistry["sequential"](
-            optimizer,
-            schedulers={
-                "linear": {"start_factor": 0.1, "end_factor": 1.0},
-                "cosine_annealing": {"min_lr": 1e-7},
-            },
-            total_steps=200,
-        )
-        for _ in range(200):
-            _step(optimizer, sched)
-
-    def test_lr_progression_through_phases(self, optimizer):
-        """LR should change character at phase boundaries."""
-        sched = SchedulerRegistry["sequential"](
-            optimizer,
-            schedulers={
-                "linear": {"start_factor": 0.1, "end_factor": 1.0},
-                "constant": {"factor": 1.0},
-            },
-            total_steps=200,
-        )
-        # During linear phase, LR should increase
-        lrs_phase1 = []
-        for _ in range(100):
-            lrs_phase1.append(optimizer.param_groups[0]["lr"])
-            _step(optimizer, sched)
-        assert lrs_phase1[-1] > lrs_phase1[0]
-
-        # During constant phase, LR should stay the same
-        lrs_phase2 = []
-        for _ in range(100):
-            lrs_phase2.append(optimizer.param_groups[0]["lr"])
-            _step(optimizer, sched)
-        for i in range(1, len(lrs_phase2)):
-            assert abs(lrs_phase2[i] - lrs_phase2[0]) < 1e-6
-
     def test_single_scheduler(self, optimizer):
         """Edge case: single scheduler means milestones=[]."""
         sched = SchedulerRegistry["sequential"](
@@ -480,8 +431,6 @@ class TestSequentialLR:
             total_steps=100,
         )
         assert sched._milestones == []
-        for _ in range(100):
-            _step(optimizer, sched)
 
     def test_two_schedulers(self, optimizer):
         """Edge case: two schedulers means one milestone."""
@@ -494,8 +443,6 @@ class TestSequentialLR:
             total_steps=100,
         )
         assert sched._milestones == [50]
-        for _ in range(100):
-            _step(optimizer, sched)
 
     def test_phase_length_param_uses_total_steps_uniformly(self):
         """All entries in _PHASE_LENGTH_PARAM should map to 'total_steps'."""

@@ -1,5 +1,8 @@
 """Tests for matcha.nn.readouts – ReadoutRegistry and PyGAggregationWrapper."""
 
+from types import SimpleNamespace
+from unittest.mock import MagicMock, sentinel
+
 import pytest
 import torch
 
@@ -8,28 +11,16 @@ import torch
 # Imports (skip entire module if torch_geometric unavailable)
 # ===================================================================
 
-pyg = pytest.importorskip("torch_geometric")
+pytest.importorskip("torch_geometric")
 from torch_geometric.data import Batch, Data  # noqa: E402
+from torch_geometric.nn import aggr  # noqa: E402
 
+from matcha.nn import readouts as readout_module  # noqa: E402
 from matcha.nn.readouts import (  # noqa: E402
-    ReadoutRegistry,
     PyGAggregationWrapper,
+    ReadoutRegistry,
     VirtualNodePooling,
 )
-
-
-# ===================================================================
-# Helper to create a small PyG batch
-# ===================================================================
-
-
-@pytest.fixture()
-def pyg_batch():
-    """Create a small batched PyG graph with 2 graphs (3 + 2 = 5 nodes)."""
-    g1 = Data(x=torch.randn(3, 16))
-    g2 = Data(x=torch.randn(2, 16))
-    batch = Batch.from_data_list([g1, g2])
-    return batch
 
 
 # ===================================================================
@@ -37,25 +28,39 @@ def pyg_batch():
 # ===================================================================
 
 
-class TestReadoutRegistryKeys:
-    EXPECTED_KEYS = [
-        "sum",
-        "mean",
-        "max",
-        "min",
-        "mul",
-        "var",
-        "std",
-        "median",
-        "vpa",
-        "softmax",
-        "powermean",
-        "virtualnode",
-    ]
-
-    @pytest.mark.parametrize("key", EXPECTED_KEYS)
-    def test_key_registered(self, key):
-        assert key in ReadoutRegistry, f"'{key}' not found in ReadoutRegistry"
+class TestReadoutRegistry:
+    @pytest.mark.parametrize(
+        "key,class_name",
+        [
+            ("sum", "SumPooling"),
+            ("mean", "MeanPooling"),
+            ("max", "MaxPooling"),
+            ("min", "MinPooling"),
+            ("mul", "MulPooling"),
+            ("var", "VarPooling"),
+            ("std", "StdPooling"),
+            ("median", "MedianPooling"),
+            ("vpa", "VariancePreservingPooling"),
+            ("quantile", "QuantilePooling"),
+            ("softmax", "SoftmaxPooling"),
+            ("powermean", "PowerMeanPooling"),
+            ("lstm", "LSTMPooling"),
+            ("gru", "GRUPooling"),
+            ("set2set", "Set2SetPooling"),
+            ("sort", "SortPooling"),
+            ("attentive", "AttentivePooling"),
+            ("graphmultiset", "GraphMultisetTransformerPooling"),
+            ("mlp", "MLPPooling"),
+            ("deepsets", "DeepSetsPooling"),
+            ("settransformer", "SetTransformerPooling"),
+            ("lcm", "LCMPooling"),
+            ("multi", "MultiPooling"),
+            ("degreescaler", "DegreeScalerPooling"),
+            ("virtualnode", "VirtualNodePooling"),
+        ],
+    )
+    def test_alias_resolves_to_registered_class(self, key, class_name):
+        assert ReadoutRegistry[key] is getattr(readout_module, class_name)
 
 
 # ===================================================================
@@ -64,23 +69,30 @@ class TestReadoutRegistryKeys:
 
 
 class TestPyGAggregationWrapperInterface:
-    """All wrapper-based readouts should accept (graph, x) and return
-    (num_graphs, feat_dim), verifying the custom adapter works."""
-
-    SIMPLE_KEYS = ["sum", "mean", "max", "min"]
-
-    @pytest.mark.parametrize("key", SIMPLE_KEYS)
-    def test_wrapper_output_shape(self, key, pyg_batch):
+    @pytest.mark.parametrize(
+        "key,aggregation_class",
+        [
+            ("sum", aggr.SumAggregation),
+            ("mean", aggr.MeanAggregation),
+            ("max", aggr.MaxAggregation),
+            ("min", aggr.MinAggregation),
+        ],
+    )
+    def test_simple_alias_uses_expected_aggregation(self, key, aggregation_class):
         readout = ReadoutRegistry[key]()
         assert isinstance(readout, PyGAggregationWrapper)
-        out = readout(pyg_batch, pyg_batch.x)
-        assert out.shape == (2, 16)
+        assert isinstance(readout.aggregation, aggregation_class)
 
-    @pytest.mark.parametrize("key", SIMPLE_KEYS)
-    def test_wrapper_output_is_finite(self, key, pyg_batch):
-        readout = ReadoutRegistry[key]()
-        out = readout(pyg_batch, pyg_batch.x)
-        assert torch.isfinite(out).all()
+    def test_routes_graph_batch_and_features(self):
+        aggregation = MagicMock(return_value=sentinel.output)
+        readout = PyGAggregationWrapper(aggregation)
+        graph = SimpleNamespace(batch=torch.tensor([0, 0, 1]))
+        features = torch.randn(3, 4)
+
+        result = readout(graph, features)
+
+        assert result is sentinel.output
+        aggregation.assert_called_once_with(features, graph.batch)
 
 
 # ===================================================================

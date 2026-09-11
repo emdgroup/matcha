@@ -8,6 +8,7 @@ import torch.nn.functional as F
 
 from matcha.nn.losses import (
     LossRegistry,
+    BCELoss,
     BCEFocalLoss,
     BetaNLLLoss,
     BoundedBetaNLLLoss,
@@ -18,6 +19,11 @@ from matcha.nn.losses import (
     WeightedBCELoss,
     GradNormLoss,
     DropoutLoss,
+    CrossEntropyLoss,
+    HuberLoss,
+    L1Loss,
+    MSELoss,
+    SmoothL1Loss,
 )
 from matcha.torch.models.classic.base_classic_model import BaseClassicModel
 from matcha.torch.models.classic.mlp_model import MLPModel
@@ -44,6 +50,7 @@ class TestLossRegistryKeys:
         "bounded-huber",
         "bounded-smoothl1",
         "bce",
+        "cross_entropy",
         "weighted-bce",
         "gradnorm",
         "dropout",
@@ -169,18 +176,22 @@ class TestPoly1BCELoss:
 
 class TestSimpleLosses:
     @pytest.mark.parametrize(
-        "key,expected_parent",
+        "key,expected_class,expected_parent",
         [
-            ("mse", torch.nn.MSELoss),
-            ("mae", torch.nn.L1Loss),
-            ("huber", torch.nn.HuberLoss),
-            ("smoothl1", torch.nn.SmoothL1Loss),
-            ("bce", torch.nn.BCEWithLogitsLoss),
+            ("mse", MSELoss, torch.nn.MSELoss),
+            ("mae", L1Loss, torch.nn.L1Loss),
+            ("huber", HuberLoss, torch.nn.HuberLoss),
+            ("smoothl1", SmoothL1Loss, torch.nn.SmoothL1Loss),
+            ("bce", BCELoss, torch.nn.BCEWithLogitsLoss),
+            ("cross_entropy", CrossEntropyLoss, torch.nn.CrossEntropyLoss),
         ],
     )
-    def test_is_subclass(self, key, expected_parent):
-        loss_cls = LossRegistry[key]
-        assert issubclass(loss_cls, expected_parent)
+    def test_alias_resolves_to_upstream_wrapper(
+        self, key, expected_class, expected_parent
+    ):
+        loss_class = LossRegistry[key]
+        assert loss_class is expected_class
+        assert issubclass(loss_class, expected_parent)
 
 
 # ===================================================================
