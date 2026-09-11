@@ -1,8 +1,8 @@
 """End-to-end tests for MVE regression through the sklearn API.
 
 Covers the intrinsic-uncertainty pathway (``uncertainty="mve"``) across
-one representative regressor per model family (MLP, GIN, E3GNN, RoFormer):
-predict-shape parity with non-MVE, multitask, bounded-beta-nll on censored
+one representative regressor per model family (MLP, GIN, E3GNN, RoFormer,
+Chemprop): prediction, multitask, bounded-beta-nll on censored
 labels, uncertainty non-negativity, save/load round-trip, calibration,
 symmetric validation errors, and ensemble law-of-total-variance
 aggregation.
@@ -48,23 +48,17 @@ def bound_mask_mixed(mol_list) -> list[str]:
 
 
 # =========================================================================
-# Predict shape parity (single-task) — one per family
+# Prediction contract (single-task) — one per family
 # =========================================================================
 
 
 class TestMVEPredictShape:
-    """Predict output shape must match a non-MVE model with the same num_endpoints."""
+    """Predict returns a finite single-task array."""
 
-    def test_predict_returns_ndarray(self, fitted_mve_regressor, mol_list):
+    def test_predict_contract(self, fitted_mve_regressor, mol_list):
         preds = fitted_mve_regressor.predict(mol_list)
         assert isinstance(preds, np.ndarray)
-
-    def test_predict_single_task_shape(self, fitted_mve_regressor, mol_list):
-        preds = fitted_mve_regressor.predict(mol_list)
         assert preds.shape == (len(mol_list), 1)
-
-    def test_predict_values_finite(self, fitted_mve_regressor, mol_list):
-        preds = fitted_mve_regressor.predict(mol_list)
         assert np.all(np.isfinite(preds))
 
 
@@ -74,19 +68,13 @@ class TestMVEPredictShape:
 
 
 class TestMVEComputeUncertainty:
-    """``compute_uncertainty`` returns non-negative, finite std with the same shape as predict."""
+    """``compute_uncertainty`` returns finite, non-negative single-task values."""
 
-    def test_std_shape_matches_predict(self, fitted_mve_regressor, mol_list):
+    def test_uncertainty_contract(self, fitted_mve_regressor, mol_list):
         std = fitted_mve_regressor.compute_uncertainty(mol_list)
         assert std.shape == (len(mol_list), 1)
-
-    def test_std_non_negative(self, fitted_mve_regressor, mol_list):
-        std = fitted_mve_regressor.compute_uncertainty(mol_list)
-        assert np.all(std >= 0.0)
-
-    def test_std_finite(self, fitted_mve_regressor, mol_list):
-        std = fitted_mve_regressor.compute_uncertainty(mol_list)
         assert np.all(np.isfinite(std))
+        assert np.all(std >= 0.0)
 
 
 # =========================================================================
@@ -185,41 +173,25 @@ class TestMVEBoundedBetaNLL:
 
 
 class TestMVESaveLoad:
-    """Serialising and reloading an MVE model preserves predict and compute_uncertainty.
+    """Serialising and reloading preserves MVE predictions and uncertainty.
 
     CLM families use SMILES augmentation whose per-call RNG state resets on
     reload, so exact-equality is not achievable there — a small relative
     tolerance covers that without weakening the behavioural check.
     """
 
-    def test_predict_matches_after_roundtrip(
-        self, fitted_mve_regressor, mol_list, tmp_path
-    ):
+    def test_roundtrip_contract(self, fitted_mve_regressor, mol_list, tmp_path):
         save_dir = str(tmp_path / "mve_model")
         preds_before = fitted_mve_regressor.predict(mol_list)
-        fitted_mve_regressor.save_model(save_dir)
-
-        loaded = autoload(save_dir, accelerator="cpu")
-        preds_after = loaded.predict(mol_list)
-
-        np.testing.assert_allclose(preds_before, preds_after, rtol=1e-2)
-
-    def test_uncertainty_matches_after_roundtrip(
-        self, fitted_mve_regressor, mol_list, tmp_path
-    ):
-        save_dir = str(tmp_path / "mve_model")
         std_before = fitted_mve_regressor.compute_uncertainty(mol_list)
         fitted_mve_regressor.save_model(save_dir)
 
         loaded = autoload(save_dir, accelerator="cpu")
+        preds_after = loaded.predict(mol_list)
         std_after = loaded.compute_uncertainty(mol_list)
 
+        np.testing.assert_allclose(preds_before, preds_after, rtol=1e-2)
         np.testing.assert_allclose(std_before, std_after, rtol=1e-2)
-
-    def test_loaded_model_reports_mve_method(self, fitted_mve_regressor, tmp_path):
-        save_dir = str(tmp_path / "mve_model")
-        fitted_mve_regressor.save_model(save_dir)
-        loaded = autoload(save_dir, accelerator="cpu")
         assert loaded._model.uncertainty_method == "mve"
 
 
