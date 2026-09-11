@@ -72,6 +72,41 @@ def small_classification_y(classification_y) -> np.ndarray:
     return classification_y[:5]
 
 
+def _make_y_node(mol_list: list[Mol], num_targets: int = 2) -> list[np.ndarray]:
+    """Generate deterministic per-atom labels in canonical SMILES order."""
+    rng = np.random.default_rng(42)
+    y_node = []
+    for mol in mol_list:
+        canonical = Chem.MolFromSmiles(Chem.MolToSmiles(mol, canonical=True))
+        n_atoms = canonical.GetNumAtoms()
+        y_node.append(rng.standard_normal((n_atoms, num_targets)).astype(np.float32))
+    return y_node
+
+
+@pytest.fixture()
+def y_node_small(small_mol_list) -> list[np.ndarray]:
+    """Per-atom labels for *small_mol_list*."""
+    return _make_y_node(small_mol_list)
+
+
+@pytest.fixture()
+def y_node(mol_list) -> list[np.ndarray]:
+    """Per-atom labels for *mol_list*."""
+    return _make_y_node(mol_list)
+
+
+@pytest.fixture()
+def y_graph_small(small_regression_y) -> np.ndarray:
+    """Molecule-level labels for *small_mol_list*."""
+    return small_regression_y
+
+
+@pytest.fixture()
+def y_graph(regression_y) -> np.ndarray:
+    """Molecule-level labels for *mol_list*."""
+    return regression_y
+
+
 @pytest.fixture(scope="session")
 def bound_mask_exact() -> list[str]:
     """Bound mask with all exact values – 30 entries."""
