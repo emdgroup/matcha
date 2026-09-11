@@ -173,9 +173,7 @@ class TestRDKitAllDescriptors:
             rdkit_engine, "parallelize", MagicMock(return_value=[values])
         )
 
-        result = engine.get_arbitrary_rdkit_descriptors(
-            [mols[0]], ["MolWt"], n_jobs=1
-        )
+        result = engine.get_arbitrary_rdkit_descriptors([mols[0]], ["MolWt"], n_jobs=1)
 
         np.testing.assert_array_equal(
             result, [[0.0, 10000.0, -10000.0, 10000.0, -10000.0]]
@@ -267,9 +265,7 @@ class TestScikitFingerprintAdapters:
         e = Engine()
         if defaults_key is not None:
             configured_values = {
-                key: value
-                for key, value in expected_kwargs.items()
-                if key != "n_jobs"
+                key: value for key, value in expected_kwargs.items() if key != "n_jobs"
             }
             e.defaults[defaults_key].update(configured_values)
 

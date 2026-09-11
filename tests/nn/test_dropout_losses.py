@@ -317,9 +317,7 @@ class TestDropoutAliases:
             ("dropout-weighted-bce", {"w1": 0.7}, "w1", 0.7),
         ],
     )
-    def test_alias_forwards_inner_keyword(
-        self, key, kwargs, attribute, expected
-    ):
+    def test_alias_forwards_inner_keyword(self, key, kwargs, attribute, expected):
         loss_fn = LossRegistry[key](**kwargs)
 
         assert getattr(loss_fn.loss, attribute) == expected

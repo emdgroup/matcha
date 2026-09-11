@@ -81,9 +81,7 @@ class TestChempropSchedulerConfig:
         }
 
     def test_custom_values_roundtrip(self):
-        config = ChempropSchedulerConfig(
-            warmup_epochs=4, max_lr=2e-3, final_lr=2e-5
-        )
+        config = ChempropSchedulerConfig(warmup_epochs=4, max_lr=2e-3, final_lr=2e-5)
         expected = {
             "warmup_epochs": 4,
             "max_lr": 2e-3,

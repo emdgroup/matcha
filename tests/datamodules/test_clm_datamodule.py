@@ -28,9 +28,7 @@ class TestBatchMolToSmiles:
 
         result = batch_moltosmiles(small_mol_list, canonical=True)
 
-        assert result == [
-            f"smiles-{index}" for index in range(len(small_mol_list))
-        ]
+        assert result == [f"smiles-{index}" for index in range(len(small_mol_list))]
         assert converter.call_args_list == [
             call(mol, canonical=True) for mol in small_mol_list
         ]
@@ -98,9 +96,7 @@ class TestCLMMolToSmiles:
         monkeypatch.setattr(clm_datamodule, "Mol", copy_molecule)
         monkeypatch.setattr(clm_datamodule, "parallelize", parallelize)
 
-        result = CLMDataModule()._mol_to_smiles(
-            small_mol_list, random=random, n_jobs=7
-        )
+        result = CLMDataModule()._mol_to_smiles(small_mol_list, random=random, n_jobs=7)
 
         assert result == converted
         assert copy_molecule.call_args_list == [call(mol) for mol in small_mol_list]

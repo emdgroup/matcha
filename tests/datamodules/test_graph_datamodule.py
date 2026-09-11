@@ -1,6 +1,5 @@
 """Tests for GraphDataModule."""
 
-import torch
 from torch.utils.data import StackDataset
 from torch_geometric.data import Data
 
