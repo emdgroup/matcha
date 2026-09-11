@@ -55,6 +55,11 @@ class ExplainabilityManager:
 
         analogues = explainer.generate_analogues(input_mol)
         targets = [input_mol] + analogues
+        if len(targets) < 3:
+            raise ValueError(
+                "Analogue explanation requires at least 3 total molecules; "
+                f"received {len(targets)}."
+            )
 
         return self._get_explanations(
             model_instance=model_instance,

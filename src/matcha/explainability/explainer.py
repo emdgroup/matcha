@@ -1,18 +1,21 @@
-from matcha.explainability.lime import LIME
-from matcha.explainability.analogue_generator import AnalogueGenerator
-from rdkit.Chem.rdchem import Mol
-from rdkit.Chem import MolToSmiles
-from rdkit.Chem.Draw import SimilarityMaps, rdMolDraw2D as Draw
-from PIL import Image
+import collections as cl
+from copy import deepcopy
 import io
+
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
+from PIL import Image
 import plotly.colors as pc
-import collections as cl
+import plotly.graph_objects as go
+from rdkit.Chem import MolToSmiles
+from rdkit.Chem.Draw import SimilarityMaps, rdMolDraw2D as Draw
+from rdkit.Chem.rdchem import Mol
 import sklearn.preprocessing as skp
-from matcha.utils.schemas import ExplainerInputModel
+
+from matcha.explainability.analogue_generator import AnalogueGenerator
+from matcha.explainability.lime import LIME, _default, _fp_default
 from matcha.utils.logging import get_default_logger
+from matcha.utils.schemas import ExplainerInputModel
 
 logger = get_default_logger(__name__)
 
@@ -243,6 +246,8 @@ class MatchaExplainer:
         lime_fingerprint_params: dict | None = None,
         lime_scale_coeff: bool = True,
         lime_remove_noise: bool = True,
+        reverse_positional_analogue_scanning: bool = True,
+        generation_timeout: float = 60.0,
     ):
         """Initialize the MatchaExplainer.
 
@@ -258,18 +263,24 @@ class MatchaExplainer:
             Defaults to True.
         :param bool lime_remove_noise: Whether to filter unreliable coefficients
             in the explanation. Defaults to True.
+        :param bool reverse_positional_analogue_scanning: Whether to remove
+            peripheral groups from the PAS vocabulary. Defaults to True.
+        :param float generation_timeout: Maximum total analogue-generation time
+            in seconds. Defaults to 60. Zero causes immediate expiry.
         """
-        ExplainerInputModel(
+        validated = ExplainerInputModel(
             positional_analogue_scanning_params=positional_analogue_scanning_params,
             nitrogen_walk_params=nitrogen_walk_params,
             lime_descriptor_set=lime_descriptor_set,
             lime_fingerprint_params=lime_fingerprint_params,
             lime_scale_coeff=lime_scale_coeff,
             lime_remove_noise=lime_remove_noise,
+            reverse_positional_analogue_scanning=reverse_positional_analogue_scanning,
+            generation_timeout=generation_timeout,
         )
 
         if positional_analogue_scanning_params == {}:
-            self._pos_params = _pos_params
+            self._pos_params = deepcopy(_pos_params)
         else:
             self._pos_params = positional_analogue_scanning_params
         if nitrogen_walk_params == {}:
@@ -280,6 +291,10 @@ class MatchaExplainer:
         self._fingerprint_params = lime_fingerprint_params
         self._scale_coeff = lime_scale_coeff
         self._remove_noise = lime_remove_noise
+        self._reverse_positional_analogue_scanning = (
+            validated.reverse_positional_analogue_scanning
+        )
+        self._generation_timeout = validated.generation_timeout
 
     def _run_lime_desc(self, mols, predictions, bootstrap_num) -> tuple:
         """Run LIME analysis using RDKit descriptors.
@@ -324,6 +339,8 @@ class MatchaExplainer:
             mol,
             self._pos_params,
             self._nitrogen_walk_params,
+            self._reverse_positional_analogue_scanning,
+            self._generation_timeout,
         )
 
     def decompose(self, mol: Mol) -> list[Mol]:
@@ -356,17 +373,45 @@ class MatchaExplainer:
         :returns: :class:`MatchaExplanation` containing coefficients, atomic
             environments, weights, and analogue SMILES.
         """
-        # Run LIME with RDKit descriptors
+        predictions = np.asarray(predictions)
+        if predictions.ndim != 1:
+            raise ValueError("LIME predictions must be one-dimensional.")
+        if len(mols) != len(predictions):
+            raise ValueError(
+                "LIME molecule and prediction counts must match: "
+                f"received {len(mols)} molecules and {len(predictions)} predictions."
+            )
+        if len(mols) < 3:
+            raise ValueError(
+                f"LIME requires at least 3 molecules; received {len(mols)}."
+            )
+        if bootstrap_num < 1:
+            raise ValueError("bootstrap_num must be at least 1.")
+
+        descriptor_count = len(
+            self._descriptor_set if self._descriptor_set is not None else _default
+        )
+        fingerprint_count = (
+            self._fingerprint_params
+            if self._fingerprint_params is not None
+            else _fp_default
+        ).get("nBits", _fp_default["nBits"])
+        feature_count = min(descriptor_count, fingerprint_count)
+        if bootstrap_num > feature_count:
+            raise ValueError(
+                f"bootstrap_num ({bootstrap_num}) cannot exceed available feature "
+                f"count ({feature_count})."
+            )
+
         if len(mols) < 10:
             logger.warning(
                 f"Only {len(mols)} molecules provided. At least 10 analogues are "
                 "recommended for reliable LIME explanations. Results may be unstable."
             )
 
-        df_desc = self._run_lime_desc(mols, predictions, bootstrap_num)
-
-        # Run LIME with ECFP fingerprints
-        envs, weights = self._run_lime_ecfp(mols, predictions, bootstrap_num)
+        requested_fits = min(bootstrap_num, len(mols))
+        df_desc = self._run_lime_desc(mols, predictions, requested_fits)
+        envs, weights = self._run_lime_ecfp(mols, predictions, requested_fits)
 
         # Convert molecules to SMILES
         smiles = [MolToSmiles(mol) for mol in mols]

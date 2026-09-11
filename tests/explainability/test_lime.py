@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import matcha.explainability.lime as lime_module
 from matcha.explainability.lime import LIME, _default, _fp_default
 
 
@@ -157,13 +158,85 @@ class TestLIMEFit:
         lime._fit(feats, small_regression_targets, bootstrap_num)
         assert len(lime._model_box) == bootstrap_num
 
+    def test_fit_uses_aligned_sample_and_feature_subsets(self, monkeypatch):
+        records = []
+
+        class IdentityScaler:
+            def fit_transform(self, values):
+                return values
+
+        class RecordingRidge:
+            def fit(self, values, targets):
+                records.append((values.copy(), targets.copy()))
+                self.coef_ = values[0].copy()
+                self._targets = targets.copy()
+                return self
+
+            def predict(self, values):
+                return self._targets
+
+        monkeypatch.setattr(lime_module, "StandardScaler", IdentityScaler)
+        monkeypatch.setattr(lime_module, "Ridge", RecordingRidge)
+        feats = np.tile(np.arange(4, dtype=float), (4, 1))
+        targets = np.array([10.0, 20.0, 30.0, 40.0])
+
+        coeff_box = LIME()._fit(feats, targets, bootstrap_num=2)
+
+        np.testing.assert_array_equal(records[0][0], feats[np.ix_([2, 3], [2, 3])])
+        np.testing.assert_array_equal(records[0][1], targets[[2, 3]])
+        np.testing.assert_array_equal(records[1][0], feats[np.ix_([0, 1], [0, 1])])
+        np.testing.assert_array_equal(records[1][1], targets[[0, 1]])
+        np.testing.assert_array_equal(coeff_box[0, 2:], [2.0, 3.0])
+        assert np.isnan(coeff_box[0, :2]).all()
+        np.testing.assert_array_equal(coeff_box[1, :2], [0.0, 1.0])
+        assert np.isnan(coeff_box[1, 2:]).all()
+
+    def test_fit_uses_pinned_sample_fold_formula(self, monkeypatch):
+        fitted_targets = []
+
+        class IdentityScaler:
+            def fit_transform(self, values):
+                return values
+
+        class RecordingRidge:
+            def fit(self, values, targets):
+                fitted_targets.append(targets.copy())
+                self.coef_ = np.zeros(values.shape[1])
+                self._targets = targets.copy()
+                return self
+
+            def predict(self, values):
+                return self._targets
+
+        monkeypatch.setattr(lime_module, "StandardScaler", IdentityScaler)
+        monkeypatch.setattr(lime_module, "Ridge", RecordingRidge)
+
+        LIME()._fit(
+            np.arange(6, dtype=float).reshape(3, 2),
+            np.array([10.0, 20.0, 30.0]),
+            bootstrap_num=1,
+        )
+
+        assert len(fitted_targets) == 1
+        np.testing.assert_array_equal(fitted_targets[0], [20.0, 30.0])
+
+    def test_fit_resets_run_state(self):
+        lime = LIME()
+        feats = np.arange(16, dtype=float).reshape(4, 4)
+        targets = np.arange(4, dtype=float)
+
+        lime._fit(feats, targets, bootstrap_num=2)
+        lime._fit(feats, targets, bootstrap_num=2)
+
+        assert len(lime._model_box) == 2
+        assert len(lime.r2_box) == 2
+
 
 # ===================================================================
 # LIME – explain (descriptor mode)
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestLIMEExplainDescriptors:
     """Tests for LIME.explain with descriptor-based features."""
 
@@ -209,13 +282,17 @@ class TestLIMEExplainDescriptors:
         descriptors = df.iloc[:-1]["Descriptor"].tolist()
         assert set(descriptors) == set(_default)
 
-    @pytest.mark.filterwarnings("ignore:bootstrap_num is higher:UserWarning")
-    def test_explain_custom_descriptors(self, small_mol_list, small_regression_targets):
+    def test_explain_rejects_bootstrap_above_feature_count(
+        self, small_mol_list, small_regression_targets
+    ):
         custom = ["MolWt", "MolLogP", "TPSA"]
         lime = LIME(descriptor_set=custom, use_fingerprints=False)
-        df = lime.explain(small_mol_list, small_regression_targets, bootstrap_num=3)
-        descriptors = df.iloc[:-1]["Descriptor"].tolist()
-        assert set(descriptors) == set(custom)
+
+        with pytest.raises(
+            ValueError,
+            match=r"bootstrap_num \(4\) cannot exceed available feature count \(3\)",
+        ):
+            lime.explain(small_mol_list, small_regression_targets, bootstrap_num=4)
 
     def test_explain_no_scale_coeff(self, small_mol_list, small_regression_targets):
         lime = LIME(scale_coeff=False, use_fingerprints=False)
@@ -223,15 +300,139 @@ class TestLIMEExplainDescriptors:
         assert isinstance(df, pd.DataFrame)
         assert len(df) > 1
 
-    @pytest.mark.filterwarnings("ignore:Less than .* records were found:UserWarning")
-    def test_explain_adjusts_bootstrap_num_when_too_large(
+    def test_explain_rejects_fewer_than_three_rows(
         self, small_mol_list, small_regression_targets
     ):
-        """When bootstrap_num > number of samples, LIME should adjust internally."""
         lime = LIME(use_fingerprints=False)
-        # This should not raise; bootstrap_num is adjusted internally
-        df = lime.explain(small_mol_list, small_regression_targets, bootstrap_num=100)
-        assert isinstance(df, pd.DataFrame)
+
+        with pytest.raises(ValueError, match="at least 3 molecules"):
+            lime.explain(
+                small_mol_list[:2], small_regression_targets[:2], bootstrap_num=1
+            )
+
+    def test_explain_rejects_misaligned_lengths(
+        self, small_mol_list, small_regression_targets
+    ):
+        with pytest.raises(ValueError, match="molecule and target counts must match"):
+            LIME().explain(
+                small_mol_list[:3], small_regression_targets[:2], bootstrap_num=1
+            )
+
+    def test_explain_rejects_non_one_dimensional_targets(
+        self, small_mol_list, small_regression_targets
+    ):
+        with pytest.raises(ValueError, match="targets must be one-dimensional"):
+            LIME().explain(
+                small_mol_list[:3],
+                small_regression_targets[:3, np.newaxis],
+                bootstrap_num=1,
+            )
+
+    def test_explain_rejects_non_positive_bootstrap_num(
+        self, small_mol_list, small_regression_targets
+    ):
+        with pytest.raises(ValueError, match="bootstrap_num must be at least 1"):
+            LIME().explain(
+                small_mol_list[:3], small_regression_targets[:3], bootstrap_num=0
+            )
+
+    def test_explain_bounds_effective_fits_by_rows(
+        self, monkeypatch, small_mol_list, small_regression_targets
+    ):
+        requested_fits = []
+        lime = LIME(descriptor_set=["a", "b", "c", "d", "e"])
+        monkeypatch.setattr(
+            lime,
+            "_get_features",
+            lambda mols, descriptors: np.ones((len(mols), len(descriptors))),
+        )
+
+        def fit(feats, targets, bootstrap_num):
+            requested_fits.append(bootstrap_num)
+            lime._r2_box = [1.0] * bootstrap_num
+            return np.ones((bootstrap_num, feats.shape[1]))
+
+        monkeypatch.setattr(lime, "_fit", fit)
+
+        lime.explain(small_mol_list[:3], small_regression_targets[:3], bootstrap_num=5)
+
+        assert requested_fits == [3]
+
+    def test_explain_preserves_fitted_zero_when_aggregating(
+        self, monkeypatch, small_mol_list, small_regression_targets
+    ):
+        lime = LIME(descriptor_set=["selected", "zero"], scale_coeff=False)
+        monkeypatch.setattr(
+            lime,
+            "_get_features",
+            lambda mols, descriptors: np.ones((len(mols), len(descriptors))),
+        )
+
+        def fit(feats, targets, bootstrap_num):
+            lime._r2_box = [1.0, 1.0]
+            return np.array([[np.nan, 0.0], [2.0, np.nan]])
+
+        monkeypatch.setattr(lime, "_fit", fit)
+
+        result = lime.explain(
+            small_mol_list[:3], small_regression_targets[:3], bootstrap_num=2
+        ).set_index("Descriptor")
+
+        assert result.loc["zero", "Coefficient"] == 0.0
+        assert np.isfinite(result.loc["zero", "Standard deviation"])
+
+    def test_explain_uses_l1_coefficient_norm(
+        self, monkeypatch, small_mol_list, small_regression_targets
+    ):
+        lime = LIME(descriptor_set=["positive", "negative", "zero"])
+        monkeypatch.setattr(
+            lime,
+            "_get_features",
+            lambda mols, descriptors: np.ones((len(mols), len(descriptors))),
+        )
+
+        def fit(feats, targets, bootstrap_num):
+            lime._r2_box = [1.0, 1.0, 1.0]
+            return np.array([[1.0, -1.0, 0.0], [2.0, -2.0, 0.0], [3.0, -3.0, 0.0]])
+
+        monkeypatch.setattr(lime, "_fit", fit)
+
+        result = lime.explain(
+            small_mol_list[:3], small_regression_targets[:3], bootstrap_num=3
+        ).set_index("Descriptor")
+
+        assert result.loc[
+            ["positive", "negative", "zero"], "Coefficient"
+        ].abs().sum() == pytest.approx(1.0)
+        assert result.loc["positive", "Coefficient"] == pytest.approx(0.5)
+        assert result.loc["negative", "Coefficient"] == pytest.approx(-0.5)
+        raw_std = np.std([1.0, 2.0, 3.0])
+        assert result.loc["positive", "Standard deviation"] == pytest.approx(
+            raw_std / 4.0
+        )
+
+    def test_explain_keeps_all_zero_statistics_finite(
+        self, monkeypatch, small_mol_list, small_regression_targets
+    ):
+        lime = LIME(descriptor_set=["first", "second"])
+        monkeypatch.setattr(
+            lime,
+            "_get_features",
+            lambda mols, descriptors: np.ones((len(mols), len(descriptors))),
+        )
+
+        def fit(feats, targets, bootstrap_num):
+            lime._r2_box = [1.0, 1.0]
+            return np.zeros((2, 2))
+
+        monkeypatch.setattr(lime, "_fit", fit)
+
+        result = lime.explain(
+            small_mol_list[:3], small_regression_targets[:3], bootstrap_num=2
+        ).iloc[:-1]
+
+        assert np.isfinite(result[["Coefficient", "Standard deviation"]]).all().all()
+        assert (result[["Coefficient", "Standard deviation"]] == 0.0).all().all()
 
 
 # ===================================================================
@@ -239,7 +440,6 @@ class TestLIMEExplainDescriptors:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestLIMEExplainFingerprints:
     """Tests for LIME.explain with ECFP fingerprints."""
 
@@ -280,7 +480,6 @@ class TestLIMEExplainFingerprints:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestLIMEECFPEnvs:
     """Tests for _get_ECFP_envs and get_envs_and_weights."""
 

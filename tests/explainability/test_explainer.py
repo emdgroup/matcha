@@ -1,11 +1,15 @@
 """Tests for matcha.explainability.explainer (MatchaExplainer and MatchaExplanation)."""
 
+from unittest.mock import Mock
+
+import numpy as np
 import pandas as pd
 import pytest
 from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
 import plotly.graph_objects as go
 
+import matcha.explainability.explainer as explainer_module
 from matcha.explainability.explainer import MatchaExplainer, MatchaExplanation
 
 
@@ -98,6 +102,56 @@ class TestMatchaExplainerInit:
         exp = MatchaExplainer(lime_remove_noise=False)
         assert exp._remove_noise is False
 
+    def test_reverse_defaults_on_and_can_be_disabled(self):
+        assert MatchaExplainer()._reverse_positional_analogue_scanning is True
+        assert (
+            MatchaExplainer(
+                reverse_positional_analogue_scanning=False
+            )._reverse_positional_analogue_scanning
+            is False
+        )
+
+    def test_reverse_and_timeout_are_trailing_positional_arguments(self):
+        positional = {"substituents": ["C"], "anchors": [], "num_sub": 1}
+        nitrogen = {"num_sub": 2}
+        exp = MatchaExplainer(
+            positional,
+            nitrogen,
+            ["MolWt"],
+            {"radius": 2},
+            False,
+            False,
+            False,
+            2.5,
+        )
+
+        assert exp._pos_params == positional
+        assert exp._nitrogen_walk_params == nitrogen
+        assert exp._descriptor_set == ["MolWt"]
+        assert exp._fingerprint_params == {"radius": 2}
+        assert exp._scale_coeff is False
+        assert exp._remove_noise is False
+        assert exp._reverse_positional_analogue_scanning is False
+        assert exp._generation_timeout == 2.5
+
+    def test_generation_timeout_defaults_to_sixty_seconds(self):
+        assert MatchaExplainer()._generation_timeout == 60.0
+
+    def test_default_positional_parameters_are_copied(self, monkeypatch):
+        defaults = {
+            "substituents": ["F"],
+            "anchors": ["[cH]"],
+            "num_sub": 1,
+        }
+        monkeypatch.setattr(explainer_module, "_pos_params", defaults)
+
+        first = MatchaExplainer()
+        second = MatchaExplainer()
+        first._pos_params["substituents"].append("Cl")
+
+        assert second._pos_params["substituents"] == ["F"]
+        assert defaults["substituents"] == ["F"]
+
 
 # ===================================================================
 # MatchaExplainer – generate_analogues
@@ -118,6 +172,40 @@ class TestMatchaExplainerGenerateAnalogues:
     def test_generates_analogues(self, default_explainer, single_mol):
         result = default_explainer.generate_analogues(single_mol)
         assert len(result) > 0
+
+    def test_forwards_reverse_setting_and_generation_timeout(self, monkeypatch):
+        calls = []
+
+        def generate(cls, mol, pos_params, nitrogen_params, reverse, timeout):
+            calls.append((mol, pos_params, nitrogen_params, reverse, timeout))
+            return []
+
+        monkeypatch.setattr(
+            explainer_module.AnalogueGenerator,
+            "generate_analogues",
+            classmethod(generate),
+        )
+        mol = Chem.MolFromSmiles("Cc1ccccc1")
+        exp = MatchaExplainer(
+            reverse_positional_analogue_scanning=False, generation_timeout=2.5
+        )
+
+        assert exp.generate_analogues(mol) == []
+        assert calls == [(mol, exp._pos_params, exp._nitrogen_walk_params, False, 2.5)]
+
+    def test_generation_timeout_propagates(self):
+        exp = MatchaExplainer(generation_timeout=0)
+
+        with pytest.raises(TimeoutError, match="no partial results"):
+            exp.generate_analogues(Chem.MolFromSmiles("c1ccccc1"))
+
+    def test_reverse_noops_when_positional_generation_is_disabled(self):
+        exp = MatchaExplainer(
+            positional_analogue_scanning_params=None,
+            nitrogen_walk_params=None,
+        )
+
+        assert exp.generate_analogues(Chem.MolFromSmiles("Cc1ccccc1")) == []
 
 
 # ===================================================================
@@ -142,7 +230,6 @@ class TestMatchaExplainerDecompose:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestMatchaExplainerLimeDesc:
     """Tests for MatchaExplainer._run_lime_desc."""
 
@@ -170,7 +257,6 @@ class TestMatchaExplainerLimeDesc:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestMatchaExplainerLimeEcfp:
     """Tests for MatchaExplainer._run_lime_ecfp."""
 
@@ -198,7 +284,6 @@ class TestMatchaExplainerLimeEcfp:
 # ===================================================================
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestMatchaExplainerExplain:
     """Tests for MatchaExplainer.explain (end-to-end)."""
 
@@ -249,6 +334,49 @@ class TestMatchaExplainerExplain:
             small_mol_list, small_regression_targets, bootstrap_num=3
         )
         assert result._mol is not None
+
+    @pytest.mark.parametrize(
+        ("molecule_count", "predictions", "bootstrap_num", "message"),
+        [
+            (3, np.array([1.0, 2.0]), 1, "molecule and prediction counts must match"),
+            (
+                3,
+                np.array([[1.0], [2.0], [3.0]]),
+                1,
+                "predictions must be one-dimensional",
+            ),
+            (2, np.array([1.0, 2.0]), 1, "at least 3 molecules"),
+            (3, np.array([1.0, 2.0, 3.0]), 0, "bootstrap_num must be at least 1"),
+            (
+                3,
+                np.array([1.0, 2.0, 3.0]),
+                3,
+                r"bootstrap_num \(3\) cannot exceed available feature count \(2\)",
+            ),
+        ],
+    )
+    def test_rejects_invalid_lime_inputs_before_running_either_path(
+        self,
+        monkeypatch,
+        small_mol_list,
+        molecule_count,
+        predictions,
+        bootstrap_num,
+        message,
+    ):
+        explainer = MatchaExplainer(lime_descriptor_set=["MolWt", "MolLogP"])
+        descriptor_lime = Mock()
+        fingerprint_lime = Mock()
+        monkeypatch.setattr(explainer, "_run_lime_desc", descriptor_lime)
+        monkeypatch.setattr(explainer, "_run_lime_ecfp", fingerprint_lime)
+
+        with pytest.raises(ValueError, match=message):
+            explainer.explain(
+                small_mol_list[:molecule_count], predictions, bootstrap_num
+            )
+
+        descriptor_lime.assert_not_called()
+        fingerprint_lime.assert_not_called()
 
 
 # ===================================================================
