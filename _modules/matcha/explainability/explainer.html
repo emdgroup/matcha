@@ -89,21 +89,24 @@
            <div itemprop="articleBody">
              
   <h1>Source code for matcha.explainability.explainer</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.lime</span><span class="w"> </span><span class="kn">import</span> <span class="n">LIME</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.analogue_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalogueGenerator</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">MolToSmiles</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.Draw</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimilarityMaps</span><span class="p">,</span> <span class="n">rdMolDraw2D</span> <span class="k">as</span> <span class="n">Draw</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cl</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">plotly.colors</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pc</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cl</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">MolToSmiles</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.Draw</span><span class="w"> </span><span class="kn">import</span> <span class="n">SimilarityMaps</span><span class="p">,</span> <span class="n">rdMolDraw2D</span> <span class="k">as</span> <span class="n">Draw</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">skp</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExplainerInputModel</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.analogue_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalogueGenerator</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.lime</span><span class="w"> </span><span class="kn">import</span> <span class="n">LIME</span><span class="p">,</span> <span class="n">_default</span><span class="p">,</span> <span class="n">_fp_default</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExplainerInputModel</span>
 
 <span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
@@ -345,6 +348,8 @@
         <span class="n">lime_fingerprint_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">lime_scale_coeff</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">lime_remove_noise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">reverse_positional_analogue_scanning</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">generation_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">60.0</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the MatchaExplainer.</span>
 
@@ -360,18 +365,24 @@
 <span class="sd">            Defaults to True.</span>
 <span class="sd">        :param bool lime_remove_noise: Whether to filter unreliable coefficients</span>
 <span class="sd">            in the explanation. Defaults to True.</span>
+<span class="sd">        :param bool reverse_positional_analogue_scanning: Whether to remove</span>
+<span class="sd">            peripheral groups from the PAS vocabulary. Defaults to True.</span>
+<span class="sd">        :param float generation_timeout: Maximum total analogue-generation time</span>
+<span class="sd">            in seconds. Defaults to 60. Zero causes immediate expiry.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">ExplainerInputModel</span><span class="p">(</span>
+        <span class="n">validated</span> <span class="o">=</span> <span class="n">ExplainerInputModel</span><span class="p">(</span>
             <span class="n">positional_analogue_scanning_params</span><span class="o">=</span><span class="n">positional_analogue_scanning_params</span><span class="p">,</span>
             <span class="n">nitrogen_walk_params</span><span class="o">=</span><span class="n">nitrogen_walk_params</span><span class="p">,</span>
             <span class="n">lime_descriptor_set</span><span class="o">=</span><span class="n">lime_descriptor_set</span><span class="p">,</span>
             <span class="n">lime_fingerprint_params</span><span class="o">=</span><span class="n">lime_fingerprint_params</span><span class="p">,</span>
             <span class="n">lime_scale_coeff</span><span class="o">=</span><span class="n">lime_scale_coeff</span><span class="p">,</span>
             <span class="n">lime_remove_noise</span><span class="o">=</span><span class="n">lime_remove_noise</span><span class="p">,</span>
+            <span class="n">reverse_positional_analogue_scanning</span><span class="o">=</span><span class="n">reverse_positional_analogue_scanning</span><span class="p">,</span>
+            <span class="n">generation_timeout</span><span class="o">=</span><span class="n">generation_timeout</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="o">==</span> <span class="p">{}:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_pos_params</span> <span class="o">=</span> <span class="n">_pos_params</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_pos_params</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">_pos_params</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_pos_params</span> <span class="o">=</span> <span class="n">positional_analogue_scanning_params</span>
         <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="o">==</span> <span class="p">{}:</span>
@@ -382,6 +393,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span> <span class="o">=</span> <span class="n">lime_fingerprint_params</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span> <span class="o">=</span> <span class="n">lime_scale_coeff</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_remove_noise</span> <span class="o">=</span> <span class="n">lime_remove_noise</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_reverse_positional_analogue_scanning</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">validated</span><span class="o">.</span><span class="n">reverse_positional_analogue_scanning</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_generation_timeout</span> <span class="o">=</span> <span class="n">validated</span><span class="o">.</span><span class="n">generation_timeout</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_run_lime_desc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run LIME analysis using RDKit descriptors.</span>
@@ -428,6 +443,8 @@
             <span class="n">mol</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_pos_params</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_nitrogen_walk_params</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_reverse_positional_analogue_scanning</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_generation_timeout</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 
@@ -466,17 +483,45 @@
 <span class="sd">        :returns: :class:`MatchaExplanation` containing coefficients, atomic</span>
 <span class="sd">            environments, weights, and analogue SMILES.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Run LIME with RDKit descriptors</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">predictions</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;LIME predictions must be one-dimensional.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">predictions</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;LIME molecule and prediction counts must match: &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;received </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span><span class="si">}</span><span class="s2"> molecules and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span><span class="si">}</span><span class="s2"> predictions.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;LIME requires at least 3 molecules; received </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;bootstrap_num must be at least 1.&quot;</span><span class="p">)</span>
+
+        <span class="n">descriptor_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_default</span>
+        <span class="p">)</span>
+        <span class="n">fingerprint_count</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="n">_fp_default</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nBits&quot;</span><span class="p">,</span> <span class="n">_fp_default</span><span class="p">[</span><span class="s2">&quot;nBits&quot;</span><span class="p">])</span>
+        <span class="n">feature_count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">descriptor_count</span><span class="p">,</span> <span class="n">fingerprint_count</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">&gt;</span> <span class="n">feature_count</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;bootstrap_num (</span><span class="si">{</span><span class="n">bootstrap_num</span><span class="si">}</span><span class="s2">) cannot exceed available feature &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;count (</span><span class="si">{</span><span class="n">feature_count</span><span class="si">}</span><span class="s2">).&quot;</span>
+            <span class="p">)</span>
+
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span><span class="si">}</span><span class="s2"> molecules provided. At least 10 analogues are &quot;</span>
                 <span class="s2">&quot;recommended for reliable LIME explanations. Results may be unstable.&quot;</span>
             <span class="p">)</span>
 
-        <span class="n">df_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_desc</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
-
-        <span class="c1"># Run LIME with ECFP fingerprints</span>
-        <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_ecfp</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
+        <span class="n">requested_fits</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">))</span>
+        <span class="n">df_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_desc</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">requested_fits</span><span class="p">)</span>
+        <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_ecfp</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">requested_fits</span><span class="p">)</span>
 
         <span class="c1"># Convert molecules to SMILES</span>
         <span class="n">smiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mols</span><span class="p">]</span>

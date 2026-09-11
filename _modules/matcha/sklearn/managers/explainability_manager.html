@@ -153,6 +153,11 @@
 
         <span class="n">analogues</span> <span class="o">=</span> <span class="n">explainer</span><span class="o">.</span><span class="n">generate_analogues</span><span class="p">(</span><span class="n">input_mol</span><span class="p">)</span>
         <span class="n">targets</span> <span class="o">=</span> <span class="p">[</span><span class="n">input_mol</span><span class="p">]</span> <span class="o">+</span> <span class="n">analogues</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Analogue explanation requires at least 3 total molecules; &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;received </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
+            <span class="p">)</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_explanations</span><span class="p">(</span>
             <span class="n">model_instance</span><span class="o">=</span><span class="n">model_instance</span><span class="p">,</span>

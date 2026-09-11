@@ -89,7 +89,7 @@
            <div itemprop="articleBody">
              
   <h1>Source code for matcha.explainability.lime</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">math</span><span class="w"> </span><span class="kn">import</span> <span class="n">ceil</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.linear_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ridge</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">KFold</span>
@@ -152,8 +152,6 @@
     <span class="s2">&quot;fr_SH&quot;</span><span class="p">,</span>
 <span class="p">]</span>
 <span class="n">_fp_default</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;nBits&quot;</span><span class="p">:</span> <span class="mi">1024</span><span class="p">,</span> <span class="s2">&quot;radius&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;useFeatures&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
-
-<span class="n">logger</span> <span class="o">=</span> <span class="n">get_default_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="LIME">
@@ -252,24 +250,36 @@
 
 <span class="sd">        :returns: Coefficient matrix of shape ``(bootstrap_num, n_features)``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">sample_cv</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">bootstrap_num</span><span class="p">)</span>
-        <span class="n">feat_cv</span> <span class="o">=</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">bootstrap_num</span><span class="p">)</span>
-        <span class="n">sample_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">sample_cv</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">feats</span><span class="p">)]</span>
-        <span class="n">feat_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">feat_cv</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))]</span>
+        <span class="n">n_rows</span><span class="p">,</span> <span class="n">feature_count</span> <span class="o">=</span> <span class="n">feats</span><span class="o">.</span><span class="n">shape</span>
+        <span class="n">sample_splits</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="n">ceil</span><span class="p">(</span><span class="n">n_rows</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_rows</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)))</span>
+        <span class="n">sample_idx</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">train_rows</span> <span class="k">for</span> <span class="n">train_rows</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">sample_splits</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">feats</span><span class="p">)</span>
+        <span class="p">][:</span><span class="n">bootstrap_num</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">feat_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">feat_idx</span> <span class="o">=</span> <span class="p">[</span>
+                <span class="n">train_columns</span>
+                <span class="k">for</span> <span class="n">train_columns</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">bootstrap_num</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)</span>
+                <span class="p">)</span>
+            <span class="p">]</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">):</span>
-            <span class="nb">slice</span> <span class="o">=</span> <span class="n">feats</span><span class="p">[</span><span class="n">sample_idx</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="p">:]</span>
-            <span class="nb">slice</span> <span class="o">=</span> <span class="n">feats</span><span class="p">[:,</span> <span class="n">feat_idx</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span>
-            <span class="nb">slice</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="nb">slice</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_r2_box</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="n">feature_count</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">fit_index</span><span class="p">,</span> <span class="p">(</span><span class="n">sample_rows</span><span class="p">,</span> <span class="n">feature_columns</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
+            <span class="nb">zip</span><span class="p">(</span><span class="n">sample_idx</span><span class="p">,</span> <span class="n">feat_idx</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="n">fit_features</span> <span class="o">=</span> <span class="n">feats</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">sample_rows</span><span class="p">,</span> <span class="n">feature_columns</span><span class="p">)]</span>
+            <span class="n">fit_features</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">fit_features</span><span class="p">)</span>
+            <span class="n">fit_targets</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">sample_rows</span><span class="p">]</span>
             <span class="n">model</span> <span class="o">=</span> <span class="n">Ridge</span><span class="p">()</span>
-            <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="nb">slice</span><span class="p">,</span> <span class="n">y</span><span class="p">)</span>
-            <span class="n">preds</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="nb">slice</span><span class="p">)</span>
-            <span class="n">r2</span> <span class="o">=</span> <span class="n">r2_score</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">preds</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_r2_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r2</span><span class="p">)</span>
+            <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">fit_features</span><span class="p">,</span> <span class="n">fit_targets</span><span class="p">)</span>
+            <span class="n">predictions</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fit_features</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_r2_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r2_score</span><span class="p">(</span><span class="n">fit_targets</span><span class="p">,</span> <span class="n">predictions</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-            <span class="n">coeffs</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">coef_</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span><span class="p">[</span><span class="n">i</span><span class="p">,</span> <span class="n">feat_idx</span><span class="p">[</span><span class="n">i</span><span class="p">]]</span> <span class="o">=</span> <span class="n">coeffs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span><span class="p">[</span><span class="n">fit_index</span><span class="p">,</span> <span class="n">feature_columns</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">coef_</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span>
 
@@ -350,48 +360,51 @@
 <span class="sd">            ``Standard deviation``, sorted by coefficient magnitude. The last</span>
 <span class="sd">            row contains the local fit R-squared summary.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># check if rdkit molecules or arbitrary array</span>
-        <span class="c1"># choose names for columns in the output dataframe</span>
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">targets</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;LIME targets must be one-dimensional.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">targets</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;LIME molecule and target counts must match: &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;received </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="si">}</span><span class="s2"> molecules and </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">targets</span><span class="p">)</span><span class="si">}</span><span class="s2"> targets.&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">3</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;LIME requires at least 3 molecules; received </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;bootstrap_num must be at least 1.&quot;</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_fingerprints</span><span class="p">:</span>
             <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ecfps</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span><span class="p">)</span>
-            <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;F_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">feats</span><span class="p">[</span><span class="mi">0</span><span class="p">]))]</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;F_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_features</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptor_set</span><span class="p">)</span>
             <span class="n">columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span>
 
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">bootstrap_num</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;Less than </span><span class="si">{</span><span class="n">bootstrap_num</span><span class="si">}</span><span class="s2"> records were found, replacing with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">feature_count</span> <span class="o">=</span> <span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">&gt;</span> <span class="n">feature_count</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;bootstrap_num (</span><span class="si">{</span><span class="n">bootstrap_num</span><span class="si">}</span><span class="s2">) cannot exceed available feature &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;count (</span><span class="si">{</span><span class="n">feature_count</span><span class="si">}</span><span class="s2">).&quot;</span>
             <span class="p">)</span>
-            <span class="n">bootstrap_num</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span>
 
-        <span class="k">if</span> <span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">bootstrap_num</span><span class="p">:</span>
-            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;bootstrap_num is higher than the number of descriptors, replacing with </span><span class="si">{</span><span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="p">)</span>
-            <span class="n">bootstrap_num</span> <span class="o">=</span> <span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="mi">1</span>
-
-        <span class="n">coeff_box</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">Y</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
-        <span class="n">coeff_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">coeff_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">coeff_box</span><span class="p">[</span><span class="n">coeff_box</span> <span class="o">==</span> <span class="mf">0.0</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
-
-        <span class="c1"># Use nanstd but guard against all-NaN slices (DOF &lt;= 0).</span>
-        <span class="c1"># Columns that were never assigned a coefficient (all NaN) get std = 0.</span>
-        <span class="c1"># this issue can arise if the counterfactuals generated are either</span>
-        <span class="c1"># not informative (e.g. constant descriptors) or too few</span>
-        <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanstd</span><span class="p">(</span><span class="n">coeff_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan_to_num</span><span class="p">(</span><span class="n">coeff_std</span><span class="p">,</span> <span class="n">nan</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+        <span class="n">requested_fits</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
+        <span class="n">coeff_box</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">requested_fits</span><span class="p">)</span>
+        <span class="n">coeff_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)</span>
+        <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">column_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">feature_count</span><span class="p">):</span>
+            <span class="n">selected_coefficients</span> <span class="o">=</span> <span class="n">coeff_box</span><span class="p">[:,</span> <span class="n">column_index</span><span class="p">]</span>
+            <span class="n">selected_coefficients</span> <span class="o">=</span> <span class="n">selected_coefficients</span><span class="p">[</span>
+                <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">selected_coefficients</span><span class="p">)</span>
+            <span class="p">]</span>
+            <span class="k">if</span> <span class="n">selected_coefficients</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
+                <span class="n">coeff_median</span><span class="p">[</span><span class="n">column_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">selected_coefficients</span><span class="p">)</span>
+                <span class="n">coeff_std</span><span class="p">[</span><span class="n">column_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">selected_coefficients</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_coeff</span><span class="p">:</span>
-            <span class="c1"># Safe division: where coeff_median is zero, relative_error stays 0</span>
-            <span class="n">relative_error</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">divide</span><span class="p">(</span>
-                <span class="n">coeff_std</span><span class="p">,</span>
-                <span class="n">coeff_median</span><span class="p">,</span>
-                <span class="n">out</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">coeff_std</span><span class="p">),</span>
-                <span class="n">where</span><span class="o">=</span><span class="n">coeff_median</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">coeff_median</span> <span class="o">=</span> <span class="n">coeff_median</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">coeff_median</span><span class="p">))</span>
-            <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">coeff_median</span> <span class="o">*</span> <span class="n">relative_error</span><span class="p">)</span>
+            <span class="n">coefficient_norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">coeff_median</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">coefficient_norm</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="n">coeff_median</span> <span class="o">=</span> <span class="n">coeff_median</span> <span class="o">/</span> <span class="n">coefficient_norm</span>
+                <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">coeff_std</span> <span class="o">/</span> <span class="n">coefficient_norm</span>
 
         <span class="n">df_out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
             <span class="p">{</span>

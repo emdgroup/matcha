@@ -89,13 +89,31 @@
            <div itemprop="articleBody">
              
   <h1>Source code for matcha.explainability.analogue_generator</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombineMols</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">combinations</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.Scaffolds.MurckoScaffold</span><span class="w"> </span><span class="kn">import</span> <span class="n">GetScaffoldForMol</span>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">itertools</span><span class="w"> </span><span class="kn">import</span> <span class="n">combinations</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Chem</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem</span><span class="w"> </span><span class="kn">import</span> <span class="n">CombineMols</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.BRICS</span><span class="w"> </span><span class="kn">import</span> <span class="n">BRICSDecompose</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdchem</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">MolSanitizeException</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.Scaffolds.MurckoScaffold</span><span class="w"> </span><span class="kn">import</span> <span class="n">GetScaffoldForMol</span>
+
+
+<span class="n">_DEFAULT_SUBSTITUENTS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;I&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Br&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;Cl&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;O&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;C&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;[*]C(F)(F)F&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;[*]C#N&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;[*]OC&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;[*]C1CC1&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;[*]C(=O)N&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;[*]S(=O)(=O)C&quot;</span><span class="p">,</span>
+<span class="p">]</span>
 
 
 <div class="viewcode-block" id="AnalogueGenerator">
@@ -119,31 +137,18 @@
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
         <span class="n">positional_analogue_scanning_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;substituents&quot;</span><span class="p">:</span> <span class="p">[</span>
-                <span class="s2">&quot;F&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;I&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;Br&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;Cl&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;O&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;C&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;[*]C(F)(F)F&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;[*]C#N&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;[*]OC&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;[*]C1CC1&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;[*]C(=O)N&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;[*]S(=O)(=O)C&quot;</span><span class="p">,</span>
-            <span class="p">],</span>
+            <span class="s2">&quot;substituents&quot;</span><span class="p">:</span> <span class="n">_DEFAULT_SUBSTITUENTS</span><span class="p">,</span>
             <span class="s2">&quot;anchors&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;[cH]&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">],</span>
             <span class="s2">&quot;num_sub&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
         <span class="p">},</span>
         <span class="n">nitrogen_walk_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;num_sub&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">},</span>
+        <span class="n">reverse_positional_analogue_scanning</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+        <span class="n">generation_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">60.0</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate structural analogues of a molecule using scaffold-based and pairwise strategies.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate structural analogues of a molecule using one time budget.</span>
 
-<span class="sd">        Runs positional analogue scanning (PAS) and nitrogen walk on both the</span>
-<span class="sd">        input molecule and its Murcko scaffold, then applies a second round of</span>
-<span class="sd">        PAS and nitrogen walk to each first-pass PAS result. All results are</span>
-<span class="sd">        pooled, validated, deduplicated, and the input molecule is excluded.</span>
+<span class="sd">        The cooperative deadline is checked around RDKit operations but cannot</span>
+<span class="sd">        preempt an RDKit primitive that is already running.</span>
 
 <span class="sd">        :param Mol mol: Query RDKit molecule.</span>
 <span class="sd">        :param dict | None positional_analogue_scanning_params: Parameters for</span>
@@ -151,61 +156,174 @@
 <span class="sd">            ``substituents``, ``anchors``, ``num_sub``.</span>
 <span class="sd">        :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.</span>
 <span class="sd">            Set to None to skip. Keys: ``num_sub``.</span>
+<span class="sd">        :param bool reverse_positional_analogue_scanning: Whether to remove</span>
+<span class="sd">            peripheral groups from the forward PAS vocabulary. Defaults to True.</span>
+<span class="sd">        :param float generation_timeout: Maximum aggregate runtime in seconds.</span>
+<span class="sd">            Defaults to 60. Zero causes immediate expiry.</span>
 
 <span class="sd">        :returns: List of unique, sanitized RDKit molecule objects (excluding</span>
 <span class="sd">            the input molecule).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">scaffold</span> <span class="o">=</span> <span class="n">GetScaffoldForMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="n">generation_timeout</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_validate_timeout</span><span class="p">(</span>
+            <span class="n">generation_timeout</span><span class="p">,</span> <span class="s2">&quot;generation_timeout&quot;</span>
+        <span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span>
+        <span class="n">overall_deadline</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">generation_timeout</span>
 
-        <span class="n">pas_mol</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
-                <span class="n">mol_in</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span> <span class="o">**</span><span class="n">positional_analogue_scanning_params</span>
+        <span class="n">pas_mol</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stage</span> <span class="o">=</span> <span class="s2">&quot;query forward PAS&quot;</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="n">deadline</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_aggregate_strategy_deadline</span><span class="p">(</span>
+                <span class="n">start</span><span class="p">,</span>
+                <span class="n">overall_deadline</span><span class="p">,</span>
+                <span class="n">generation_timeout</span><span class="p">,</span>
+                <span class="n">positional_analogue_scanning_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">pas_mol</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
+                <span class="n">mol_in</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">positional_analogue_scanning_params</span><span class="p">,</span>
+                <span class="n">_deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                <span class="n">_timeout_budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                <span class="n">_stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">reverse_substituents</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">positional_analogue_scanning_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+                <span class="s2">&quot;substituents&quot;</span><span class="p">,</span> <span class="n">_DEFAULT_SUBSTITUENTS</span>
             <span class="p">)</span>
             <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="p">[]</span>
+            <span class="k">else</span> <span class="kc">None</span>
         <span class="p">)</span>
-        <span class="n">nw_mol</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span><span class="n">mol_in</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span> <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="p">[]</span>
-        <span class="p">)</span>
-        <span class="n">pas_scaffold</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
-                <span class="n">mol_in</span><span class="o">=</span><span class="n">scaffold</span><span class="p">,</span> <span class="o">**</span><span class="n">positional_analogue_scanning_params</span>
+        <span class="n">reverse_mol</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">reverse_positional_analogue_scanning</span><span class="p">:</span>
+            <span class="n">stage</span> <span class="o">=</span> <span class="s2">&quot;query reverse PAS&quot;</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="n">reverse_timeout</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">positional_analogue_scanning_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="mi">60</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="p">[]</span>
-        <span class="p">)</span>
-        <span class="n">nw_scaffold</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span><span class="n">mol_in</span><span class="o">=</span><span class="n">scaffold</span><span class="p">,</span> <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="p">[]</span>
-        <span class="p">)</span>
+            <span class="n">deadline</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_aggregate_strategy_deadline</span><span class="p">(</span>
+                <span class="n">start</span><span class="p">,</span> <span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span><span class="p">,</span> <span class="n">reverse_timeout</span>
+            <span class="p">)</span>
+            <span class="n">reverse_mol</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">reverse_positional_analogue_scanning</span><span class="p">(</span>
+                <span class="n">mol_in</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span>
+                <span class="n">substituents</span><span class="o">=</span><span class="n">reverse_substituents</span><span class="p">,</span>
+                <span class="n">_deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                <span class="n">_timeout_budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                <span class="n">_stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">nw_mol</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stage</span> <span class="o">=</span> <span class="s2">&quot;query nitrogen walk&quot;</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="n">deadline</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_aggregate_strategy_deadline</span><span class="p">(</span>
+                <span class="n">start</span><span class="p">,</span>
+                <span class="n">overall_deadline</span><span class="p">,</span>
+                <span class="n">generation_timeout</span><span class="p">,</span>
+                <span class="n">nitrogen_walk_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">nw_mol</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span>
+                <span class="n">mol_in</span><span class="o">=</span><span class="n">mol</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">,</span>
+                <span class="n">_deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                <span class="n">_timeout_budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                <span class="n">_stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span><span class="p">,</span> <span class="s2">&quot;scaffold generation&quot;</span><span class="p">)</span>
+        <span class="n">scaffold</span> <span class="o">=</span> <span class="n">GetScaffoldForMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span><span class="p">,</span> <span class="s2">&quot;scaffold generation&quot;</span><span class="p">)</span>
+
+        <span class="n">pas_scaffold</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stage</span> <span class="o">=</span> <span class="s2">&quot;scaffold forward PAS&quot;</span>
+            <span class="n">deadline</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_aggregate_strategy_deadline</span><span class="p">(</span>
+                <span class="n">start</span><span class="p">,</span>
+                <span class="n">overall_deadline</span><span class="p">,</span>
+                <span class="n">generation_timeout</span><span class="p">,</span>
+                <span class="n">positional_analogue_scanning_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">pas_scaffold</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
+                <span class="n">mol_in</span><span class="o">=</span><span class="n">scaffold</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">positional_analogue_scanning_params</span><span class="p">,</span>
+                <span class="n">_deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                <span class="n">_timeout_budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                <span class="n">_stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">nw_scaffold</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">stage</span> <span class="o">=</span> <span class="s2">&quot;scaffold nitrogen walk&quot;</span>
+            <span class="n">deadline</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_aggregate_strategy_deadline</span><span class="p">(</span>
+                <span class="n">start</span><span class="p">,</span>
+                <span class="n">overall_deadline</span><span class="p">,</span>
+                <span class="n">generation_timeout</span><span class="p">,</span>
+                <span class="n">nitrogen_walk_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">nw_scaffold</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span>
+                <span class="n">mol_in</span><span class="o">=</span><span class="n">scaffold</span><span class="p">,</span>
+                <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">,</span>
+                <span class="n">_deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                <span class="n">_timeout_budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                <span class="n">_stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="n">pas_pas</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">pas_nw</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">analogue</span> <span class="ow">in</span> <span class="n">pas_mol</span> <span class="o">+</span> <span class="n">pas_scaffold</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span>
+                <span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span><span class="p">,</span> <span class="s2">&quot;second-pass generation&quot;</span>
+            <span class="p">)</span>
             <span class="k">if</span> <span class="n">positional_analogue_scanning_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">stage</span> <span class="o">=</span> <span class="s2">&quot;second-pass forward PAS&quot;</span>
+                <span class="n">deadline</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_aggregate_strategy_deadline</span><span class="p">(</span>
+                    <span class="n">start</span><span class="p">,</span>
+                    <span class="n">overall_deadline</span><span class="p">,</span>
+                    <span class="n">generation_timeout</span><span class="p">,</span>
+                    <span class="n">positional_analogue_scanning_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>
+                <span class="p">)</span>
                 <span class="n">pas_pas</span> <span class="o">+=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">positional_analogue_scanning</span><span class="p">(</span>
-                    <span class="n">mol_in</span><span class="o">=</span><span class="n">analogue</span><span class="p">,</span> <span class="o">**</span><span class="n">positional_analogue_scanning_params</span>
+                    <span class="n">mol_in</span><span class="o">=</span><span class="n">analogue</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">positional_analogue_scanning_params</span><span class="p">,</span>
+                    <span class="n">_deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                    <span class="n">_timeout_budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                    <span class="n">_stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
                 <span class="p">)</span>
             <span class="k">if</span> <span class="n">nitrogen_walk_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">pas_nw</span> <span class="o">+=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span><span class="n">mol_in</span><span class="o">=</span><span class="n">analogue</span><span class="p">,</span> <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">)</span>
+                <span class="n">stage</span> <span class="o">=</span> <span class="s2">&quot;second-pass nitrogen walk&quot;</span>
+                <span class="n">deadline</span><span class="p">,</span> <span class="n">budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_aggregate_strategy_deadline</span><span class="p">(</span>
+                    <span class="n">start</span><span class="p">,</span>
+                    <span class="n">overall_deadline</span><span class="p">,</span>
+                    <span class="n">generation_timeout</span><span class="p">,</span>
+                    <span class="n">nitrogen_walk_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;timeout&quot;</span><span class="p">,</span> <span class="mi">60</span><span class="p">),</span>
+                <span class="p">)</span>
+                <span class="n">pas_nw</span> <span class="o">+=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">nitrogen_walk</span><span class="p">(</span>
+                    <span class="n">mol_in</span><span class="o">=</span><span class="n">analogue</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">nitrogen_walk_params</span><span class="p">,</span>
+                    <span class="n">_deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                    <span class="n">_timeout_budget</span><span class="o">=</span><span class="n">budget</span><span class="p">,</span>
+                    <span class="n">_stage</span><span class="o">=</span><span class="n">stage</span><span class="p">,</span>
+                <span class="p">)</span>
 
-        <span class="n">all_analogues</span> <span class="o">=</span> <span class="n">pas_mol</span> <span class="o">+</span> <span class="n">nw_mol</span> <span class="o">+</span> <span class="n">pas_scaffold</span> <span class="o">+</span> <span class="n">nw_scaffold</span> <span class="o">+</span> <span class="n">pas_pas</span> <span class="o">+</span> <span class="n">pas_nw</span>
-
-        <span class="n">input_smi</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
-        <span class="n">validated_smi</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">analogue</span> <span class="ow">in</span> <span class="n">all_analogues</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">smi</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">analogue</span><span class="p">)</span>
-                <span class="n">validated_smi</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
-                <span class="k">pass</span>
-
-        <span class="n">validated_smi</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">input_smi</span><span class="p">)</span>
-        <span class="n">validated</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span> <span class="k">for</span> <span class="n">smi</span> <span class="ow">in</span> <span class="n">validated_smi</span><span class="p">]</span>
-        <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="nb">filter</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="n">validated</span><span class="p">))</span></div>
+        <span class="n">all_analogues</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">pas_mol</span>
+            <span class="o">+</span> <span class="n">reverse_mol</span>
+            <span class="o">+</span> <span class="n">nw_mol</span>
+            <span class="o">+</span> <span class="n">pas_scaffold</span>
+            <span class="o">+</span> <span class="n">nw_scaffold</span>
+            <span class="o">+</span> <span class="n">pas_pas</span>
+            <span class="o">+</span> <span class="n">pas_nw</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span>
+            <span class="n">mol</span><span class="p">,</span>
+            <span class="n">all_analogues</span><span class="p">,</span>
+            <span class="n">deadline</span><span class="o">=</span><span class="n">overall_deadline</span><span class="p">,</span>
+            <span class="n">timeout_budget</span><span class="o">=</span><span class="n">generation_timeout</span><span class="p">,</span>
+            <span class="n">stage</span><span class="o">=</span><span class="s2">&quot;finalization&quot;</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="AnalogueGenerator.positional_analogue_scanning">
@@ -214,23 +332,14 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">positional_analogue_scanning</span><span class="p">(</span>
         <span class="bp">cls</span><span class="p">,</span>
         <span class="n">mol_in</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
-        <span class="n">substituents</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="s2">&quot;F&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;I&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Br&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;Cl&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;O&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;C&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;[*]C(F)(F)F&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;[*]C#N&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;[*]OC&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;[*]C1CC1&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;[*]C(=O)N&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;[*]S(=O)(=O)C&quot;</span><span class="p">,</span>
-        <span class="p">],</span>
+        <span class="n">substituents</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="n">_DEFAULT_SUBSTITUENTS</span><span class="p">,</span>
         <span class="n">anchors</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[cH]&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">],</span>
         <span class="n">num_sub</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
-        <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">_deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">_timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">_stage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;direct forward PAS&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate analogues via Positional Analogue Scanning.</span>
 
@@ -248,53 +357,178 @@
 <span class="sd">            ``[*]`` attachment point) to try as substituents.</span>
 <span class="sd">        :param list anchors: SMARTS patterns identifying attachment positions.</span>
 <span class="sd">        :param int num_sub: Number of simultaneous substitutions. Defaults to 1.</span>
-<span class="sd">        :param int timeout: Maximum runtime in seconds. Defaults to 60.</span>
+<span class="sd">        :param float timeout: Maximum runtime in seconds. Defaults to 60.</span>
 
 <span class="sd">        :returns: List of unique, deduplicated analogue molecules.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">pt</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">GetPeriodicTable</span><span class="p">()</span>
-        <span class="n">out_mol_list</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_operation_deadline</span><span class="p">(</span>
+            <span class="n">timeout</span><span class="p">,</span> <span class="n">_deadline</span><span class="p">,</span> <span class="n">_timeout_budget</span>
+        <span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">num_sub</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">num_sub</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">num_sub</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;num_sub must be a positive integer&quot;</span><span class="p">)</span>
+
         <span class="k">for</span> <span class="n">substituent</span> <span class="ow">in</span> <span class="n">substituents</span><span class="p">:</span>
-            <span class="n">frag</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
-            <span class="n">is_fragment</span> <span class="o">=</span> <span class="n">frag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
-                <span class="n">a</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">frag</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span>
-            <span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">is_fragment</span><span class="p">:</span>
-                <span class="n">atomic_num</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">GetAtomicNumber</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span>
-                    <span class="n">atomic_num</span> <span class="o">&lt;=</span> <span class="mi">8</span>
-                    <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span>
-                        <span class="n">atm</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="n">atomic_num</span> <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span>
-                    <span class="p">)</span>
-                <span class="p">):</span>
-                    <span class="k">continue</span>
-            <span class="k">for</span> <span class="n">anchor</span> <span class="ow">in</span> <span class="n">anchors</span><span class="p">:</span>
-                <span class="n">query</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmarts</span><span class="p">(</span><span class="n">anchor</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_validate_substituent</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+
+        <span class="n">queries</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">anchor</span> <span class="ow">in</span> <span class="n">anchors</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">anchor</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">anchor</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid anchor SMARTS: </span><span class="si">{</span><span class="n">anchor</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">query</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmarts</span><span class="p">(</span><span class="n">anchor</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">query</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">query</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid anchor SMARTS: </span><span class="si">{</span><span class="n">anchor</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">queries</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+
+        <span class="n">out_mol_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">substituent</span> <span class="ow">in</span> <span class="n">substituents</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">query</span> <span class="ow">in</span> <span class="n">queries</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
                 <span class="n">match_atms</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetSubstructMatches</span><span class="p">(</span><span class="n">query</span><span class="p">)]</span>
-                <span class="n">n_combos</span> <span class="o">=</span> <span class="n">combinations</span><span class="p">(</span><span class="n">match_atms</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">combo</span> <span class="ow">in</span> <span class="n">n_combos</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">combo</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">(</span><span class="n">match_atms</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">):</span>
+                    <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
                     <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol_in</span><span class="p">)</span>
                     <span class="n">success</span> <span class="o">=</span> <span class="kc">True</span>
                     <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">combo</span><span class="p">:</span>
-                        <span class="n">result</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_attach_substituent</span><span class="p">(</span><span class="n">new_mol</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">substituent</span><span class="p">)</span>
+                        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_attach_substituent</span><span class="p">(</span>
+                            <span class="n">new_mol</span><span class="p">,</span>
+                            <span class="n">idx</span><span class="p">,</span>
+                            <span class="n">substituent</span><span class="p">,</span>
+                            <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                            <span class="n">timeout_budget</span><span class="o">=</span><span class="n">timeout_budget</span><span class="p">,</span>
+                            <span class="n">stage</span><span class="o">=</span><span class="n">_stage</span><span class="p">,</span>
+                        <span class="p">)</span>
                         <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                             <span class="n">success</span> <span class="o">=</span> <span class="kc">False</span>
                             <span class="k">break</span>
                         <span class="n">new_mol</span> <span class="o">=</span> <span class="n">result</span>
                     <span class="k">if</span> <span class="n">success</span><span class="p">:</span>
                         <span class="n">out_mol_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span> <span class="o">&gt;</span> <span class="n">timeout</span><span class="p">:</span>
-                <span class="k">break</span>
 
-        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span><span class="n">mol_in</span><span class="p">,</span> <span class="n">out_mol_list</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span>
+            <span class="n">mol_in</span><span class="p">,</span>
+            <span class="n">out_mol_list</span><span class="p">,</span>
+            <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+            <span class="n">timeout_budget</span><span class="o">=</span><span class="n">timeout_budget</span><span class="p">,</span>
+            <span class="n">stage</span><span class="o">=</span><span class="n">_stage</span><span class="p">,</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="AnalogueGenerator.reverse_positional_analogue_scanning">
+<a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.analogue_generator.AnalogueGenerator.reverse_positional_analogue_scanning">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">reverse_positional_analogue_scanning</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">mol_in</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">substituents</span><span class="p">:</span> <span class="nb">list</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">_deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">_timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">_stage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;direct reverse PAS&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Remove one peripheral group from the forward PAS vocabulary.</span>
+
+<span class="sd">        :param Mol mol_in: Input RDKit molecule.</span>
+<span class="sd">        :param list | None substituents: Forward PAS substituent vocabulary.</span>
+<span class="sd">        :param float timeout: Maximum runtime in seconds. Defaults to 60.</span>
+
+<span class="sd">        :returns: List of unique, deduplicated parent molecules.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">substituents</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">[]</span>
+
+        <span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_operation_deadline</span><span class="p">(</span>
+            <span class="n">timeout</span><span class="p">,</span> <span class="n">_deadline</span><span class="p">,</span> <span class="n">_timeout_budget</span>
+        <span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+        <span class="n">out_mol_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">substituent</span> <span class="ow">in</span> <span class="n">substituents</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+            <span class="n">fragment</span><span class="p">,</span> <span class="n">dummy_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_validate_substituent</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">dummy_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">atomic_num</span> <span class="o">=</span> <span class="n">fragment</span><span class="o">.</span><span class="n">GetAtomWithIdx</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
+                    <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">atom</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">!=</span> <span class="n">atomic_num</span> <span class="ow">or</span> <span class="n">atom</span><span class="o">.</span><span class="n">GetDegree</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="k">continue</span>
+                    <span class="n">parent</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_atoms</span><span class="p">(</span>
+                        <span class="n">mol_in</span><span class="p">,</span>
+                        <span class="p">[</span><span class="n">atom</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()],</span>
+                        <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                        <span class="n">timeout_budget</span><span class="o">=</span><span class="n">timeout_budget</span><span class="p">,</span>
+                        <span class="n">stage</span><span class="o">=</span><span class="n">_stage</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="n">parent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="n">out_mol_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">dummy</span> <span class="o">=</span> <span class="n">fragment</span><span class="o">.</span><span class="n">GetAtomWithIdx</span><span class="p">(</span><span class="n">dummy_idx</span><span class="p">)</span>
+                <span class="n">attachment_idx</span> <span class="o">=</span> <span class="n">dummy</span><span class="o">.</span><span class="n">GetNeighbors</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span>
+                <span class="n">query</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">fragment</span><span class="p">)</span>
+                <span class="n">query</span><span class="o">.</span><span class="n">RemoveAtom</span><span class="p">(</span><span class="n">dummy_idx</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">dummy_idx</span> <span class="o">&lt;</span> <span class="n">attachment_idx</span><span class="p">:</span>
+                    <span class="n">attachment_idx</span> <span class="o">-=</span> <span class="mi">1</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+                <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+                <span class="n">matches</span> <span class="o">=</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetSubstructMatches</span><span class="p">(</span><span class="n">query</span><span class="p">)</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">matches</span><span class="p">:</span>
+                    <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+                    <span class="n">matched</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+                    <span class="n">boundary</span> <span class="o">=</span> <span class="p">[</span>
+                        <span class="p">(</span><span class="n">atom_idx</span><span class="p">,</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">())</span>
+                        <span class="k">for</span> <span class="n">atom_idx</span> <span class="ow">in</span> <span class="n">match</span>
+                        <span class="k">for</span> <span class="n">neighbor</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetAtomWithIdx</span><span class="p">(</span><span class="n">atom_idx</span><span class="p">)</span><span class="o">.</span><span class="n">GetNeighbors</span><span class="p">()</span>
+                        <span class="k">if</span> <span class="n">neighbor</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">matched</span>
+                    <span class="p">]</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">boundary</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">boundary</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">match</span><span class="p">[</span><span class="n">attachment_idx</span><span class="p">]:</span>
+                        <span class="k">continue</span>
+
+                    <span class="n">remove_indices</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">match</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">remove_indices</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">remove_indices</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="n">match</span><span class="p">[</span><span class="n">attachment_idx</span><span class="p">])</span>
+                    <span class="n">parent</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_atoms</span><span class="p">(</span>
+                        <span class="n">mol_in</span><span class="p">,</span>
+                        <span class="n">remove_indices</span><span class="p">,</span>
+                        <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+                        <span class="n">timeout_budget</span><span class="o">=</span><span class="n">timeout_budget</span><span class="p">,</span>
+                        <span class="n">stage</span><span class="o">=</span><span class="n">_stage</span><span class="p">,</span>
+                    <span class="p">)</span>
+                    <span class="k">if</span> <span class="n">parent</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">parent</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">out_mol_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span>
+            <span class="n">mol_in</span><span class="p">,</span>
+            <span class="n">out_mol_list</span><span class="p">,</span>
+            <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+            <span class="n">timeout_budget</span><span class="o">=</span><span class="n">timeout_budget</span><span class="p">,</span>
+            <span class="n">stage</span><span class="o">=</span><span class="n">_stage</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="AnalogueGenerator.nitrogen_walk">
 <a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.analogue_generator.AnalogueGenerator.nitrogen_walk">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">nitrogen_walk</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span> <span class="n">mol_in</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">60</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">mol_in</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">num_sub</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mi">60</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">_deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">_timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">_stage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;direct nitrogen walk&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate analogues by replacing aromatic CH atoms with nitrogen.</span>
 
@@ -306,29 +540,42 @@
 
 <span class="sd">        :param Mol mol_in: Input RDKit molecule.</span>
 <span class="sd">        :param int num_sub: Number of simultaneous CH-to-N replacements. Defaults to 1.</span>
-<span class="sd">        :param int timeout: Maximum runtime in seconds. Defaults to 60.</span>
+<span class="sd">        :param float timeout: Maximum runtime in seconds. Defaults to 60.</span>
 
 <span class="sd">        :returns: List of unique, deduplicated analogue molecules.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
+        <span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_operation_deadline</span><span class="p">(</span>
+            <span class="n">timeout</span><span class="p">,</span> <span class="n">_deadline</span><span class="p">,</span> <span class="n">_timeout_budget</span>
+        <span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
         <span class="n">out_mol_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">aromatic_cH</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmarts</span><span class="p">(</span><span class="s2">&quot;[cH]&quot;</span><span class="p">)</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
         <span class="n">match_atms</span> <span class="o">=</span> <span class="p">[</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">mol_in</span><span class="o">.</span><span class="n">GetSubstructMatches</span><span class="p">(</span><span class="n">aromatic_cH</span><span class="p">)]</span>
-        <span class="n">n_combos</span> <span class="o">=</span> <span class="n">combinations</span><span class="p">(</span><span class="n">match_atms</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">)</span>
-        <span class="n">start</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
-        <span class="k">for</span> <span class="n">combo</span> <span class="ow">in</span> <span class="n">n_combos</span><span class="p">:</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">combo</span> <span class="ow">in</span> <span class="n">combinations</span><span class="p">(</span><span class="n">match_atms</span><span class="p">,</span> <span class="n">num_sub</span><span class="p">):</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
             <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol_in</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">combo</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
                 <span class="n">atm</span> <span class="o">=</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtomWithIdx</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
                 <span class="n">atm</span><span class="o">.</span><span class="n">SetAtomicNum</span><span class="p">(</span><span class="mi">7</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
-                <span class="n">out_mol_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">except</span> <span class="n">MolSanitizeException</span><span class="p">:</span>
                 <span class="k">pass</span>
-            <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">-</span> <span class="n">start</span> <span class="o">&gt;</span> <span class="n">timeout</span><span class="p">:</span>
-                <span class="k">break</span>
-        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span><span class="n">mol_in</span><span class="p">,</span> <span class="n">out_mol_list</span><span class="p">)</span></div>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">out_mol_list</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">_stage</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_remove_duplicate</span><span class="p">(</span>
+            <span class="n">mol_in</span><span class="p">,</span>
+            <span class="n">out_mol_list</span><span class="p">,</span>
+            <span class="n">deadline</span><span class="o">=</span><span class="n">deadline</span><span class="p">,</span>
+            <span class="n">timeout_budget</span><span class="o">=</span><span class="n">timeout_budget</span><span class="p">,</span>
+            <span class="n">stage</span><span class="o">=</span><span class="n">_stage</span><span class="p">,</span>
+        <span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="AnalogueGenerator.decompose">
@@ -358,7 +605,14 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_attach_substituent</span><span class="p">(</span>
-        <span class="bp">cls</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">anchor_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">substituent</span><span class="p">:</span> <span class="nb">str</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">anchor_idx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+        <span class="n">substituent</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;direct attachment&quot;</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mol</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Attach a substituent at a given anchor atom index.</span>
 
@@ -372,61 +626,200 @@
 
 <span class="sd">        :returns: Sanitized RWMol with substituent attached, or ``None`` on failure.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">try</span><span class="p">:</span>
-            <span class="n">frag</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
-            <span class="n">is_fragment</span> <span class="o">=</span> <span class="n">frag</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span>
-                <span class="n">a</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">frag</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="n">fragment</span><span class="p">,</span> <span class="n">dummy_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_validate_substituent</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dummy_idx</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sidechain</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_prep_sidechain</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">CombineMols</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">sidechain</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="n">attach_atm</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+                <span class="n">atom</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span>
+                <span class="k">if</span> <span class="n">atom</span><span class="o">.</span><span class="n">GetAtomMapNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span>
             <span class="p">)</span>
-            <span class="k">if</span> <span class="n">is_fragment</span><span class="p">:</span>
-                <span class="n">sidechain</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_prep_sidechain</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
-                <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">CombineMols</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">sidechain</span><span class="p">))</span>
-                <span class="n">attach_atm</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-                <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
-                    <span class="k">if</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetAtomMapNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                        <span class="n">attach_atm</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span>
-                        <span class="k">break</span>
-                <span class="k">if</span> <span class="n">attach_atm</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="kc">None</span>
-                <span class="n">new_mol</span><span class="o">.</span><span class="n">AddBond</span><span class="p">(</span>
-                    <span class="n">anchor_idx</span><span class="p">,</span> <span class="n">attach_atm</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">Chem</span><span class="o">.</span><span class="n">rdchem</span><span class="o">.</span><span class="n">BondType</span><span class="o">.</span><span class="n">SINGLE</span>
-                <span class="p">)</span>
-                <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
-                    <span class="n">atm</span><span class="o">.</span><span class="n">SetAtomMapNum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">pt</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">GetPeriodicTable</span><span class="p">()</span>
-                <span class="n">atomic_num</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">GetAtomicNumber</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
-                <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
-                <span class="n">new_idx</span> <span class="o">=</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">AddAtom</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">Atom</span><span class="p">(</span><span class="n">atomic_num</span><span class="p">))</span>
-                <span class="n">new_mol</span><span class="o">.</span><span class="n">AddBond</span><span class="p">(</span><span class="n">anchor_idx</span><span class="p">,</span> <span class="n">new_idx</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">Chem</span><span class="o">.</span><span class="n">rdchem</span><span class="o">.</span><span class="n">BondType</span><span class="o">.</span><span class="n">SINGLE</span><span class="p">)</span>
+            <span class="n">new_mol</span><span class="o">.</span><span class="n">AddBond</span><span class="p">(</span><span class="n">anchor_idx</span><span class="p">,</span> <span class="n">attach_atm</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">Chem</span><span class="o">.</span><span class="n">rdchem</span><span class="o">.</span><span class="n">BondType</span><span class="o">.</span><span class="n">SINGLE</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
+                <span class="n">atom</span><span class="o">.</span><span class="n">SetAtomMapNum</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">new_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+            <span class="n">new_idx</span> <span class="o">=</span> <span class="n">new_mol</span><span class="o">.</span><span class="n">AddAtom</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">Atom</span><span class="p">(</span><span class="n">fragment</span><span class="o">.</span><span class="n">GetAtomWithIdx</span><span class="p">(</span><span class="mi">0</span><span class="p">)))</span>
+            <span class="n">new_mol</span><span class="o">.</span><span class="n">AddBond</span><span class="p">(</span><span class="n">anchor_idx</span><span class="p">,</span> <span class="n">new_idx</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="n">Chem</span><span class="o">.</span><span class="n">rdchem</span><span class="o">.</span><span class="n">BondType</span><span class="o">.</span><span class="n">SINGLE</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">new_mol</span>
+        <span class="k">try</span><span class="p">:</span>
             <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">new_mol</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">new_mol</span>
-        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="k">except</span> <span class="n">MolSanitizeException</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">result</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_remove_atoms</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">atom_indices</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;direct reverse PAS&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mol</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="n">parent</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">atom_idx</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">atom_indices</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="n">parent</span><span class="o">.</span><span class="n">RemoveAtom</span><span class="p">(</span><span class="n">atom_idx</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">parent</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">parent</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">parent</span><span class="p">)</span>
+        <span class="k">except</span> <span class="n">MolSanitizeException</span><span class="p">:</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">Chem</span><span class="o">.</span><span class="n">GetMolFrags</span><span class="p">(</span><span class="n">parent</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">parent</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_remove_duplicate</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">analogues</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
-        <span class="n">smi_target</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-        <span class="n">analogues</span> <span class="o">=</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">analogues</span><span class="p">]</span>
-        <span class="n">unique_smiles</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">analogues</span><span class="p">)</span>
-        <span class="n">unique_smiles</span><span class="o">.</span><span class="n">discard</span><span class="p">(</span><span class="n">smi_target</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">[</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span> <span class="k">for</span> <span class="n">smi</span> <span class="ow">in</span> <span class="n">unique_smiles</span><span class="p">]</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_remove_duplicate</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">target</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
+        <span class="n">analogues</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span>
+        <span class="o">*</span><span class="p">,</span>
+        <span class="n">deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;finalization&quot;</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">]:</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="n">seen</span> <span class="o">=</span> <span class="p">{</span><span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">target</span><span class="p">)}</span>
+        <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+        <span class="n">unique</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">analogue</span> <span class="ow">in</span> <span class="n">analogues</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">atom</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">analogue</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()):</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Generated analogue contains a dummy atom&quot;</span><span class="p">)</span>
+            <span class="n">smiles</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">analogue</span><span class="p">)</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_optional_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">smiles</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">seen</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">smiles</span><span class="p">)</span>
+            <span class="n">unique</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">analogue</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">unique</span>
 
     <span class="nd">@classmethod</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">_prep_sidechain</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">smi</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_timeout</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">isinstance</span><span class="p">(</span><span class="n">timeout</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timeout</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="n">timeout</span> <span class="o">&lt;</span> <span class="mi">0</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> must be a finite, non-negative number&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">timeout</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_operation_deadline</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+        <span class="n">timeout</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_validate_timeout</span><span class="p">(</span><span class="n">timeout</span><span class="p">,</span> <span class="s2">&quot;timeout&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">+</span> <span class="n">timeout</span><span class="p">,</span> <span class="n">timeout</span>
+        <span class="k">if</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;timeout_budget is required with an absolute deadline&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_aggregate_strategy_deadline</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">start</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">overall_deadline</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">generation_timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+        <span class="n">strategy_timeout</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">float</span><span class="p">,</span> <span class="nb">float</span><span class="p">]:</span>
+        <span class="n">strategy_timeout</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_validate_timeout</span><span class="p">(</span><span class="n">strategy_timeout</span><span class="p">,</span> <span class="s2">&quot;timeout&quot;</span><span class="p">)</span>
+        <span class="n">strategy_deadline</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">strategy_timeout</span>
+        <span class="k">if</span> <span class="n">strategy_deadline</span> <span class="o">&lt;</span> <span class="n">overall_deadline</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">strategy_deadline</span><span class="p">,</span> <span class="n">strategy_timeout</span>
+        <span class="k">return</span> <span class="n">overall_deadline</span><span class="p">,</span> <span class="n">generation_timeout</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_optional_deadline</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">deadline</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">timeout_budget</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">deadline</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout_budget</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">_check_deadline</span><span class="p">(</span><span class="n">deadline</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">,</span> <span class="n">stage</span><span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_check_deadline</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span> <span class="n">deadline</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">timeout_budget</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">stage</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">time</span><span class="o">.</span><span class="n">monotonic</span><span class="p">()</span> <span class="o">&gt;=</span> <span class="n">deadline</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Generation exceeded the </span><span class="si">{</span><span class="n">timeout_budget</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">-second budget during &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">stage</span><span class="si">}</span><span class="s2">; no partial results are returned. To continue, increase &quot;</span>
+                <span class="s2">&quot;generation_timeout, disable a strategy, or narrow the vocabulary.&quot;</span>
+            <span class="p">)</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_validate_substituent</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">substituent</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Mol</span><span class="p">,</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">substituent</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">substituent</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid substituent: </span><span class="si">{</span><span class="n">substituent</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">fragment</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">substituent</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fragment</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">fragment</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid substituent: </span><span class="si">{</span><span class="n">substituent</span><span class="si">!r}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">dummy_atoms</span> <span class="o">=</span> <span class="p">[</span><span class="n">atom</span> <span class="k">for</span> <span class="n">atom</span> <span class="ow">in</span> <span class="n">fragment</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">()</span> <span class="k">if</span> <span class="n">atom</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">dummy_atoms</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">fragment</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Substituent </span><span class="si">{</span><span class="n">substituent</span><span class="si">!r}</span><span class="s2"> must contain exactly one atom &quot;</span>
+                    <span class="s2">&quot;or one dummy attachment atom&quot;</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="n">fragment</span><span class="p">,</span> <span class="kc">None</span>
+
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">dummy_atoms</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">1</span> <span class="ow">or</span> <span class="n">dummy_atoms</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">GetDegree</span><span class="p">()</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Substituent </span><span class="si">{</span><span class="n">substituent</span><span class="si">!r}</span><span class="s2"> must contain exactly one atom &quot;</span>
+                <span class="s2">&quot;or one dummy attachment atom&quot;</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="n">fragment</span><span class="p">,</span> <span class="n">dummy_atoms</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span>
+
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_prep_sidechain</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">smi</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Mol</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Prepare a fragment SMILES as an RDKit sidechain ready for bonding.</span>
 
 <span class="sd">        Removes the ``[*]`` dummy attachment atom and marks its neighbor with</span>
 <span class="sd">        atom-map number 1 so it can be found by :meth:`_attach_substituent`.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">MolFromSmiles</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span>
+        <span class="n">mol</span><span class="p">,</span> <span class="n">dummy_idx</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_validate_substituent</span><span class="p">(</span><span class="n">smi</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">dummy_idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Substituent </span><span class="si">{</span><span class="n">smi</span><span class="si">!r}</span><span class="s2"> has no dummy attachment atom&quot;</span><span class="p">)</span>
+
         <span class="n">rw_mol</span> <span class="o">=</span> <span class="n">Chem</span><span class="o">.</span><span class="n">RWMol</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span>
-        <span class="n">remove_idx</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-        <span class="k">for</span> <span class="n">atm</span> <span class="ow">in</span> <span class="n">rw_mol</span><span class="o">.</span><span class="n">GetAtoms</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetAtomicNum</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">remove_idx</span> <span class="o">=</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetIdx</span><span class="p">()</span>
-                <span class="k">for</span> <span class="n">nbr</span> <span class="ow">in</span> <span class="n">atm</span><span class="o">.</span><span class="n">GetNeighbors</span><span class="p">():</span>
-                    <span class="n">nbr</span><span class="o">.</span><span class="n">SetAtomMapNum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">rw_mol</span><span class="o">.</span><span class="n">RemoveAtom</span><span class="p">(</span><span class="n">remove_idx</span><span class="p">)</span>
+        <span class="n">dummy_atom</span> <span class="o">=</span> <span class="n">rw_mol</span><span class="o">.</span><span class="n">GetAtomWithIdx</span><span class="p">(</span><span class="n">dummy_idx</span><span class="p">)</span>
+        <span class="n">dummy_atom</span><span class="o">.</span><span class="n">GetNeighbors</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">SetAtomMapNum</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">rw_mol</span><span class="o">.</span><span class="n">RemoveAtom</span><span class="p">(</span><span class="n">dummy_idx</span><span class="p">)</span>
         <span class="n">Chem</span><span class="o">.</span><span class="n">SanitizeMol</span><span class="p">(</span><span class="n">rw_mol</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">rw_mol</span></div>
 
