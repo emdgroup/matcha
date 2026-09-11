@@ -1,7 +1,12 @@
 """Tests for matcha.explainability.analogue_generator.AnalogueGenerator."""
 
+import os
+import subprocess
+import sys
+
+import pytest
 from rdkit import Chem
-from rdkit.Chem.rdchem import Mol
+from rdkit.Chem.rdchem import Mol, MolSanitizeException
 
 from matcha.explainability.analogue_generator import AnalogueGenerator
 
@@ -32,15 +37,113 @@ class TestPositionalAnalogueScanning:
         result_smiles = [Chem.MolToSmiles(m) for m in result]
         assert input_smi not in result_smiles
 
-    def test_custom_substituents(self, single_mol):
+    @pytest.mark.parametrize(
+        ("substituent", "expected_smiles"),
+        [
+            ("F", "Fc1ccccc1"),
+            ("Cl", "Clc1ccccc1"),
+            ("Br", "Brc1ccccc1"),
+            ("I", "Ic1ccccc1"),
+        ],
+    )
+    def test_custom_substituents(self, benzene_mol, substituent, expected_smiles):
         result = AnalogueGenerator.positional_analogue_scanning(
-            single_mol, substituents=["F"], anchors=["[cH]"], num_sub=1
+            benzene_mol,
+            substituents=[substituent],
+            anchors=["[cH]"],
+            num_sub=1,
         )
-        assert isinstance(result, list)
-        # Should get some F-substituted analogues
-        for m in result:
-            smi = Chem.MolToSmiles(m)
-            assert "F" in smi or len(result) == 0
+        assert [Chem.MolToSmiles(mol) for mol in result] == [expected_smiles]
+
+    @pytest.mark.parametrize("substituent", ["Xx", "", "C(C"])
+    def test_rejects_invalid_substituent(self, benzene_mol, substituent):
+        with pytest.raises(ValueError, match="Invalid substituent"):
+            AnalogueGenerator.positional_analogue_scanning(
+                benzene_mol,
+                substituents=[substituent],
+                anchors=["[cH]"],
+            )
+
+    def test_rejects_multi_atom_substituent_without_dummy(self, benzene_mol):
+        with pytest.raises(ValueError, match="exactly one atom or one dummy"):
+            AnalogueGenerator.positional_analogue_scanning(
+                benzene_mol,
+                substituents=["CC"],
+                anchors=["[cH]"],
+            )
+
+    def test_rejects_substituent_with_multiple_dummies(self, benzene_mol):
+        with pytest.raises(ValueError, match="exactly one atom or one dummy"):
+            AnalogueGenerator.positional_analogue_scanning(
+                benzene_mol,
+                substituents=["[*]C[*]"],
+                anchors=["[cH]"],
+            )
+
+    @pytest.mark.parametrize("num_sub", [0, -1, 1.5, True])
+    def test_rejects_invalid_num_sub(self, benzene_mol, num_sub):
+        with pytest.raises(ValueError, match="num_sub must be a positive integer"):
+            AnalogueGenerator.positional_analogue_scanning(
+                benzene_mol,
+                substituents=["F"],
+                anchors=["[cH]"],
+                num_sub=num_sub,
+            )
+
+    def test_rejects_invalid_anchor(self, benzene_mol):
+        with pytest.raises(ValueError, match="Invalid anchor SMARTS"):
+            AnalogueGenerator.positional_analogue_scanning(
+                benzene_mol,
+                substituents=["F"],
+                anchors=["[cH]", "["],
+            )
+
+    def test_outputs_contain_no_dummy_atoms(self, benzene_mol):
+        result = AnalogueGenerator.positional_analogue_scanning(
+            benzene_mol,
+            substituents=["[*]C(F)(F)F"],
+            anchors=["[cH]"],
+        )
+        assert result
+        assert all(
+            atom.GetAtomicNum() != 0
+            for analogue in result
+            for atom in analogue.GetAtoms()
+        )
+
+    def test_sanitization_failure_skips_only_invalid_candidate(
+        self, benzene_mol, monkeypatch
+    ):
+        sanitize = Chem.SanitizeMol
+        call_count = 0
+
+        def fail_once(mol):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise MolSanitizeException("invalid candidate")
+            return sanitize(mol)
+
+        monkeypatch.setattr(Chem, "SanitizeMol", fail_once)
+        result = AnalogueGenerator.positional_analogue_scanning(
+            benzene_mol,
+            substituents=["F"],
+            anchors=["[cH]"],
+        )
+
+        assert [Chem.MolToSmiles(mol) for mol in result] == ["Fc1ccccc1"]
+
+    def test_unexpected_attachment_failure_propagates(self, benzene_mol, monkeypatch):
+        def fail(_mol):
+            raise RuntimeError("unexpected failure")
+
+        monkeypatch.setattr(Chem, "SanitizeMol", fail)
+        with pytest.raises(RuntimeError, match="unexpected failure"):
+            AnalogueGenerator.positional_analogue_scanning(
+                benzene_mol,
+                substituents=["F"],
+                anchors=["[cH]"],
+            )
 
     def test_custom_anchors(self, single_mol):
         result = AnalogueGenerator.positional_analogue_scanning(
@@ -109,15 +212,13 @@ class TestAttachSubstituent:
         smi = Chem.MolToSmiles(result)
         assert "F" in smi
 
-    def test_invalid_smiles_returns_none(self, benzene_mol):
-        result = AnalogueGenerator._attach_substituent(
-            benzene_mol, 0, "NOT_VALID_SMILES"
-        )
-        assert result is None
+    def test_invalid_smiles_raises_value_error(self, benzene_mol):
+        with pytest.raises(ValueError, match="Invalid substituent"):
+            AnalogueGenerator._attach_substituent(benzene_mol, 0, "NOT_VALID_SMILES")
 
-    def test_out_of_bounds_anchor_returns_none(self, benzene_mol):
-        result = AnalogueGenerator._attach_substituent(benzene_mol, 9999, "F")
-        assert result is None
+    def test_out_of_bounds_anchor_propagates(self, benzene_mol):
+        with pytest.raises(RuntimeError):
+            AnalogueGenerator._attach_substituent(benzene_mol, 9999, "F")
 
 
 # ===================================================================
@@ -169,6 +270,32 @@ class TestNitrogenWalk:
         aliphatic = Chem.MolFromSmiles("CC(=O)O")
         result = AnalogueGenerator.nitrogen_walk(aliphatic)
         assert result == []
+
+    def test_sanitization_failure_skips_only_invalid_candidate(
+        self, benzene_mol, monkeypatch
+    ):
+        sanitize = Chem.SanitizeMol
+        call_count = 0
+
+        def fail_once(mol):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise MolSanitizeException("invalid candidate")
+            return sanitize(mol)
+
+        monkeypatch.setattr(Chem, "SanitizeMol", fail_once)
+        result = AnalogueGenerator.nitrogen_walk(benzene_mol)
+
+        assert [Chem.MolToSmiles(mol) for mol in result] == ["c1ccncc1"]
+
+    def test_unexpected_sanitization_failure_propagates(self, benzene_mol, monkeypatch):
+        def fail(_mol):
+            raise RuntimeError("unexpected failure")
+
+        monkeypatch.setattr(Chem, "SanitizeMol", fail)
+        with pytest.raises(RuntimeError, match="unexpected failure"):
+            AnalogueGenerator.nitrogen_walk(benzene_mol)
 
     def test_timeout_respected(self, benzene_mol):
         result = AnalogueGenerator.nitrogen_walk(benzene_mol, timeout=0)
@@ -325,6 +452,47 @@ class TestGenerateAnaloguesNewBehavior:
         smiles = [Chem.MolToSmiles(m) for m in result]
         assert len(smiles) == len(set(smiles))
 
+    def test_preserves_source_and_first_discovery_order(self, benzene_mol):
+        result = AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params={
+                "substituents": ["C", "O"],
+                "anchors": ["[cH]"],
+                "num_sub": 1,
+            },
+            nitrogen_walk_params={"num_sub": 1},
+        )
+
+        assert [Chem.MolToSmiles(mol) for mol in result[:3]] == [
+            "Cc1ccccc1",
+            "Oc1ccccc1",
+            "c1ccncc1",
+        ]
+
+    def test_order_is_stable_with_random_hash_seed(self):
+        expected = ["Fc1ccccc1", "Clc1ccccc1"]
+        script = """
+from rdkit import Chem
+from matcha.explainability.analogue_generator import AnalogueGenerator
+mol = Chem.MolFromSmiles("c1ccccc1")
+result = AnalogueGenerator.positional_analogue_scanning(
+    mol,
+    substituents=["F", "Cl"],
+    anchors=["[cH]"],
+)
+print("\\n".join(Chem.MolToSmiles(analogue) for analogue in result))
+"""
+
+        completed = subprocess.run(
+            [sys.executable, "-c", script],
+            check=True,
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONHASHSEED": "random"},
+        )
+
+        assert completed.stdout.strip().splitlines() == expected
+
     def test_input_excluded(self, single_mol):
         input_smi = Chem.MolToSmiles(single_mol)
         result = AnalogueGenerator.generate_analogues(
@@ -353,13 +521,25 @@ class TestAnalogueGeneratorHelpers:
         result = AnalogueGenerator._remove_duplicate(single_mol, dup_list)
         assert result == []
 
-    def test_remove_duplicate_keeps_unique(self, single_mol):
+    def test_remove_duplicate_keeps_original_molecule(self, single_mol):
         other = Chem.MolFromSmiles("CCO")
         result = AnalogueGenerator._remove_duplicate(single_mol, [other])
-        assert len(result) == 1
+        assert result == [other]
+        assert result[0] is other
 
-    def test_remove_duplicate_deduplicates(self, single_mol):
-        m1 = Chem.MolFromSmiles("CCO")
-        m2 = Chem.MolFromSmiles("CCO")
-        result = AnalogueGenerator._remove_duplicate(single_mol, [m1, m2])
-        assert len(result) == 1
+    def test_remove_duplicate_preserves_first_occurrence_order(self, single_mol):
+        first = Chem.MolFromSmiles("CCO")
+        duplicate = Chem.MolFromSmiles("CCO")
+        second = Chem.MolFromSmiles("CCN")
+        result = AnalogueGenerator._remove_duplicate(
+            single_mol, [first, duplicate, second]
+        )
+
+        assert result == [first, second]
+        assert result[0] is first
+        assert result[1] is second
+
+    def test_remove_duplicate_rejects_wildcard_output(self, single_mol):
+        wildcard = Chem.MolFromSmiles("[*]C")
+        with pytest.raises(RuntimeError, match="dummy atom"):
+            AnalogueGenerator._remove_duplicate(single_mol, [wildcard])

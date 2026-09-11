@@ -1,10 +1,11 @@
+import time
+from itertools import combinations
+
 from rdkit import Chem
 from rdkit.Chem import CombineMols
-from itertools import combinations
-from rdkit.Chem.rdchem import Mol
-from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
-import time
 from rdkit.Chem.BRICS import BRICSDecompose
+from rdkit.Chem.rdchem import Mol, MolSanitizeException
+from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
 
 
 class AnalogueGenerator:
@@ -99,18 +100,7 @@ class AnalogueGenerator:
 
         all_analogues = pas_mol + nw_mol + pas_scaffold + nw_scaffold + pas_pas + pas_nw
 
-        input_smi = Chem.MolToSmiles(mol)
-        validated_smi = set()
-        for analogue in all_analogues:
-            try:
-                smi = Chem.MolToSmiles(analogue)
-                validated_smi.add(smi)
-            except Exception:
-                pass
-
-        validated_smi.discard(input_smi)
-        validated = [Chem.MolFromSmiles(smi) for smi in validated_smi]
-        return list(filter(None, validated))
+        return cls._remove_duplicate(mol, all_analogues)
 
     @classmethod
     def positional_analogue_scanning(
@@ -154,25 +144,25 @@ class AnalogueGenerator:
 
         :returns: List of unique, deduplicated analogue molecules.
         """
-        pt = Chem.GetPeriodicTable()
+        if isinstance(num_sub, bool) or not isinstance(num_sub, int) or num_sub < 1:
+            raise ValueError("num_sub must be a positive integer")
+
+        for substituent in substituents:
+            cls._validate_substituent(substituent)
+
+        queries = []
+        for anchor in anchors:
+            if not isinstance(anchor, str) or not anchor:
+                raise ValueError(f"Invalid anchor SMARTS: {anchor!r}")
+            query = Chem.MolFromSmarts(anchor)
+            if query is None or query.GetNumAtoms() == 0:
+                raise ValueError(f"Invalid anchor SMARTS: {anchor!r}")
+            queries.append(query)
+
         out_mol_list = []
         start = time.time()
         for substituent in substituents:
-            frag = Chem.MolFromSmiles(substituent)
-            is_fragment = frag is not None and any(
-                a.GetAtomicNum() == 0 for a in frag.GetAtoms()
-            )
-            if not is_fragment:
-                atomic_num = pt.GetAtomicNumber(substituent)
-                if not (
-                    atomic_num <= 8
-                    or any(
-                        atm.GetAtomicNum() == atomic_num for atm in mol_in.GetAtoms()
-                    )
-                ):
-                    continue
-            for anchor in anchors:
-                query = Chem.MolFromSmarts(anchor)
+            for query in queries:
                 match_atms = [x[0] for x in mol_in.GetSubstructMatches(query)]
                 n_combos = combinations(match_atms, num_sub)
                 for combo in n_combos:
@@ -223,7 +213,7 @@ class AnalogueGenerator:
             try:
                 Chem.SanitizeMol(new_mol)
                 out_mol_list.append(new_mol)
-            except Exception:
+            except MolSanitizeException:
                 pass
             if time.time() - start > timeout:
                 break
@@ -267,60 +257,82 @@ class AnalogueGenerator:
 
         :returns: Sanitized RWMol with substituent attached, or ``None`` on failure.
         """
-        try:
-            frag = Chem.MolFromSmiles(substituent)
-            is_fragment = frag is not None and any(
-                a.GetAtomicNum() == 0 for a in frag.GetAtoms()
+        fragment, dummy_idx = cls._validate_substituent(substituent)
+        if dummy_idx is not None:
+            sidechain = cls._prep_sidechain(substituent)
+            new_mol = Chem.RWMol(CombineMols(mol, sidechain))
+            attach_atm = next(
+                atom.GetIdx()
+                for atom in new_mol.GetAtoms()
+                if atom.GetAtomMapNum() == 1
             )
-            if is_fragment:
-                sidechain = cls._prep_sidechain(substituent)
-                new_mol = Chem.RWMol(CombineMols(mol, sidechain))
-                attach_atm = -1
-                for atm in new_mol.GetAtoms():
-                    if atm.GetAtomMapNum() == 1:
-                        attach_atm = atm.GetIdx()
-                        break
-                if attach_atm == -1:
-                    return None
-                new_mol.AddBond(
-                    anchor_idx, attach_atm, order=Chem.rdchem.BondType.SINGLE
-                )
-                for atm in new_mol.GetAtoms():
-                    atm.SetAtomMapNum(0)
-            else:
-                pt = Chem.GetPeriodicTable()
-                atomic_num = pt.GetAtomicNumber(substituent)
-                new_mol = Chem.RWMol(mol)
-                new_idx = new_mol.AddAtom(Chem.Atom(atomic_num))
-                new_mol.AddBond(anchor_idx, new_idx, order=Chem.rdchem.BondType.SINGLE)
+            new_mol.AddBond(anchor_idx, attach_atm, order=Chem.rdchem.BondType.SINGLE)
+            for atom in new_mol.GetAtoms():
+                atom.SetAtomMapNum(0)
+        else:
+            new_mol = Chem.RWMol(mol)
+            new_idx = new_mol.AddAtom(Chem.Atom(fragment.GetAtomWithIdx(0)))
+            new_mol.AddBond(anchor_idx, new_idx, order=Chem.rdchem.BondType.SINGLE)
+
+        try:
             Chem.SanitizeMol(new_mol)
-            return new_mol
-        except Exception:
+        except MolSanitizeException:
             return None
+        return new_mol
 
     @classmethod
     def _remove_duplicate(cls, target: Mol, analogues: list[Mol]) -> list[Mol]:
-        smi_target = Chem.MolToSmiles(target)
-        analogues = [Chem.MolToSmiles(x) for x in analogues]
-        unique_smiles = set(analogues)
-        unique_smiles.discard(smi_target)
-        return [Chem.MolFromSmiles(smi) for smi in unique_smiles]
+        seen = {Chem.MolToSmiles(target)}
+        unique = []
+        for analogue in analogues:
+            if any(atom.GetAtomicNum() == 0 for atom in analogue.GetAtoms()):
+                raise RuntimeError("Generated analogue contains a dummy atom")
+            smiles = Chem.MolToSmiles(analogue)
+            if smiles in seen:
+                continue
+            seen.add(smiles)
+            unique.append(analogue)
+        return unique
 
     @classmethod
-    def _prep_sidechain(cls, smi):
+    def _validate_substituent(cls, substituent: str) -> tuple[Mol, int | None]:
+        if not isinstance(substituent, str) or not substituent:
+            raise ValueError(f"Invalid substituent: {substituent!r}")
+
+        fragment = Chem.MolFromSmiles(substituent)
+        if fragment is None or fragment.GetNumAtoms() == 0:
+            raise ValueError(f"Invalid substituent: {substituent!r}")
+
+        dummy_atoms = [atom for atom in fragment.GetAtoms() if atom.GetAtomicNum() == 0]
+        if not dummy_atoms:
+            if fragment.GetNumAtoms() != 1:
+                raise ValueError(
+                    f"Substituent {substituent!r} must contain exactly one atom "
+                    "or one dummy attachment atom"
+                )
+            return fragment, None
+
+        if len(dummy_atoms) != 1 or dummy_atoms[0].GetDegree() != 1:
+            raise ValueError(
+                f"Substituent {substituent!r} must contain exactly one atom "
+                "or one dummy attachment atom"
+            )
+        return fragment, dummy_atoms[0].GetIdx()
+
+    @classmethod
+    def _prep_sidechain(cls, smi: str) -> Mol:
         """Prepare a fragment SMILES as an RDKit sidechain ready for bonding.
 
         Removes the ``[*]`` dummy attachment atom and marks its neighbor with
         atom-map number 1 so it can be found by :meth:`_attach_substituent`.
         """
-        mol = Chem.MolFromSmiles(smi)
+        mol, dummy_idx = cls._validate_substituent(smi)
+        if dummy_idx is None:
+            raise ValueError(f"Substituent {smi!r} has no dummy attachment atom")
+
         rw_mol = Chem.RWMol(mol)
-        remove_idx = -1
-        for atm in rw_mol.GetAtoms():
-            if atm.GetAtomicNum() == 0:
-                remove_idx = atm.GetIdx()
-                for nbr in atm.GetNeighbors():
-                    nbr.SetAtomMapNum(1)
-        rw_mol.RemoveAtom(remove_idx)
+        dummy_atom = rw_mol.GetAtomWithIdx(dummy_idx)
+        dummy_atom.GetNeighbors()[0].SetAtomMapNum(1)
+        rw_mol.RemoveAtom(dummy_idx)
         Chem.SanitizeMol(rw_mol)
         return rw_mol
