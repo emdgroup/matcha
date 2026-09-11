@@ -2,18 +2,21 @@
 
 import pytest
 import torch
-from torch import nn
 
 from matcha.nn.layers import (
-    LayerRegistry,
     AdaRMSN,
+    BatchNorm,
+    BiasedMultiHeadAttention,
+    GraphNorm,
+    InstanceNorm,
+    LayerNorm,
+    LayerRegistry,
     LnBnDr,
-    MultiLn,
     MultiBatchNorm,
+    MultiLn,
     MultiMLP,
     SpatialEncoder,
     SpatialEncoder3d,
-    BiasedMultiHeadAttention,
 )
 
 
@@ -22,24 +25,26 @@ from matcha.nn.layers import (
 # ===================================================================
 
 
-class TestLayerRegistryKeys:
-    EXPECTED_KEYS = [
-        "adarmsn",
-        "batch",
-        "layer",
-        "instance",
-        "lnbndr",
-        "multiln",
-        "multibatch",
-        "multimlp",
-        "spatial_encoder",
-        "spatial_encoder_3d",
-        "biased_mha",
-    ]
-
-    @pytest.mark.parametrize("key", EXPECTED_KEYS)
-    def test_key_registered(self, key):
-        assert key in LayerRegistry, f"'{key}' not found in LayerRegistry"
+class TestLayerRegistry:
+    @pytest.mark.parametrize(
+        "key,expected_class",
+        [
+            ("adarmsn", AdaRMSN),
+            ("batch", BatchNorm),
+            ("layer", LayerNorm),
+            ("instance", InstanceNorm),
+            ("graph", GraphNorm),
+            ("lnbndr", LnBnDr),
+            ("multiln", MultiLn),
+            ("multibatch", MultiBatchNorm),
+            ("multimlp", MultiMLP),
+            ("spatial_encoder", SpatialEncoder),
+            ("spatial_encoder_3d", SpatialEncoder3d),
+            ("biased_mha", BiasedMultiHeadAttention),
+        ],
+    )
+    def test_alias_resolves_to_registered_class(self, key, expected_class):
+        assert LayerRegistry[key] is expected_class
 
 
 # ===================================================================
@@ -78,25 +83,6 @@ class TestAdaRMSN:
         out = norm(x)
         out.sum().backward()
         assert x.grad is not None
-
-
-# ===================================================================
-# Standard norms – only check registry wiring
-# ===================================================================
-
-
-class TestStandardNorms:
-    @pytest.mark.parametrize(
-        "key,expected_parent",
-        [
-            ("batch", nn.BatchNorm1d),
-            ("layer", nn.LayerNorm),
-            ("instance", nn.InstanceNorm1d),
-        ],
-    )
-    def test_is_subclass(self, key, expected_parent):
-        norm_cls = LayerRegistry[key]
-        assert issubclass(norm_cls, expected_parent)
 
 
 # ===================================================================

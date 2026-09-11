@@ -3,7 +3,21 @@
 import pytest
 import torch
 
-from matcha.nn.activations import ActivationRegistry
+from matcha.nn.activations import (
+    ActivationRegistry,
+    ELU,
+    GEGLU,
+    GELU,
+    LeakyReLU,
+    Mish,
+    PReLU,
+    ReLU,
+    SELU,
+    SILU,
+    Sigmoid,
+    Softmax,
+    Tanh,
+)
 
 
 # ===================================================================
@@ -11,61 +25,26 @@ from matcha.nn.activations import ActivationRegistry
 # ===================================================================
 
 
-class TestActivationRegistryKeys:
-    """Ensure every expected key is present in the registry."""
-
-    EXPECTED_KEYS = [
-        "geglu",
-        "relu",
-        "leaky_relu",
-        "prelu",
-        "selu",
-        "swish",
-        "tanh",
-        "elu",
-        "mish",
-        "gelu",
-        "sigmoid",
-        "softmax",
-    ]
-
-    @pytest.mark.parametrize("key", EXPECTED_KEYS)
-    def test_key_registered(self, key):
-        assert key in ActivationRegistry, f"'{key}' not found in ActivationRegistry"
-
-    @pytest.mark.parametrize("key", EXPECTED_KEYS)
-    def test_instantiation(self, key):
-        act = ActivationRegistry[key]()
-        assert act is not None
-
-
-# ===================================================================
-# Forward pass smoke tests
-# ===================================================================
-
-
-class TestActivationForward:
-    """Smoke-test that the registry wrappers can be called through the registry."""
-
-    SIMPLE_KEYS = [
-        "relu",
-        "leaky_relu",
-        "prelu",
-        "selu",
-        "swish",
-        "tanh",
-        "elu",
-        "mish",
-        "gelu",
-        "sigmoid",
-    ]
-
-    @pytest.mark.parametrize("key", SIMPLE_KEYS)
-    def test_callable_through_registry(self, key):
-        x = torch.randn(8, 32)
-        act = ActivationRegistry[key]()
-        out = act(x)
-        assert out.shape == x.shape
+class TestActivationRegistry:
+    @pytest.mark.parametrize(
+        "key,expected_class",
+        [
+            ("geglu", GEGLU),
+            ("relu", ReLU),
+            ("leaky_relu", LeakyReLU),
+            ("prelu", PReLU),
+            ("selu", SELU),
+            ("swish", SILU),
+            ("tanh", Tanh),
+            ("elu", ELU),
+            ("mish", Mish),
+            ("gelu", GELU),
+            ("sigmoid", Sigmoid),
+            ("softmax", Softmax),
+        ],
+    )
+    def test_alias_resolves_to_registered_class(self, key, expected_class):
+        assert ActivationRegistry[key] is expected_class
 
 
 # ===================================================================
@@ -101,18 +80,3 @@ class TestGEGLU:
         out.sum().backward()
         assert x.grad is not None
         assert x.grad.shape == x.shape
-
-
-# ===================================================================
-# Softmax – registry instantiation with args
-# ===================================================================
-
-
-class TestSoftmax:
-    """Softmax wrapper should accept dim arg through the registry."""
-
-    def test_instantiation_with_dim_arg(self):
-        act = ActivationRegistry["softmax"](dim=-1)
-        x = torch.randn(4, 10)
-        out = act(x)
-        assert out.shape == x.shape

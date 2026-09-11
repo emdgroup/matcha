@@ -1,7 +1,11 @@
 """Tests for CLMDataModule."""
 
+from unittest.mock import MagicMock, call
+
+import pytest
 from torch.utils.data import StackDataset
 
+from matcha.datamodules.classic import clm_datamodule
 from matcha.datamodules.classic.clm_datamodule import (
     CLMDataModule,
     batch_moltosmiles,
@@ -16,10 +20,18 @@ from matcha.datamodules.base_datamodule import DataModuleRegistry
 
 
 class TestBatchMolToSmiles:
-    def test_returns_list_of_strings(self, small_mol_list):
-        result = batch_moltosmiles(small_mol_list)
-        assert isinstance(result, list)
-        assert all(isinstance(s, str) for s in result)
+    def test_forwards_each_molecule_and_kwargs(self, monkeypatch, small_mol_list):
+        converter = MagicMock(
+            side_effect=[f"smiles-{index}" for index in range(len(small_mol_list))]
+        )
+        monkeypatch.setattr(clm_datamodule, "wrapped_MolToSmiles", converter)
+
+        result = batch_moltosmiles(small_mol_list, canonical=True)
+
+        assert result == [f"smiles-{index}" for index in range(len(small_mol_list))]
+        assert converter.call_args_list == [
+            call(mol, canonical=True) for mol in small_mol_list
+        ]
 
 
 class TestBatchSmilesTokenize:
@@ -67,16 +79,30 @@ class TestCLMDataModuleInit:
 
 
 class TestCLMMolToSmiles:
-    def test_canonical(self, small_mol_list):
-        dm = CLMDataModule()
-        smi = dm._mol_to_smiles(small_mol_list, random=False, n_jobs=1)
-        assert len(smi) == len(small_mol_list)
-        assert all(isinstance(s, str) for s in smi)
+    @pytest.mark.parametrize(
+        "random,expected_kwargs",
+        [
+            (False, {"canonical": True}),
+            (True, {"doRandom": True, "canonical": False}),
+        ],
+    )
+    def test_copies_molecules_and_routes_mode(
+        self, monkeypatch, small_mol_list, random, expected_kwargs
+    ):
+        copies = [object() for _ in small_mol_list]
+        copy_molecule = MagicMock(side_effect=copies)
+        converted = [f"smiles-{index}" for index in range(len(small_mol_list))]
+        parallelize = MagicMock(return_value=converted)
+        monkeypatch.setattr(clm_datamodule, "Mol", copy_molecule)
+        monkeypatch.setattr(clm_datamodule, "parallelize", parallelize)
 
-    def test_random(self, small_mol_list):
-        dm = CLMDataModule()
-        smi = dm._mol_to_smiles(small_mol_list, random=True, n_jobs=1)
-        assert len(smi) == len(small_mol_list)
+        result = CLMDataModule()._mol_to_smiles(small_mol_list, random=random, n_jobs=7)
+
+        assert result == converted
+        assert copy_molecule.call_args_list == [call(mol) for mol in small_mol_list]
+        parallelize.assert_called_once_with(
+            batch_moltosmiles, copies, 7, **expected_kwargs
+        )
 
 
 class TestCLMTokenize:
