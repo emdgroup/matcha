@@ -29,23 +29,23 @@ from matcha.torch.models.pretraining.base_pretraining_model import BasePretraini
 
 
 class TestSchedulerRegistry:
-    @pytest.mark.parametrize(
-        "key,expected_class",
-        [
-            ("chemprop", ChempropSchedulerConfig),
-            ("one_cycle", OneCycleLR),
-            ("cosine_annealing", CosineAnnealing),
-            ("cosine_annealing_cyclic", CosineAnnealingCyclic),
-            ("step", Step),
-            ("warmup_cosine_annealing", WarmupCosineAnnealingLR),
-            ("warmup_linear_decay", WarmupLinearDecayLR),
-            ("linear", Linear),
-            ("constant", Constant),
-            ("sequential", Sequential),
-        ],
-    )
-    def test_alias_resolves_to_registered_class(self, key, expected_class):
-        assert SchedulerRegistry[key] is expected_class
+    def test_required_aliases_resolve_to_expected_classes(self):
+        expected = {
+            "chemprop": ChempropSchedulerConfig,
+            "one_cycle": OneCycleLR,
+            "cosine_annealing": CosineAnnealing,
+            "cosine_annealing_cyclic": CosineAnnealingCyclic,
+            "step": Step,
+            "warmup_cosine_annealing": WarmupCosineAnnealingLR,
+            "warmup_linear_decay": WarmupLinearDecayLR,
+            "linear": Linear,
+            "constant": Constant,
+            "sequential": Sequential,
+        }
+        for key, cls in expected.items():
+            assert SchedulerRegistry[key] is cls, (
+                f"SchedulerRegistry['{key}'] should resolve to {cls.__name__}"
+            )
 
 
 # ===================================================================

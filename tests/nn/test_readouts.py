@@ -29,38 +29,38 @@ from matcha.nn.readouts import (  # noqa: E402
 
 
 class TestReadoutRegistry:
-    @pytest.mark.parametrize(
-        "key,class_name",
-        [
-            ("sum", "SumPooling"),
-            ("mean", "MeanPooling"),
-            ("max", "MaxPooling"),
-            ("min", "MinPooling"),
-            ("mul", "MulPooling"),
-            ("var", "VarPooling"),
-            ("std", "StdPooling"),
-            ("median", "MedianPooling"),
-            ("vpa", "VariancePreservingPooling"),
-            ("quantile", "QuantilePooling"),
-            ("softmax", "SoftmaxPooling"),
-            ("powermean", "PowerMeanPooling"),
-            ("lstm", "LSTMPooling"),
-            ("gru", "GRUPooling"),
-            ("set2set", "Set2SetPooling"),
-            ("sort", "SortPooling"),
-            ("attentive", "AttentivePooling"),
-            ("graphmultiset", "GraphMultisetTransformerPooling"),
-            ("mlp", "MLPPooling"),
-            ("deepsets", "DeepSetsPooling"),
-            ("settransformer", "SetTransformerPooling"),
-            ("lcm", "LCMPooling"),
-            ("multi", "MultiPooling"),
-            ("degreescaler", "DegreeScalerPooling"),
-            ("virtualnode", "VirtualNodePooling"),
-        ],
-    )
-    def test_alias_resolves_to_registered_class(self, key, class_name):
-        assert ReadoutRegistry[key] is getattr(readout_module, class_name)
+    def test_required_aliases_resolve_to_expected_classes(self):
+        expected = {
+            "sum": "SumPooling",
+            "mean": "MeanPooling",
+            "max": "MaxPooling",
+            "min": "MinPooling",
+            "mul": "MulPooling",
+            "var": "VarPooling",
+            "std": "StdPooling",
+            "median": "MedianPooling",
+            "vpa": "VariancePreservingPooling",
+            "quantile": "QuantilePooling",
+            "softmax": "SoftmaxPooling",
+            "powermean": "PowerMeanPooling",
+            "lstm": "LSTMPooling",
+            "gru": "GRUPooling",
+            "set2set": "Set2SetPooling",
+            "sort": "SortPooling",
+            "attentive": "AttentivePooling",
+            "graphmultiset": "GraphMultisetTransformerPooling",
+            "mlp": "MLPPooling",
+            "deepsets": "DeepSetsPooling",
+            "settransformer": "SetTransformerPooling",
+            "lcm": "LCMPooling",
+            "multi": "MultiPooling",
+            "degreescaler": "DegreeScalerPooling",
+            "virtualnode": "VirtualNodePooling",
+        }
+        for key, class_name in expected.items():
+            assert ReadoutRegistry[key] is getattr(readout_module, class_name), (
+                f"ReadoutRegistry['{key}'] should resolve to {class_name}"
+            )
 
 
 # ===================================================================

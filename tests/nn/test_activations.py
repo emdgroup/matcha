@@ -1,6 +1,5 @@
 """Tests for matcha.nn.activations – ActivationRegistry and activation modules."""
 
-import pytest
 import torch
 
 from matcha.nn.activations import (
@@ -26,25 +25,25 @@ from matcha.nn.activations import (
 
 
 class TestActivationRegistry:
-    @pytest.mark.parametrize(
-        "key,expected_class",
-        [
-            ("geglu", GEGLU),
-            ("relu", ReLU),
-            ("leaky_relu", LeakyReLU),
-            ("prelu", PReLU),
-            ("selu", SELU),
-            ("swish", SILU),
-            ("tanh", Tanh),
-            ("elu", ELU),
-            ("mish", Mish),
-            ("gelu", GELU),
-            ("sigmoid", Sigmoid),
-            ("softmax", Softmax),
-        ],
-    )
-    def test_alias_resolves_to_registered_class(self, key, expected_class):
-        assert ActivationRegistry[key] is expected_class
+    def test_required_aliases_resolve_to_expected_classes(self):
+        expected = {
+            "geglu": GEGLU,
+            "relu": ReLU,
+            "leaky_relu": LeakyReLU,
+            "prelu": PReLU,
+            "selu": SELU,
+            "swish": SILU,
+            "tanh": Tanh,
+            "elu": ELU,
+            "mish": Mish,
+            "gelu": GELU,
+            "sigmoid": Sigmoid,
+            "softmax": Softmax,
+        }
+        for key, cls in expected.items():
+            assert ActivationRegistry[key] is cls, (
+                f"ActivationRegistry['{key}'] should resolve to {cls.__name__}"
+            )
 
 
 # ===================================================================

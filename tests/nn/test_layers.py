@@ -26,25 +26,25 @@ from matcha.nn.layers import (
 
 
 class TestLayerRegistry:
-    @pytest.mark.parametrize(
-        "key,expected_class",
-        [
-            ("adarmsn", AdaRMSN),
-            ("batch", BatchNorm),
-            ("layer", LayerNorm),
-            ("instance", InstanceNorm),
-            ("graph", GraphNorm),
-            ("lnbndr", LnBnDr),
-            ("multiln", MultiLn),
-            ("multibatch", MultiBatchNorm),
-            ("multimlp", MultiMLP),
-            ("spatial_encoder", SpatialEncoder),
-            ("spatial_encoder_3d", SpatialEncoder3d),
-            ("biased_mha", BiasedMultiHeadAttention),
-        ],
-    )
-    def test_alias_resolves_to_registered_class(self, key, expected_class):
-        assert LayerRegistry[key] is expected_class
+    def test_required_aliases_resolve_to_expected_classes(self):
+        expected = {
+            "adarmsn": AdaRMSN,
+            "batch": BatchNorm,
+            "layer": LayerNorm,
+            "instance": InstanceNorm,
+            "graph": GraphNorm,
+            "lnbndr": LnBnDr,
+            "multiln": MultiLn,
+            "multibatch": MultiBatchNorm,
+            "multimlp": MultiMLP,
+            "spatial_encoder": SpatialEncoder,
+            "spatial_encoder_3d": SpatialEncoder3d,
+            "biased_mha": BiasedMultiHeadAttention,
+        }
+        for key, cls in expected.items():
+            assert LayerRegistry[key] is cls, (
+                f"LayerRegistry['{key}'] should resolve to {cls.__name__}"
+            )
 
 
 # ===================================================================

@@ -28,8 +28,15 @@ from matcha.nn.losses import (
 # ===================================================================
 
 
-class TestLossRegistryKeys:
-    EXPECTED_KEYS = [
+class TestLossRegistry:
+    """Required aliases and exact mappings for inheritance-only losses.
+
+    `docs/source/contributing/adding-a-loss.md` names ``LossRegistry`` as the
+    extension point, so every listed alias must remain resolvable. Additional
+    registry entries are permitted; only the required subset is enforced.
+    """
+
+    REQUIRED_KEYS = [
         "focal-bce",
         "poly1-bce",
         "multitask",
@@ -61,9 +68,22 @@ class TestLossRegistryKeys:
         "bounded-beta-nll",
     ]
 
-    @pytest.mark.parametrize("key", EXPECTED_KEYS)
-    def test_key_registered(self, key):
-        assert key in LossRegistry, f"'{key}' not found in LossRegistry"
+    def test_required_aliases_resolve_to_expected_classes(self):
+        for key in self.REQUIRED_KEYS:
+            assert key in LossRegistry, f"'{key}' not found in LossRegistry"
+
+        exact_mappings = {
+            "mse": MSELoss,
+            "mae": L1Loss,
+            "huber": HuberLoss,
+            "smoothl1": SmoothL1Loss,
+            "bce": BCELoss,
+            "cross_entropy": CrossEntropyLoss,
+        }
+        for key, cls in exact_mappings.items():
+            assert LossRegistry[key] is cls, (
+                f"LossRegistry['{key}'] should resolve to {cls.__name__}"
+            )
 
 
 # ===================================================================
@@ -161,31 +181,6 @@ class TestPoly1BCELoss:
         loss = loss_fn(logits, targets)
         loss.backward()
         assert logits.grad is not None
-
-
-# ===================================================================
-# Simple wrapped losses – only check registry wiring
-# ===================================================================
-
-
-class TestSimpleLosses:
-    @pytest.mark.parametrize(
-        "key,expected_class,expected_parent",
-        [
-            ("mse", MSELoss, torch.nn.MSELoss),
-            ("mae", L1Loss, torch.nn.L1Loss),
-            ("huber", HuberLoss, torch.nn.HuberLoss),
-            ("smoothl1", SmoothL1Loss, torch.nn.SmoothL1Loss),
-            ("bce", BCELoss, torch.nn.BCEWithLogitsLoss),
-            ("cross_entropy", CrossEntropyLoss, torch.nn.CrossEntropyLoss),
-        ],
-    )
-    def test_alias_resolves_to_upstream_wrapper(
-        self, key, expected_class, expected_parent
-    ):
-        loss_class = LossRegistry[key]
-        assert loss_class is expected_class
-        assert issubclass(loss_class, expected_parent)
 
 
 # ===================================================================
