@@ -647,9 +647,7 @@ class TestGenerateAnalogues:
         assert "disable a strategy" in message
         assert "narrow the vocabulary" in message
 
-    def test_aggregate_propagates_one_absolute_deadline(
-        self, benzene_mol, monkeypatch
-    ):
+    def test_aggregate_propagates_one_absolute_deadline(self, benzene_mol, monkeypatch):
         calls = []
 
         def record_pas(cls, mol_in, **kwargs):

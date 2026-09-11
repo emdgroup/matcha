@@ -10,6 +10,7 @@ small (3) and enable all analogue generators so there is enough data.
 
 from unittest.mock import Mock
 
+import numpy as np
 import pytest
 from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
@@ -44,6 +45,11 @@ def fitted_model(mol_list: list[Mol], regression_y, model_kwargs):
 # Aromatic molecule with substituent — sufficient for the analogue generators
 # to produce at least a handful of variants.
 _EXPLAIN_MOL = Chem.MolFromSmiles("c1ccc(O)cc1")
+_PAS_PARAMS = {
+    "substituents": ["F", "[*]O"],
+    "anchors": ["[cH]"],
+    "num_sub": 1,
+}
 
 
 class TestExplainabilityManagerInit:
@@ -54,7 +60,6 @@ class TestExplainabilityManagerInit:
         assert mgr.explainer is None
 
 
-@pytest.mark.filterwarnings("ignore:Degrees of freedom <= 0 for slice.:RuntimeWarning")
 class TestExplainabilityManagerExplain:
     """Tests for explain_prediction through the sklearn API."""
 
@@ -75,10 +80,47 @@ class TestExplainabilityManagerExplain:
             }
         )
         assert mgr.explainer is not None
+        assert mgr.explainer.generate_analogues(Chem.MolFromSmiles("CCO")) == []
+
+    def test_reverse_default_reaches_fitted_estimator(self, fitted_model):
+        fitted_model._explainability_manager.create_explainer(
+            {
+                "positional_analogue_scanning_params": _PAS_PARAMS,
+                "nitrogen_walk_params": None,
+            }
+        )
+
+        explanation = fitted_model.explain_prediction(
+            input=_EXPLAIN_MOL,
+            task_idx=0,
+            lime_bootstrap_num=3,
+        )
+
+        assert "c1ccccc1" in explanation.analogues
+
+    def test_caller_can_disable_reverse_for_fitted_estimator(self, fitted_model):
+        fitted_model._explainability_manager.create_explainer(
+            {
+                "positional_analogue_scanning_params": _PAS_PARAMS,
+                "nitrogen_walk_params": None,
+                "reverse_positional_analogue_scanning": False,
+            }
+        )
+
+        explanation = fitted_model.explain_prediction(
+            input=_EXPLAIN_MOL,
+            task_idx=0,
+            lime_bootstrap_num=3,
+        )
+
+        assert "c1ccccc1" not in explanation.analogues
 
     def test_implicit_explainer_reuses_reverse_default(self, monkeypatch):
         implicit = Mock()
-        implicit.generate_analogues.return_value = []
+        implicit.generate_analogues.return_value = [
+            Chem.MolFromSmiles("CC"),
+            Chem.MolFromSmiles("CCC"),
+        ]
         constructor = Mock(return_value=implicit)
         monkeypatch.setattr(manager_module, "MatchaExplainer", constructor)
         mgr = ExplainabilityManager()
@@ -88,7 +130,9 @@ class TestExplainabilityManagerExplain:
         result = mgr.explain(Mock(), _EXPLAIN_MOL)
 
         assert result is expected
-        assert "reverse_positional_analogue_scanning" not in constructor.call_args.kwargs
+        assert (
+            "reverse_positional_analogue_scanning" not in constructor.call_args.kwargs
+        )
 
     def test_caller_configured_reverse_setting_is_honored(self, monkeypatch):
         mgr = ExplainabilityManager()
@@ -101,7 +145,16 @@ class TestExplainabilityManagerExplain:
         )
         configured = mgr.explainer
         expected = object()
-        monkeypatch.setattr(configured, "generate_analogues", Mock(return_value=[]))
+        monkeypatch.setattr(
+            configured,
+            "generate_analogues",
+            Mock(
+                return_value=[
+                    Chem.MolFromSmiles("CC"),
+                    Chem.MolFromSmiles("CCC"),
+                ]
+            ),
+        )
         monkeypatch.setattr(mgr, "_get_explanations", Mock(return_value=expected))
 
         result = mgr.explain(Mock(), _EXPLAIN_MOL)
@@ -109,3 +162,29 @@ class TestExplainabilityManagerExplain:
         assert result is expected
         assert configured._reverse_positional_analogue_scanning is False
         configured.generate_analogues.assert_called_once_with(_EXPLAIN_MOL)
+
+    @pytest.mark.parametrize("use_std", [False, True])
+    @pytest.mark.parametrize("analogue_smiles", [[], ["CC"]])
+    def test_rejects_insufficient_neighborhood_before_model_work(
+        self, use_std, analogue_smiles
+    ):
+        explainer = Mock()
+        explainer.generate_analogues.return_value = [
+            Chem.MolFromSmiles(smiles) for smiles in analogue_smiles
+        ]
+        model = Mock()
+        molecule_count = len(analogue_smiles) + 1
+        model._default_predict.return_value = np.zeros((molecule_count, 1))
+        model.compute_uncertainty.return_value = np.zeros((molecule_count, 1))
+        mgr = ExplainabilityManager()
+        mgr._explainer = explainer
+
+        with pytest.raises(
+            ValueError,
+            match=rf"requires at least 3 total molecules; received {molecule_count}",
+        ):
+            mgr.explain(model, _EXPLAIN_MOL, use_std=use_std)
+
+        model._default_predict.assert_not_called()
+        model.compute_uncertainty.assert_not_called()
+        explainer.explain.assert_not_called()

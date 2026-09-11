@@ -18,5 +18,8 @@ explainability/
 ## Notes
 
 - LIME builds a surrogate `sklearn.linear_model.Ridge` over fragment presence/absence, using `../datamodules/classic/rdkit_engine.Engine` for descriptors.
-- The analogue generator runs positional analogue scanning and nitrogen walk on both the input molecule and its Murcko scaffold, then a second-pass PAS/nitrogen walk over the first-pass PAS results. `AnalogueGenerator.decompose` provides BRICS-fragment enumeration as a separate helper.
-- Explanations are computed on demand (no serialized state); the manager just wires the estimator's `predict` into the explainer.
+- The analogue generator runs forward positional analogue scanning and nitrogen walk on both the input molecule and its Murcko scaffold, then a second pass over the forward PAS results. Reverse PAS is enabled by default for standalone and sklearn explanations, operates only on the original query, and never recurses or runs on the scaffold. Pass `reverse_positional_analogue_scanning=False` to opt out; reverse silently contributes no candidates when the forward PAS vocabulary is absent.
+- Candidate deduplication preserves first-discovery order and is invariant to Python hash randomization.
+- One aggregate generation deadline covers every strategy. Expiry raises `TimeoutError` without returning partial results.
+- Explanations are computed on demand (no serialized state); the manager wires the estimator's prediction methods into the explainer and rejects neighborhoods with fewer than three total molecules before prediction or LIME work.
+- `AnalogueGenerator.decompose` provides BRICS-fragment enumeration as a separate helper.

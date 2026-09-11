@@ -138,13 +138,9 @@ class AnalogueGenerator:
                 _stage=stage,
             )
 
-        cls._check_deadline(
-            overall_deadline, generation_timeout, "scaffold generation"
-        )
+        cls._check_deadline(overall_deadline, generation_timeout, "scaffold generation")
         scaffold = GetScaffoldForMol(mol)
-        cls._check_deadline(
-            overall_deadline, generation_timeout, "scaffold generation"
-        )
+        cls._check_deadline(overall_deadline, generation_timeout, "scaffold generation")
 
         pas_scaffold = []
         if positional_analogue_scanning_params is not None:

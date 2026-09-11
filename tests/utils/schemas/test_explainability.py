@@ -55,6 +55,4 @@ def test_generation_timeout_accepts_zero():
 @pytest.mark.parametrize("generation_timeout", [-1, float("inf"), float("nan")])
 def test_generation_timeout_rejects_invalid_values(generation_timeout):
     with pytest.raises(ValidationError):
-        ExplainerInputModel(
-            **_valid_params(), generation_timeout=generation_timeout
-        )
+        ExplainerInputModel(**_valid_params(), generation_timeout=generation_timeout)
