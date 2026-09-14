@@ -1,3 +1,16 @@
+## v0.0.26 (2026-09-14)
+
+### Feat
+
+- **explainability**: add reverse PAS (#107 stage 2)
+
+### Fix
+
+- **explainability**: guard insufficient neighborhoods (#107 stage 5)
+- **explainability**: correct LIME fitting (#107 stage 4)
+- **explainability**: enforce generation deadline (#107 stage 3)
+- **explainability**: harden analogue generation (#107 stage 1)
+
 ## v0.0.25 (2026-09-10)
 
 ### Feat
