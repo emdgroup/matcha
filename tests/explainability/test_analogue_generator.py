@@ -953,9 +953,7 @@ class TestBoundedSampling:
             calls.append(kwargs.get("stage"))
             return original.__func__(cls, *args, **kwargs)
 
-        monkeypatch.setattr(
-            AnalogueGenerator, "_sample_branch", classmethod(spy)
-        )
+        monkeypatch.setattr(AnalogueGenerator, "_sample_branch", classmethod(spy))
 
         result = AnalogueGenerator.generate_analogues(
             benzene_mol,
@@ -990,9 +988,7 @@ class TestBoundedSampling:
             attempts += 1
             return None
 
-        monkeypatch.setattr(
-            AnalogueGenerator, "_attempt_pas", classmethod(always_fail)
-        )
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", classmethod(always_fail))
         monkeypatch.setattr(
             AnalogueGenerator,
             "_attempt_reverse_pas",
@@ -1053,16 +1049,14 @@ class TestBoundedSampling:
             # A fresh unique canonical SMILES per call.
             return Chem.MolFromSmiles(f"C{'C' * counter}O")
 
-        monkeypatch.setattr(
-            AnalogueGenerator, "_attempt_pas", classmethod(unique_pas)
-        )
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", classmethod(unique_pas))
         monkeypatch.setattr(
             AnalogueGenerator,
             "_attempt_nitrogen_walk",
             classmethod(lambda cls, parent, *args, **kwargs: None),
         )
 
-        result = AnalogueGenerator.generate_analogues(
+        AnalogueGenerator.generate_analogues(
             benzene_mol,
             positional_analogue_scanning_params=self._PAS_PARAMS,
             nitrogen_walk_params=None,
@@ -1108,8 +1102,6 @@ class TestBoundedSampling:
         # samples: the two branch RNGs are seeded independently before either
         # runs.
         scaffold_captured = []
-
-        original_scaffold = AnalogueGenerator._attempt_pas
 
         def record_scaffold(cls, parent, pas_params, rng, **kwargs):
             # Only capture scaffold-branch invocations via stage marker.
@@ -1160,9 +1152,7 @@ class TestBoundedSampling:
         )
         assert scaffold_captured == first_scaffold
 
-    def test_final_source_ordering_places_sampled_after_first_pass(
-        self, benzene_mol
-    ):
+    def test_final_source_ordering_places_sampled_after_first_pass(self, benzene_mol):
         # First-pass sources come first; sampled candidates trail them.
         result = AnalogueGenerator.generate_analogues(
             benzene_mol,
@@ -1206,8 +1196,6 @@ class TestBoundedSampling:
 
         captured = {}
 
-        original_sample = AnalogueGenerator._sample_branch
-
         def spy(cls, *, mol_in, parent_pool, stage, **kwargs):
             captured[stage] = list(parent_pool)
             return []
@@ -1220,12 +1208,8 @@ class TestBoundedSampling:
             "reverse_positional_analogue_scanning",
             classmethod(fake_reverse),
         )
-        monkeypatch.setattr(
-            AnalogueGenerator, "nitrogen_walk", classmethod(fake_nw)
-        )
-        monkeypatch.setattr(
-            AnalogueGenerator, "_sample_branch", classmethod(spy)
-        )
+        monkeypatch.setattr(AnalogueGenerator, "nitrogen_walk", classmethod(fake_nw))
+        monkeypatch.setattr(AnalogueGenerator, "_sample_branch", classmethod(spy))
 
         AnalogueGenerator.generate_analogues(
             benzene_mol,
@@ -1301,9 +1285,7 @@ class TestBoundedSampling:
             "positional_analogue_scanning",
             classmethod(record_pas),
         )
-        monkeypatch.setattr(
-            AnalogueGenerator, "nitrogen_walk", classmethod(record_nw)
-        )
+        monkeypatch.setattr(AnalogueGenerator, "nitrogen_walk", classmethod(record_nw))
         monkeypatch.setattr(
             AnalogueGenerator,
             "reverse_positional_analogue_scanning",
@@ -1333,9 +1315,7 @@ class TestBoundedSampling:
 
             return classmethod(helper)
 
-        monkeypatch.setattr(
-            AnalogueGenerator, "_attempt_pas", make_counter("pas")
-        )
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", make_counter("pas"))
         monkeypatch.setattr(
             AnalogueGenerator, "_attempt_reverse_pas", make_counter("reverse_pas")
         )
@@ -1449,9 +1429,7 @@ class TestBoundedSampling:
         def blow_up(cls, parent, *args, **kwargs):
             raise RuntimeError("boom")
 
-        monkeypatch.setattr(
-            AnalogueGenerator, "_attempt_pas", classmethod(blow_up)
-        )
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", classmethod(blow_up))
         monkeypatch.setattr(
             AnalogueGenerator,
             "_attempt_nitrogen_walk",
@@ -1505,4 +1483,3 @@ class TestBoundedSampling:
         )
 
         assert len(reverse_calls) > 0
-
