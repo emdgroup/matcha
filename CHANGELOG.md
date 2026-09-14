@@ -1,3 +1,10 @@
+## v0.0.27 (2026-09-14)
+
+### Refactor
+
+- **explainability**: migrate explainer/schema to num_sample+random_seed (#111 stage 2)
+- **explainability**: bounded deterministic analogue sampling (#111 stage 1)
+
 ## v0.0.26 (2026-09-14)
 
 ### Feat
