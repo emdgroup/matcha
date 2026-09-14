@@ -56,3 +56,39 @@ def test_generation_timeout_accepts_zero():
 def test_generation_timeout_rejects_invalid_values(generation_timeout):
     with pytest.raises(ValidationError):
         ExplainerInputModel(**_valid_params(), generation_timeout=generation_timeout)
+
+
+def test_num_sample_defaults_to_one_hundred():
+    model = ExplainerInputModel(**_valid_params())
+
+    assert model.num_sample == 100
+
+
+def test_num_sample_accepts_zero():
+    model = ExplainerInputModel(**_valid_params(), num_sample=0)
+
+    assert model.num_sample == 0
+
+
+@pytest.mark.parametrize("num_sample", [-1, 1.5, "100", True, False, None])
+def test_num_sample_rejects_invalid_values(num_sample):
+    with pytest.raises(ValidationError):
+        ExplainerInputModel(**_valid_params(), num_sample=num_sample)
+
+
+def test_random_seed_defaults_to_zero():
+    model = ExplainerInputModel(**_valid_params())
+
+    assert model.random_seed == 0
+
+
+def test_random_seed_accepts_negative_integer():
+    model = ExplainerInputModel(**_valid_params(), random_seed=-7)
+
+    assert model.random_seed == -7
+
+
+@pytest.mark.parametrize("random_seed", [1.5, "0", True, False, None])
+def test_random_seed_rejects_non_int(random_seed):
+    with pytest.raises(ValidationError):
+        ExplainerInputModel(**_valid_params(), random_seed=random_seed)

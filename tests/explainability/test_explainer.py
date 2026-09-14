@@ -45,19 +45,19 @@ class TestMatchaExplainerInit:
         exp = MatchaExplainer()
         assert "substituents" in exp._pos_params
         assert "anchors" in exp._pos_params
-        assert "num_sub" in exp._pos_params
+        assert "num_sub" not in exp._pos_params
 
     def test_default_nitrogen_walk_params(self):
         exp = MatchaExplainer()
-        assert exp._nitrogen_walk_params == {"num_sub": 1}
+        assert exp._nitrogen_walk_params == {}
 
     def test_custom_pos_params(self):
-        custom = {"substituents": ["F"], "anchors": ["[cH]"], "num_sub": 2}
+        custom = {"substituents": ["F"], "anchors": ["[cH]"]}
         exp = MatchaExplainer(positional_analogue_scanning_params=custom)
         assert exp._pos_params == custom
 
     def test_custom_nitrogen_walk_params(self):
-        custom = {"num_sub": 3}
+        custom = {"timeout": 5.0}
         exp = MatchaExplainer(nitrogen_walk_params=custom)
         assert exp._nitrogen_walk_params == custom
 
@@ -112,8 +112,8 @@ class TestMatchaExplainerInit:
         )
 
     def test_reverse_and_timeout_are_trailing_positional_arguments(self):
-        positional = {"substituents": ["C"], "anchors": [], "num_sub": 1}
-        nitrogen = {"num_sub": 2}
+        positional = {"substituents": ["C"], "anchors": []}
+        nitrogen = {"timeout": 3.0}
         exp = MatchaExplainer(
             positional,
             nitrogen,
@@ -137,11 +137,32 @@ class TestMatchaExplainerInit:
     def test_generation_timeout_defaults_to_sixty_seconds(self):
         assert MatchaExplainer()._generation_timeout == 60.0
 
+    def test_num_sample_defaults_to_one_hundred(self):
+        assert MatchaExplainer()._num_sample == 100
+
+    def test_num_sample_can_be_overridden(self):
+        assert MatchaExplainer(num_sample=42)._num_sample == 42
+
+    def test_random_seed_defaults_to_zero(self):
+        assert MatchaExplainer()._random_seed == 0
+
+    def test_random_seed_can_be_overridden(self):
+        assert MatchaExplainer(random_seed=-7)._random_seed == -7
+
+    @pytest.mark.parametrize("num_sample", [-1, 1.5, "100", True])
+    def test_num_sample_rejects_invalid_values(self, num_sample):
+        with pytest.raises(Exception):
+            MatchaExplainer(num_sample=num_sample)
+
+    @pytest.mark.parametrize("random_seed", [1.5, "0", True])
+    def test_random_seed_rejects_non_int(self, random_seed):
+        with pytest.raises(Exception):
+            MatchaExplainer(random_seed=random_seed)
+
     def test_default_positional_parameters_are_copied(self, monkeypatch):
         defaults = {
             "substituents": ["F"],
             "anchors": ["[cH]"],
-            "num_sub": 1,
         }
         monkeypatch.setattr(explainer_module, "_pos_params", defaults)
 
@@ -176,8 +197,27 @@ class TestMatchaExplainerGenerateAnalogues:
     def test_forwards_reverse_setting_and_generation_timeout(self, monkeypatch):
         calls = []
 
-        def generate(cls, mol, pos_params, nitrogen_params, reverse, timeout):
-            calls.append((mol, pos_params, nitrogen_params, reverse, timeout))
+        def generate(
+            cls,
+            mol,
+            pos_params,
+            nitrogen_params,
+            reverse,
+            timeout,
+            num_sample,
+            random_seed,
+        ):
+            calls.append(
+                (
+                    mol,
+                    pos_params,
+                    nitrogen_params,
+                    reverse,
+                    timeout,
+                    num_sample,
+                    random_seed,
+                )
+            )
             return []
 
         monkeypatch.setattr(
@@ -187,11 +227,24 @@ class TestMatchaExplainerGenerateAnalogues:
         )
         mol = Chem.MolFromSmiles("Cc1ccccc1")
         exp = MatchaExplainer(
-            reverse_positional_analogue_scanning=False, generation_timeout=2.5
+            reverse_positional_analogue_scanning=False,
+            generation_timeout=2.5,
+            num_sample=7,
+            random_seed=13,
         )
 
         assert exp.generate_analogues(mol) == []
-        assert calls == [(mol, exp._pos_params, exp._nitrogen_walk_params, False, 2.5)]
+        assert calls == [
+            (
+                mol,
+                exp._pos_params,
+                exp._nitrogen_walk_params,
+                False,
+                2.5,
+                7,
+                13,
+            )
+        ]
 
     def test_generation_timeout_propagates(self):
         exp = MatchaExplainer(generation_timeout=0)

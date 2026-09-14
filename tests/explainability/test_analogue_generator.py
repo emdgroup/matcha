@@ -1,6 +1,7 @@
 """Tests for matcha.explainability.analogue_generator.AnalogueGenerator."""
 
 import os
+import random
 import subprocess
 import sys
 
@@ -51,7 +52,6 @@ class TestPositionalAnalogueScanning:
             benzene_mol,
             substituents=[substituent],
             anchors=["[cH]"],
-            num_sub=1,
         )
         assert [Chem.MolToSmiles(mol) for mol in result] == [expected_smiles]
 
@@ -81,8 +81,8 @@ class TestPositionalAnalogueScanning:
             )
 
     @pytest.mark.parametrize("num_sub", [0, -1, 1.5, True])
-    def test_rejects_invalid_num_sub(self, benzene_mol, num_sub):
-        with pytest.raises(ValueError, match="num_sub must be a positive integer"):
+    def test_rejects_num_sub_kwarg(self, benzene_mol, num_sub):
+        with pytest.raises(TypeError):
             AnalogueGenerator.positional_analogue_scanning(
                 benzene_mol,
                 substituents=["F"],
@@ -147,23 +147,19 @@ class TestPositionalAnalogueScanning:
 
     def test_custom_anchors(self, single_mol):
         result = AnalogueGenerator.positional_analogue_scanning(
-            single_mol, substituents=["Cl"], anchors=["C"], num_sub=1
+            single_mol, substituents=["Cl"], anchors=["C"]
         )
         assert isinstance(result, list)
 
-    def test_num_sub_parameter(self, benzene_mol):
-        result_1 = AnalogueGenerator.positional_analogue_scanning(
-            benzene_mol, substituents=["F"], anchors=["[cH]"], num_sub=1
+    def test_generates_one_output_per_eligible_site(self, benzene_mol):
+        result = AnalogueGenerator.positional_analogue_scanning(
+            benzene_mol, substituents=["F"], anchors=["[cH]"]
         )
-        result_2 = AnalogueGenerator.positional_analogue_scanning(
-            benzene_mol, substituents=["F"], anchors=["[cH]"], num_sub=2
-        )
-        # More combinations with num_sub=2
-        assert len(result_2) >= len(result_1)
+        assert [Chem.MolToSmiles(mol) for mol in result] == ["Fc1ccccc1"]
 
     def test_fragment_substituent_generates_analogues(self, benzene_mol):
         result = AnalogueGenerator.positional_analogue_scanning(
-            benzene_mol, substituents=["[*]C(F)(F)F"], anchors=["[cH]"], num_sub=1
+            benzene_mol, substituents=["[*]C(F)(F)F"], anchors=["[cH]"]
         )
         assert len(result) > 0
         for m in result:
@@ -172,7 +168,7 @@ class TestPositionalAnalogueScanning:
 
     def test_mixed_substituents(self, benzene_mol):
         result = AnalogueGenerator.positional_analogue_scanning(
-            benzene_mol, substituents=["F", "[*]C(F)(F)F"], anchors=["[cH]"], num_sub=1
+            benzene_mol, substituents=["F", "[*]C(F)(F)F"], anchors=["[cH]"]
         )
         assert len(result) > 0
 
@@ -315,17 +311,15 @@ class TestNitrogenWalk:
             atom_nums = [a.GetAtomicNum() for a in m.GetAtoms()]
             assert 7 in atom_nums  # nitrogen
 
-    def test_num_sub_1(self, benzene_mol):
-        result = AnalogueGenerator.nitrogen_walk(benzene_mol, num_sub=1)
-        for m in result:
-            n_count = sum(1 for a in m.GetAtoms() if a.GetAtomicNum() == 7)
-            assert n_count >= 1
+    def test_generates_one_output_per_eligible_site(self, benzene_mol):
+        # Benzene has six symmetric aromatic CH sites; after dedup exactly one
+        # unique pyridine is produced.
+        result = AnalogueGenerator.nitrogen_walk(benzene_mol)
+        assert [Chem.MolToSmiles(m) for m in result] == ["c1ccncc1"]
 
-    def test_num_sub_2(self, benzene_mol):
-        result = AnalogueGenerator.nitrogen_walk(benzene_mol, num_sub=2)
-        for m in result:
-            n_count = sum(1 for a in m.GetAtoms() if a.GetAtomicNum() == 7)
-            assert n_count >= 2
+    def test_rejects_num_sub_kwarg(self, benzene_mol):
+        with pytest.raises(TypeError):
+            AnalogueGenerator.nitrogen_walk(benzene_mol, num_sub=1)
 
     def test_no_analogues_without_aromatic_cH(self):
         """Molecule without aromatic cH should produce no nitrogen walk analogues."""
@@ -542,7 +536,7 @@ class TestGenerateAnalogues:
         result = AnalogueGenerator.generate_analogues(
             single_mol,
             positional_analogue_scanning_params=None,
-            nitrogen_walk_params={"num_sub": 1},
+            nitrogen_walk_params={},
         )
         assert isinstance(result, list)
 
@@ -556,7 +550,7 @@ class TestGenerateAnalogues:
 
     def test_reverse_can_be_disabled(self):
         mol = Chem.MolFromSmiles("Cc1ccccc1")
-        params = {"substituents": ["C"], "anchors": [], "num_sub": 1}
+        params = {"substituents": ["C"], "anchors": []}
 
         enabled = AnalogueGenerator.generate_analogues(
             mol,
@@ -612,7 +606,6 @@ class TestGenerateAnalogues:
             positional_analogue_scanning_params={
                 "substituents": ["C"],
                 "anchors": ["[cH]"],
-                "num_sub": 1,
             },
         )
 
@@ -633,7 +626,6 @@ class TestGenerateAnalogues:
                 positional_analogue_scanning_params={
                     "substituents": ["F"],
                     "anchors": ["[cH]"],
-                    "num_sub": 1,
                 },
                 nitrogen_walk_params=None,
                 generation_timeout=0,
@@ -691,7 +683,7 @@ class TestGenerateAnalogues:
         ("reverse_enabled", "nitrogen_params", "expected_stage"),
         [
             (True, None, "query reverse PAS"),
-            (False, {"num_sub": 1, "timeout": 1}, "query nitrogen walk"),
+            (False, {"timeout": 1}, "query nitrogen walk"),
         ],
     )
     def test_strategy_timeout_is_measured_from_aggregate_start(
@@ -724,7 +716,6 @@ class TestGenerateAnalogues:
                 positional_analogue_scanning_params={
                     "substituents": ["C"],
                     "anchors": ["[cH]"],
-                    "num_sub": 1,
                     "timeout": 1,
                 },
                 nitrogen_walk_params=nitrogen_params,
@@ -732,7 +723,7 @@ class TestGenerateAnalogues:
                 generation_timeout=10,
             )
 
-    def test_aggregate_expires_before_second_pass(self, benzene_mol, monkeypatch):
+    def test_aggregate_expires_before_sampling(self, benzene_mol, monkeypatch):
         now = 0.0
         analogue = Chem.MolFromSmiles("Fc1ccccc1")
 
@@ -743,7 +734,7 @@ class TestGenerateAnalogues:
             if kwargs["_stage"] == "scaffold forward PAS":
                 now = 3.0
                 return []
-            pytest.fail("second-pass generation started after deadline expiry")
+            pytest.fail("unexpected PAS stage after deadline expiry")
 
         monkeypatch.setattr(
             "matcha.explainability.analogue_generator.time.monotonic", lambda: now
@@ -754,13 +745,12 @@ class TestGenerateAnalogues:
             classmethod(generate_forward),
         )
 
-        with pytest.raises(TimeoutError, match="second-pass generation"):
+        with pytest.raises(TimeoutError, match="query sampled multi-step"):
             AnalogueGenerator.generate_analogues(
                 benzene_mol,
                 positional_analogue_scanning_params={
                     "substituents": ["F"],
                     "anchors": ["[cH]"],
-                    "num_sub": 1,
                 },
                 nitrogen_walk_params=None,
                 reverse_positional_analogue_scanning=False,
@@ -779,8 +769,7 @@ class TestGenerateAnaloguesNewBehavior:
     def test_scaffold_analogues_included(self, single_mol):
         from rdkit.Chem.Scaffolds.MurckoScaffold import GetScaffoldForMol
 
-        # Use "C" (atomic num 6 <= 8) so the element filter does not skip it
-        pos_params = {"substituents": ["C"], "anchors": ["[cH]"], "num_sub": 1}
+        pos_params = {"substituents": ["C"], "anchors": ["[cH]"]}
         scaffold = GetScaffoldForMol(single_mol)
         scaffold_pas = AnalogueGenerator.positional_analogue_scanning(
             scaffold, **pos_params
@@ -794,28 +783,25 @@ class TestGenerateAnaloguesNewBehavior:
         result_smi = {Chem.MolToSmiles(m) for m in result}
         assert len(scaffold_smi & result_smi) > 0
 
-    def test_pairwise_pas_pas_generates_analogues(self, single_mol):
-        # Use "C" (atomic num 6 <= 8) so the element filter does not skip it
+    def test_sampled_pas_generates_analogues(self, single_mol):
         result = AnalogueGenerator.generate_analogues(
             single_mol,
             positional_analogue_scanning_params={
                 "substituents": ["C"],
                 "anchors": ["[cH]"],
-                "num_sub": 1,
             },
             nitrogen_walk_params=None,
         )
         assert len(result) > 0
 
-    def test_pairwise_pas_nw_generates_analogues(self, single_mol):
+    def test_sampled_pas_nw_generates_analogues(self, single_mol):
         result = AnalogueGenerator.generate_analogues(
             single_mol,
             positional_analogue_scanning_params={
                 "substituents": ["F"],
                 "anchors": ["[cH]"],
-                "num_sub": 1,
             },
-            nitrogen_walk_params={"num_sub": 1},
+            nitrogen_walk_params={},
         )
         assert len(result) > 0
 
@@ -825,9 +811,8 @@ class TestGenerateAnaloguesNewBehavior:
             positional_analogue_scanning_params={
                 "substituents": ["F"],
                 "anchors": ["[cH]"],
-                "num_sub": 1,
             },
-            nitrogen_walk_params={"num_sub": 1},
+            nitrogen_walk_params={},
         )
         smiles = [Chem.MolToSmiles(m) for m in result]
         assert len(smiles) == len(set(smiles))
@@ -838,9 +823,8 @@ class TestGenerateAnaloguesNewBehavior:
             positional_analogue_scanning_params={
                 "substituents": ["C", "O"],
                 "anchors": ["[cH]"],
-                "num_sub": 1,
             },
-            nitrogen_walk_params={"num_sub": 1},
+            nitrogen_walk_params={},
         )
 
         assert [Chem.MolToSmiles(mol) for mol in result[:3]] == [
@@ -880,9 +864,8 @@ print("\\n".join(Chem.MolToSmiles(analogue) for analogue in result))
             positional_analogue_scanning_params={
                 "substituents": ["F"],
                 "anchors": ["[cH]"],
-                "num_sub": 1,
             },
-            nitrogen_walk_params={"num_sub": 1},
+            nitrogen_walk_params={},
         )
         result_smi = [Chem.MolToSmiles(m) for m in result]
         assert input_smi not in result_smi
@@ -923,3 +906,580 @@ class TestAnalogueGeneratorHelpers:
         wildcard = Chem.MolFromSmiles("[*]C")
         with pytest.raises(RuntimeError, match="dummy atom"):
             AnalogueGenerator._remove_duplicate(single_mol, [wildcard])
+
+
+# ===================================================================
+# AnalogueGenerator – bounded deterministic sampling
+# ===================================================================
+
+
+class TestBoundedSampling:
+    """Tests for the bounded multi-step sampler in generate_analogues."""
+
+    _PAS_PARAMS = {"substituents": ["F"], "anchors": ["[cH]"]}
+
+    def test_signature_defaults(self):
+        import inspect
+
+        sig = inspect.signature(AnalogueGenerator.generate_analogues)
+        params = list(sig.parameters.values())
+
+        assert params[-2].name == "num_sample"
+        assert params[-2].default == 100
+        assert params[-1].name == "random_seed"
+        assert params[-1].default == 0
+        assert "num_sub" not in sig.parameters
+
+    @pytest.mark.parametrize("value", [True, False, 1.0, 1.5, "100", None])
+    def test_num_sample_rejects_non_int(self, benzene_mol, value):
+        with pytest.raises(ValueError, match="num_sample"):
+            AnalogueGenerator.generate_analogues(benzene_mol, num_sample=value)
+
+    def test_num_sample_rejects_negative(self, benzene_mol):
+        with pytest.raises(ValueError, match="non-negative"):
+            AnalogueGenerator.generate_analogues(benzene_mol, num_sample=-1)
+
+    @pytest.mark.parametrize("value", [True, False, 1.0, "0", None])
+    def test_random_seed_rejects_non_int(self, benzene_mol, value):
+        with pytest.raises(ValueError, match="random_seed"):
+            AnalogueGenerator.generate_analogues(benzene_mol, random_seed=value)
+
+    def test_num_sample_zero_disables_sampling(self, benzene_mol, monkeypatch):
+        calls = []
+
+        original = AnalogueGenerator._sample_branch
+
+        def spy(cls, *args, **kwargs):
+            calls.append(kwargs.get("stage"))
+            return original.__func__(cls, *args, **kwargs)
+
+        monkeypatch.setattr(AnalogueGenerator, "_sample_branch", classmethod(spy))
+
+        result = AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=False,
+            num_sample=0,
+        )
+
+        # First-pass output still present.
+        assert [Chem.MolToSmiles(m) for m in result] == ["Fc1ccccc1"]
+        # Sampler was invoked but returned empty for both branches.
+        assert calls == ["query sampled multi-step", "scaffold sampled multi-step"]
+
+    def test_num_sample_zero_still_validates_pas_params(self, benzene_mol):
+        with pytest.raises(ValueError, match="Invalid substituent"):
+            AnalogueGenerator.generate_analogues(
+                benzene_mol,
+                positional_analogue_scanning_params={
+                    "substituents": ["NOT_VALID"],
+                    "anchors": ["[cH]"],
+                },
+                num_sample=0,
+            )
+
+    def test_attempt_cap_is_two_times_num_sample(self, benzene_mol, monkeypatch):
+        # A parent pool with an always-failing sampler proves the exact cap.
+        attempts = 0
+
+        def always_fail(cls, parent, *args, **kwargs):
+            nonlocal attempts
+            attempts += 1
+            return None
+
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", classmethod(always_fail))
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_reverse_pas",
+            classmethod(always_fail),
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            classmethod(always_fail),
+        )
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params={},
+            num_sample=7,
+        )
+
+        # Two branches × 2 * num_sample attempts each.
+        assert attempts == 2 * (2 * 7)
+
+    def test_partial_return_on_cap_exhaustion(self, benzene_mol, monkeypatch):
+        # Sampler always fails; branches contribute nothing but first-pass
+        # results are preserved.
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_pas",
+            classmethod(lambda cls, parent, *args, **kwargs: None),
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_reverse_pas",
+            classmethod(lambda cls, parent, *args, **kwargs: None),
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            classmethod(lambda cls, parent, *args, **kwargs: None),
+        )
+
+        result = AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=False,
+            num_sample=100,
+        )
+
+        assert [Chem.MolToSmiles(m) for m in result] == ["Fc1ccccc1"]
+
+    def test_early_quota_completion(self, benzene_mol, monkeypatch):
+        # Every attempt succeeds — sampler stops after num_sample accepted.
+        counter = 0
+
+        def unique_pas(cls, parent, *args, **kwargs):
+            nonlocal counter
+            counter += 1
+            # A fresh unique canonical SMILES per call.
+            return Chem.MolFromSmiles(f"C{'C' * counter}O")
+
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", classmethod(unique_pas))
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            classmethod(lambda cls, parent, *args, **kwargs: None),
+        )
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=False,
+            num_sample=3,
+        )
+
+        # First pass = 1 (Fc1ccccc1) + 3 sampled (query) + 3 sampled (scaffold).
+        # Scaffold of benzene = benzene, so query PAS "Fc1ccccc1" also appears
+        # in the scaffold PAS pass; final dedup removes it. Sampled candidates
+        # come from a fresh series so no collisions.
+        # Exact attempt count: 3 accepted per branch × 2 branches = 6 calls.
+        assert counter == 6
+
+    def test_deterministic_repeated_calls(self, single_mol):
+        first = AnalogueGenerator.generate_analogues(
+            single_mol, num_sample=25, random_seed=42
+        )
+        second = AnalogueGenerator.generate_analogues(
+            single_mol, num_sample=25, random_seed=42
+        )
+        assert [Chem.MolToSmiles(m) for m in first] == [
+            Chem.MolToSmiles(m) for m in second
+        ]
+
+    def test_output_is_ambient_random_state_independent(self, single_mol):
+        random.seed(0)
+        first = AnalogueGenerator.generate_analogues(
+            single_mol, num_sample=25, random_seed=42
+        )
+        random.seed(999)
+        for _ in range(50):
+            random.random()
+        second = AnalogueGenerator.generate_analogues(
+            single_mol, num_sample=25, random_seed=42
+        )
+        assert [Chem.MolToSmiles(m) for m in first] == [
+            Chem.MolToSmiles(m) for m in second
+        ]
+
+    def test_branch_rng_isolation(self, benzene_mol, monkeypatch):
+        # Perturbing query-branch attempt count must not change scaffold-branch
+        # samples: the two branch RNGs are seeded independently before either
+        # runs.
+        scaffold_captured = []
+
+        def record_scaffold(cls, parent, pas_params, rng, **kwargs):
+            # Only capture scaffold-branch invocations via stage marker.
+            if kwargs.get("stage") == "scaffold sampled multi-step":
+                scaffold_captured.append(rng.random())
+            return None
+
+        monkeypatch.setattr(
+            AnalogueGenerator, "_attempt_pas", classmethod(record_scaffold)
+        )
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=False,
+            num_sample=5,
+            random_seed=7,
+        )
+        first_scaffold = list(scaffold_captured)
+
+        scaffold_captured.clear()
+        # Change query-branch behavior by making it succeed with a fresh
+        # candidate every attempt: the query RNG consumes different amounts
+        # of state, but the scaffold branch is seeded independently.
+        counter = 0
+
+        def perturb_query(cls, parent, pas_params, rng, **kwargs):
+            nonlocal counter
+            if kwargs.get("stage") == "query sampled multi-step":
+                counter += 1
+                for _ in range(counter):
+                    rng.random()
+                return None
+            scaffold_captured.append(rng.random())
+            return None
+
+        monkeypatch.setattr(
+            AnalogueGenerator, "_attempt_pas", classmethod(perturb_query)
+        )
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=False,
+            num_sample=5,
+            random_seed=7,
+        )
+        assert scaffold_captured == first_scaffold
+
+    def test_final_source_ordering_places_sampled_after_first_pass(self, benzene_mol):
+        # First-pass sources come first; sampled candidates trail them.
+        result = AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params={
+                "substituents": ["F"],
+                "anchors": ["[cH]"],
+            },
+            nitrogen_walk_params={},
+            reverse_positional_analogue_scanning=False,
+            num_sample=10,
+            random_seed=0,
+        )
+        smiles = [Chem.MolToSmiles(m) for m in result]
+        # First-pass anchors deterministic: query PAS -> Fc1ccccc1, query NW
+        # -> c1ccncc1, then scaffold PAS/NW dedupe against query PAS/NW.
+        assert smiles[0] == "Fc1ccccc1"
+        assert smiles[1] == "c1ccncc1"
+
+    def test_query_pool_includes_all_query_first_pass_sources(
+        self, benzene_mol, monkeypatch
+    ):
+        # Verify the query pool passed to the collector is the concatenation of
+        # query PAS + query reverse PAS + query nitrogen walk outputs.
+        marker_a = Chem.MolFromSmiles("Fc1ccccc1")
+        marker_b = Chem.MolFromSmiles("Clc1ccccc1")
+        marker_c = Chem.MolFromSmiles("Brc1ccccc1")
+        marker_d = Chem.MolFromSmiles("c1ccncc1")
+
+        def fake_pas(cls, mol_in, **kwargs):
+            if kwargs["_stage"] == "query forward PAS":
+                return [marker_a]
+            return [marker_b]  # scaffold PAS
+
+        def fake_reverse(cls, mol_in, substituents, **kwargs):
+            return [marker_c]
+
+        def fake_nw(cls, mol_in, **kwargs):
+            if kwargs["_stage"] == "query nitrogen walk":
+                return [marker_d]
+            return []  # scaffold NW
+
+        captured = {}
+
+        def spy(cls, *, mol_in, parent_pool, stage, **kwargs):
+            captured[stage] = list(parent_pool)
+            return []
+
+        monkeypatch.setattr(
+            AnalogueGenerator, "positional_analogue_scanning", classmethod(fake_pas)
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "reverse_positional_analogue_scanning",
+            classmethod(fake_reverse),
+        )
+        monkeypatch.setattr(AnalogueGenerator, "nitrogen_walk", classmethod(fake_nw))
+        monkeypatch.setattr(AnalogueGenerator, "_sample_branch", classmethod(spy))
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params={},
+        )
+
+        assert captured["query sampled multi-step"] == [
+            marker_a,
+            marker_c,
+            marker_d,
+        ]
+        assert captured["scaffold sampled multi-step"] == [marker_b]
+
+    def test_all_three_strategy_routes_can_expand(self, benzene_mol, monkeypatch):
+        # Force strategy selection order deterministically and verify all
+        # three private helpers are dispatched.
+        called = []
+
+        def track(name):
+            def helper(cls, parent, *args, **kwargs):
+                called.append(name)
+                return None
+
+            return classmethod(helper)
+
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", track("pas"))
+        monkeypatch.setattr(
+            AnalogueGenerator, "_attempt_reverse_pas", track("reverse_pas")
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator, "_attempt_nitrogen_walk", track("nitrogen_walk")
+        )
+
+        # Give enough attempts that all three strategies are almost certain to
+        # be picked at least once under uniform selection.
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params={},
+            num_sample=100,
+            random_seed=0,
+        )
+
+        assert "pas" in called
+        assert "reverse_pas" in called
+        assert "nitrogen_walk" in called
+
+    def test_second_pass_public_apis_are_not_recursed(self, benzene_mol, monkeypatch):
+        # The sampler must not call the exhaustive public PAS / nitrogen walk /
+        # reverse-PAS methods on first-pass outputs.
+        original_pas = AnalogueGenerator.positional_analogue_scanning
+        original_nw = AnalogueGenerator.nitrogen_walk
+        original_reverse = AnalogueGenerator.reverse_positional_analogue_scanning
+        pas_inputs = []
+        nw_inputs = []
+        reverse_inputs = []
+
+        def record_pas(cls, mol_in, **kwargs):
+            pas_inputs.append(kwargs["_stage"])
+            return original_pas.__func__(cls, mol_in, **kwargs)
+
+        def record_nw(cls, mol_in, **kwargs):
+            nw_inputs.append(kwargs["_stage"])
+            return original_nw.__func__(cls, mol_in, **kwargs)
+
+        def record_reverse(cls, mol_in, substituents, **kwargs):
+            reverse_inputs.append(kwargs["_stage"])
+            return original_reverse.__func__(cls, mol_in, substituents, **kwargs)
+
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "positional_analogue_scanning",
+            classmethod(record_pas),
+        )
+        monkeypatch.setattr(AnalogueGenerator, "nitrogen_walk", classmethod(record_nw))
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "reverse_positional_analogue_scanning",
+            classmethod(record_reverse),
+        )
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params={},
+            num_sample=50,
+            random_seed=0,
+        )
+
+        assert pas_inputs == ["query forward PAS", "scaffold forward PAS"]
+        assert nw_inputs == ["query nitrogen walk", "scaffold nitrogen walk"]
+        assert reverse_inputs == ["query reverse PAS"]
+
+    def test_one_mutation_per_attempt(self, benzene_mol, monkeypatch):
+        # Each attempt invokes exactly one of the three strategy helpers, once.
+        per_call = []
+
+        def make_counter(name):
+            def helper(cls, parent, *args, **kwargs):
+                per_call.append(name)
+                return None
+
+            return classmethod(helper)
+
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", make_counter("pas"))
+        monkeypatch.setattr(
+            AnalogueGenerator, "_attempt_reverse_pas", make_counter("reverse_pas")
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            make_counter("nitrogen_walk"),
+        )
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params={},
+            num_sample=4,
+            random_seed=0,
+        )
+
+        # 2 branches × 2*num_sample attempts = 16 total, each attempt = 1 call.
+        assert len(per_call) == 16
+
+    def test_branch_local_deduplication(self, benzene_mol, monkeypatch):
+        # A helper that always returns the same molecule fills at most one slot
+        # per branch.
+        constant = Chem.MolFromSmiles("Nc1ccccc1")
+
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_pas",
+            classmethod(lambda cls, parent, *args, **kwargs: constant),
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            classmethod(lambda cls, parent, *args, **kwargs: None),
+        )
+
+        result = AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params={},
+            reverse_positional_analogue_scanning=False,
+            num_sample=10,
+            random_seed=0,
+        )
+
+        smiles = [Chem.MolToSmiles(m) for m in result]
+        # Fc1ccccc1 from first-pass PAS, c1ccncc1 from first-pass NW, and
+        # exactly one 'Nc1ccccc1' from sampling despite many attempts.
+        assert smiles.count("Nc1ccccc1") == 1
+
+    def test_query_equivalent_candidate_is_skipped(self, benzene_mol, monkeypatch):
+        # A helper that returns the input query never counts toward the branch
+        # quota. Restrict to a single enabled strategy so the attempt count is
+        # exact.
+        call_count = 0
+
+        def return_query(cls, parent, *args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return Chem.MolFromSmiles("c1ccccc1")
+
+        monkeypatch.setattr(
+            AnalogueGenerator, "_attempt_pas", classmethod(return_query)
+        )
+
+        result = AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params=None,
+            reverse_positional_analogue_scanning=False,
+            num_sample=3,
+            random_seed=0,
+        )
+
+        smiles = [Chem.MolToSmiles(m) for m in result]
+        assert "c1ccccc1" not in smiles
+        # Cap exhausted per branch: 2 * num_sample attempts × 2 branches.
+        assert call_count == 2 * 3 * 2
+
+    def test_timeout_during_sampling_propagates(self, benzene_mol, monkeypatch):
+        now = 0.0
+
+        def slow_attempt(cls, parent, *args, **kwargs):
+            nonlocal now
+            now = 100.0
+            return None
+
+        monkeypatch.setattr(
+            "matcha.explainability.analogue_generator.time.monotonic", lambda: now
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator, "_attempt_pas", classmethod(slow_attempt)
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            classmethod(slow_attempt),
+        )
+
+        with pytest.raises(TimeoutError, match="query sampled multi-step"):
+            AnalogueGenerator.generate_analogues(
+                benzene_mol,
+                positional_analogue_scanning_params=self._PAS_PARAMS,
+                nitrogen_walk_params={},
+                reverse_positional_analogue_scanning=False,
+                num_sample=5,
+                generation_timeout=1,
+            )
+
+    def test_sampler_unexpected_exception_propagates(self, benzene_mol, monkeypatch):
+        def blow_up(cls, parent, *args, **kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(AnalogueGenerator, "_attempt_pas", classmethod(blow_up))
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            classmethod(blow_up),
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            AnalogueGenerator.generate_analogues(
+                benzene_mol,
+                positional_analogue_scanning_params=self._PAS_PARAMS,
+                nitrogen_walk_params={},
+                reverse_positional_analogue_scanning=False,
+                num_sample=5,
+            )
+
+    def test_reverse_pas_participates_as_sampled_expansion(
+        self, benzene_mol, monkeypatch
+    ):
+        # Force strategy selection to "reverse_pas" and verify the private
+        # helper is dispatched (proving reverse PAS is a valid second-step
+        # strategy).
+        reverse_calls = []
+
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_pas",
+            classmethod(lambda cls, *a, **kw: None),
+        )
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_nitrogen_walk",
+            classmethod(lambda cls, *a, **kw: None),
+        )
+
+        def record_reverse(cls, parent, *args, **kwargs):
+            reverse_calls.append(parent)
+            return None
+
+        monkeypatch.setattr(
+            AnalogueGenerator,
+            "_attempt_reverse_pas",
+            classmethod(record_reverse),
+        )
+
+        AnalogueGenerator.generate_analogues(
+            benzene_mol,
+            positional_analogue_scanning_params=self._PAS_PARAMS,
+            nitrogen_walk_params={},
+            num_sample=50,
+            random_seed=0,
+        )
+
+        assert len(reverse_calls) > 0

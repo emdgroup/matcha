@@ -1,6 +1,6 @@
 import math
+import random
 import time
-from itertools import combinations
 
 from rdkit import Chem
 from rdkit.Chem import CombineMols
@@ -44,34 +44,54 @@ class AnalogueGenerator:
         positional_analogue_scanning_params: dict | None = {
             "substituents": _DEFAULT_SUBSTITUENTS,
             "anchors": ["[cH]", "C"],
-            "num_sub": 1,
         },
-        nitrogen_walk_params: dict | None = {"num_sub": 1},
+        nitrogen_walk_params: dict | None = {},
         reverse_positional_analogue_scanning: bool = True,
         generation_timeout: float = 60.0,
+        num_sample: int = 100,
+        random_seed: int = 0,
     ) -> list[Mol]:
         """Generate structural analogues of a molecule using one time budget.
 
-        The cooperative deadline is checked around RDKit operations but cannot
-        preempt an RDKit primitive that is already running.
+        Runs five systematic first-pass sources -- query PAS, query reverse
+        PAS, query nitrogen walk, scaffold PAS, scaffold nitrogen walk -- then
+        performs bounded deterministic multi-step sampling from two
+        independent parent pools. The query pool combines every query-derived
+        first-pass source; the scaffold pool combines every scaffold-derived
+        first-pass source. Each branch selects one enabled strategy per
+        attempt uniformly among PAS, reverse PAS, and nitrogen walk, targeting
+        ``num_sample`` valid, branch-local canonical-unique candidates and
+        stopping after ``2 * num_sample`` attempts. The cooperative deadline is
+        checked around RDKit operations but cannot preempt an RDKit primitive
+        that is already running.
 
         :param Mol mol: Query RDKit molecule.
         :param dict | None positional_analogue_scanning_params: Parameters for
             positional analogue scanning. Set to None to skip. Keys:
-            ``substituents``, ``anchors``, ``num_sub``.
+            ``substituents``, ``anchors``.
         :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.
-            Set to None to skip. Keys: ``num_sub``.
+            Set to None to skip.
         :param bool reverse_positional_analogue_scanning: Whether to remove
             peripheral groups from the forward PAS vocabulary. Defaults to True.
         :param float generation_timeout: Maximum aggregate runtime in seconds.
             Defaults to 60. Zero causes immediate expiry.
+        :param int num_sample: Per-branch multi-step sampling quota. Each of
+            the query and scaffold branches contributes up to ``num_sample``
+            unique valid candidates. Defaults to 100. Zero disables second-step
+            sampling; first-pass generation still runs.
+        :param int random_seed: Seed for the deterministic sampling RNG.
+            Defaults to 0. Identical inputs, configuration, and seed produce
+            identical sampled candidates in identical order.
 
         :returns: List of unique, sanitized RDKit molecule objects (excluding
-            the input molecule).
+            the input molecule). Sampled candidates follow every first-pass
+            source in the returned order.
         """
         generation_timeout = cls._validate_timeout(
             generation_timeout, "generation_timeout"
         )
+        num_sample = cls._validate_non_negative_int(num_sample, "num_sample")
+        random_seed = cls._validate_int(random_seed, "random_seed")
         start = time.monotonic()
         overall_deadline = start + generation_timeout
 
@@ -176,42 +196,50 @@ class AnalogueGenerator:
                 _stage=stage,
             )
 
-        pas_pas = []
-        pas_nw = []
-        for analogue in pas_mol + pas_scaffold:
-            cls._check_deadline(
-                overall_deadline, generation_timeout, "second-pass generation"
+        substituents = (
+            positional_analogue_scanning_params.get(
+                "substituents", _DEFAULT_SUBSTITUENTS
             )
-            if positional_analogue_scanning_params is not None:
-                stage = "second-pass forward PAS"
-                deadline, budget = cls._aggregate_strategy_deadline(
-                    start,
-                    overall_deadline,
-                    generation_timeout,
-                    positional_analogue_scanning_params.get("timeout", 60),
-                )
-                pas_pas += cls.positional_analogue_scanning(
-                    mol_in=analogue,
-                    **positional_analogue_scanning_params,
-                    _deadline=deadline,
-                    _timeout_budget=budget,
-                    _stage=stage,
-                )
-            if nitrogen_walk_params is not None:
-                stage = "second-pass nitrogen walk"
-                deadline, budget = cls._aggregate_strategy_deadline(
-                    start,
-                    overall_deadline,
-                    generation_timeout,
-                    nitrogen_walk_params.get("timeout", 60),
-                )
-                pas_nw += cls.nitrogen_walk(
-                    mol_in=analogue,
-                    **nitrogen_walk_params,
-                    _deadline=deadline,
-                    _timeout_budget=budget,
-                    _stage=stage,
-                )
+            if positional_analogue_scanning_params is not None
+            else []
+        )
+        enabled_strategies: list[str] = []
+        if positional_analogue_scanning_params is not None:
+            enabled_strategies.append("pas")
+        if reverse_positional_analogue_scanning and substituents:
+            enabled_strategies.append("reverse_pas")
+        if nitrogen_walk_params is not None:
+            enabled_strategies.append("nitrogen_walk")
+
+        sampler_rng = random.Random(random_seed)
+        query_seed = sampler_rng.getrandbits(64)
+        scaffold_seed = sampler_rng.getrandbits(64)
+
+        query_pool = pas_mol + reverse_mol + nw_mol
+        scaffold_pool = pas_scaffold + nw_scaffold
+
+        query_sampled = cls._sample_branch(
+            mol_in=mol,
+            parent_pool=query_pool,
+            enabled_strategies=enabled_strategies,
+            pas_params=positional_analogue_scanning_params,
+            num_sample=num_sample,
+            seed=query_seed,
+            overall_deadline=overall_deadline,
+            generation_timeout=generation_timeout,
+            stage="query sampled multi-step",
+        )
+        scaffold_sampled = cls._sample_branch(
+            mol_in=mol,
+            parent_pool=scaffold_pool,
+            enabled_strategies=enabled_strategies,
+            pas_params=positional_analogue_scanning_params,
+            num_sample=num_sample,
+            seed=scaffold_seed,
+            overall_deadline=overall_deadline,
+            generation_timeout=generation_timeout,
+            stage="scaffold sampled multi-step",
+        )
 
         all_analogues = (
             pas_mol
@@ -219,8 +247,8 @@ class AnalogueGenerator:
             + nw_mol
             + pas_scaffold
             + nw_scaffold
-            + pas_pas
-            + pas_nw
+            + query_sampled
+            + scaffold_sampled
         )
         return cls._remove_duplicate(
             mol,
@@ -236,7 +264,6 @@ class AnalogueGenerator:
         mol_in: Mol,
         substituents: list = _DEFAULT_SUBSTITUENTS,
         anchors: list = ["[cH]", "C"],
-        num_sub: int = 1,
         timeout: float = 60,
         *,
         _deadline: float | None = None,
@@ -245,10 +272,10 @@ class AnalogueGenerator:
     ) -> list[Mol]:
         """Generate analogues via Positional Analogue Scanning.
 
-        Adds substituents at anchor positions in the molecule. Each entry in
-        ``substituents`` is either an element symbol (e.g. ``"F"``) or a
-        fragment SMILES with a ``[*]`` dummy attachment point
-        (e.g. ``"[*]C(F)(F)F"``). Based on the algorithm described in
+        Adds one substituent at an eligible anchor position in the molecule.
+        Each entry in ``substituents`` is either an element symbol
+        (e.g. ``"F"``) or a fragment SMILES with a ``[*]`` dummy attachment
+        point (e.g. ``"[*]C(F)(F)F"``). Based on the algorithm described in
         https://pubs.acs.org/doi/10.1021/acs.jmedchem.9b02092.
 
         Implementation adapted from:
@@ -258,7 +285,6 @@ class AnalogueGenerator:
         :param list substituents: Element symbols or fragment SMILES (with
             ``[*]`` attachment point) to try as substituents.
         :param list anchors: SMARTS patterns identifying attachment positions.
-        :param int num_sub: Number of simultaneous substitutions. Defaults to 1.
         :param float timeout: Maximum runtime in seconds. Defaults to 60.
 
         :returns: List of unique, deduplicated analogue molecules.
@@ -267,8 +293,6 @@ class AnalogueGenerator:
             timeout, _deadline, _timeout_budget
         )
         cls._check_deadline(deadline, timeout_budget, _stage)
-        if isinstance(num_sub, bool) or not isinstance(num_sub, int) or num_sub < 1:
-            raise ValueError("num_sub must be a positive integer")
 
         for substituent in substituents:
             cls._check_deadline(deadline, timeout_budget, _stage)
@@ -293,26 +317,18 @@ class AnalogueGenerator:
                 cls._check_deadline(deadline, timeout_budget, _stage)
                 match_atms = [x[0] for x in mol_in.GetSubstructMatches(query)]
                 cls._check_deadline(deadline, timeout_budget, _stage)
-                for combo in combinations(match_atms, num_sub):
+                for idx in match_atms:
                     cls._check_deadline(deadline, timeout_budget, _stage)
-                    new_mol = Chem.RWMol(mol_in)
-                    success = True
-                    for idx in combo:
-                        cls._check_deadline(deadline, timeout_budget, _stage)
-                        result = cls._attach_substituent(
-                            new_mol,
-                            idx,
-                            substituent,
-                            deadline=deadline,
-                            timeout_budget=timeout_budget,
-                            stage=_stage,
-                        )
-                        if result is None:
-                            success = False
-                            break
-                        new_mol = result
-                    if success:
-                        out_mol_list.append(new_mol)
+                    result = cls._attach_substituent(
+                        Chem.RWMol(mol_in),
+                        idx,
+                        substituent,
+                        deadline=deadline,
+                        timeout_budget=timeout_budget,
+                        stage=_stage,
+                    )
+                    if result is not None:
+                        out_mol_list.append(result)
 
         return cls._remove_duplicate(
             mol_in,
@@ -419,7 +435,6 @@ class AnalogueGenerator:
     def nitrogen_walk(
         cls,
         mol_in: Mol,
-        num_sub: int = 1,
         timeout: float = 60,
         *,
         _deadline: float | None = None,
@@ -428,14 +443,13 @@ class AnalogueGenerator:
     ) -> list[Mol]:
         """Generate analogues by replacing aromatic CH atoms with nitrogen.
 
-        Systematically walks aromatic carbon-hydrogen positions, replacing them
-        with nitrogen to produce aza-analogues.
+        Systematically walks aromatic carbon-hydrogen positions, replacing
+        each one with nitrogen to produce aza-analogues.
 
         Implementation adapted from:
         https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html
 
         :param Mol mol_in: Input RDKit molecule.
-        :param int num_sub: Number of simultaneous CH-to-N replacements. Defaults to 1.
         :param float timeout: Maximum runtime in seconds. Defaults to 60.
 
         :returns: List of unique, deduplicated analogue molecules.
@@ -450,13 +464,11 @@ class AnalogueGenerator:
         cls._check_deadline(deadline, timeout_budget, _stage)
         match_atms = [x[0] for x in mol_in.GetSubstructMatches(aromatic_cH)]
         cls._check_deadline(deadline, timeout_budget, _stage)
-        for combo in combinations(match_atms, num_sub):
+        for idx in match_atms:
             cls._check_deadline(deadline, timeout_budget, _stage)
             new_mol = Chem.RWMol(mol_in)
-            for idx in combo:
-                cls._check_deadline(deadline, timeout_budget, _stage)
-                atm = new_mol.GetAtomWithIdx(idx)
-                atm.SetAtomicNum(7)
+            cls._check_deadline(deadline, timeout_budget, _stage)
+            new_mol.GetAtomWithIdx(idx).SetAtomicNum(7)
             cls._check_deadline(deadline, timeout_budget, _stage)
             try:
                 Chem.SanitizeMol(new_mol)
@@ -611,6 +623,218 @@ class AnalogueGenerator:
             seen.add(smiles)
             unique.append(analogue)
         return unique
+
+    @classmethod
+    def _sample_branch(
+        cls,
+        mol_in: Mol,
+        parent_pool: list[Mol],
+        enabled_strategies: list[str],
+        pas_params: dict | None,
+        num_sample: int,
+        seed: int,
+        *,
+        overall_deadline: float,
+        generation_timeout: float,
+        stage: str,
+    ) -> list[Mol]:
+        if num_sample == 0 or not parent_pool or not enabled_strategies:
+            return []
+
+        branch_rng = random.Random(seed)
+        query_smiles = Chem.MolToSmiles(mol_in)
+        seen: set[str] = {query_smiles}
+        accepted: list[Mol] = []
+        attempt_limit = 2 * num_sample
+        for _ in range(attempt_limit):
+            cls._check_deadline(overall_deadline, generation_timeout, stage)
+            parent = branch_rng.choice(parent_pool)
+            strategy = (
+                enabled_strategies[0]
+                if len(enabled_strategies) == 1
+                else branch_rng.choice(enabled_strategies)
+            )
+            if strategy == "pas":
+                candidate = cls._attempt_pas(
+                    parent,
+                    pas_params,
+                    branch_rng,
+                    deadline=overall_deadline,
+                    timeout_budget=generation_timeout,
+                    stage=stage,
+                )
+            elif strategy == "reverse_pas":
+                candidate = cls._attempt_reverse_pas(
+                    parent,
+                    pas_params,
+                    branch_rng,
+                    deadline=overall_deadline,
+                    timeout_budget=generation_timeout,
+                    stage=stage,
+                )
+            else:
+                candidate = cls._attempt_nitrogen_walk(
+                    parent,
+                    branch_rng,
+                    deadline=overall_deadline,
+                    timeout_budget=generation_timeout,
+                    stage=stage,
+                )
+            if candidate is None:
+                continue
+            smiles = Chem.MolToSmiles(candidate)
+            if smiles in seen:
+                continue
+            seen.add(smiles)
+            accepted.append(candidate)
+            if len(accepted) >= num_sample:
+                break
+        return accepted
+
+    @classmethod
+    def _attempt_pas(
+        cls,
+        parent: Mol,
+        pas_params: dict,
+        rng: random.Random,
+        *,
+        deadline: float,
+        timeout_budget: float,
+        stage: str,
+    ) -> Mol | None:
+        substituents = pas_params.get("substituents", _DEFAULT_SUBSTITUENTS)
+        anchors = pas_params.get("anchors", ["[cH]", "C"])
+        if not substituents or not anchors:
+            return None
+        substituent = rng.choice(substituents)
+        anchor = rng.choice(anchors)
+        query = Chem.MolFromSmarts(anchor)
+        if query is None or query.GetNumAtoms() == 0:
+            raise ValueError(f"Invalid anchor SMARTS: {anchor!r}")
+        cls._check_deadline(deadline, timeout_budget, stage)
+        match_atms = [x[0] for x in parent.GetSubstructMatches(query)]
+        if not match_atms:
+            return None
+        idx = rng.choice(match_atms)
+        return cls._attach_substituent(
+            Chem.RWMol(parent),
+            idx,
+            substituent,
+            deadline=deadline,
+            timeout_budget=timeout_budget,
+            stage=stage,
+        )
+
+    @classmethod
+    def _attempt_reverse_pas(
+        cls,
+        parent: Mol,
+        pas_params: dict,
+        rng: random.Random,
+        *,
+        deadline: float,
+        timeout_budget: float,
+        stage: str,
+    ) -> Mol | None:
+        substituents = pas_params.get("substituents", _DEFAULT_SUBSTITUENTS)
+        if not substituents:
+            return None
+        substituent = rng.choice(substituents)
+        fragment, dummy_idx = cls._validate_substituent(substituent)
+        cls._check_deadline(deadline, timeout_budget, stage)
+        if dummy_idx is None:
+            atomic_num = fragment.GetAtomWithIdx(0).GetAtomicNum()
+            eligible = [
+                atom.GetIdx()
+                for atom in parent.GetAtoms()
+                if atom.GetAtomicNum() == atomic_num and atom.GetDegree() == 1
+            ]
+            if not eligible:
+                return None
+            atom_idx = rng.choice(eligible)
+            return cls._remove_atoms(
+                parent,
+                [atom_idx],
+                deadline=deadline,
+                timeout_budget=timeout_budget,
+                stage=stage,
+            )
+
+        dummy = fragment.GetAtomWithIdx(dummy_idx)
+        attachment_idx = dummy.GetNeighbors()[0].GetIdx()
+        query = Chem.RWMol(fragment)
+        query.RemoveAtom(dummy_idx)
+        if dummy_idx < attachment_idx:
+            attachment_idx -= 1
+        Chem.SanitizeMol(query)
+        cls._check_deadline(deadline, timeout_budget, stage)
+
+        eligible_matches = []
+        for match in parent.GetSubstructMatches(query):
+            matched = set(match)
+            boundary = [
+                (atom_idx, neighbor.GetIdx())
+                for atom_idx in match
+                for neighbor in parent.GetAtomWithIdx(atom_idx).GetNeighbors()
+                if neighbor.GetIdx() not in matched
+            ]
+            if len(boundary) == 1 and boundary[0][0] == match[attachment_idx]:
+                eligible_matches.append(match)
+        if not eligible_matches:
+            return None
+        match = rng.choice(eligible_matches)
+        remove_indices = list(match)
+        if len(remove_indices) > 1:
+            remove_indices.remove(match[attachment_idx])
+        result = cls._remove_atoms(
+            parent,
+            remove_indices,
+            deadline=deadline,
+            timeout_budget=timeout_budget,
+            stage=stage,
+        )
+        if result is None or result.GetNumAtoms() <= 1:
+            return None
+        return result
+
+    @classmethod
+    def _attempt_nitrogen_walk(
+        cls,
+        parent: Mol,
+        rng: random.Random,
+        *,
+        deadline: float,
+        timeout_budget: float,
+        stage: str,
+    ) -> Mol | None:
+        aromatic_cH = Chem.MolFromSmarts("[cH]")
+        cls._check_deadline(deadline, timeout_budget, stage)
+        match_atms = [x[0] for x in parent.GetSubstructMatches(aromatic_cH)]
+        if not match_atms:
+            return None
+        idx = rng.choice(match_atms)
+        new_mol = Chem.RWMol(parent)
+        new_mol.GetAtomWithIdx(idx).SetAtomicNum(7)
+        cls._check_deadline(deadline, timeout_budget, stage)
+        try:
+            Chem.SanitizeMol(new_mol)
+        except MolSanitizeException:
+            return None
+        return new_mol
+
+    @classmethod
+    def _validate_non_negative_int(cls, value, name: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"{name} must be an integer")
+        if value < 0:
+            raise ValueError(f"{name} must be non-negative")
+        return value
+
+    @classmethod
+    def _validate_int(cls, value, name: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise ValueError(f"{name} must be an integer")
+        return value
 
     @classmethod
     def _validate_timeout(cls, timeout: float, name: str) -> float:
