@@ -28,41 +28,58 @@ Module Contents
    All generated analogues are validated via RDKit sanitization and deduplicated.
 
 
-   .. py:method:: generate_analogues(mol: rdkit.Chem.rdchem.Mol, positional_analogue_scanning_params: dict | None = {'substituents': _DEFAULT_SUBSTITUENTS, 'anchors': ['[cH]', 'C'], 'num_sub': 1}, nitrogen_walk_params: dict | None = {'num_sub': 1}, reverse_positional_analogue_scanning: bool = True, generation_timeout: float = 60.0) -> list[rdkit.Chem.rdchem.Mol]
+   .. py:method:: generate_analogues(mol: rdkit.Chem.rdchem.Mol, positional_analogue_scanning_params: dict | None = {'substituents': _DEFAULT_SUBSTITUENTS, 'anchors': ['[cH]', 'C']}, nitrogen_walk_params: dict | None = {}, reverse_positional_analogue_scanning: bool = True, generation_timeout: float = 60.0, num_sample: int = 100, random_seed: int = 0) -> list[rdkit.Chem.rdchem.Mol]
       :classmethod:
 
 
       Generate structural analogues of a molecule using one time budget.
 
-      The cooperative deadline is checked around RDKit operations but cannot
-      preempt an RDKit primitive that is already running.
+      Runs five systematic first-pass sources -- query PAS, query reverse
+      PAS, query nitrogen walk, scaffold PAS, scaffold nitrogen walk -- then
+      performs bounded deterministic multi-step sampling from two
+      independent parent pools. The query pool combines every query-derived
+      first-pass source; the scaffold pool combines every scaffold-derived
+      first-pass source. Each branch selects one enabled strategy per
+      attempt uniformly among PAS, reverse PAS, and nitrogen walk, targeting
+      ``num_sample`` valid, branch-local canonical-unique candidates and
+      stopping after ``2 * num_sample`` attempts. The cooperative deadline is
+      checked around RDKit operations but cannot preempt an RDKit primitive
+      that is already running.
 
       :param Mol mol: Query RDKit molecule.
       :param dict | None positional_analogue_scanning_params: Parameters for
           positional analogue scanning. Set to None to skip. Keys:
-          ``substituents``, ``anchors``, ``num_sub``.
+          ``substituents``, ``anchors``.
       :param dict | None nitrogen_walk_params: Parameters for nitrogen walking.
-          Set to None to skip. Keys: ``num_sub``.
+          Set to None to skip.
       :param bool reverse_positional_analogue_scanning: Whether to remove
           peripheral groups from the forward PAS vocabulary. Defaults to True.
       :param float generation_timeout: Maximum aggregate runtime in seconds.
           Defaults to 60. Zero causes immediate expiry.
+      :param int num_sample: Per-branch multi-step sampling quota. Each of
+          the query and scaffold branches contributes up to ``num_sample``
+          unique valid candidates. Defaults to 100. Zero disables second-step
+          sampling; first-pass generation still runs.
+      :param int random_seed: Seed for the deterministic sampling RNG.
+          Defaults to 0. Identical inputs, configuration, and seed produce
+          identical sampled candidates in identical order.
 
       :returns: List of unique, sanitized RDKit molecule objects (excluding
-          the input molecule).
+          the input molecule). Sampled candidates follow every first-pass
+          source in the returned order.
 
 
 
-   .. py:method:: positional_analogue_scanning(mol_in: rdkit.Chem.rdchem.Mol, substituents: list = _DEFAULT_SUBSTITUENTS, anchors: list = ['[cH]', 'C'], num_sub: int = 1, timeout: float = 60, *, _deadline: float | None = None, _timeout_budget: float | None = None, _stage: str = 'direct forward PAS') -> list[rdkit.Chem.rdchem.Mol]
+   .. py:method:: positional_analogue_scanning(mol_in: rdkit.Chem.rdchem.Mol, substituents: list = _DEFAULT_SUBSTITUENTS, anchors: list = ['[cH]', 'C'], timeout: float = 60, *, _deadline: float | None = None, _timeout_budget: float | None = None, _stage: str = 'direct forward PAS') -> list[rdkit.Chem.rdchem.Mol]
       :classmethod:
 
 
       Generate analogues via Positional Analogue Scanning.
 
-      Adds substituents at anchor positions in the molecule. Each entry in
-      ``substituents`` is either an element symbol (e.g. ``"F"``) or a
-      fragment SMILES with a ``[*]`` dummy attachment point
-      (e.g. ``"[*]C(F)(F)F"``). Based on the algorithm described in
+      Adds one substituent at an eligible anchor position in the molecule.
+      Each entry in ``substituents`` is either an element symbol
+      (e.g. ``"F"``) or a fragment SMILES with a ``[*]`` dummy attachment
+      point (e.g. ``"[*]C(F)(F)F"``). Based on the algorithm described in
       https://pubs.acs.org/doi/10.1021/acs.jmedchem.9b02092.
 
       Implementation adapted from:
@@ -72,7 +89,6 @@ Module Contents
       :param list substituents: Element symbols or fragment SMILES (with
           ``[*]`` attachment point) to try as substituents.
       :param list anchors: SMARTS patterns identifying attachment positions.
-      :param int num_sub: Number of simultaneous substitutions. Defaults to 1.
       :param float timeout: Maximum runtime in seconds. Defaults to 60.
 
       :returns: List of unique, deduplicated analogue molecules.
@@ -93,20 +109,19 @@ Module Contents
 
 
 
-   .. py:method:: nitrogen_walk(mol_in: rdkit.Chem.rdchem.Mol, num_sub: int = 1, timeout: float = 60, *, _deadline: float | None = None, _timeout_budget: float | None = None, _stage: str = 'direct nitrogen walk') -> list[rdkit.Chem.rdchem.Mol]
+   .. py:method:: nitrogen_walk(mol_in: rdkit.Chem.rdchem.Mol, timeout: float = 60, *, _deadline: float | None = None, _timeout_budget: float | None = None, _stage: str = 'direct nitrogen walk') -> list[rdkit.Chem.rdchem.Mol]
       :classmethod:
 
 
       Generate analogues by replacing aromatic CH atoms with nitrogen.
 
-      Systematically walks aromatic carbon-hydrogen positions, replacing them
-      with nitrogen to produce aza-analogues.
+      Systematically walks aromatic carbon-hydrogen positions, replacing
+      each one with nitrogen to produce aza-analogues.
 
       Implementation adapted from:
       https://practicalcheminformatics.blogspot.com/2020/04/positional-analogue-scanning.html
 
       :param Mol mol_in: Input RDKit molecule.
-      :param int num_sub: Number of simultaneous CH-to-N replacements. Defaults to 1.
       :param float timeout: Maximum runtime in seconds. Defaults to 60.
 
       :returns: List of unique, deduplicated analogue molecules.
