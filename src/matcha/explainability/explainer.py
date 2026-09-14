@@ -224,10 +224,9 @@ _pos_params = {
         "[*]S(=O)(=O)C",
     ],
     "anchors": ["[cH]", "C"],
-    "num_sub": 1,
 }
 
-_nitrogen_walk_params = {"num_sub": 1}
+_nitrogen_walk_params = {}
 
 
 class MatchaExplainer:
@@ -248,6 +247,8 @@ class MatchaExplainer:
         lime_remove_noise: bool = True,
         reverse_positional_analogue_scanning: bool = True,
         generation_timeout: float = 60.0,
+        num_sample: int = 100,
+        random_seed: int = 0,
     ):
         """Initialize the MatchaExplainer.
 
@@ -267,6 +268,11 @@ class MatchaExplainer:
             peripheral groups from the PAS vocabulary. Defaults to True.
         :param float generation_timeout: Maximum total analogue-generation time
             in seconds. Defaults to 60. Zero causes immediate expiry.
+        :param int num_sample: Per-branch multi-step sampling quota forwarded to
+            :meth:`AnalogueGenerator.generate_analogues`. Defaults to 100.
+        :param int random_seed: Seed for the deterministic multi-step sampling
+            RNG forwarded to :meth:`AnalogueGenerator.generate_analogues`.
+            Defaults to 0.
         """
         validated = ExplainerInputModel(
             positional_analogue_scanning_params=positional_analogue_scanning_params,
@@ -277,6 +283,8 @@ class MatchaExplainer:
             lime_remove_noise=lime_remove_noise,
             reverse_positional_analogue_scanning=reverse_positional_analogue_scanning,
             generation_timeout=generation_timeout,
+            num_sample=num_sample,
+            random_seed=random_seed,
         )
 
         if positional_analogue_scanning_params == {}:
@@ -284,7 +292,7 @@ class MatchaExplainer:
         else:
             self._pos_params = positional_analogue_scanning_params
         if nitrogen_walk_params == {}:
-            self._nitrogen_walk_params = _nitrogen_walk_params
+            self._nitrogen_walk_params = deepcopy(_nitrogen_walk_params)
         else:
             self._nitrogen_walk_params = nitrogen_walk_params
         self._descriptor_set = lime_descriptor_set
@@ -295,6 +303,8 @@ class MatchaExplainer:
             validated.reverse_positional_analogue_scanning
         )
         self._generation_timeout = validated.generation_timeout
+        self._num_sample = validated.num_sample
+        self._random_seed = validated.random_seed
 
     def _run_lime_desc(self, mols, predictions, bootstrap_num) -> tuple:
         """Run LIME analysis using RDKit descriptors.
@@ -341,6 +351,8 @@ class MatchaExplainer:
             self._nitrogen_walk_params,
             self._reverse_positional_analogue_scanning,
             self._generation_timeout,
+            num_sample=self._num_sample,
+            random_seed=self._random_seed,
         )
 
     def decompose(self, mol: Mol) -> list[Mol]:

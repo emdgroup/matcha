@@ -48,7 +48,6 @@ _EXPLAIN_MOL = Chem.MolFromSmiles("c1ccc(O)cc1")
 _PAS_PARAMS = {
     "substituents": ["F", "[*]O"],
     "anchors": ["[cH]"],
-    "num_sub": 1,
 }
 
 

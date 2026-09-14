@@ -16,3 +16,5 @@ class ExplainerInputModel(BaseDataModel):
     lime_remove_noise: bool
     reverse_positional_analogue_scanning: bool = True
     generation_timeout: Annotated[float, Field(ge=0, allow_inf_nan=False)] = 60.0
+    num_sample: Annotated[int, Field(strict=True, ge=0)] = 100
+    random_seed: Annotated[int, Field(strict=True)] = 0
