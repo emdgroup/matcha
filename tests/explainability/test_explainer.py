@@ -345,8 +345,8 @@ class TestMatchaExplainerLimeEcfp:
             def explain(self, mols, predictions, bootstrap_num):
                 return pd.DataFrame()
 
-            def get_envs_and_weights(self, mol, result):
-                return {}, {}
+            def get_attributions(self, mol, result):
+                return {}, {}, np.zeros(mol.GetNumAtoms())
 
         monkeypatch.setattr(explainer_module, "LIME", RecordingLIME)
         explainer = MatchaExplainer(
@@ -373,16 +373,17 @@ class TestMatchaExplainerLimeEcfp:
             small_mol_list, small_regression_targets, bootstrap_num=3
         )
         assert isinstance(result, tuple)
-        assert len(result) == 2
+        assert len(result) == 3
 
     def test_returns_envs_and_weights(
         self, default_explainer, small_mol_list, small_regression_targets
     ):
-        envs, weights = default_explainer._run_lime_ecfp(
+        envs, weights, atom_weights = default_explainer._run_lime_ecfp(
             small_mol_list, small_regression_targets, bootstrap_num=3
         )
         assert isinstance(envs, dict)
         assert isinstance(weights, dict)
+        assert isinstance(atom_weights, np.ndarray)
 
 
 # ===================================================================
@@ -424,6 +425,15 @@ class TestMatchaExplainerExplain:
             small_mol_list, small_regression_targets, bootstrap_num=3
         )
         assert isinstance(result.weights, dict)
+
+    def test_explanation_has_atom_weights(
+        self, default_explainer, small_mol_list, small_regression_targets
+    ):
+        result = default_explainer.explain(
+            small_mol_list, small_regression_targets, bootstrap_num=3
+        )
+        assert isinstance(result.atom_weights, np.ndarray)
+        assert result.atom_weights.shape == (small_mol_list[0].GetNumAtoms(),)
 
     def test_explanation_has_analogues(
         self, default_explainer, small_mol_list, small_regression_targets
@@ -490,7 +500,7 @@ class TestMatchaExplainerExplain:
             }
         )
         descriptor_lime = Mock(return_value=df_desc)
-        fingerprint_lime = Mock(return_value=({}, {}))
+        fingerprint_lime = Mock(return_value=({}, {}, np.zeros(3)))
         monkeypatch.setattr(explainer, "_run_lime_desc", descriptor_lime)
         monkeypatch.setattr(explainer, "_run_lime_ecfp", fingerprint_lime)
         predictions = np.array([1.0, 2.0, 3.0])
@@ -513,34 +523,49 @@ class TestMatchaExplanationInit:
         df = pd.DataFrame(
             {"Descriptor": ["a"], "Coefficient": [0.5], "Standard deviation": [0.1]}
         )
-        expl = MatchaExplanation(df, {}, {}, Chem.MolFromSmiles("CCO"), [])
+        expl = MatchaExplanation(df, {}, {}, Chem.MolFromSmiles("CCO"), [], np.zeros(3))
         assert expl.df_desc is df
 
     def test_stores_envs(self):
         envs = {0: [1, 2]}
         expl = MatchaExplanation(
-            pd.DataFrame(), envs, {}, Chem.MolFromSmiles("CCO"), []
+            pd.DataFrame(), envs, {}, Chem.MolFromSmiles("CCO"), [], np.zeros(3)
         )
         assert expl.envs is envs
 
     def test_stores_weights(self):
         weights = {0: 0.5}
         expl = MatchaExplanation(
-            pd.DataFrame(), {}, weights, Chem.MolFromSmiles("CCO"), []
+            pd.DataFrame(), {}, weights, Chem.MolFromSmiles("CCO"), [], np.zeros(3)
         )
         assert expl.weights is weights
 
     def test_stores_analogues(self):
         analogues = ["CCO", "CC(C)C"]
         expl = MatchaExplanation(
-            pd.DataFrame(), {}, {}, Chem.MolFromSmiles("CCO"), analogues
+            pd.DataFrame(),
+            {},
+            {},
+            Chem.MolFromSmiles("CCO"),
+            analogues,
+            np.zeros(3),
         )
         assert expl.analogues == analogues
 
     def test_stores_mol(self):
         mol = Chem.MolFromSmiles("CCO")
-        expl = MatchaExplanation(pd.DataFrame(), {}, {}, mol, [])
+        expl = MatchaExplanation(pd.DataFrame(), {}, {}, mol, [], np.zeros(3))
         assert expl._mol is mol
+
+    def test_stores_owned_raw_atom_weights(self):
+        mol = Chem.MolFromSmiles("CCO")
+        atom_weights = np.array([1.0, -0.5, 0.0])
+
+        expl = MatchaExplanation(pd.DataFrame(), {}, {}, mol, [], atom_weights)
+        atom_weights[0] = 99.0
+
+        assert expl.atom_weights.dtype == np.float64
+        assert expl.atom_weights == pytest.approx([1.0, -0.5, 0.0])
 
 
 # ===================================================================
@@ -561,7 +586,7 @@ class TestMatchaExplanationPlotCoefficients:
         }
         df = pd.DataFrame(data)
         mol = Chem.MolFromSmiles("CCO")
-        return MatchaExplanation(df, {}, {}, mol, [])
+        return MatchaExplanation(df, {}, {}, mol, [], np.zeros(mol.GetNumAtoms()))
 
     def test_returns_figure(self, explanation_for_plot):
         fig = explanation_for_plot.plot_coefficients()
@@ -587,7 +612,7 @@ class TestMatchaExplanationPlotCoefficients:
                 "Standard deviation": [0.8, 0.4, 0.02],
             }
         )
-        expl = MatchaExplanation(df, {}, {}, Chem.MolFromSmiles("CCO"), [])
+        expl = MatchaExplanation(df, {}, {}, Chem.MolFromSmiles("CCO"), [], np.zeros(3))
 
         fig = expl.plot_coefficients(remove_noise=False)
 
@@ -607,9 +632,12 @@ class TestMatchaExplanationPlotCoefficients:
         normalized.loc[:2, ["Coefficient", "Standard deviation"]] /= 10.5
         mol = Chem.MolFromSmiles("CCO")
 
-        raw_fig = MatchaExplanation(raw, {}, {}, mol, []).plot_coefficients()
+        atom_weights = np.zeros(mol.GetNumAtoms())
+        raw_fig = MatchaExplanation(
+            raw, {}, {}, mol, [], atom_weights
+        ).plot_coefficients()
         normalized_fig = MatchaExplanation(
-            normalized, {}, {}, mol, []
+            normalized, {}, {}, mol, [], atom_weights
         ).plot_coefficients()
 
         assert list(raw_fig.data[0].y) == list(normalized_fig.data[0].y)
@@ -627,7 +655,7 @@ class TestMatchaExplanationPlotCoefficients:
             }
         )
         original = df.copy(deep=True)
-        expl = MatchaExplanation(df, {}, {}, Chem.MolFromSmiles("CCO"), [])
+        expl = MatchaExplanation(df, {}, {}, Chem.MolFromSmiles("CCO"), [], np.zeros(3))
 
         expl.plot_coefficients(remove_noise=False)
 
@@ -642,7 +670,7 @@ class TestMatchaExplanationPlotCoefficients:
         }
         df = pd.DataFrame(data)
         mol = Chem.MolFromSmiles("CCO")
-        expl = MatchaExplanation(df, {}, {}, mol, [])
+        expl = MatchaExplanation(df, {}, {}, mol, [], np.zeros(mol.GetNumAtoms()))
         fig = expl.plot_coefficients(remove_noise=False)
         assert isinstance(fig, go.Figure)
 
@@ -655,7 +683,7 @@ class TestMatchaExplanationPlotCoefficients:
         }
         df = pd.DataFrame(data)
         mol = Chem.MolFromSmiles("CCO")
-        expl = MatchaExplanation(df, {}, {}, mol, [])
+        expl = MatchaExplanation(df, {}, {}, mol, [], np.zeros(mol.GetNumAtoms()))
         with pytest.raises(ValueError, match="No reliable coefficients remain"):
             expl.plot_coefficients(remove_noise=True)
 
@@ -675,9 +703,10 @@ class TestMatchaExplanationPlotHeatmap:
         n_atoms = mol.GetNumAtoms()
         # Create fake envs and weights mapping to atoms in the molecule
         envs = {0: list(range(n_atoms)), 1: [0, 1, 2]}
-        weights = {0: 0.5, 1: -0.3}
+        weights = {0: 100.0, 1: -100.0}
+        atom_weights = np.linspace(-2.0, 4.0, n_atoms)
         df = pd.DataFrame()
-        return MatchaExplanation(df, envs, weights, mol, [])
+        return MatchaExplanation(df, envs, weights, mol, [], atom_weights)
 
     def test_returns_figure(self, explanation_for_heatmap):
         result = explanation_for_heatmap.plot_heatmap()
@@ -689,5 +718,30 @@ class TestMatchaExplanationPlotHeatmap:
 
     def test_figure_contains_image(self, explanation_for_heatmap):
         result = explanation_for_heatmap.plot_heatmap()
-        # The figure should contain a layout image
         assert len(result.layout.images) > 0
+
+    def test_uses_normalized_atom_weight_copy_only(
+        self, monkeypatch, explanation_for_heatmap
+    ):
+        captured = []
+        original_renderer = explainer_module.SimilarityMaps.GetSimilarityMapFromWeights
+        original_atom_weights = explanation_for_heatmap.atom_weights.copy()
+
+        def capture_weights(mol, weights, **kwargs):
+            captured.extend(weights)
+            return original_renderer(mol, weights, **kwargs)
+
+        monkeypatch.setattr(
+            explainer_module.SimilarityMaps,
+            "GetSimilarityMapFromWeights",
+            capture_weights,
+        )
+
+        explanation_for_heatmap.plot_heatmap()
+
+        assert captured == pytest.approx(
+            np.linspace(-1.0, 1.0, explanation_for_heatmap._mol.GetNumAtoms())
+        )
+        assert explanation_for_heatmap.atom_weights == pytest.approx(
+            original_atom_weights
+        )

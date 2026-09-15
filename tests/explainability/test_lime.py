@@ -630,63 +630,80 @@ class TestLIMEExplainFingerprints:
 
 
 class TestLIMEECFPEnvs:
-    """Tests for _get_ECFP_envs and get_envs_and_weights."""
+    """Tests for occurrence-aware ECFP atom attribution."""
 
-    def test_get_ecfp_envs_returns_dict(self, single_mol):
-        lime = LIME()
-        envs = lime._get_ECFP_envs(single_mol)
+    def test_get_ecfp_envs_returns_occurrence_lists(self, single_mol):
+        envs = LIME()._get_ECFP_envs(single_mol)
+
         assert isinstance(envs, dict)
-
-    def test_get_ecfp_envs_keys_are_ints(self, single_mol):
-        lime = LIME()
-        envs = lime._get_ECFP_envs(single_mol)
-        assert all(isinstance(k, int) for k in envs.keys())
-
-    def test_get_ecfp_envs_values_are_sets(self, single_mol):
-        lime = LIME()
-        envs = lime._get_ECFP_envs(single_mol)
-        assert all(isinstance(v, set) for v in envs.values())
+        assert all(isinstance(bit_id, int) for bit_id in envs)
+        assert all(isinstance(occurrences, list) for occurrences in envs.values())
+        assert all(
+            isinstance(atoms, list)
+            for occurrences in envs.values()
+            for atoms in occurrences
+        )
 
     def test_get_ecfp_envs_atom_indices_valid(self, single_mol):
-        lime = LIME()
-        envs = lime._get_ECFP_envs(single_mol)
+        envs = LIME()._get_ECFP_envs(single_mol)
         n_atoms = single_mol.GetNumAtoms()
-        for atoms in envs.values():
-            assert all(0 <= a < n_atoms for a in atoms)
+
+        for occurrences in envs.values():
+            for atoms in occurrences:
+                assert atoms == sorted(set(atoms))
+                assert all(0 <= atom_id < n_atoms for atom_id in atoms)
+
+    def test_get_ecfp_envs_preserves_identical_occurrences(
+        self, monkeypatch, single_mol
+    ):
+        def fingerprint(mol, radius, nBits, useFeatures, bitInfo):
+            bitInfo[7] = ((0, 0), (0, 0))
+
+        monkeypatch.setattr(
+            "matcha.explainability.lime.AllChem.GetMorganFingerprintAsBitVect",
+            fingerprint,
+        )
+
+        assert LIME()._get_ECFP_envs(single_mol) == {7: [[0], [0]]}
 
     def test_get_ecfp_envs_nonempty_for_nontrivial_mol(self, single_mol):
-        lime = LIME()
-        envs = lime._get_ECFP_envs(single_mol)
-        assert len(envs) > 0
+        assert LIME()._get_ECFP_envs(single_mol)
 
     def test_get_ecfp_envs_custom_params(self, single_mol):
-        lime = LIME()
-        envs = lime._get_ECFP_envs(single_mol, radius=1, nBits=512, useFeatures=True)
-        assert isinstance(envs, dict)
-        # All bit IDs should be within [0, 512)
-        assert all(0 <= k < 512 for k in envs.keys())
+        envs = LIME()._get_ECFP_envs(single_mol, radius=1, nBits=512, useFeatures=True)
 
-    def test_get_envs_and_weights_returns_tuple(
-        self, small_mol_list, small_regression_targets
-    ):
-        lime = LIME(use_fingerprints=True)
-        df = lime.explain(small_mol_list, small_regression_targets, bootstrap_num=3)
-        envs, weights = lime.get_envs_and_weights(small_mol_list[0], df)
-        assert isinstance(envs, dict)
-        assert isinstance(weights, dict)
+        assert all(0 <= bit_id < 512 for bit_id in envs)
 
-    def test_get_envs_and_weights_keys_are_ints(
-        self, small_mol_list, small_regression_targets
+    @pytest.mark.parametrize(
+        ("coefficient", "occurrences", "expected"),
+        [
+            (4.0, [[0, 1], [0, 1]], [2.0, 2.0, 0.0]),
+            (-6.0, [[0, 1], [1, 2]], [-1.5, -3.0, -1.5]),
+            (3.0, [[2]], [0.0, 0.0, 3.0]),
+            (-8.0, [[0], [0, 1, 2]], [-16 / 3, -4 / 3, -4 / 3]),
+        ],
+    )
+    def test_get_attributions_conserves_each_signed_bit_coefficient(
+        self, monkeypatch, coefficient, occurrences, expected
     ):
+        mol = Chem.MolFromSmiles("CCO")
         lime = LIME(use_fingerprints=True)
-        df = lime.explain(small_mol_list, small_regression_targets, bootstrap_num=3)
-        envs, weights = lime.get_envs_and_weights(small_mol_list[0], df)
-        assert all(isinstance(k, int) for k in weights.keys())
+        monkeypatch.setattr(
+            lime, "_get_ECFP_envs", lambda *args, **kwargs: {7: occurrences}
+        )
+        result = pd.DataFrame(
+            {
+                "Descriptor": ["F_7", "F_9", "Local fit R2"],
+                "Coefficient": [coefficient, 10.0, 1.0],
+                "Standard deviation": [0.0, 0.0, 0.0],
+            }
+        )
 
-    def test_get_envs_and_weights_values_are_floats(
-        self, small_mol_list, small_regression_targets
-    ):
-        lime = LIME(use_fingerprints=True)
-        df = lime.explain(small_mol_list, small_regression_targets, bootstrap_num=3)
-        _, weights = lime.get_envs_and_weights(small_mol_list[0], df)
-        assert all(isinstance(v, float) for v in weights.values())
+        envs, weights, atom_weights = lime.get_attributions(mol, result)
+
+        assert envs == {7: sorted({atom for atoms in occurrences for atom in atoms})}
+        assert weights == {7: coefficient, 9: 10.0}
+        assert atom_weights.dtype == np.float64
+        assert atom_weights.shape == (mol.GetNumAtoms(),)
+        assert atom_weights == pytest.approx(expected)
+        assert atom_weights.sum() == pytest.approx(coefficient)

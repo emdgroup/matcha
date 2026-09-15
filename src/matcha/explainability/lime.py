@@ -7,7 +7,6 @@ from rdkit.Chem import AllChem
 from rdkit.Chem.rdmolops import FindAtomEnvironmentOfRadiusN
 from sklearn.metrics import r2_score
 import pandas as pd
-import collections as cl
 
 _default = [
     "FractionCSP3",
@@ -168,8 +167,8 @@ class LIME:
 
     def _get_ECFP_envs(
         self, mol: Mol, radius: int = 3, nBits: int = 8192, useFeatures: bool = False
-    ) -> dict[int, set[int]]:
-        """Compute atomic environments for bits of Extended Connectivity Fingerprints (ECFP).
+    ) -> dict[int, list[list[int]]]:
+        """Compute occurrence-aware atomic environments for ECFP bits.
 
         Reference: https://pubs.acs.org/doi/10.1021/ci100050t
 
@@ -179,46 +178,62 @@ class LIME:
         :param bool useFeatures: Whether to use feature-based fingerprints.
             Defaults to False.
 
-        :returns: Dictionary mapping bit IDs to sets of atom indices involved
-            in that fingerprint bit's environment.
+        :returns: Bit IDs mapped to separate, deterministic atom collections for
+            every fingerprint occurrence.
         """
-        bitinfo = dict()
-        envs = cl.defaultdict(set)
-        # generate the ECFP and store bit information
+        bitinfo = {}
+        envs = {}
         AllChem.GetMorganFingerprintAsBitVect(
             mol, radius=radius, nBits=nBits, useFeatures=useFeatures, bitInfo=bitinfo
         )
-        # iterate over collected information
-        for bitid, examples in bitinfo.items():
-            for aid, rad in examples:
-                envs[bitid].add(aid)
-                path = FindAtomEnvironmentOfRadiusN(mol, rad, aid)
-                for bid in path:
-                    envs[bitid].add(mol.GetBondWithIdx(bid).GetBeginAtomIdx())
-                    envs[bitid].add(mol.GetBondWithIdx(bid).GetEndAtomIdx())
+        for bit_id, occurrences in bitinfo.items():
+            atom_occurrences = []
+            for center_atom, occurrence_radius in occurrences:
+                atoms = {center_atom}
+                path = FindAtomEnvironmentOfRadiusN(mol, occurrence_radius, center_atom)
+                for bond_id in path:
+                    bond = mol.GetBondWithIdx(bond_id)
+                    atoms.add(bond.GetBeginAtomIdx())
+                    atoms.add(bond.GetEndAtomIdx())
+                atom_occurrences.append(sorted(atoms))
+            envs[bit_id] = atom_occurrences
         return envs
 
-    def get_envs_and_weights(self, mol: Mol, out: pd.DataFrame):
-        """Extracts atomic environments and weights for a molecule given a lime analysis result
-
-        :param Mol mol: rdkit molecule
-        :param pd.DataFrame out: lime analysis result
-        """
+    def get_attributions(
+        self, mol: Mol, out: pd.DataFrame
+    ) -> tuple[dict[int, list[int]], dict[int, float], np.ndarray]:
+        """Assemble raw bit and coefficient-conserving atom attributions."""
         params = self._fingerprint_params_set
-        envs = self._get_ECFP_envs(
+        occurrences = self._get_ECFP_envs(
             mol,
             radius=params["radius"],
             nBits=params["nBits"],
             useFeatures=params["useFeatures"],
         )
-        _out = out.drop(index=out.index[-1], axis=0, inplace=False).reset_index(
-            drop=True
+        coefficient_rows = out.iloc[:-1].copy().reset_index(drop=True)
+        coefficient_rows["PID"] = (
+            coefficient_rows.Descriptor.str.split("_").str[-1].astype(int)
         )
-        _out["PID"] = _out.Descriptor.str.split("_").str[-1].astype(int)
         weights = {
-            int(pid): weight for pid, weight in _out[["PID", "Coefficient"]].values
+            int(bit_id): float(weight)
+            for bit_id, weight in coefficient_rows[["PID", "Coefficient"]].values
         }
-        return envs, weights
+        envs = {
+            bit_id: sorted(
+                {atom_id for atom_ids in bit_occurrences for atom_id in atom_ids}
+            )
+            for bit_id, bit_occurrences in occurrences.items()
+        }
+        atom_weights = np.zeros(mol.GetNumAtoms(), dtype=float)
+        for bit_id, bit_occurrences in occurrences.items():
+            if bit_id not in weights:
+                continue
+            occurrence_weight = weights[bit_id] / len(bit_occurrences)
+            for atom_ids in bit_occurrences:
+                atom_weight = occurrence_weight / len(atom_ids)
+                atom_weights[atom_ids] += atom_weight
+
+        return envs, weights, atom_weights
 
     def explain(
         self, X: list[Mol], Y: np.ndarray, bootstrap_num: int = 25

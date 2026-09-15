@@ -1,4 +1,3 @@
-import collections as cl
 from copy import deepcopy
 import io
 
@@ -23,9 +22,9 @@ logger = get_default_logger(__name__)
 class MatchaExplanation:
     """Container for LIME explanation results with visualization methods.
 
-    Holds the descriptor-level coefficients, ECFP atomic environments and
-    weights, the query molecule, and generated analogues. Provides plotting
-    utilities for coefficient bar charts and molecular heatmaps.
+    Holds raw descriptor, fingerprint-bit, and per-atom LIME attributions with
+    the query molecule and generated analogues. Plotting normalizes local copies
+    without changing the stored numerical results.
     """
 
     def __init__(
@@ -35,22 +34,26 @@ class MatchaExplanation:
         weights: dict[int, float],
         mol: Mol,
         analogues: list[str],
+        atom_weights: np.ndarray,
     ):
         """Initialize a MatchaExplanation.
 
         :param pd.DataFrame df_desc: LIME results from descriptor-based analysis,
             with columns ``Descriptor``, ``Coefficient``, ``Standard deviation``.
-        :param dict[int, list[int]] envs: Mapping of fingerprint bit IDs to sets
-            of atom indices in their environment.
-        :param dict[int, float] weights: LIME coefficients per fingerprint bit ID.
+        :param dict[int, list[int]] envs: Mapping of fingerprint bit IDs to
+            flattened atom unions for inspection.
+        :param dict[int, float] weights: Raw LIME coefficients per fingerprint bit.
         :param Mol mol: The query RDKit molecule.
         :param list[str] analogues: SMILES strings of the molecules used in the
             LIME analysis.
+        :param np.ndarray atom_weights: Raw coefficient-conserving weights indexed
+            by atom ID.
         """
         self.df_desc = df_desc
         self.envs = envs
         self.weights = weights
         self.analogues = analogues
+        self.atom_weights = np.array(atom_weights, dtype=float, copy=True)
         self._mol = mol
 
     def plot_coefficients(
@@ -147,26 +150,14 @@ class MatchaExplanation:
         return fig
 
     def plot_heatmap(self, colormap: str = "RdYlGn") -> go.Figure:
-        """Generate a heatmap of the molecule with atoms colored by LIME weights.
-
-        Atom colors are determined by summing ECFP bit weights for all bits
-        that include the atom, then scaling to [-1, +1].
+        """Generate a display-normalized heatmap from raw per-atom weights.
 
         :param str colormap: Matplotlib colormap name. Defaults to ``"RdYlGn"``.
 
         :returns: Plotly figure containing the molecular similarity map image.
         """
-        highlights = cl.defaultdict(float)
-        # collect atomic weights by summing up weights originating from LIME analysis
-        # an atom can be present in multiple bits, thus the summation
-        for bitid, atoms in self.envs.items():
-            for aid in atoms:
-                highlights[aid] += self.weights[bitid]
-        # scale the results between -1 and +1
         highlights = skp.minmax_scale(
-            [weight for _, weight in sorted(highlights.items(), key=lambda x: x[0])],
-            feature_range=(-1, 1),
-            axis=0,
+            self.atom_weights.copy(), feature_range=(-1, 1), axis=0
         ).tolist()
 
         # make the drawing using Cairo (PNG)
@@ -271,7 +262,8 @@ class MatchaExplainer:
         :param int num_sample: Per-branch multi-step sampling quota forwarded to
             :meth:`AnalogueGenerator.generate_analogues`. Defaults to 100.
         :param int random_seed: Seed for deterministic analogue generation and
-            descriptor and ECFP LIME bootstrap sampling. Defaults to 0.
+            independent descriptor and ECFP LIME bootstrap streams. Each LIME
+            explanation restarts a local generator from this seed. Defaults to 0.
         """
         validated = ExplainerInputModel(
             positional_analogue_scanning_params=positional_analogue_scanning_params,
@@ -303,7 +295,7 @@ class MatchaExplainer:
         self._num_sample = validated.num_sample
         self._random_seed = validated.random_seed
 
-    def _run_lime_desc(self, mols, predictions, bootstrap_num) -> tuple:
+    def _run_lime_desc(self, mols, predictions, bootstrap_num) -> pd.DataFrame:
         """Run LIME analysis using RDKit descriptors.
 
         :param list mols: RDKit molecule objects.
@@ -321,15 +313,17 @@ class MatchaExplainer:
         df_desc = lime_desc.explain(mols, predictions, bootstrap_num)
         return df_desc
 
-    def _run_lime_ecfp(self, mols, predictions, bootstrap_num) -> tuple:
+    def _run_lime_ecfp(
+        self, mols, predictions, bootstrap_num
+    ) -> tuple[dict[int, list[int]], dict[int, float], np.ndarray]:
         """Run LIME analysis using ECFP fingerprints.
 
         :param list mols: RDKit molecule objects.
         :param np.ndarray predictions: Target values for the molecules.
         :param int bootstrap_num: Number of bootstrap iterations.
 
-        :returns: Tuple of (envs, weights) mapping fingerprint bit IDs to
-            atom environments and their coefficients.
+        :returns: Tuple of flattened bit environments, raw bit coefficients,
+            and raw coefficient-conserving atom weights.
         """
         lime_ecfp = LIME(
             descriptor_set=self._descriptor_set,
@@ -338,8 +332,7 @@ class MatchaExplainer:
             random_seed=self._random_seed,
         )
         df_ecfp = lime_ecfp.explain(mols, predictions, bootstrap_num)
-        envs, weights = lime_ecfp.get_envs_and_weights(mols[0], df_ecfp)
-        return envs, weights
+        return lime_ecfp.get_attributions(mols[0], df_ecfp)
 
     def generate_analogues(self, mol: Mol) -> list[Mol]:
         """Generate structural analogues for a molecule.
@@ -384,10 +377,12 @@ class MatchaExplainer:
         :param np.ndarray predictions: Target values (e.g., model predictions),
             shape ``(n_molecules,)``.
         :param int bootstrap_num: Exact number of full-size row-bootstrap fits.
-            Every fit retains all feature columns. Defaults to 25.
+            Every fit draws rows with replacement and retains all feature columns.
+            Descriptor features alone are standardized within each fit. Defaults
+            to 25.
 
-        :returns: :class:`MatchaExplanation` containing coefficients, atomic
-            environments, weights, and analogue SMILES.
+        :returns: :class:`MatchaExplanation` containing raw descriptor, bit, and
+            atom attributions plus analogue SMILES.
         """
         predictions = np.asarray(predictions)
         if predictions.ndim != 1:
@@ -411,9 +406,10 @@ class MatchaExplainer:
             )
 
         df_desc = self._run_lime_desc(mols, predictions, bootstrap_num)
-        envs, weights = self._run_lime_ecfp(mols, predictions, bootstrap_num)
+        envs, weights, atom_weights = self._run_lime_ecfp(
+            mols, predictions, bootstrap_num
+        )
 
-        # Convert molecules to SMILES
         smiles = [MolToSmiles(mol) for mol in mols]
 
-        return MatchaExplanation(df_desc, envs, weights, mols[0], smiles)
+        return MatchaExplanation(df_desc, envs, weights, mols[0], smiles, atom_weights)
