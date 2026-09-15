@@ -1,7 +1,4 @@
-from math import ceil
-
 from sklearn.linear_model import Ridge
-from sklearn.model_selection import KFold
 from sklearn.preprocessing import StandardScaler
 from matcha.datamodules.classic.rdkit_engine import Engine
 import numpy as np
@@ -136,47 +133,36 @@ class LIME:
         return feats
 
     def _fit(self, feats: np.ndarray, y: np.ndarray, bootstrap_num: int):
-        """Fit bootstrapped Ridge regression models on feature subsets.
+        """Fit Ridge models on full-size row-bootstrap samples.
 
-        Uses K-Fold splitting to subsample both samples and features, fitting
-        a separate Ridge model on each fold and collecting coefficients.
+        Each fit samples rows with replacement and retains every feature column.
+        Descriptor features are standardized independently per fit, while ECFP
+        features are fitted as raw binary values.
 
         :param np.ndarray feats: Feature matrix, shape ``(n_samples, n_features)``.
         :param np.ndarray y: Target values, shape ``(n_samples,)``.
-        :param int bootstrap_num: Number of bootstrap iterations (K-Fold splits).
+        :param int bootstrap_num: Exact number of bootstrap fits.
 
         :returns: Coefficient matrix of shape ``(bootstrap_num, n_features)``.
         """
         n_rows, feature_count = feats.shape
-        sample_splits = max(bootstrap_num, ceil(n_rows / (n_rows - 2)))
-        sample_idx = [
-            train_rows for train_rows, _ in KFold(n_splits=sample_splits).split(feats)
-        ][:bootstrap_num]
-        if bootstrap_num == 1:
-            feat_idx = [np.arange(feature_count)]
-        else:
-            feat_idx = [
-                train_columns
-                for train_columns, _ in KFold(n_splits=bootstrap_num).split(
-                    np.arange(feature_count)
-                )
-            ]
+        rng = np.random.default_rng(self._random_seed % (2**64))
 
         self._model_box = []
         self._r2_box = []
-        self._coeff_box = np.full((bootstrap_num, feature_count), np.nan)
-        for fit_index, (sample_rows, feature_columns) in enumerate(
-            zip(sample_idx, feat_idx)
-        ):
-            fit_features = feats[np.ix_(sample_rows, feature_columns)]
-            fit_features = StandardScaler().fit_transform(fit_features)
+        self._coeff_box = np.empty((bootstrap_num, feature_count))
+        for fit_index in range(bootstrap_num):
+            sample_rows = rng.choice(n_rows, size=n_rows, replace=True)
+            fit_features = feats[sample_rows]
+            if not self._use_fingerprints:
+                fit_features = StandardScaler().fit_transform(fit_features)
             fit_targets = y[sample_rows]
             model = Ridge()
             model.fit(fit_features, fit_targets)
             predictions = model.predict(fit_features)
             self._r2_box.append(r2_score(fit_targets, predictions))
             self._model_box.append(model)
-            self._coeff_box[fit_index, feature_columns] = model.coef_
+            self._coeff_box[fit_index] = model.coef_
 
         return self._coeff_box
 
@@ -246,7 +232,8 @@ class LIME:
         :param list[Mol] X: RDKit molecule objects to explain.
         :param np.ndarray Y: Target values (predictions or any endpoint),
             shape ``(n_molecules,)``.
-        :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+        :param int bootstrap_num: Exact number of full-size row-bootstrap fits.
+            Defaults to 25.
 
         :returns: DataFrame with columns ``Descriptor``, raw ``Coefficient``, and
             raw ``Standard deviation``, sorted by coefficient magnitude. The last
@@ -272,25 +259,9 @@ class LIME:
             feats = self._get_features(X, self.descriptor_set)
             columns = self._descriptor_set
 
-        feature_count = feats.shape[1]
-        if bootstrap_num > feature_count:
-            raise ValueError(
-                f"bootstrap_num ({bootstrap_num}) cannot exceed available feature "
-                f"count ({feature_count})."
-            )
-
-        requested_fits = min(bootstrap_num, len(X))
-        coeff_box = self._fit(feats, targets, requested_fits)
-        coeff_median = np.zeros(feature_count)
-        coeff_std = np.zeros(feature_count)
-        for column_index in range(feature_count):
-            selected_coefficients = coeff_box[:, column_index]
-            selected_coefficients = selected_coefficients[
-                ~np.isnan(selected_coefficients)
-            ]
-            if selected_coefficients.size:
-                coeff_median[column_index] = np.median(selected_coefficients)
-                coeff_std[column_index] = np.std(selected_coefficients)
+        coeff_box = self._fit(feats, targets, bootstrap_num)
+        coeff_median = np.median(coeff_box, axis=0)
+        coeff_std = np.std(coeff_box, axis=0)
 
         df_out = pd.DataFrame(
             {

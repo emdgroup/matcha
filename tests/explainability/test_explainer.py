@@ -453,12 +453,6 @@ class TestMatchaExplainerExplain:
             ),
             (2, np.array([1.0, 2.0]), 1, "at least 3 molecules"),
             (3, np.array([1.0, 2.0, 3.0]), 0, "bootstrap_num must be at least 1"),
-            (
-                3,
-                np.array([1.0, 2.0, 3.0]),
-                3,
-                r"bootstrap_num \(3\) cannot exceed available feature count \(2\)",
-            ),
         ],
     )
     def test_rejects_invalid_lime_inputs_before_running_either_path(
@@ -483,6 +477,28 @@ class TestMatchaExplainerExplain:
 
         descriptor_lime.assert_not_called()
         fingerprint_lime.assert_not_called()
+
+    def test_forwards_exact_fit_count_above_row_and_feature_counts(
+        self, monkeypatch, small_mol_list
+    ):
+        explainer = MatchaExplainer(lime_descriptor_set=["MolWt", "MolLogP"])
+        df_desc = pd.DataFrame(
+            {
+                "Descriptor": ["Local fit R2"],
+                "Coefficient": [1.0],
+                "Standard deviation": [0.0],
+            }
+        )
+        descriptor_lime = Mock(return_value=df_desc)
+        fingerprint_lime = Mock(return_value=({}, {}))
+        monkeypatch.setattr(explainer, "_run_lime_desc", descriptor_lime)
+        monkeypatch.setattr(explainer, "_run_lime_ecfp", fingerprint_lime)
+        predictions = np.array([1.0, 2.0, 3.0])
+
+        explainer.explain(small_mol_list[:3], predictions, bootstrap_num=5)
+
+        descriptor_lime.assert_called_once_with(small_mol_list[:3], predictions, 5)
+        fingerprint_lime.assert_called_once_with(small_mol_list[:3], predictions, 5)
 
 
 # ===================================================================
@@ -577,9 +593,7 @@ class TestMatchaExplanationPlotCoefficients:
 
         assert list(fig.data[0].y) == ["negative", "positive"]
         assert list(fig.data[0].x) == pytest.approx([-2.0 / 6.0, 4.0 / 6.0])
-        assert list(fig.data[0].error_x.array) == pytest.approx(
-            [0.4 / 6.0, 0.8 / 6.0]
-        )
+        assert list(fig.data[0].error_x.array) == pytest.approx([0.4 / 6.0, 0.8 / 6.0])
 
     def test_raw_filter_matches_l1_normalized_equivalent(self):
         raw = pd.DataFrame(

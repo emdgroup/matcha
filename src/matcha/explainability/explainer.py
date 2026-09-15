@@ -13,7 +13,7 @@ from rdkit.Chem.rdchem import Mol
 import sklearn.preprocessing as skp
 
 from matcha.explainability.analogue_generator import AnalogueGenerator
-from matcha.explainability.lime import LIME, _default, _fp_default
+from matcha.explainability.lime import LIME
 from matcha.utils.logging import get_default_logger
 from matcha.utils.schemas import ExplainerInputModel
 
@@ -383,7 +383,8 @@ class MatchaExplainer:
             molecules are recommended for reliable results.
         :param np.ndarray predictions: Target values (e.g., model predictions),
             shape ``(n_molecules,)``.
-        :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+        :param int bootstrap_num: Exact number of full-size row-bootstrap fits.
+            Every fit retains all feature columns. Defaults to 25.
 
         :returns: :class:`MatchaExplanation` containing coefficients, atomic
             environments, weights, and analogue SMILES.
@@ -403,30 +404,14 @@ class MatchaExplainer:
         if bootstrap_num < 1:
             raise ValueError("bootstrap_num must be at least 1.")
 
-        descriptor_count = len(
-            self._descriptor_set if self._descriptor_set is not None else _default
-        )
-        fingerprint_count = (
-            self._fingerprint_params
-            if self._fingerprint_params is not None
-            else _fp_default
-        ).get("nBits", _fp_default["nBits"])
-        feature_count = min(descriptor_count, fingerprint_count)
-        if bootstrap_num > feature_count:
-            raise ValueError(
-                f"bootstrap_num ({bootstrap_num}) cannot exceed available feature "
-                f"count ({feature_count})."
-            )
-
         if len(mols) < 10:
             logger.warning(
                 f"Only {len(mols)} molecules provided. At least 10 analogues are "
                 "recommended for reliable LIME explanations. Results may be unstable."
             )
 
-        requested_fits = min(bootstrap_num, len(mols))
-        df_desc = self._run_lime_desc(mols, predictions, requested_fits)
-        envs, weights = self._run_lime_ecfp(mols, predictions, requested_fits)
+        df_desc = self._run_lime_desc(mols, predictions, bootstrap_num)
+        envs, weights = self._run_lime_ecfp(mols, predictions, bootstrap_num)
 
         # Convert molecules to SMILES
         smiles = [MolToSmiles(mol) for mol in mols]
