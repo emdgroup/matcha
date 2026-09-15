@@ -89,10 +89,7 @@
            <div itemprop="articleBody">
              
   <h1>Source code for matcha.explainability.lime</h1><div class="highlight"><pre>
-<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">math</span><span class="w"> </span><span class="kn">import</span> <span class="n">ceil</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.linear_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ridge</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">KFold</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.linear_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">Ridge</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="kn">import</span> <span class="n">StandardScaler</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.datamodules.classic.rdkit_engine</span><span class="w"> </span><span class="kn">import</span> <span class="n">Engine</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -101,7 +98,6 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">rdkit.Chem.rdmolops</span><span class="w"> </span><span class="kn">import</span> <span class="n">FindAtomEnvironmentOfRadiusN</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.metrics</span><span class="w"> </span><span class="kn">import</span> <span class="n">r2_score</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cl</span>
 
 <span class="n">_default</span> <span class="o">=</span> <span class="p">[</span>
     <span class="s2">&quot;FractionCSP3&quot;</span><span class="p">,</span>
@@ -151,7 +147,7 @@
     <span class="s2">&quot;fr_N_O&quot;</span><span class="p">,</span>
     <span class="s2">&quot;fr_SH&quot;</span><span class="p">,</span>
 <span class="p">]</span>
-<span class="n">_fp_default</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;nBits&quot;</span><span class="p">:</span> <span class="mi">1024</span><span class="p">,</span> <span class="s2">&quot;radius&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;useFeatures&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
+<span class="n">_fp_default</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;nBits&quot;</span><span class="p">:</span> <span class="mi">8192</span><span class="p">,</span> <span class="s2">&quot;radius&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;useFeatures&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">}</span>
 
 
 <div class="viewcode-block" id="LIME">
@@ -161,48 +157,41 @@
 
 <span class="sd">    Fits bootstrapped Ridge regression models on molecular descriptors or</span>
 <span class="sd">    ECFP fingerprints to identify which features most influence a prediction.</span>
-<span class="sd">    Coefficients are optionally scaled to sum to 1 for interpretability.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">descriptor_set</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">fingerprint_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">scale_coeff</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">use_fingerprints</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">random_seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize LIME explainer.</span>
 
 <span class="sd">        :param list[str] | None descriptor_set: RDKit descriptor names to use as features.</span>
 <span class="sd">            Defaults to a curated set of 42 physicochemical descriptors.</span>
 <span class="sd">        :param dict | None fingerprint_params: Parameters for Morgan fingerprint generation</span>
-<span class="sd">            (keys: ``nBits``, ``radius``, ``useFeatures``). Defaults to 1024-bit, radius 3.</span>
-<span class="sd">        :param bool scale_coeff: Whether to normalize coefficients so absolute values</span>
-<span class="sd">            sum to 1. Defaults to True.</span>
+<span class="sd">            (keys: ``nBits``, ``radius``, ``useFeatures``). Defaults to 8192-bit, radius 3.</span>
 <span class="sd">        :param bool use_fingerprints: If True, uses ECFP fingerprints instead of</span>
 <span class="sd">            RDKit descriptors. Defaults to False.</span>
+<span class="sd">        :param int random_seed: Seed for bootstrap sampling. Defaults to 0.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">descriptor_set</span> <span class="k">if</span> <span class="n">descriptor_set</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_default</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">fingerprint_params</span> <span class="k">if</span> <span class="n">fingerprint_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_fp_default</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span> <span class="o">=</span> <span class="n">_fp_default</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">fingerprint_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">fingerprint_params</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_r2_box</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span> <span class="o">=</span> <span class="n">scale_coeff</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_use_fingerprints</span> <span class="o">=</span> <span class="n">use_fingerprints</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_random_seed</span> <span class="o">=</span> <span class="n">random_seed</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">descriptor_set</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;The list of RDKit descriptor names used as features.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span>
-
-    <span class="nd">@property</span>
-    <span class="k">def</span><span class="w"> </span><span class="nf">scale_coeff</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whether coefficients are scaled to sum to 1.&quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">r2_box</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
@@ -223,121 +212,123 @@
         <span class="n">feats</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">get_arbitrary_rdkit_descriptors</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">descriptor_list</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">feats</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_get_ecfps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">],</span> <span class="n">fp_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_ecfps</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Mol</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute ECFP fingerprint features for a list of molecules.</span>
 
 <span class="sd">        :param list[Mol] mols: RDKit molecule objects.</span>
-<span class="sd">        :param dict | None fp_params: Morgan fingerprint parameters.</span>
 
 <span class="sd">        :returns: Fingerprint bit matrix of shape ``(n_molecules, nBits)``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">engine</span> <span class="o">=</span> <span class="n">Engine</span><span class="p">(</span><span class="n">n_jobs</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">engine</span><span class="o">.</span><span class="n">_defaults</span><span class="p">[</span><span class="s2">&quot;ecfp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">fp_params</span> <span class="k">if</span> <span class="n">fp_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span>
-        <span class="p">)</span>
+        <span class="n">engine</span><span class="o">.</span><span class="n">_defaults</span><span class="p">[</span><span class="s2">&quot;ecfp&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span>
         <span class="n">feats</span> <span class="o">=</span> <span class="n">engine</span><span class="o">.</span><span class="n">get_ECFP</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">feats</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feats</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit bootstrapped Ridge regression models on feature subsets.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Fit Ridge models on full-size row-bootstrap samples.</span>
 
-<span class="sd">        Uses K-Fold splitting to subsample both samples and features, fitting</span>
-<span class="sd">        a separate Ridge model on each fold and collecting coefficients.</span>
+<span class="sd">        Each fit samples rows with replacement and retains every feature column.</span>
+<span class="sd">        Descriptor features are standardized independently per fit, while ECFP</span>
+<span class="sd">        features are fitted as raw binary values.</span>
 
 <span class="sd">        :param np.ndarray feats: Feature matrix, shape ``(n_samples, n_features)``.</span>
 <span class="sd">        :param np.ndarray y: Target values, shape ``(n_samples,)``.</span>
-<span class="sd">        :param int bootstrap_num: Number of bootstrap iterations (K-Fold splits).</span>
+<span class="sd">        :param int bootstrap_num: Exact number of bootstrap fits.</span>
 
 <span class="sd">        :returns: Coefficient matrix of shape ``(bootstrap_num, n_features)``.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">n_rows</span><span class="p">,</span> <span class="n">feature_count</span> <span class="o">=</span> <span class="n">feats</span><span class="o">.</span><span class="n">shape</span>
-        <span class="n">sample_splits</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="n">ceil</span><span class="p">(</span><span class="n">n_rows</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_rows</span> <span class="o">-</span> <span class="mi">2</span><span class="p">)))</span>
-        <span class="n">sample_idx</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">train_rows</span> <span class="k">for</span> <span class="n">train_rows</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">sample_splits</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">feats</span><span class="p">)</span>
-        <span class="p">][:</span><span class="n">bootstrap_num</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">feat_idx</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">feat_idx</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">train_columns</span>
-                <span class="k">for</span> <span class="n">train_columns</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="n">KFold</span><span class="p">(</span><span class="n">n_splits</span><span class="o">=</span><span class="n">bootstrap_num</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-                    <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)</span>
-                <span class="p">)</span>
-            <span class="p">]</span>
+        <span class="n">rng</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_random_seed</span> <span class="o">%</span> <span class="p">(</span><span class="mi">2</span><span class="o">**</span><span class="mi">64</span><span class="p">))</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_r2_box</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="n">feature_count</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">fit_index</span><span class="p">,</span> <span class="p">(</span><span class="n">sample_rows</span><span class="p">,</span> <span class="n">feature_columns</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span>
-            <span class="nb">zip</span><span class="p">(</span><span class="n">sample_idx</span><span class="p">,</span> <span class="n">feat_idx</span><span class="p">)</span>
-        <span class="p">):</span>
-            <span class="n">fit_features</span> <span class="o">=</span> <span class="n">feats</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ix_</span><span class="p">(</span><span class="n">sample_rows</span><span class="p">,</span> <span class="n">feature_columns</span><span class="p">)]</span>
-            <span class="n">fit_features</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">fit_features</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">empty</span><span class="p">((</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="n">feature_count</span><span class="p">))</span>
+        <span class="k">for</span> <span class="n">fit_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">):</span>
+            <span class="n">sample_rows</span> <span class="o">=</span> <span class="n">rng</span><span class="o">.</span><span class="n">choice</span><span class="p">(</span><span class="n">n_rows</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="n">n_rows</span><span class="p">,</span> <span class="n">replace</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">fit_features</span> <span class="o">=</span> <span class="n">feats</span><span class="p">[</span><span class="n">sample_rows</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_fingerprints</span><span class="p">:</span>
+                <span class="n">fit_features</span> <span class="o">=</span> <span class="n">StandardScaler</span><span class="p">()</span><span class="o">.</span><span class="n">fit_transform</span><span class="p">(</span><span class="n">fit_features</span><span class="p">)</span>
             <span class="n">fit_targets</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">sample_rows</span><span class="p">]</span>
             <span class="n">model</span> <span class="o">=</span> <span class="n">Ridge</span><span class="p">()</span>
             <span class="n">model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">fit_features</span><span class="p">,</span> <span class="n">fit_targets</span><span class="p">)</span>
             <span class="n">predictions</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">fit_features</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_r2_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">r2_score</span><span class="p">(</span><span class="n">fit_targets</span><span class="p">,</span> <span class="n">predictions</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_model_box</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span><span class="p">[</span><span class="n">fit_index</span><span class="p">,</span> <span class="n">feature_columns</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">coef_</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span><span class="p">[</span><span class="n">fit_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">coef_</span>
 
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coeff_box</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_ECFP_envs</span><span class="p">(</span>
-        <span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">radius</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">nBits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1024</span><span class="p">,</span> <span class="n">useFeatures</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">set</span><span class="p">[</span><span class="nb">int</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute atomic environments for bits of Extended Connectivity Fingerprints (ECFP).</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">radius</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">,</span> <span class="n">nBits</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8192</span><span class="p">,</span> <span class="n">useFeatures</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compute occurrence-aware atomic environments for ECFP bits.</span>
 
 <span class="sd">        Reference: https://pubs.acs.org/doi/10.1021/ci100050t</span>
 
 <span class="sd">        :param Mol mol: RDKit molecule to compute environments for.</span>
 <span class="sd">        :param int radius: Radius for Morgan fingerprint. Defaults to 3.</span>
-<span class="sd">        :param int nBits: Number of bits in fingerprint. Defaults to 1024.</span>
+<span class="sd">        :param int nBits: Number of bits in fingerprint. Defaults to 8192.</span>
 <span class="sd">        :param bool useFeatures: Whether to use feature-based fingerprints.</span>
 <span class="sd">            Defaults to False.</span>
 
-<span class="sd">        :returns: Dictionary mapping bit IDs to sets of atom indices involved</span>
-<span class="sd">            in that fingerprint bit&#39;s environment.</span>
+<span class="sd">        :returns: Bit IDs mapped to separate, deterministic atom collections for</span>
+<span class="sd">            every fingerprint occurrence.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">bitinfo</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
-        <span class="n">envs</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
-        <span class="c1"># generate the ECFP and store bit information</span>
+        <span class="n">bitinfo</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">envs</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="n">AllChem</span><span class="o">.</span><span class="n">GetMorganFingerprintAsBitVect</span><span class="p">(</span>
             <span class="n">mol</span><span class="p">,</span> <span class="n">radius</span><span class="o">=</span><span class="n">radius</span><span class="p">,</span> <span class="n">nBits</span><span class="o">=</span><span class="n">nBits</span><span class="p">,</span> <span class="n">useFeatures</span><span class="o">=</span><span class="n">useFeatures</span><span class="p">,</span> <span class="n">bitInfo</span><span class="o">=</span><span class="n">bitinfo</span>
         <span class="p">)</span>
-        <span class="c1"># iterate over collected information</span>
-        <span class="k">for</span> <span class="n">bitid</span><span class="p">,</span> <span class="n">examples</span> <span class="ow">in</span> <span class="n">bitinfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">for</span> <span class="n">aid</span><span class="p">,</span> <span class="n">rad</span> <span class="ow">in</span> <span class="n">examples</span><span class="p">:</span>
-                <span class="n">envs</span><span class="p">[</span><span class="n">bitid</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">aid</span><span class="p">)</span>
-                <span class="n">path</span> <span class="o">=</span> <span class="n">FindAtomEnvironmentOfRadiusN</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">rad</span><span class="p">,</span> <span class="n">aid</span><span class="p">)</span>
-                <span class="k">for</span> <span class="n">bid</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
-                    <span class="n">envs</span><span class="p">[</span><span class="n">bitid</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">GetBondWithIdx</span><span class="p">(</span><span class="n">bid</span><span class="p">)</span><span class="o">.</span><span class="n">GetBeginAtomIdx</span><span class="p">())</span>
-                    <span class="n">envs</span><span class="p">[</span><span class="n">bitid</span><span class="p">]</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">GetBondWithIdx</span><span class="p">(</span><span class="n">bid</span><span class="p">)</span><span class="o">.</span><span class="n">GetEndAtomIdx</span><span class="p">())</span>
+        <span class="k">for</span> <span class="n">bit_id</span><span class="p">,</span> <span class="n">occurrences</span> <span class="ow">in</span> <span class="n">bitinfo</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">atom_occurrences</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">center_atom</span><span class="p">,</span> <span class="n">occurrence_radius</span> <span class="ow">in</span> <span class="n">occurrences</span><span class="p">:</span>
+                <span class="n">atoms</span> <span class="o">=</span> <span class="p">{</span><span class="n">center_atom</span><span class="p">}</span>
+                <span class="n">path</span> <span class="o">=</span> <span class="n">FindAtomEnvironmentOfRadiusN</span><span class="p">(</span><span class="n">mol</span><span class="p">,</span> <span class="n">occurrence_radius</span><span class="p">,</span> <span class="n">center_atom</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">bond_id</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+                    <span class="n">bond</span> <span class="o">=</span> <span class="n">mol</span><span class="o">.</span><span class="n">GetBondWithIdx</span><span class="p">(</span><span class="n">bond_id</span><span class="p">)</span>
+                    <span class="n">atoms</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">bond</span><span class="o">.</span><span class="n">GetBeginAtomIdx</span><span class="p">())</span>
+                    <span class="n">atoms</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">bond</span><span class="o">.</span><span class="n">GetEndAtomIdx</span><span class="p">())</span>
+                <span class="n">atom_occurrences</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">atoms</span><span class="p">))</span>
+            <span class="n">envs</span><span class="p">[</span><span class="n">bit_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">atom_occurrences</span>
         <span class="k">return</span> <span class="n">envs</span>
 
-<div class="viewcode-block" id="LIME.get_envs_and_weights">
-<a class="viewcode-back" href="../../../api/matcha/explainability/lime/index.html#matcha.explainability.LIME.get_envs_and_weights">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">get_envs_and_weights</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extracts atomic environments and weights for a molecule given a lime analysis result</span>
-
-<span class="sd">        :param Mol mol: rdkit molecule</span>
-<span class="sd">        :param pd.DataFrame out: lime analysis result</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="LIME.get_attributions">
+<a class="viewcode-back" href="../../../api/matcha/explainability/lime/index.html#matcha.explainability.LIME.get_attributions">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_attributions</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Assemble raw bit and coefficient-conserving atom attributions.&quot;&quot;&quot;</span>
         <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span>
-        <span class="n">envs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ECFP_envs</span><span class="p">(</span>
+        <span class="n">occurrences</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ECFP_envs</span><span class="p">(</span>
             <span class="n">mol</span><span class="p">,</span>
-            <span class="n">radius</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;radius&quot;</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span>
-            <span class="n">nBits</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nBits&quot;</span><span class="p">,</span> <span class="mi">1024</span><span class="p">),</span>
-            <span class="n">useFeatures</span><span class="o">=</span><span class="n">params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;useFeatures&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+            <span class="n">radius</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;radius&quot;</span><span class="p">],</span>
+            <span class="n">nBits</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;nBits&quot;</span><span class="p">],</span>
+            <span class="n">useFeatures</span><span class="o">=</span><span class="n">params</span><span class="p">[</span><span class="s2">&quot;useFeatures&quot;</span><span class="p">],</span>
         <span class="p">)</span>
-        <span class="n">_out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">out</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">inplace</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span>
-            <span class="n">drop</span><span class="o">=</span><span class="kc">True</span>
+        <span class="n">coefficient_rows</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">coefficient_rows</span><span class="p">[</span><span class="s2">&quot;PID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">coefficient_rows</span><span class="o">.</span><span class="n">Descriptor</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
         <span class="p">)</span>
-        <span class="n">_out</span><span class="p">[</span><span class="s2">&quot;PID&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">_out</span><span class="o">.</span><span class="n">Descriptor</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
         <span class="n">weights</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="nb">int</span><span class="p">(</span><span class="n">pid</span><span class="p">):</span> <span class="n">weight</span> <span class="k">for</span> <span class="n">pid</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">_out</span><span class="p">[[</span><span class="s2">&quot;PID&quot;</span><span class="p">,</span> <span class="s2">&quot;Coefficient&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">values</span>
+            <span class="nb">int</span><span class="p">(</span><span class="n">bit_id</span><span class="p">):</span> <span class="nb">float</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">bit_id</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="n">coefficient_rows</span><span class="p">[[</span><span class="s2">&quot;PID&quot;</span><span class="p">,</span> <span class="s2">&quot;Coefficient&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">values</span>
         <span class="p">}</span>
-        <span class="k">return</span> <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span></div>
+        <span class="n">envs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">bit_id</span><span class="p">:</span> <span class="nb">sorted</span><span class="p">(</span>
+                <span class="p">{</span><span class="n">atom_id</span> <span class="k">for</span> <span class="n">atom_ids</span> <span class="ow">in</span> <span class="n">bit_occurrences</span> <span class="k">for</span> <span class="n">atom_id</span> <span class="ow">in</span> <span class="n">atom_ids</span><span class="p">}</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">bit_id</span><span class="p">,</span> <span class="n">bit_occurrences</span> <span class="ow">in</span> <span class="n">occurrences</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+        <span class="p">}</span>
+        <span class="n">atom_weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">mol</span><span class="o">.</span><span class="n">GetNumAtoms</span><span class="p">(),</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">bit_id</span><span class="p">,</span> <span class="n">bit_occurrences</span> <span class="ow">in</span> <span class="n">occurrences</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">bit_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">weights</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">occurrence_weight</span> <span class="o">=</span> <span class="n">weights</span><span class="p">[</span><span class="n">bit_id</span><span class="p">]</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">bit_occurrences</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">atom_ids</span> <span class="ow">in</span> <span class="n">bit_occurrences</span><span class="p">:</span>
+                <span class="n">atom_weight</span> <span class="o">=</span> <span class="n">occurrence_weight</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">atom_ids</span><span class="p">)</span>
+                <span class="n">atom_weights</span><span class="p">[</span><span class="n">atom_ids</span><span class="p">]</span> <span class="o">+=</span> <span class="n">atom_weight</span>
+
+        <span class="k">return</span> <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">atom_weights</span></div>
 
 
 <div class="viewcode-block" id="LIME.explain">
@@ -354,10 +345,11 @@
 <span class="sd">        :param list[Mol] X: RDKit molecule objects to explain.</span>
 <span class="sd">        :param np.ndarray Y: Target values (predictions or any endpoint),</span>
 <span class="sd">            shape ``(n_molecules,)``.</span>
-<span class="sd">        :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.</span>
+<span class="sd">        :param int bootstrap_num: Exact number of full-size row-bootstrap fits.</span>
+<span class="sd">            Defaults to 25.</span>
 
-<span class="sd">        :returns: DataFrame with columns ``Descriptor``, ``Coefficient``, and</span>
-<span class="sd">            ``Standard deviation``, sorted by coefficient magnitude. The last</span>
+<span class="sd">        :returns: DataFrame with columns ``Descriptor``, raw ``Coefficient``, and</span>
+<span class="sd">            raw ``Standard deviation``, sorted by coefficient magnitude. The last</span>
 <span class="sd">            row contains the local fit R-squared summary.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">targets</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">Y</span><span class="p">)</span>
@@ -374,37 +366,15 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;bootstrap_num must be at least 1.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_use_fingerprints</span><span class="p">:</span>
-            <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ecfps</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params_set</span><span class="p">)</span>
+            <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_ecfps</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
             <span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">&quot;F_</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">feats</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_features</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">descriptor_set</span><span class="p">)</span>
             <span class="n">columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span>
 
-        <span class="n">feature_count</span> <span class="o">=</span> <span class="n">feats</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">&gt;</span> <span class="n">feature_count</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;bootstrap_num (</span><span class="si">{</span><span class="n">bootstrap_num</span><span class="si">}</span><span class="s2">) cannot exceed available feature &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;count (</span><span class="si">{</span><span class="n">feature_count</span><span class="si">}</span><span class="s2">).&quot;</span>
-            <span class="p">)</span>
-
-        <span class="n">requested_fits</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">X</span><span class="p">))</span>
-        <span class="n">coeff_box</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">requested_fits</span><span class="p">)</span>
-        <span class="n">coeff_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)</span>
-        <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">feature_count</span><span class="p">)</span>
-        <span class="k">for</span> <span class="n">column_index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">feature_count</span><span class="p">):</span>
-            <span class="n">selected_coefficients</span> <span class="o">=</span> <span class="n">coeff_box</span><span class="p">[:,</span> <span class="n">column_index</span><span class="p">]</span>
-            <span class="n">selected_coefficients</span> <span class="o">=</span> <span class="n">selected_coefficients</span><span class="p">[</span>
-                <span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">selected_coefficients</span><span class="p">)</span>
-            <span class="p">]</span>
-            <span class="k">if</span> <span class="n">selected_coefficients</span><span class="o">.</span><span class="n">size</span><span class="p">:</span>
-                <span class="n">coeff_median</span><span class="p">[</span><span class="n">column_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">selected_coefficients</span><span class="p">)</span>
-                <span class="n">coeff_std</span><span class="p">[</span><span class="n">column_index</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">selected_coefficients</span><span class="p">)</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_coeff</span><span class="p">:</span>
-            <span class="n">coefficient_norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">coeff_median</span><span class="p">))</span>
-            <span class="k">if</span> <span class="n">coefficient_norm</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
-                <span class="n">coeff_median</span> <span class="o">=</span> <span class="n">coeff_median</span> <span class="o">/</span> <span class="n">coefficient_norm</span>
-                <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">coeff_std</span> <span class="o">/</span> <span class="n">coefficient_norm</span>
+        <span class="n">coeff_box</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fit</span><span class="p">(</span><span class="n">feats</span><span class="p">,</span> <span class="n">targets</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
+        <span class="n">coeff_median</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">(</span><span class="n">coeff_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">coeff_std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">coeff_box</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="n">df_out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
             <span class="p">{</span>

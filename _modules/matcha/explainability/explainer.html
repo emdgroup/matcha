@@ -89,8 +89,7 @@
            <div itemprop="articleBody">
              
   <h1>Source code for matcha.explainability.explainer</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">collections</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">cl</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
+<span></span><span class="kn">from</span><span class="w"> </span><span class="nn">copy</span><span class="w"> </span><span class="kn">import</span> <span class="n">deepcopy</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
@@ -104,7 +103,7 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">sklearn.preprocessing</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">skp</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.analogue_generator</span><span class="w"> </span><span class="kn">import</span> <span class="n">AnalogueGenerator</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.lime</span><span class="w"> </span><span class="kn">import</span> <span class="n">LIME</span><span class="p">,</span> <span class="n">_default</span><span class="p">,</span> <span class="n">_fp_default</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">matcha.explainability.lime</span><span class="w"> </span><span class="kn">import</span> <span class="n">LIME</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.logging</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_default_logger</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">matcha.utils.schemas</span><span class="w"> </span><span class="kn">import</span> <span class="n">ExplainerInputModel</span>
 
@@ -116,9 +115,9 @@
 <span class="k">class</span><span class="w"> </span><span class="nc">MatchaExplanation</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Container for LIME explanation results with visualization methods.</span>
 
-<span class="sd">    Holds the descriptor-level coefficients, ECFP atomic environments and</span>
-<span class="sd">    weights, the query molecule, and generated analogues. Provides plotting</span>
-<span class="sd">    utilities for coefficient bar charts and molecular heatmaps.</span>
+<span class="sd">    Holds raw descriptor, fingerprint-bit, and per-atom LIME attributions with</span>
+<span class="sd">    the query molecule and generated analogues. Plotting normalizes local copies</span>
+<span class="sd">    without changing the stored numerical results.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
@@ -128,22 +127,26 @@
         <span class="n">weights</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span>
         <span class="n">mol</span><span class="p">:</span> <span class="n">Mol</span><span class="p">,</span>
         <span class="n">analogues</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">atom_weights</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
     <span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize a MatchaExplanation.</span>
 
 <span class="sd">        :param pd.DataFrame df_desc: LIME results from descriptor-based analysis,</span>
 <span class="sd">            with columns ``Descriptor``, ``Coefficient``, ``Standard deviation``.</span>
-<span class="sd">        :param dict[int, list[int]] envs: Mapping of fingerprint bit IDs to sets</span>
-<span class="sd">            of atom indices in their environment.</span>
-<span class="sd">        :param dict[int, float] weights: LIME coefficients per fingerprint bit ID.</span>
+<span class="sd">        :param dict[int, list[int]] envs: Mapping of fingerprint bit IDs to</span>
+<span class="sd">            flattened atom unions for inspection.</span>
+<span class="sd">        :param dict[int, float] weights: Raw LIME coefficients per fingerprint bit.</span>
 <span class="sd">        :param Mol mol: The query RDKit molecule.</span>
 <span class="sd">        :param list[str] analogues: SMILES strings of the molecules used in the</span>
 <span class="sd">            LIME analysis.</span>
+<span class="sd">        :param np.ndarray atom_weights: Raw coefficient-conserving weights indexed</span>
+<span class="sd">            by atom ID.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">df_desc</span> <span class="o">=</span> <span class="n">df_desc</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">envs</span> <span class="o">=</span> <span class="n">envs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">weights</span> <span class="o">=</span> <span class="n">weights</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">analogues</span> <span class="o">=</span> <span class="n">analogues</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">atom_weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">atom_weights</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span> <span class="n">copy</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mol</span> <span class="o">=</span> <span class="n">mol</span>
 
 <div class="viewcode-block" id="MatchaExplanation.plot_coefficients">
@@ -168,7 +171,10 @@
         <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">last_row</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
         <span class="n">std</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="n">last_row</span><span class="p">[</span><span class="s2">&quot;Standard deviation&quot;</span><span class="p">],</span> <span class="mi">2</span><span class="p">)</span>
 
-        <span class="n">df_plot</span> <span class="o">=</span> <span class="n">df_plot</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">df_plot</span> <span class="o">=</span> <span class="n">df_plot</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">coefficient_norm</span> <span class="o">=</span> <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">coefficient_norm</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">df_plot</span><span class="p">[[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">,</span> <span class="s2">&quot;Standard deviation&quot;</span><span class="p">]]</span> <span class="o">/=</span> <span class="n">coefficient_norm</span>
         <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Reliability&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Coefficient&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">abs</span><span class="p">()</span> <span class="o">-</span> <span class="n">df_plot</span><span class="p">[</span><span class="s2">&quot;Standard deviation&quot;</span><span class="p">]</span>
         <span class="p">)</span>
@@ -242,26 +248,14 @@
 <div class="viewcode-block" id="MatchaExplanation.plot_heatmap">
 <a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplanation.plot_heatmap">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">plot_heatmap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">colormap</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;RdYlGn&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a heatmap of the molecule with atoms colored by LIME weights.</span>
-
-<span class="sd">        Atom colors are determined by summing ECFP bit weights for all bits</span>
-<span class="sd">        that include the atom, then scaling to [-1, +1].</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate a display-normalized heatmap from raw per-atom weights.</span>
 
 <span class="sd">        :param str colormap: Matplotlib colormap name. Defaults to ``&quot;RdYlGn&quot;``.</span>
 
 <span class="sd">        :returns: Plotly figure containing the molecular similarity map image.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">highlights</span> <span class="o">=</span> <span class="n">cl</span><span class="o">.</span><span class="n">defaultdict</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
-        <span class="c1"># collect atomic weights by summing up weights originating from LIME analysis</span>
-        <span class="c1"># an atom can be present in multiple bits, thus the summation</span>
-        <span class="k">for</span> <span class="n">bitid</span><span class="p">,</span> <span class="n">atoms</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">envs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">for</span> <span class="n">aid</span> <span class="ow">in</span> <span class="n">atoms</span><span class="p">:</span>
-                <span class="n">highlights</span><span class="p">[</span><span class="n">aid</span><span class="p">]</span> <span class="o">+=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights</span><span class="p">[</span><span class="n">bitid</span><span class="p">]</span>
-        <span class="c1"># scale the results between -1 and +1</span>
         <span class="n">highlights</span> <span class="o">=</span> <span class="n">skp</span><span class="o">.</span><span class="n">minmax_scale</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">weight</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">weight</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">highlights</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">])],</span>
-            <span class="n">feature_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span>
-            <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">atom_weights</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="n">feature_range</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span>
         <span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
 
         <span class="c1"># make the drawing using Cairo (PNG)</span>
@@ -345,7 +339,6 @@
         <span class="n">nitrogen_walk_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="p">{},</span>
         <span class="n">lime_descriptor_set</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">lime_fingerprint_params</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-        <span class="n">lime_scale_coeff</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">lime_remove_noise</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">reverse_positional_analogue_scanning</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
         <span class="n">generation_timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">60.0</span><span class="p">,</span>
@@ -362,8 +355,6 @@
 <span class="sd">            LIME. None uses the default set.</span>
 <span class="sd">        :param dict | None lime_fingerprint_params: Morgan fingerprint parameters</span>
 <span class="sd">            for ECFP-based LIME. None uses defaults.</span>
-<span class="sd">        :param bool lime_scale_coeff: Whether to normalize LIME coefficients.</span>
-<span class="sd">            Defaults to True.</span>
 <span class="sd">        :param bool lime_remove_noise: Whether to filter unreliable coefficients</span>
 <span class="sd">            in the explanation. Defaults to True.</span>
 <span class="sd">        :param bool reverse_positional_analogue_scanning: Whether to remove</span>
@@ -372,16 +363,15 @@
 <span class="sd">            in seconds. Defaults to 60. Zero causes immediate expiry.</span>
 <span class="sd">        :param int num_sample: Per-branch multi-step sampling quota forwarded to</span>
 <span class="sd">            :meth:`AnalogueGenerator.generate_analogues`. Defaults to 100.</span>
-<span class="sd">        :param int random_seed: Seed for the deterministic multi-step sampling</span>
-<span class="sd">            RNG forwarded to :meth:`AnalogueGenerator.generate_analogues`.</span>
-<span class="sd">            Defaults to 0.</span>
+<span class="sd">        :param int random_seed: Seed for deterministic analogue generation and</span>
+<span class="sd">            independent descriptor and ECFP LIME bootstrap streams. Each LIME</span>
+<span class="sd">            explanation restarts a local generator from this seed. Defaults to 0.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">validated</span> <span class="o">=</span> <span class="n">ExplainerInputModel</span><span class="p">(</span>
             <span class="n">positional_analogue_scanning_params</span><span class="o">=</span><span class="n">positional_analogue_scanning_params</span><span class="p">,</span>
             <span class="n">nitrogen_walk_params</span><span class="o">=</span><span class="n">nitrogen_walk_params</span><span class="p">,</span>
             <span class="n">lime_descriptor_set</span><span class="o">=</span><span class="n">lime_descriptor_set</span><span class="p">,</span>
             <span class="n">lime_fingerprint_params</span><span class="o">=</span><span class="n">lime_fingerprint_params</span><span class="p">,</span>
-            <span class="n">lime_scale_coeff</span><span class="o">=</span><span class="n">lime_scale_coeff</span><span class="p">,</span>
             <span class="n">lime_remove_noise</span><span class="o">=</span><span class="n">lime_remove_noise</span><span class="p">,</span>
             <span class="n">reverse_positional_analogue_scanning</span><span class="o">=</span><span class="n">reverse_positional_analogue_scanning</span><span class="p">,</span>
             <span class="n">generation_timeout</span><span class="o">=</span><span class="n">generation_timeout</span><span class="p">,</span>
@@ -399,7 +389,6 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">_nitrogen_walk_params</span> <span class="o">=</span> <span class="n">nitrogen_walk_params</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span> <span class="o">=</span> <span class="n">lime_descriptor_set</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span> <span class="o">=</span> <span class="n">lime_fingerprint_params</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span> <span class="o">=</span> <span class="n">lime_scale_coeff</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_remove_noise</span> <span class="o">=</span> <span class="n">lime_remove_noise</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_reverse_positional_analogue_scanning</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">validated</span><span class="o">.</span><span class="n">reverse_positional_analogue_scanning</span>
@@ -408,7 +397,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_num_sample</span> <span class="o">=</span> <span class="n">validated</span><span class="o">.</span><span class="n">num_sample</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_random_seed</span> <span class="o">=</span> <span class="n">validated</span><span class="o">.</span><span class="n">random_seed</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_run_lime_desc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_lime_desc</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run LIME analysis using RDKit descriptors.</span>
 
 <span class="sd">        :param list mols: RDKit molecule objects.</span>
@@ -418,27 +407,34 @@
 <span class="sd">        :returns: DataFrame of descriptor coefficients.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">lime_desc</span> <span class="o">=</span> <span class="n">LIME</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span><span class="p">,</span> <span class="kc">False</span>
+            <span class="n">descriptor_set</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span><span class="p">,</span>
+            <span class="n">fingerprint_params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span><span class="p">,</span>
+            <span class="n">use_fingerprints</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">random_seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_random_seed</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">df_desc</span> <span class="o">=</span> <span class="n">lime_desc</span><span class="o">.</span><span class="n">explain</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">df_desc</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_run_lime_ecfp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_run_lime_ecfp</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">]],</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">],</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Run LIME analysis using ECFP fingerprints.</span>
 
 <span class="sd">        :param list mols: RDKit molecule objects.</span>
 <span class="sd">        :param np.ndarray predictions: Target values for the molecules.</span>
 <span class="sd">        :param int bootstrap_num: Number of bootstrap iterations.</span>
 
-<span class="sd">        :returns: Tuple of (envs, weights) mapping fingerprint bit IDs to</span>
-<span class="sd">            atom environments and their coefficients.</span>
+<span class="sd">        :returns: Tuple of flattened bit environments, raw bit coefficients,</span>
+<span class="sd">            and raw coefficient-conserving atom weights.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">lime_ecfp</span> <span class="o">=</span> <span class="n">LIME</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scale_coeff</span><span class="p">,</span> <span class="kc">True</span>
+            <span class="n">descriptor_set</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span><span class="p">,</span>
+            <span class="n">fingerprint_params</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span><span class="p">,</span>
+            <span class="n">use_fingerprints</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">random_seed</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_random_seed</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="n">df_ecfp</span> <span class="o">=</span> <span class="n">lime_ecfp</span><span class="o">.</span><span class="n">explain</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
-        <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="n">lime_ecfp</span><span class="o">.</span><span class="n">get_envs_and_weights</span><span class="p">(</span><span class="n">mols</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">df_ecfp</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span>
+        <span class="k">return</span> <span class="n">lime_ecfp</span><span class="o">.</span><span class="n">get_attributions</span><span class="p">(</span><span class="n">mols</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">df_ecfp</span><span class="p">)</span>
 
 <div class="viewcode-block" id="MatchaExplainer.generate_analogues">
 <a class="viewcode-back" href="../../../api/matcha/explainability/index.html#matcha.explainability.explainer.MatchaExplainer.generate_analogues">[docs]</a>
@@ -490,10 +486,13 @@
 <span class="sd">            molecules are recommended for reliable results.</span>
 <span class="sd">        :param np.ndarray predictions: Target values (e.g., model predictions),</span>
 <span class="sd">            shape ``(n_molecules,)``.</span>
-<span class="sd">        :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.</span>
+<span class="sd">        :param int bootstrap_num: Exact number of full-size row-bootstrap fits.</span>
+<span class="sd">            Every fit draws rows with replacement and retains all feature columns.</span>
+<span class="sd">            Descriptor features alone are standardized within each fit. Defaults</span>
+<span class="sd">            to 25.</span>
 
-<span class="sd">        :returns: :class:`MatchaExplanation` containing coefficients, atomic</span>
-<span class="sd">            environments, weights, and analogue SMILES.</span>
+<span class="sd">        :returns: :class:`MatchaExplanation` containing raw descriptor, bit, and</span>
+<span class="sd">            atom attributions plus analogue SMILES.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">predictions</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">predictions</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
@@ -510,35 +509,20 @@
         <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;bootstrap_num must be at least 1.&quot;</span><span class="p">)</span>
 
-        <span class="n">descriptor_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_descriptor_set</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">_default</span>
-        <span class="p">)</span>
-        <span class="n">fingerprint_count</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span>
-            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fingerprint_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="n">_fp_default</span>
-        <span class="p">)</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;nBits&quot;</span><span class="p">,</span> <span class="n">_fp_default</span><span class="p">[</span><span class="s2">&quot;nBits&quot;</span><span class="p">])</span>
-        <span class="n">feature_count</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">descriptor_count</span><span class="p">,</span> <span class="n">fingerprint_count</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">bootstrap_num</span> <span class="o">&gt;</span> <span class="n">feature_count</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;bootstrap_num (</span><span class="si">{</span><span class="n">bootstrap_num</span><span class="si">}</span><span class="s2">) cannot exceed available feature &quot;</span>
-                <span class="sa">f</span><span class="s2">&quot;count (</span><span class="si">{</span><span class="n">feature_count</span><span class="si">}</span><span class="s2">).&quot;</span>
-            <span class="p">)</span>
-
         <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="p">:</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;Only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span><span class="si">}</span><span class="s2"> molecules provided. At least 10 analogues are &quot;</span>
                 <span class="s2">&quot;recommended for reliable LIME explanations. Results may be unstable.&quot;</span>
             <span class="p">)</span>
 
-        <span class="n">requested_fits</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">bootstrap_num</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">))</span>
-        <span class="n">df_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_desc</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">requested_fits</span><span class="p">)</span>
-        <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_ecfp</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">requested_fits</span><span class="p">)</span>
+        <span class="n">df_desc</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_desc</span><span class="p">(</span><span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span><span class="p">)</span>
+        <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">atom_weights</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_lime_ecfp</span><span class="p">(</span>
+            <span class="n">mols</span><span class="p">,</span> <span class="n">predictions</span><span class="p">,</span> <span class="n">bootstrap_num</span>
+        <span class="p">)</span>
 
-        <span class="c1"># Convert molecules to SMILES</span>
         <span class="n">smiles</span> <span class="o">=</span> <span class="p">[</span><span class="n">MolToSmiles</span><span class="p">(</span><span class="n">mol</span><span class="p">)</span> <span class="k">for</span> <span class="n">mol</span> <span class="ow">in</span> <span class="n">mols</span><span class="p">]</span>
 
-        <span class="k">return</span> <span class="n">MatchaExplanation</span><span class="p">(</span><span class="n">df_desc</span><span class="p">,</span> <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">mols</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">smiles</span><span class="p">)</span></div>
+        <span class="k">return</span> <span class="n">MatchaExplanation</span><span class="p">(</span><span class="n">df_desc</span><span class="p">,</span> <span class="n">envs</span><span class="p">,</span> <span class="n">weights</span><span class="p">,</span> <span class="n">mols</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">smiles</span><span class="p">,</span> <span class="n">atom_weights</span><span class="p">)</span></div>
 </div>
 
 </pre></div>

@@ -26,13 +26,13 @@ Module Contents
 
 .. py:data:: logger
 
-.. py:class:: MatchaExplanation(df_desc: pandas.DataFrame, envs: dict[int, list[int]], weights: dict[int, float], mol: rdkit.Chem.rdchem.Mol, analogues: list[str])
+.. py:class:: MatchaExplanation(df_desc: pandas.DataFrame, envs: dict[int, list[int]], weights: dict[int, float], mol: rdkit.Chem.rdchem.Mol, analogues: list[str], atom_weights: numpy.ndarray)
 
    Container for LIME explanation results with visualization methods.
 
-   Holds the descriptor-level coefficients, ECFP atomic environments and
-   weights, the query molecule, and generated analogues. Provides plotting
-   utilities for coefficient bar charts and molecular heatmaps.
+   Holds raw descriptor, fingerprint-bit, and per-atom LIME attributions with
+   the query molecule and generated analogues. Plotting normalizes local copies
+   without changing the stored numerical results.
 
 
    .. py:attribute:: df_desc
@@ -45,6 +45,9 @@ Module Contents
 
 
    .. py:attribute:: analogues
+
+
+   .. py:attribute:: atom_weights
 
 
    .. py:method:: plot_coefficients(remove_noise: bool = True, keep_k: int = 10) -> plotly.graph_objects.Figure
@@ -64,10 +67,7 @@ Module Contents
 
    .. py:method:: plot_heatmap(colormap: str = 'RdYlGn') -> plotly.graph_objects.Figure
 
-      Generate a heatmap of the molecule with atoms colored by LIME weights.
-
-      Atom colors are determined by summing ECFP bit weights for all bits
-      that include the atom, then scaling to [-1, +1].
+      Generate a display-normalized heatmap from raw per-atom weights.
 
       :param str colormap: Matplotlib colormap name. Defaults to ``"RdYlGn"``.
 
@@ -75,7 +75,7 @@ Module Contents
 
 
 
-.. py:class:: MatchaExplainer(positional_analogue_scanning_params: dict | None = {}, nitrogen_walk_params: dict | None = {}, lime_descriptor_set: list[str] | None = None, lime_fingerprint_params: dict | None = None, lime_scale_coeff: bool = True, lime_remove_noise: bool = True, reverse_positional_analogue_scanning: bool = True, generation_timeout: float = 60.0, num_sample: int = 100, random_seed: int = 0)
+.. py:class:: MatchaExplainer(positional_analogue_scanning_params: dict | None = {}, nitrogen_walk_params: dict | None = {}, lime_descriptor_set: list[str] | None = None, lime_fingerprint_params: dict | None = None, lime_remove_noise: bool = True, reverse_positional_analogue_scanning: bool = True, generation_timeout: float = 60.0, num_sample: int = 100, random_seed: int = 0)
 
    High-level interface for molecular explainability.
 
@@ -116,10 +116,13 @@ Module Contents
           molecules are recommended for reliable results.
       :param np.ndarray predictions: Target values (e.g., model predictions),
           shape ``(n_molecules,)``.
-      :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+      :param int bootstrap_num: Exact number of full-size row-bootstrap fits.
+          Every fit draws rows with replacement and retains all feature columns.
+          Descriptor features alone are standardized within each fit. Defaults
+          to 25.
 
-      :returns: :class:`MatchaExplanation` containing coefficients, atomic
-          environments, weights, and analogue SMILES.
+      :returns: :class:`MatchaExplanation` containing raw descriptor, bit, and
+          atom attributions plus analogue SMILES.
 
 
 

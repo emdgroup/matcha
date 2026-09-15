@@ -135,10 +135,14 @@
 <span class="sd">        :param model_instance: the sklearn model instance</span>
 <span class="sd">        :param Mol input_mol: RDKit molecule to explain</span>
 <span class="sd">        :param int task_idx: index of the task to explain</span>
-<span class="sd">        :param int lime_bootstrap_num: number of bootstrap iterations for LIME</span>
+<span class="sd">        :param int lime_bootstrap_num: exact number of row-bootstrap LIME fits</span>
 <span class="sd">        :param list[str] | None lime_descriptor_set: RDKit descriptors for LIME</span>
 <span class="sd">        :param bool use_std: use uncertainty estimates for predictions</span>
 <span class="sd">        :return MatchaExplanation: LIME results with plotting methods</span>
+
+<span class="sd">        The default manager-constructed explainer uses ``random_seed=0``. Callers</span>
+<span class="sd">        who need a different seed must construct a ``MatchaExplainer`` with that</span>
+<span class="sd">        seed and register it via :meth:`create_explainer` before calling this method.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;XAI: beginning explanation&quot;</span><span class="p">)</span>
 
@@ -185,7 +189,7 @@
 <span class="sd">        :param list[Mol] mols: list of molecules to explain</span>
 <span class="sd">        :param int task_idx: index of the task to explain</span>
 <span class="sd">        :param bool use_std: use uncertainty estimates</span>
-<span class="sd">        :param int bootstrap_num: number of bootstrap iterations for LIME</span>
+<span class="sd">        :param int bootstrap_num: exact number of row-bootstrap LIME fits</span>
 <span class="sd">        :return MatchaExplanation: LIME results with plotting methods</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;XAI: found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">mols</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> analogues&quot;</span><span class="p">)</span>
