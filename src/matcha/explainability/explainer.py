@@ -1,4 +1,3 @@
-import collections as cl
 from copy import deepcopy
 import io
 
@@ -13,7 +12,7 @@ from rdkit.Chem.rdchem import Mol
 import sklearn.preprocessing as skp
 
 from matcha.explainability.analogue_generator import AnalogueGenerator
-from matcha.explainability.lime import LIME, _default, _fp_default
+from matcha.explainability.lime import LIME
 from matcha.utils.logging import get_default_logger
 from matcha.utils.schemas import ExplainerInputModel
 
@@ -23,9 +22,9 @@ logger = get_default_logger(__name__)
 class MatchaExplanation:
     """Container for LIME explanation results with visualization methods.
 
-    Holds the descriptor-level coefficients, ECFP atomic environments and
-    weights, the query molecule, and generated analogues. Provides plotting
-    utilities for coefficient bar charts and molecular heatmaps.
+    Holds raw descriptor, fingerprint-bit, and per-atom LIME attributions with
+    the query molecule and generated analogues. Plotting normalizes local copies
+    without changing the stored numerical results.
     """
 
     def __init__(
@@ -35,22 +34,26 @@ class MatchaExplanation:
         weights: dict[int, float],
         mol: Mol,
         analogues: list[str],
+        atom_weights: np.ndarray,
     ):
         """Initialize a MatchaExplanation.
 
         :param pd.DataFrame df_desc: LIME results from descriptor-based analysis,
             with columns ``Descriptor``, ``Coefficient``, ``Standard deviation``.
-        :param dict[int, list[int]] envs: Mapping of fingerprint bit IDs to sets
-            of atom indices in their environment.
-        :param dict[int, float] weights: LIME coefficients per fingerprint bit ID.
+        :param dict[int, list[int]] envs: Mapping of fingerprint bit IDs to
+            flattened atom unions for inspection.
+        :param dict[int, float] weights: Raw LIME coefficients per fingerprint bit.
         :param Mol mol: The query RDKit molecule.
         :param list[str] analogues: SMILES strings of the molecules used in the
             LIME analysis.
+        :param np.ndarray atom_weights: Raw coefficient-conserving weights indexed
+            by atom ID.
         """
         self.df_desc = df_desc
         self.envs = envs
         self.weights = weights
         self.analogues = analogues
+        self.atom_weights = np.array(atom_weights, dtype=float, copy=True)
         self._mol = mol
 
     def plot_coefficients(
@@ -73,7 +76,10 @@ class MatchaExplanation:
         value = np.round(last_row["Coefficient"], 2)
         std = np.round(last_row["Standard deviation"], 2)
 
-        df_plot = df_plot.head(-1)
+        df_plot = df_plot.head(-1).copy()
+        coefficient_norm = df_plot["Coefficient"].abs().sum()
+        if coefficient_norm != 0:
+            df_plot[["Coefficient", "Standard deviation"]] /= coefficient_norm
         df_plot["Reliability"] = (
             df_plot["Coefficient"].abs() - df_plot["Standard deviation"]
         )
@@ -144,26 +150,14 @@ class MatchaExplanation:
         return fig
 
     def plot_heatmap(self, colormap: str = "RdYlGn") -> go.Figure:
-        """Generate a heatmap of the molecule with atoms colored by LIME weights.
-
-        Atom colors are determined by summing ECFP bit weights for all bits
-        that include the atom, then scaling to [-1, +1].
+        """Generate a display-normalized heatmap from raw per-atom weights.
 
         :param str colormap: Matplotlib colormap name. Defaults to ``"RdYlGn"``.
 
         :returns: Plotly figure containing the molecular similarity map image.
         """
-        highlights = cl.defaultdict(float)
-        # collect atomic weights by summing up weights originating from LIME analysis
-        # an atom can be present in multiple bits, thus the summation
-        for bitid, atoms in self.envs.items():
-            for aid in atoms:
-                highlights[aid] += self.weights[bitid]
-        # scale the results between -1 and +1
         highlights = skp.minmax_scale(
-            [weight for _, weight in sorted(highlights.items(), key=lambda x: x[0])],
-            feature_range=(-1, 1),
-            axis=0,
+            self.atom_weights.copy(), feature_range=(-1, 1), axis=0
         ).tolist()
 
         # make the drawing using Cairo (PNG)
@@ -243,7 +237,6 @@ class MatchaExplainer:
         nitrogen_walk_params: dict | None = {},
         lime_descriptor_set: list[str] | None = None,
         lime_fingerprint_params: dict | None = None,
-        lime_scale_coeff: bool = True,
         lime_remove_noise: bool = True,
         reverse_positional_analogue_scanning: bool = True,
         generation_timeout: float = 60.0,
@@ -260,8 +253,6 @@ class MatchaExplainer:
             LIME. None uses the default set.
         :param dict | None lime_fingerprint_params: Morgan fingerprint parameters
             for ECFP-based LIME. None uses defaults.
-        :param bool lime_scale_coeff: Whether to normalize LIME coefficients.
-            Defaults to True.
         :param bool lime_remove_noise: Whether to filter unreliable coefficients
             in the explanation. Defaults to True.
         :param bool reverse_positional_analogue_scanning: Whether to remove
@@ -270,16 +261,15 @@ class MatchaExplainer:
             in seconds. Defaults to 60. Zero causes immediate expiry.
         :param int num_sample: Per-branch multi-step sampling quota forwarded to
             :meth:`AnalogueGenerator.generate_analogues`. Defaults to 100.
-        :param int random_seed: Seed for the deterministic multi-step sampling
-            RNG forwarded to :meth:`AnalogueGenerator.generate_analogues`.
-            Defaults to 0.
+        :param int random_seed: Seed for deterministic analogue generation and
+            independent descriptor and ECFP LIME bootstrap streams. Each LIME
+            explanation restarts a local generator from this seed. Defaults to 0.
         """
         validated = ExplainerInputModel(
             positional_analogue_scanning_params=positional_analogue_scanning_params,
             nitrogen_walk_params=nitrogen_walk_params,
             lime_descriptor_set=lime_descriptor_set,
             lime_fingerprint_params=lime_fingerprint_params,
-            lime_scale_coeff=lime_scale_coeff,
             lime_remove_noise=lime_remove_noise,
             reverse_positional_analogue_scanning=reverse_positional_analogue_scanning,
             generation_timeout=generation_timeout,
@@ -297,7 +287,6 @@ class MatchaExplainer:
             self._nitrogen_walk_params = nitrogen_walk_params
         self._descriptor_set = lime_descriptor_set
         self._fingerprint_params = lime_fingerprint_params
-        self._scale_coeff = lime_scale_coeff
         self._remove_noise = lime_remove_noise
         self._reverse_positional_analogue_scanning = (
             validated.reverse_positional_analogue_scanning
@@ -306,7 +295,7 @@ class MatchaExplainer:
         self._num_sample = validated.num_sample
         self._random_seed = validated.random_seed
 
-    def _run_lime_desc(self, mols, predictions, bootstrap_num) -> tuple:
+    def _run_lime_desc(self, mols, predictions, bootstrap_num) -> pd.DataFrame:
         """Run LIME analysis using RDKit descriptors.
 
         :param list mols: RDKit molecule objects.
@@ -316,27 +305,34 @@ class MatchaExplainer:
         :returns: DataFrame of descriptor coefficients.
         """
         lime_desc = LIME(
-            self._descriptor_set, self._fingerprint_params, self._scale_coeff, False
+            descriptor_set=self._descriptor_set,
+            fingerprint_params=self._fingerprint_params,
+            use_fingerprints=False,
+            random_seed=self._random_seed,
         )
         df_desc = lime_desc.explain(mols, predictions, bootstrap_num)
         return df_desc
 
-    def _run_lime_ecfp(self, mols, predictions, bootstrap_num) -> tuple:
+    def _run_lime_ecfp(
+        self, mols, predictions, bootstrap_num
+    ) -> tuple[dict[int, list[int]], dict[int, float], np.ndarray]:
         """Run LIME analysis using ECFP fingerprints.
 
         :param list mols: RDKit molecule objects.
         :param np.ndarray predictions: Target values for the molecules.
         :param int bootstrap_num: Number of bootstrap iterations.
 
-        :returns: Tuple of (envs, weights) mapping fingerprint bit IDs to
-            atom environments and their coefficients.
+        :returns: Tuple of flattened bit environments, raw bit coefficients,
+            and raw coefficient-conserving atom weights.
         """
         lime_ecfp = LIME(
-            self._descriptor_set, self._fingerprint_params, self._scale_coeff, True
+            descriptor_set=self._descriptor_set,
+            fingerprint_params=self._fingerprint_params,
+            use_fingerprints=True,
+            random_seed=self._random_seed,
         )
         df_ecfp = lime_ecfp.explain(mols, predictions, bootstrap_num)
-        envs, weights = lime_ecfp.get_envs_and_weights(mols[0], df_ecfp)
-        return envs, weights
+        return lime_ecfp.get_attributions(mols[0], df_ecfp)
 
     def generate_analogues(self, mol: Mol) -> list[Mol]:
         """Generate structural analogues for a molecule.
@@ -380,10 +376,13 @@ class MatchaExplainer:
             molecules are recommended for reliable results.
         :param np.ndarray predictions: Target values (e.g., model predictions),
             shape ``(n_molecules,)``.
-        :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
+        :param int bootstrap_num: Exact number of full-size row-bootstrap fits.
+            Every fit draws rows with replacement and retains all feature columns.
+            Descriptor features alone are standardized within each fit. Defaults
+            to 25.
 
-        :returns: :class:`MatchaExplanation` containing coefficients, atomic
-            environments, weights, and analogue SMILES.
+        :returns: :class:`MatchaExplanation` containing raw descriptor, bit, and
+            atom attributions plus analogue SMILES.
         """
         predictions = np.asarray(predictions)
         if predictions.ndim != 1:
@@ -400,32 +399,17 @@ class MatchaExplainer:
         if bootstrap_num < 1:
             raise ValueError("bootstrap_num must be at least 1.")
 
-        descriptor_count = len(
-            self._descriptor_set if self._descriptor_set is not None else _default
-        )
-        fingerprint_count = (
-            self._fingerprint_params
-            if self._fingerprint_params is not None
-            else _fp_default
-        ).get("nBits", _fp_default["nBits"])
-        feature_count = min(descriptor_count, fingerprint_count)
-        if bootstrap_num > feature_count:
-            raise ValueError(
-                f"bootstrap_num ({bootstrap_num}) cannot exceed available feature "
-                f"count ({feature_count})."
-            )
-
         if len(mols) < 10:
             logger.warning(
                 f"Only {len(mols)} molecules provided. At least 10 analogues are "
                 "recommended for reliable LIME explanations. Results may be unstable."
             )
 
-        requested_fits = min(bootstrap_num, len(mols))
-        df_desc = self._run_lime_desc(mols, predictions, requested_fits)
-        envs, weights = self._run_lime_ecfp(mols, predictions, requested_fits)
+        df_desc = self._run_lime_desc(mols, predictions, bootstrap_num)
+        envs, weights, atom_weights = self._run_lime_ecfp(
+            mols, predictions, bootstrap_num
+        )
 
-        # Convert molecules to SMILES
         smiles = [MolToSmiles(mol) for mol in mols]
 
-        return MatchaExplanation(df_desc, envs, weights, mols[0], smiles)
+        return MatchaExplanation(df_desc, envs, weights, mols[0], smiles, atom_weights)

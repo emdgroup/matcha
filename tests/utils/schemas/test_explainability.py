@@ -12,9 +12,12 @@ def _valid_params() -> dict:
         "nitrogen_walk_params": None,
         "lime_descriptor_set": None,
         "lime_fingerprint_params": None,
-        "lime_scale_coeff": True,
         "lime_remove_noise": True,
     }
+
+
+def test_removed_lime_scale_coeff_field_is_absent():
+    assert "lime_scale_coeff" not in ExplainerInputModel.model_fields
 
 
 def test_reverse_defaults_on():

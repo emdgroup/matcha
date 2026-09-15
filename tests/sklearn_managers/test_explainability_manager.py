@@ -2,15 +2,12 @@
 
 Model: SNNRegressor (tabular)
 Exercises: explain_prediction (LIME), explainer property, create_explainer.
-
-LIME's internal k-fold cross-validation requires at least ``bootstrap_num``
-molecules (analogues + the query molecule).  We keep ``lime_bootstrap_num``
-small (3) and enable all analogue generators so there is enough data.
 """
 
 from unittest.mock import Mock
 
 import numpy as np
+import pandas as pd
 import pytest
 from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
@@ -133,6 +130,21 @@ class TestExplainabilityManagerExplain:
             "reverse_positional_analogue_scanning" not in constructor.call_args.kwargs
         )
 
+    def test_configured_fingerprint_and_seed_overrides_are_honored(self):
+        mgr = ExplainabilityManager()
+
+        mgr.create_explainer(
+            {
+                "positional_analogue_scanning_params": None,
+                "nitrogen_walk_params": None,
+                "lime_fingerprint_params": {"nBits": 32, "radius": 1},
+                "random_seed": -11,
+            }
+        )
+
+        assert mgr.explainer._fingerprint_params == {"nBits": 32, "radius": 1}
+        assert mgr.explainer._random_seed == -11
+
     def test_caller_configured_reverse_setting_is_honored(self, monkeypatch):
         mgr = ExplainabilityManager()
         mgr.create_explainer(
@@ -161,6 +173,75 @@ class TestExplainabilityManagerExplain:
         assert result is expected
         assert configured._reverse_positional_analogue_scanning is False
         configured.generate_analogues.assert_called_once_with(_EXPLAIN_MOL)
+
+    def test_forwards_uncapped_bootstrap_count_to_explainer(self):
+        analogues = [Chem.MolFromSmiles("CC"), Chem.MolFromSmiles("CCC")]
+        explainer = Mock()
+        explainer.generate_analogues.return_value = analogues
+        expected = object()
+        explainer.explain.return_value = expected
+        model = Mock()
+        predictions = np.array([[1.0], [2.0], [3.0]])
+        model._default_predict.return_value = predictions
+        mgr = ExplainabilityManager()
+        mgr._explainer = explainer
+
+        result = mgr.explain(model, _EXPLAIN_MOL, lime_bootstrap_num=7, use_std=False)
+
+        assert result is expected
+        explainer.explain.assert_called_once()
+        call = explainer.explain.call_args.kwargs
+        assert call["mols"] == [_EXPLAIN_MOL, *analogues]
+        assert call["predictions"] == pytest.approx(predictions[:, 0])
+        assert call["bootstrap_num"] == 7
+
+    def test_manager_matches_direct_explanation_for_identical_predictions(
+        self, monkeypatch
+    ):
+        analogues = [Chem.MolFromSmiles("CC"), Chem.MolFromSmiles("CCC")]
+        mols = [_EXPLAIN_MOL, *analogues]
+        predictions = np.array([1.0, 2.0, 3.0])
+        mgr = ExplainabilityManager()
+        mgr.create_explainer(
+            {
+                "positional_analogue_scanning_params": None,
+                "nitrogen_walk_params": None,
+                "lime_descriptor_set": ["MolWt", "MolLogP"],
+                "lime_fingerprint_params": {"nBits": 16, "radius": 1},
+                "random_seed": 5,
+            }
+        )
+        monkeypatch.setattr(
+            mgr.explainer, "generate_analogues", Mock(return_value=analogues)
+        )
+        model = Mock()
+        model._default_predict.return_value = predictions[:, np.newaxis]
+
+        direct = mgr.explainer.explain(mols, predictions, bootstrap_num=4)
+        managed = mgr.explain(model, _EXPLAIN_MOL, lime_bootstrap_num=4)
+
+        pd.testing.assert_frame_equal(managed.df_desc, direct.df_desc)
+        assert managed.envs == direct.envs
+        assert managed.weights == direct.weights
+        assert managed.atom_weights == pytest.approx(direct.atom_weights)
+
+    def test_fallback_explainer_repeats_outputs_with_default_seed(self, monkeypatch):
+        analogues = [Chem.MolFromSmiles("CC"), Chem.MolFromSmiles("CCC")]
+        monkeypatch.setattr(
+            manager_module.MatchaExplainer,
+            "generate_analogues",
+            lambda self, mol: analogues,
+        )
+        model = Mock()
+        model._default_predict.return_value = np.array([[1.0], [2.0], [3.0]])
+        mgr = ExplainabilityManager()
+
+        first = mgr.explain(model, _EXPLAIN_MOL, lime_bootstrap_num=2)
+        second = mgr.explain(model, _EXPLAIN_MOL, lime_bootstrap_num=2)
+
+        pd.testing.assert_frame_equal(first.df_desc, second.df_desc)
+        assert first.weights == second.weights
+        assert first.atom_weights == pytest.approx(second.atom_weights)
 
     @pytest.mark.parametrize("use_std", [False, True])
     @pytest.mark.parametrize("analogue_smiles", [[], ["CC"]])

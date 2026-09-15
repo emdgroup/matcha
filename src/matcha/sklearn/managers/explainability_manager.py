@@ -37,10 +37,14 @@ class ExplainabilityManager:
         :param model_instance: the sklearn model instance
         :param Mol input_mol: RDKit molecule to explain
         :param int task_idx: index of the task to explain
-        :param int lime_bootstrap_num: number of bootstrap iterations for LIME
+        :param int lime_bootstrap_num: exact number of row-bootstrap LIME fits
         :param list[str] | None lime_descriptor_set: RDKit descriptors for LIME
         :param bool use_std: use uncertainty estimates for predictions
         :return MatchaExplanation: LIME results with plotting methods
+
+        The default manager-constructed explainer uses ``random_seed=0``. Callers
+        who need a different seed must construct a ``MatchaExplainer`` with that
+        seed and register it via :meth:`create_explainer` before calling this method.
         """
         self.logger.info("XAI: beginning explanation")
 
@@ -86,7 +90,7 @@ class ExplainabilityManager:
         :param list[Mol] mols: list of molecules to explain
         :param int task_idx: index of the task to explain
         :param bool use_std: use uncertainty estimates
-        :param int bootstrap_num: number of bootstrap iterations for LIME
+        :param int bootstrap_num: exact number of row-bootstrap LIME fits
         :return MatchaExplanation: LIME results with plotting methods
         """
         self.logger.info(f"XAI: found {len(mols) - 1} analogues")
