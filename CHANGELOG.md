@@ -1,3 +1,14 @@
+## v0.0.28 (2026-09-15)
+
+### Feat
+
+- **explainability**: conserve LIME atom weights (#115 stage 3)
+
+### Refactor
+
+- **explainability**: bootstrap LIME rows (#115 stage 2)
+- **explainability**: simplify LIME configuration (#115 stage 1)
+
 ## v0.0.27 (2026-09-14)
 
 ### Refactor
