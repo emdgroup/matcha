@@ -27,20 +27,48 @@ class TestLIMEInit:
 
     def test_default_fingerprint_params(self):
         lime = LIME()
-        assert lime._fingerprint_params_set == _fp_default
+        assert lime._fingerprint_params_set == {
+            "nBits": 8192,
+            "radius": 3,
+            "useFeatures": False,
+        }
+        assert lime._fingerprint_params_set is not _fp_default
 
-    def test_custom_fingerprint_params(self):
+    def test_partial_fingerprint_params_merge_over_copied_defaults(self):
+        params = {"radius": 2}
+        lime = LIME(fingerprint_params=params)
+
+        assert lime._fingerprint_params_set == {
+            "nBits": 8192,
+            "radius": 2,
+            "useFeatures": False,
+        }
+        assert params == {"radius": 2}
+
+    def test_full_fingerprint_params_are_copied(self):
         params = {"nBits": 2048, "radius": 2, "useFeatures": True}
         lime = LIME(fingerprint_params=params)
+
         assert lime._fingerprint_params_set == params
+        assert lime._fingerprint_params_set is not params
 
-    def test_scale_coeff_default_true(self):
-        lime = LIME()
-        assert lime.scale_coeff is True
+    def test_fingerprint_params_do_not_mutate_defaults_or_caller_values(self):
+        params = {"radius": 2}
+        lime = LIME(fingerprint_params=params)
+        lime._fingerprint_params_set["radius"] = 1
 
-    def test_scale_coeff_false(self):
-        lime = LIME(scale_coeff=False)
-        assert lime.scale_coeff is False
+        assert params == {"radius": 2}
+        assert _fp_default == {"nBits": 8192, "radius": 3, "useFeatures": False}
+
+    def test_random_seed_defaults_to_zero(self):
+        assert LIME()._random_seed == 0
+
+    def test_random_seed_can_be_overridden(self):
+        assert LIME(random_seed=-7)._random_seed == -7
+
+    def test_removed_scale_coeff_argument_is_rejected(self):
+        with pytest.raises(TypeError, match="scale_coeff"):
+            LIME(scale_coeff=True)
 
     def test_use_fingerprints_default_false(self):
         lime = LIME()
@@ -90,18 +118,18 @@ class TestLIMEFeatureExtraction:
 
     def test_get_ecfps_returns_ndarray(self, small_mol_list):
         lime = LIME(use_fingerprints=True)
-        feats = lime._get_ecfps(small_mol_list, _fp_default)
+        feats = lime._get_ecfps(small_mol_list)
         assert isinstance(feats, np.ndarray)
 
     def test_get_ecfps_shape_default(self, small_mol_list):
         lime = LIME(use_fingerprints=True)
-        feats = lime._get_ecfps(small_mol_list, _fp_default)
+        feats = lime._get_ecfps(small_mol_list)
         assert feats.shape == (len(small_mol_list), _fp_default["nBits"])
 
     def test_get_ecfps_custom_nbits(self, small_mol_list):
         params = {"nBits": 512, "radius": 2, "useFeatures": False}
         lime = LIME(fingerprint_params=params, use_fingerprints=True)
-        feats = lime._get_ecfps(small_mol_list, params)
+        feats = lime._get_ecfps(small_mol_list)
         assert feats.shape == (len(small_mol_list), 512)
 
     def test_features_no_nans(self, small_mol_list):
@@ -111,7 +139,7 @@ class TestLIMEFeatureExtraction:
 
     def test_ecfps_binary_values(self, small_mol_list):
         lime = LIME(use_fingerprints=True)
-        feats = lime._get_ecfps(small_mol_list, _fp_default)
+        feats = lime._get_ecfps(small_mol_list)
         unique_vals = np.unique(feats)
         assert all(v in [0, 1] for v in unique_vals)
 
@@ -294,12 +322,6 @@ class TestLIMEExplainDescriptors:
         ):
             lime.explain(small_mol_list, small_regression_targets, bootstrap_num=4)
 
-    def test_explain_no_scale_coeff(self, small_mol_list, small_regression_targets):
-        lime = LIME(scale_coeff=False, use_fingerprints=False)
-        df = lime.explain(small_mol_list, small_regression_targets, bootstrap_num=3)
-        assert isinstance(df, pd.DataFrame)
-        assert len(df) > 1
-
     def test_explain_rejects_fewer_than_three_rows(
         self, small_mol_list, small_regression_targets
     ):
@@ -361,7 +383,7 @@ class TestLIMEExplainDescriptors:
     def test_explain_preserves_fitted_zero_when_aggregating(
         self, monkeypatch, small_mol_list, small_regression_targets
     ):
-        lime = LIME(descriptor_set=["selected", "zero"], scale_coeff=False)
+        lime = LIME(descriptor_set=["selected", "zero"])
         monkeypatch.setattr(
             lime,
             "_get_features",
@@ -381,7 +403,7 @@ class TestLIMEExplainDescriptors:
         assert result.loc["zero", "Coefficient"] == 0.0
         assert np.isfinite(result.loc["zero", "Standard deviation"])
 
-    def test_explain_uses_l1_coefficient_norm(
+    def test_explain_returns_raw_descriptor_statistics(
         self, monkeypatch, small_mol_list, small_regression_targets
     ):
         lime = LIME(descriptor_set=["positive", "negative", "zero"])
@@ -401,15 +423,10 @@ class TestLIMEExplainDescriptors:
             small_mol_list[:3], small_regression_targets[:3], bootstrap_num=3
         ).set_index("Descriptor")
 
-        assert result.loc[
-            ["positive", "negative", "zero"], "Coefficient"
-        ].abs().sum() == pytest.approx(1.0)
-        assert result.loc["positive", "Coefficient"] == pytest.approx(0.5)
-        assert result.loc["negative", "Coefficient"] == pytest.approx(-0.5)
+        assert result.loc["positive", "Coefficient"] == pytest.approx(2.0)
+        assert result.loc["negative", "Coefficient"] == pytest.approx(-2.0)
         raw_std = np.std([1.0, 2.0, 3.0])
-        assert result.loc["positive", "Standard deviation"] == pytest.approx(
-            raw_std / 4.0
-        )
+        assert result.loc["positive", "Standard deviation"] == pytest.approx(raw_std)
 
     def test_explain_keeps_all_zero_statistics_finite(
         self, monkeypatch, small_mol_list, small_regression_targets
@@ -473,6 +490,32 @@ class TestLIMEExplainFingerprints:
         descriptors = df.iloc[:-1]["Descriptor"].tolist()
         # ECFP descriptors should be named like "F_0", "F_1", ...
         assert all(d.startswith("F_") for d in descriptors)
+
+    def test_explain_returns_raw_fingerprint_statistics(
+        self, monkeypatch, small_mol_list, small_regression_targets
+    ):
+        lime = LIME(fingerprint_params={"nBits": 2}, use_fingerprints=True)
+        monkeypatch.setattr(
+            lime,
+            "_get_ecfps",
+            lambda mols: np.ones((len(mols), 2)),
+        )
+
+        def fit(feats, targets, bootstrap_num):
+            lime._r2_box = [1.0, 1.0]
+            return np.array([[2.0, -4.0], [6.0, -8.0]])
+
+        monkeypatch.setattr(lime, "_fit", fit)
+
+        result = lime.explain(
+            small_mol_list[:3], small_regression_targets[:3], bootstrap_num=2
+        ).set_index("Descriptor")
+
+        assert result.loc["F_0", "Coefficient"] == pytest.approx(4.0)
+        assert result.loc["F_1", "Coefficient"] == pytest.approx(-6.0)
+        assert result.loc["F_0", "Standard deviation"] == pytest.approx(
+            np.std([2.0, 6.0])
+        )
 
 
 # ===================================================================

@@ -60,7 +60,7 @@ _default = [
     "fr_N_O",
     "fr_SH",
 ]
-_fp_default = {"nBits": 1024, "radius": 3, "useFeatures": False}
+_fp_default = {"nBits": 8192, "radius": 3, "useFeatures": False}
 
 
 class LIME:
@@ -68,48 +68,41 @@ class LIME:
 
     Fits bootstrapped Ridge regression models on molecular descriptors or
     ECFP fingerprints to identify which features most influence a prediction.
-    Coefficients are optionally scaled to sum to 1 for interpretability.
     """
 
     def __init__(
         self,
         descriptor_set: list[str] | None = None,
         fingerprint_params: dict | None = None,
-        scale_coeff: bool = True,
         use_fingerprints: bool = False,
+        random_seed: int = 0,
     ):
         """Initialize LIME explainer.
 
         :param list[str] | None descriptor_set: RDKit descriptor names to use as features.
             Defaults to a curated set of 42 physicochemical descriptors.
         :param dict | None fingerprint_params: Parameters for Morgan fingerprint generation
-            (keys: ``nBits``, ``radius``, ``useFeatures``). Defaults to 1024-bit, radius 3.
-        :param bool scale_coeff: Whether to normalize coefficients so absolute values
-            sum to 1. Defaults to True.
+            (keys: ``nBits``, ``radius``, ``useFeatures``). Defaults to 8192-bit, radius 3.
         :param bool use_fingerprints: If True, uses ECFP fingerprints instead of
             RDKit descriptors. Defaults to False.
+        :param int random_seed: Seed for bootstrap sampling. Defaults to 0.
         """
         self._descriptor_set = (
             descriptor_set if descriptor_set is not None else _default
         )
-        self._fingerprint_params_set = (
-            fingerprint_params if fingerprint_params is not None else _fp_default
-        )
+        self._fingerprint_params_set = _fp_default.copy()
+        if fingerprint_params is not None:
+            self._fingerprint_params_set.update(fingerprint_params)
         self._model_box = []
         self._coeff_box = None
         self._r2_box = []
-        self._scale_coeff = scale_coeff
         self._use_fingerprints = use_fingerprints
+        self._random_seed = random_seed
 
     @property
     def descriptor_set(self) -> str:
         """The list of RDKit descriptor names used as features."""
         return self._descriptor_set
-
-    @property
-    def scale_coeff(self) -> bool:
-        """Whether coefficients are scaled to sum to 1."""
-        return self._scale_coeff
 
     @property
     def r2_box(self) -> list[float]:
@@ -130,18 +123,15 @@ class LIME:
         feats = engine.get_arbitrary_rdkit_descriptors(mols, descriptor_list)
         return feats
 
-    def _get_ecfps(self, mols: list[Mol], fp_params: dict | None) -> np.ndarray:
+    def _get_ecfps(self, mols: list[Mol]) -> np.ndarray:
         """Compute ECFP fingerprint features for a list of molecules.
 
         :param list[Mol] mols: RDKit molecule objects.
-        :param dict | None fp_params: Morgan fingerprint parameters.
 
         :returns: Fingerprint bit matrix of shape ``(n_molecules, nBits)``.
         """
         engine = Engine(n_jobs=1)
-        engine._defaults["ecfp"] = (
-            fp_params if fp_params is not None else self._fingerprint_params_set
-        )
+        engine._defaults["ecfp"] = self._fingerprint_params_set
         feats = engine.get_ECFP(mols)
         return feats
 
@@ -191,7 +181,7 @@ class LIME:
         return self._coeff_box
 
     def _get_ECFP_envs(
-        self, mol: Mol, radius: int = 3, nBits: int = 1024, useFeatures: bool = False
+        self, mol: Mol, radius: int = 3, nBits: int = 8192, useFeatures: bool = False
     ) -> dict[int, set[int]]:
         """Compute atomic environments for bits of Extended Connectivity Fingerprints (ECFP).
 
@@ -199,7 +189,7 @@ class LIME:
 
         :param Mol mol: RDKit molecule to compute environments for.
         :param int radius: Radius for Morgan fingerprint. Defaults to 3.
-        :param int nBits: Number of bits in fingerprint. Defaults to 1024.
+        :param int nBits: Number of bits in fingerprint. Defaults to 8192.
         :param bool useFeatures: Whether to use feature-based fingerprints.
             Defaults to False.
 
@@ -231,9 +221,9 @@ class LIME:
         params = self._fingerprint_params_set
         envs = self._get_ECFP_envs(
             mol,
-            radius=params.get("radius", 3),
-            nBits=params.get("nBits", 1024),
-            useFeatures=params.get("useFeatures", False),
+            radius=params["radius"],
+            nBits=params["nBits"],
+            useFeatures=params["useFeatures"],
         )
         _out = out.drop(index=out.index[-1], axis=0, inplace=False).reset_index(
             drop=True
@@ -258,8 +248,8 @@ class LIME:
             shape ``(n_molecules,)``.
         :param int bootstrap_num: Number of bootstrap iterations. Defaults to 25.
 
-        :returns: DataFrame with columns ``Descriptor``, ``Coefficient``, and
-            ``Standard deviation``, sorted by coefficient magnitude. The last
+        :returns: DataFrame with columns ``Descriptor``, raw ``Coefficient``, and
+            raw ``Standard deviation``, sorted by coefficient magnitude. The last
             row contains the local fit R-squared summary.
         """
         targets = np.asarray(Y)
@@ -276,7 +266,7 @@ class LIME:
             raise ValueError("bootstrap_num must be at least 1.")
 
         if self._use_fingerprints:
-            feats = self._get_ecfps(X, self._fingerprint_params_set)
+            feats = self._get_ecfps(X)
             columns = [f"F_{i}" for i in range(feats.shape[1])]
         else:
             feats = self._get_features(X, self.descriptor_set)
@@ -301,12 +291,6 @@ class LIME:
             if selected_coefficients.size:
                 coeff_median[column_index] = np.median(selected_coefficients)
                 coeff_std[column_index] = np.std(selected_coefficients)
-
-        if self.scale_coeff:
-            coefficient_norm = np.sum(np.abs(coeff_median))
-            if coefficient_norm != 0:
-                coeff_median = coeff_median / coefficient_norm
-                coeff_std = coeff_std / coefficient_norm
 
         df_out = pd.DataFrame(
             {

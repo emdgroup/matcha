@@ -73,7 +73,10 @@ class MatchaExplanation:
         value = np.round(last_row["Coefficient"], 2)
         std = np.round(last_row["Standard deviation"], 2)
 
-        df_plot = df_plot.head(-1)
+        df_plot = df_plot.head(-1).copy()
+        coefficient_norm = df_plot["Coefficient"].abs().sum()
+        if coefficient_norm != 0:
+            df_plot[["Coefficient", "Standard deviation"]] /= coefficient_norm
         df_plot["Reliability"] = (
             df_plot["Coefficient"].abs() - df_plot["Standard deviation"]
         )
@@ -243,7 +246,6 @@ class MatchaExplainer:
         nitrogen_walk_params: dict | None = {},
         lime_descriptor_set: list[str] | None = None,
         lime_fingerprint_params: dict | None = None,
-        lime_scale_coeff: bool = True,
         lime_remove_noise: bool = True,
         reverse_positional_analogue_scanning: bool = True,
         generation_timeout: float = 60.0,
@@ -260,8 +262,6 @@ class MatchaExplainer:
             LIME. None uses the default set.
         :param dict | None lime_fingerprint_params: Morgan fingerprint parameters
             for ECFP-based LIME. None uses defaults.
-        :param bool lime_scale_coeff: Whether to normalize LIME coefficients.
-            Defaults to True.
         :param bool lime_remove_noise: Whether to filter unreliable coefficients
             in the explanation. Defaults to True.
         :param bool reverse_positional_analogue_scanning: Whether to remove
@@ -270,16 +270,14 @@ class MatchaExplainer:
             in seconds. Defaults to 60. Zero causes immediate expiry.
         :param int num_sample: Per-branch multi-step sampling quota forwarded to
             :meth:`AnalogueGenerator.generate_analogues`. Defaults to 100.
-        :param int random_seed: Seed for the deterministic multi-step sampling
-            RNG forwarded to :meth:`AnalogueGenerator.generate_analogues`.
-            Defaults to 0.
+        :param int random_seed: Seed for deterministic analogue generation and
+            descriptor and ECFP LIME bootstrap sampling. Defaults to 0.
         """
         validated = ExplainerInputModel(
             positional_analogue_scanning_params=positional_analogue_scanning_params,
             nitrogen_walk_params=nitrogen_walk_params,
             lime_descriptor_set=lime_descriptor_set,
             lime_fingerprint_params=lime_fingerprint_params,
-            lime_scale_coeff=lime_scale_coeff,
             lime_remove_noise=lime_remove_noise,
             reverse_positional_analogue_scanning=reverse_positional_analogue_scanning,
             generation_timeout=generation_timeout,
@@ -297,7 +295,6 @@ class MatchaExplainer:
             self._nitrogen_walk_params = nitrogen_walk_params
         self._descriptor_set = lime_descriptor_set
         self._fingerprint_params = lime_fingerprint_params
-        self._scale_coeff = lime_scale_coeff
         self._remove_noise = lime_remove_noise
         self._reverse_positional_analogue_scanning = (
             validated.reverse_positional_analogue_scanning
@@ -316,7 +313,10 @@ class MatchaExplainer:
         :returns: DataFrame of descriptor coefficients.
         """
         lime_desc = LIME(
-            self._descriptor_set, self._fingerprint_params, self._scale_coeff, False
+            descriptor_set=self._descriptor_set,
+            fingerprint_params=self._fingerprint_params,
+            use_fingerprints=False,
+            random_seed=self._random_seed,
         )
         df_desc = lime_desc.explain(mols, predictions, bootstrap_num)
         return df_desc
@@ -332,7 +332,10 @@ class MatchaExplainer:
             atom environments and their coefficients.
         """
         lime_ecfp = LIME(
-            self._descriptor_set, self._fingerprint_params, self._scale_coeff, True
+            descriptor_set=self._descriptor_set,
+            fingerprint_params=self._fingerprint_params,
+            use_fingerprints=True,
+            random_seed=self._random_seed,
         )
         df_ecfp = lime_ecfp.explain(mols, predictions, bootstrap_num)
         envs, weights = lime_ecfp.get_envs_and_weights(mols[0], df_ecfp)

@@ -115,7 +115,6 @@ def lime_desc() -> LIME:
     return LIME(
         descriptor_set=None,
         fingerprint_params=None,
-        scale_coeff=True,
         use_fingerprints=False,
     )
 
@@ -126,7 +125,6 @@ def lime_ecfp() -> LIME:
     return LIME(
         descriptor_set=None,
         fingerprint_params=None,
-        scale_coeff=True,
         use_fingerprints=True,
     )
 
