@@ -1,0 +1,136 @@
+matcha.cli.utils
+================
+
+.. py:module:: matcha.cli.utils
+
+.. autoapi-nested-parse::
+
+   Shared utilities for MATCHA CLI commands.
+
+   Provides dataset loading, train/test splitting, score aggregation, bootstrap
+   metric computation, performance-dict writing, and configuration serialization
+   helpers used across multiple CLI subcommands.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.utils.load_dataset
+   matcha.cli.utils.get_splits
+   matcha.cli.utils.aggregate_scores
+   matcha.cli.utils.bootstrap_metrics
+   matcha.cli.utils.store_split_scores
+   matcha.cli.utils.save_config_as_yaml
+
+
+Module Contents
+---------------
+
+.. py:function:: load_dataset(cfg) -> pandas.DataFrame
+
+   Load a molecular dataset from CSV or SDF and return a DataFrame with ROMol column.
+
+   Reads the file specified in *cfg*, ensures a SMILES column exists, converts
+   SMILES to RDKit ``Mol`` objects, and drops rows with invalid molecules.
+
+   :param cfg: Dataset configuration object with ``path``, ``smiles_key``,
+       and optionally other column-key attributes.
+   :returns: DataFrame containing at least a ``ROMol`` column and the
+       original SMILES column.
+
+
+.. py:function:: get_splits(df: pandas.DataFrame, split_cfg, return_val_splits: bool = False, dataset_cfg: dict | None = None) -> tuple[list[pandas.DataFrame]]
+
+   Generate train/test (or train/val/test) splits from a DataFrame.
+
+   Supports multiple splitting strategies: cross-validation (``cv``),
+   temporal (``time``), cluster-based (``cluster``), and file-based
+   (``file``). Every method produces ``n_subset`` splits (or, for the
+   ``file`` method, one split per supplied test-set path).
+
+   Bootstrapping (``n_bootstrap`` / ``frac_bootstrap``) is applied
+   downstream of this function on each split's test predictions and is
+   therefore independent of the split method chosen here.
+
+   :param df: Input DataFrame containing molecular data.
+   :param split_cfg: Split configuration object with ``method``,
+       ``n_subset``, and ``method_params``.
+   :param return_val_splits: If ``True``, return validation and test sets
+       separately as a list of ``[df_val, df_test]`` pairs instead of
+       concatenating them.
+   :param dataset_cfg: Optional dataset configuration used by file-based
+       splitting to load external test sets.
+   :returns: Tuple of ``(train_splits, val_splits)`` where each is a list
+       of DataFrames (one per split).
+
+
+.. py:function:: aggregate_scores(perf_dict, mode: str = 'mean')
+
+   Aggregate per-split performance scores into a single summary.
+
+   Collects metric values across all splits (excluding ``mean`` and ``std``
+   keys) and reduces them with the specified aggregation function.
+
+   :param perf_dict: Dictionary mapping split indices to
+       ``{label: {metric: value}}`` nested dicts.
+   :param mode: Aggregation mode — ``"mean"`` for average, ``"std"`` for
+       standard deviation.
+   :returns: Dictionary of aggregated scores with the same
+       ``{label: {metric: value}}`` structure.
+
+
+.. py:function:: bootstrap_metrics(metric_fn: Callable, n_bootstrap: int, frac_bootstrap: float, *arrays, **metric_kwargs) -> list
+
+   Compute metrics over bootstrap subsamples.
+
+   Repeatedly draws random subsets (with replacement) from the provided
+   arrays and evaluates *metric_fn* on each subsample to estimate metric
+   variability.
+
+   :param metric_fn: Callable accepting the arrays positionally followed by
+       ``**metric_kwargs`` and returning a ``dict[str, float]`` of metric
+       values.
+   :param n_bootstrap: Number of bootstrap iterations.
+   :param frac_bootstrap: Fraction of rows to sample in each iteration.
+   :param arrays: Arrays to subsample (labels, predictions, probabilities,
+       etc.). All must share the same length along axis 0.
+   :param metric_kwargs: Extra keyword arguments forwarded to *metric_fn*.
+   :returns: List of length *n_bootstrap*, where each element is a
+       ``dict[str, float]`` of metric values for that subsample.
+
+
+.. py:function:: store_split_scores(perf_dict: dict, split_idx: int, label: str, metric_fn: Callable, n_bootstrap, frac_bootstrap, *arrays, **metric_kwargs) -> None
+
+   Compute and store per-split metric scores, handling bootstrap and non-bootstrap paths.
+
+   When bootstrapping is inactive (``n_bootstrap`` is ``None`` or ``1``),
+   computes the metric once and stores it under the integer *split_idx* key.
+   When bootstrapping is active, runs :func:`bootstrap_metrics` and stores
+   each subsample result under a ``"{split_idx}_{b}"`` string key so that
+   downstream bootstrap comparison tools can identify them.
+
+   :param perf_dict: Mutable performance dictionary to write into.
+   :param split_idx: Integer split index (e.g. fold number).
+   :param label: Endpoint label key (e.g. ``"SOLUBILITY"``).
+   :param metric_fn: Metric callable — e.g. ``process_regression`` or
+       ``process_classification``.
+   :param n_bootstrap: Number of bootstrap iterations, or ``None`` / ``1``
+       to skip bootstrapping.
+   :param frac_bootstrap: Fraction of test-set rows to sample per bootstrap
+       iteration.  Only used when *n_bootstrap* > 1.
+   :param arrays: Positional arrays forwarded to *metric_fn* (and to
+       :func:`bootstrap_metrics` for subsampling).
+   :param metric_kwargs: Keyword arguments forwarded to *metric_fn*.
+
+
+.. py:function:: save_config_as_yaml(pydantic_config, output_path: str) -> None
+
+   Save a Pydantic model configuration as a YAML file.
+
+   :param pydantic_config: Pydantic model instance to serialize.
+   :param output_path: Path where the YAML file should be written.
+
+

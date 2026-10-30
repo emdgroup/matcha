@@ -1,0 +1,76 @@
+matcha.sklearn.managers.mlflow_manager
+======================================
+
+.. py:module:: matcha.sklearn.managers.mlflow_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.mlflow_manager.MLFlowManager
+
+
+Module Contents
+---------------
+
+.. py:class:: MLFlowManager
+
+   Manages MLflow experiment setup, logging, and artifact tracking.
+
+
+   .. py:attribute:: params
+      :type:  matcha.utils.schemas.sklearn_api.MLFlowInputModel | None
+      :value: None
+
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: is_active
+      :type: bool
+
+
+      Whether an MLflow experiment has been configured.
+
+
+   .. py:method:: setup_experiment(experiment_name: str, run_name: str = 'run', tag: dict | None = None, log_dir: str | None = './matcha_log', server_uri: str | None = None) -> matcha.utils.schemas.sklearn_api.MLFlowInputModel
+
+      Sets the experiment name and run name for the model.
+
+      :param str experiment_name: name of the experiment to set
+      :param str run_name: name of the run to associate with the experiment
+      :param dict | None tag: tags to associate with the run
+      :param str | None log_dir: directory for logging
+      :param str | None server_uri: MLflow server URI
+      :return MLFlowInputModel: the configured MLflow params
+
+
+
+   .. py:method:: create_logger() -> matcha.utils.logging.MatchaLogger
+
+      Creates a MatchaLogger instance from the current MLflow params.
+
+      :return MatchaLogger: configured MLflow logger
+
+
+
+   .. py:method:: log_training(model_instance, mlflow_logger: matcha.utils.logging.MatchaLogger)
+
+      Log training artifacts and params to MLflow.
+
+      :param model_instance: the sklearn model instance to log
+      :param MatchaLogger mlflow_logger: the MLflow logger to use
+
+
+
+   .. py:method:: log_calibrator(calibrator)
+
+      Log calibrator artifact to a new MLflow run.
+
+      :param calibrator: the calibrator object to log
+
+
+

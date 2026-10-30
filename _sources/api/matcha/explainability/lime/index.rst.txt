@@ -1,0 +1,65 @@
+matcha.explainability.lime
+==========================
+
+.. py:module:: matcha.explainability.lime
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.explainability.lime.LIME
+
+
+Module Contents
+---------------
+
+.. py:class:: LIME(descriptor_set: list[str] | None = None, fingerprint_params: dict | None = None, use_fingerprints: bool = False, random_seed: int = 0)
+
+   Local Interpretable Model-agnostic Explanations for molecular predictions.
+
+   Fits bootstrapped Ridge regression models on molecular descriptors or
+   ECFP fingerprints to identify which features most influence a prediction.
+
+
+   .. py:property:: descriptor_set
+      :type: str
+
+
+      The list of RDKit descriptor names used as features.
+
+
+   .. py:property:: r2_box
+      :type: list[float]
+
+
+      R-squared values from each bootstrap iteration.
+
+
+   .. py:method:: get_attributions(mol: rdkit.Chem.rdchem.Mol, out: pandas.DataFrame) -> tuple[dict[int, list[int]], dict[int, float], numpy.ndarray]
+
+      Assemble raw bit and coefficient-conserving atom attributions.
+
+
+
+   .. py:method:: explain(X: list[rdkit.Chem.rdchem.Mol], Y: numpy.ndarray, bootstrap_num: int = 25) -> pandas.DataFrame
+
+      Perform LIME analysis on molecules.
+
+      Fits bootstrapped Ridge regression models to explain how molecular
+      descriptors (or fingerprint bits) relate to the target values. Returns
+      a DataFrame of coefficients sorted by importance.
+
+      :param list[Mol] X: RDKit molecule objects to explain.
+      :param np.ndarray Y: Target values (predictions or any endpoint),
+          shape ``(n_molecules,)``.
+      :param int bootstrap_num: Exact number of full-size row-bootstrap fits.
+          Defaults to 25.
+
+      :returns: DataFrame with columns ``Descriptor``, raw ``Coefficient``, and
+          raw ``Standard deviation``, sorted by coefficient magnitude. The last
+          row contains the local fit R-squared summary.
+
+
+

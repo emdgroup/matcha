@@ -1,0 +1,362 @@
+matcha.datamodules.base_datamodule
+==================================
+
+.. py:module:: matcha.datamodules.base_datamodule
+
+.. autoapi-nested-parse::
+
+   Base data module providing shared featurization, scaling, and label encoding logic.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.datamodules.base_datamodule.DataModuleRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.base_datamodule.BaseDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: BaseDataModule(scaler_type: str = 'standard', augment_resonance: bool = False, label_encoder_params: dict = {}, label_transform_params: dict = {})
+
+   Bases: :py:obj:`abc.ABC`, :py:obj:`lightning.LightningDataModule`
+
+
+   Base class for all datamodules.
+
+   It is not meant to be instantiated directly, but rather to be used as a parent
+   class for each datamodule.
+   The most important method for the children classes is :method:`self.featurize`. Please
+   check out the docs for that method for more information.
+
+
+   .. py:attribute:: collate_fn_map
+
+
+   .. py:property:: dataset_train
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: dataset_val
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: dataset_test
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: dataset_predict
+      :type: torch.utils.data.StackDataset | None
+
+
+
+   .. py:property:: y_scaler
+      :type: sklearn.preprocessing.StandardScaler | sklearn.preprocessing.QuantileTransformer
+
+
+      Property to access the y scaler instance.
+
+
+   .. py:property:: label_encoder
+      :type: matcha.datamodules.classic.label_encoder.RegressionLabelEncoder | matcha.datamodules.classic.label_encoder.BinaryClassificationLabelEncoder
+
+
+      Property to access the label encoder instance.
+
+
+   .. py:property:: label_transform
+      :type: matcha.datamodules.classic.label_transform.LabelTransform
+
+
+      Property to access the label transform instance.
+
+
+   .. py:method:: train_dataloader()
+
+      An iterable or collection of iterables specifying training samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      The dataloader you return will not be reloaded unless you set
+      :paramref:`~lightning.pytorch.trainer.trainer.Trainer.reload_dataloaders_every_n_epochs` to
+      a positive integer.
+
+      For data processing use the following pattern:
+
+          - download in :meth:`prepare_data`
+          - process and split in :meth:`setup`
+
+      However, the above are only necessary for distributed processing.
+
+      .. warning:: do not assign state in prepare_data
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.fit`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware.
+         There is no need to set it yourself.
+
+
+
+   .. py:method:: val_dataloader()
+
+      An iterable or collection of iterables specifying validation samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      The dataloader you return will not be reloaded unless you set
+      :paramref:`~lightning.pytorch.trainer.trainer.Trainer.reload_dataloaders_every_n_epochs` to
+      a positive integer.
+
+      It's recommended that all data downloads and preparation happen in :meth:`prepare_data`.
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.fit`
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.validate`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware
+         There is no need to set it yourself.
+
+      .. note::
+
+         If you don't need a validation dataset and a :meth:`validation_step`, you don't need to
+         implement this method.
+
+
+
+   .. py:method:: test_dataloader()
+
+      An iterable or collection of iterables specifying test samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      For data processing use the following pattern:
+
+          - download in :meth:`prepare_data`
+          - process and split in :meth:`setup`
+
+      However, the above are only necessary for distributed processing.
+
+      .. warning:: do not assign state in prepare_data
+
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.test`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware.
+         There is no need to set it yourself.
+
+      .. note::
+
+         If you don't need a test dataset and a :meth:`test_step`, you don't need to implement
+         this method.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      An iterable or collection of iterables specifying prediction samples.
+
+      For more information about multiple dataloaders, see this :ref:`section <multiple-dataloaders>`.
+
+      It's recommended that all data downloads and preparation happen in :meth:`prepare_data`.
+
+      - :meth:`~lightning.pytorch.trainer.trainer.Trainer.predict`
+      - :meth:`prepare_data`
+      - :meth:`setup`
+
+      .. note::
+
+         Lightning tries to add the correct sampler for distributed and arbitrary hardware
+         There is no need to set it yourself.
+
+      :returns: A :class:`torch.utils.data.DataLoader` or a sequence of them specifying prediction samples.
+
+
+
+   .. py:method:: featurize(x: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None, is_training: bool = True, bound_mask: list[str] | None = None) -> torch.utils.data.StackDataset
+      :abstractmethod:
+
+
+      Converts a list of rdkit molecules into a format fit for neural network training,
+      depending on the architecture to be used downstream.
+
+      This method generates features and applies scaling as needed. It toggles between
+      fitting (when is_training=True) and transforming (when is_training=False) scalers.
+
+      Returns a StackDataset in dictionary format, with the following keys:
+      - 'y': a tensor containing the labels to predict (required)
+      - 'mol_features': a tensor containing fixed-size molecular features
+      - 'graph': a DGLGraph object containing the molecular graph, e.g. for GNNs
+      - 'token_ids': a tensor containing the tokenized SMILES strings, e.g. for CLMs
+
+      Depending on the architecture, more inputs might be required.
+
+      :param list[Mol] x: list of rdkit molecules to featurize
+
+      :param np.ndarray | None y: labels to predict for each molecule, or None
+
+      :param bool is_training: Whether to fit the X and Y scalers on the input,
+          or leverage pre-existing ones to only normalize
+
+      :param list[str] | None bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than', will be ignored if set
+          to None
+
+      :return StackDataset: output ready to be batched by a torch.Dataloader
+
+
+
+   .. py:method:: state_dict() -> dict
+      :abstractmethod:
+
+
+      Returns the parameters necessary for datamodule tracking. The
+      parameters should be outputted inside a dictionary.
+
+      Necessary for MLFlow monitoring.
+
+
+
+   .. py:method:: fit(dataset: torch.utils.data.StackDataset) -> None
+
+      Fits scalers and other stateful transformations on the dataset.
+
+      :param StackDataset dataset: dataset to fit transformations on
+
+
+
+   .. py:method:: transform(dataset: torch.utils.data.StackDataset) -> torch.utils.data.StackDataset
+
+      Applies fitted transformations to the dataset.
+
+      :param StackDataset dataset: dataset to transform
+      :return StackDataset: transformed dataset (modified in-place)
+
+
+
+   .. py:method:: augment(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray, bound_mask: list[str] | None = None, use_resonance: bool = True, max_n: int = 5, n_jobs: int = 1) -> tuple[list[rdkit.Chem.rdchem.Mol], numpy.ndarray, list[str] | None]
+
+      Augment the dataset with resonance structures.
+
+      :param list[Mol] mol_list: list of rdkit molecules to augment
+      :param np.ndarray y: labels array of shape (N, T)
+      :param list[str] | None bound_mask: bound mask or None
+      :param bool use_resonance: whether to use resonance augmentation
+      :param int max_n: maximum number of resonance structures per molecule
+      :param int n_jobs: number of parallel jobs
+      :returns: tuple of (augmented molecules, augmented labels, augmented bound mask)
+      :rtype: tuple[list[Mol], np.ndarray, list[str] | None]
+
+
+
+   .. py:method:: encode_y(y: numpy.ndarray) -> numpy.ndarray
+
+      Convert raw, continuous values into a one-hot encoded matrix
+      for classification using the label encoder.
+
+      :param np.ndarray y: continuous target values of shape (N, T)
+      :return np.ndarray: one-hot encoded matrix
+
+
+
+   .. py:method:: invert_y(y: numpy.array) -> None
+
+      Inverts all y transformations from numpy arrays.
+
+      :param y: np.array to invert
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Collate a batch of samples into a single dictionary of batched tensors.
+
+      :param list[dict] batch: list of sample dictionaries from the dataset
+      :returns: dictionary with collated tensors for each key
+      :rtype: dict
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Set up dataloaders for a given Lightning stage.
+
+      :param str stage: one of ``'fit'``, ``'test'``, or ``'predict'``
+
+
+
+   .. py:method:: configure_label_encoder(params: dict)
+
+      Configure the label encoder with new parameters.
+
+      :param dict params: parameters for label encoder configuration
+
+
+
+   .. py:method:: configure_label_encoder_task(task_idx: int = 0, task_label: str = 'output', class_thresholds: list[float] | None = None, class_labels: list[str] | None = None)
+
+      Configure a single task in the label encoder.
+
+      :param int task_idx: index of the task to configure
+      :param str task_label: human-readable label for the task
+      :param list[float] | None class_thresholds: thresholds for binary classification
+      :param list[str] | None class_labels: class label names
+
+
+
+   .. py:method:: parse_output(output: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Parse model output using the label encoder.
+
+      :param np.ndarray output: raw model output array
+      :param str tag: suffix for column names (e.g. ``'predictions'``)
+      :param bool convert_to_labels: whether to convert to class labels
+      :returns: labelled DataFrame with parsed outputs
+      :rtype: pandas.DataFrame
+
+
+
+   .. py:method:: has_class_labels()
+
+      Check whether the label encoder has classification thresholds configured.
+
+      :returns: True if class labels are configured and non-None
+      :rtype: bool
+
+
+
+   .. py:method:: load_state_dict(state_dict)
+
+      Restore internal state from a serialized state dictionary.
+
+      :param dict state_dict: dictionary containing y_scaler, label_encoder,
+          and label_transform objects
+
+
+
+.. py:data:: DataModuleRegistry
+

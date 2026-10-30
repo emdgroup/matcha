@@ -1,0 +1,147 @@
+matcha.calibration.error_model
+==============================
+
+.. py:module:: matcha.calibration.error_model
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.calibration.error_model.EM_REGISTRY
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.calibration.error_model.EMCalibration
+   matcha.calibration.error_model.EMRegressionCalibration
+   matcha.calibration.error_model.EMClassificationCalibration
+
+
+Module Contents
+---------------
+
+.. py:data:: EM_REGISTRY
+
+.. py:class:: EMCalibration
+
+   Bases: :py:obj:`matcha.calibration.base_calibration.BaseCalibration`
+
+
+   Abstract base class for Error Model calibration.
+
+   This class provides the general framework for error model calibration,
+   which trains a classifier to predict whether predictions are within
+   an acceptable error threshold. Subclasses implement the specific error
+   computation for regression or classification tasks.
+
+   Supports multitask learning where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+
+   .. py:attribute:: engine
+
+
+   .. py:attribute:: scaler_box
+      :type:  list[sklearn.preprocessing.StandardScaler]
+      :value: []
+
+
+
+   .. py:attribute:: error_ratio
+      :type:  list[float]
+      :value: []
+
+
+
+   .. py:attribute:: n_compounds
+      :type:  list[int]
+      :value: []
+
+
+
+   .. py:attribute:: model_box
+      :type:  list
+      :value: []
+
+
+
+   .. py:method:: fit(mols: list[rdkit.Chem.rdchem.Mol], y_true: numpy.ndarray, y_pred: numpy.ndarray, y_error: numpy.ndarray) -> None
+
+      Fits the error model calibration using molecules, true values, predictions, and uncertainties.
+
+      :param list[Mol] mols: List of RDKit molecule objects.
+      :param np.ndarray y_true: The true target values, shape (n_samples,) or (n_samples, n_tasks).
+      :param np.ndarray y_pred: The predicted target values.
+      :param np.ndarray y_error: Uncertainty estimates for predictions.
+
+
+
+   .. py:method:: compute_uncertainty(mols: list[rdkit.Chem.rdchem.Mol], y_pred: numpy.ndarray, y_error: numpy.ndarray) -> numpy.ndarray
+
+      Computes error model predictions (probability of being within acceptable error).
+
+      :param list[Mol] mols: List of RDKit molecule objects.
+      :param np.ndarray y_pred: Predicted values, shape (n_samples,) or (n_samples, n_tasks).
+      :param np.ndarray y_error: Uncertainty estimates, shape (n_samples,) or (n_samples, n_tasks).
+
+      :return: Array of probabilities, shape (n_samples, n_tasks).
+          Values indicate probability of prediction being within acceptable error.
+          Special values: -1 = model not trainable (all same class), -2 = insufficient data.
+
+
+
+.. py:class:: EMRegressionCalibration(algorithm: str = 'GradientBoostingClassifier', algorithm_params: dict = None, use_ecfp: bool = True, use_interaction: bool = True, min_compounds: int = 50, fold: float = 2.0, log10: bool = False)
+
+   Bases: :py:obj:`EMCalibration`
+
+
+   Error Model calibration for regression tasks.
+
+   Trains a classifier to predict whether predictions are within N-fold
+   change of the true values. This is useful for error detection in
+   regression tasks where fold-change is a meaningful measure.
+
+   Supports multitask regression where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = EMRegressionCalibration(fold=2.0)
+   >>> calibrator.fit(mols, y_true_cal, y_pred_cal, y_error_cal)
+   >>> proba = calibrator.compute_uncertainty(mols_test, y_pred_test, y_error_test)
+   >>> # proba indicates probability of prediction being within 2-fold error
+
+
+   .. py:attribute:: params
+
+
+.. py:class:: EMClassificationCalibration(algorithm: str = 'GradientBoostingClassifier', algorithm_params: dict = None, use_ecfp: bool = True, use_interaction: bool = True, min_compounds: int = 50, error_threshold: float = 0.5)
+
+   Bases: :py:obj:`EMCalibration`
+
+
+   Error Model calibration for classification tasks.
+
+   Trains a classifier to predict whether predicted probabilities are within
+   an acceptable absolute gap from the true binary labels. This is useful
+   for error detection in classification tasks.
+
+   Supports multitask classification where each task is calibrated independently.
+   NaN values in y_true are masked out per-task during calibration.
+
+   .. rubric:: Example
+
+   >>> calibrator = EMClassificationCalibration(error_threshold=0.5)
+   >>> calibrator.fit(mols, y_true_cal, y_pred_proba_cal, y_error_cal)
+   >>> proba = calibrator.compute_uncertainty(mols_test, y_pred_proba_test, y_error_test)
+   >>> # proba indicates probability of prediction being within 0.5 of true label
+
+
+   .. py:attribute:: params
+
+

@@ -1,0 +1,114 @@
+matcha.torch.encoders.cnn
+=========================
+
+.. py:module:: matcha.torch.encoders.cnn
+
+.. autoapi-nested-parse::
+
+   1D Convolutional Neural Network (CNN) encoder for chemical language representations.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.encoders.cnn.Conv1d
+   matcha.torch.encoders.cnn.CNN
+
+
+Module Contents
+---------------
+
+.. py:class:: Conv1d(input_dim, channel_dim, kernel_dim, activation, dropout)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Single 1D convolution layer with dropout and activation.
+
+   :param int input_dim: Number of input channels.
+   :param int channel_dim: Number of output channels.
+   :param int kernel_dim: Kernel size for the convolution.
+   :param str activation: Activation function name.
+   :param float dropout: Dropout rate applied after convolution.
+
+
+   .. py:attribute:: conv
+
+
+   .. py:attribute:: dropout
+
+
+   .. py:attribute:: activation
+
+
+   .. py:method:: forward(x)
+
+
+.. py:class:: CNN(num_characters: int, embedding_dim: int, hidden_dim: int, kernel_dims: list[int], num_heads: int, activation: str, dropout: float)
+
+   Bases: :py:obj:`matcha.torch.encoders.base_encoder.BaseEncoder`, :py:obj:`lightning.pytorch.core.mixins.HyperparametersMixin`
+
+
+   1D convolution neural network (CNN) encoder for modelling chemical language
+   representations. After processing the input sequence, self attention is used
+   to compute a global representation of the molecule by making the [cls] token
+   attend to each other position in the string.
+   It inherits from  :class:`lightning.pytorch.core.mixins` for saving its hyperparameters,
+   and from :class:`BaseEncoder` to be consistent with other encoders.
+   References:
+   - https://arxiv.org/abs/2407.12152
+   - https://pubs.rsc.org/en/content/articlehtml/2023/dd/d2dd00099g
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance.
+   Check the docs of :class:`matcha.torch.models.classic.CNNModel` for further details.
+
+   :param int num_characters: total number of unique tokens in the dataset's
+       dictionary
+
+   :param int embedding_dim: number of token embedding features
+
+   :param list[int] hidden_dims: number of hidden token dimensionality across each
+       convolutional layer
+
+   :param list[int] kernel_dims: kernel sizes for each convolutional layer
+
+   :param int num_heads: number of self attention heads, must divide hidden_dims
+       evenly
+
+   :param str activation: activation function to use throughout all layers
+
+   :param float dropout:  dropout noise level
+
+
+   .. py:attribute:: embedding
+
+
+   .. py:attribute:: layers
+
+
+   .. py:attribute:: attention
+
+
+   .. py:attribute:: pre_norm
+
+
+   .. py:attribute:: post_norm
+
+
+   .. py:attribute:: layer_weights
+
+
+   .. py:method:: forward(token_ids: list[list[int]]) -> torch.Tensor
+
+      Converts a nested list of integers objects into a (x, self.fp_dim) tensor for further
+      processing.
+
+      :param list[list[int]] token_ids: batched input from the dataloader
+
+      :return torch.Tensor: learned representation
+
+
+

@@ -1,0 +1,47 @@
+matcha.sklearn.utils
+====================
+
+.. py:module:: matcha.sklearn.utils
+
+.. autoapi-nested-parse::
+
+   Legacy utility functions for parameter parsing and data splitting.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.sklearn.utils.parse_params
+   matcha.sklearn.utils.random_split
+
+
+Module Contents
+---------------
+
+.. py:function:: parse_params(dictionary: dict)
+
+   Flatten a structured parameter dictionary into a single dict.
+
+   Merges the ``Training``, ``DataModule``, and ``Model`` keys into
+   one flat dictionary suitable for passing to a model constructor.
+
+   :param dict dictionary: structured config with top-level section keys
+   :returns: flattened parameter dictionary
+   :rtype: dict
+
+
+.. py:function:: random_split(x, y, bound, seed=42)
+
+   Split data into 90/10 train/validation sets with optional bound masks.
+
+   :param list x: input features (list of molecules or SMILES)
+   :param np.ndarray y: target labels array
+   :param list | None bound: bound mask(s) or None if not applicable
+   :param int seed: random seed for reproducibility, defaults to 42
+   :returns: tuple of (x_train, y_train, bound_train, x_val, y_val, bound_val)
+   :rtype: tuple
+
+

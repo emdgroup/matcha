@@ -1,0 +1,83 @@
+matcha.utils.serialization
+==========================
+
+.. py:module:: matcha.utils.serialization
+
+.. autoapi-nested-parse::
+
+   Serialization utilities for loading and saving data in various formats.
+
+   Supports JSON, YAML, and pickle serialization with automatic directory
+   creation, as well as DataFrame parsing helpers for molecular data.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.utils.serialization.save_json
+   matcha.utils.serialization.save_yaml
+   matcha.utils.serialization.save_pickle
+   matcha.utils.serialization.load_json
+   matcha.utils.serialization.load_pickle
+   matcha.utils.serialization.load_yaml
+   matcha.utils.serialization.parse_df
+
+
+Module Contents
+---------------
+
+.. py:function:: save_json(path: str, object: save_json.object)
+
+   Saves the object in the desired path as a readable json
+
+
+.. py:function:: save_yaml(path: str, object: save_yaml.object)
+
+   Saves the object in the desired path as a readable yaml
+
+
+.. py:function:: save_pickle(path: str, object: save_pickle.object)
+
+   Saves the object in the desired path as a pickle
+
+
+.. py:function:: load_json(path: str)
+
+   Loads the json as a dictionary
+
+
+.. py:function:: load_pickle(path: str)
+
+   Reloads the object from a pickle file
+
+
+.. py:function:: load_yaml(path: str)
+
+   Loads a yaml dict from file
+
+
+.. py:function:: parse_df(input_df: pandas.DataFrame, label_key: str | list, operator_key: str | None = None)
+
+   Parse a DataFrame containing molecular data into components.
+
+   Extracts RDKit molecule objects, label arrays, and optional censor
+   operator lists from a DataFrame that has an ``ROMol`` column.
+
+   :param pandas.DataFrame input_df: Input DataFrame with an ``ROMol`` column
+       and label/operator columns.
+   :param label_key: Column name substring (or list of exact column names)
+       used to identify label columns.
+   :type label_key: str or list
+   :param operator_key: Optional column name substring used to identify
+       censor operator columns (e.g., ``"<"``, ``">"``). NaN values are
+       replaced with ``"="``.
+   :type operator_key: str or None
+   :returns: A tuple of (molecules, labels, operators) where molecules is a
+       list of RDKit Mol objects, labels is a float numpy array, and operators
+       is a list of operator strings (or ``None`` if ``operator_key`` is None).
+   :rtype: tuple
+
+

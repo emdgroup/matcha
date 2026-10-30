@@ -1,0 +1,181 @@
+matcha.datamodules.classic.combined_datamodule
+==============================================
+
+.. py:module:: matcha.datamodules.classic.combined_datamodule
+
+.. autoapi-nested-parse::
+
+   Combined data module for multi-modal molecular representation learning.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.combined_datamodule.CombinedDataModule
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.combined_datamodule.default_merge
+
+
+Module Contents
+---------------
+
+.. py:function:: default_merge(args)
+
+   Default merge function that returns the first value when a key appears in multiple datasets.
+
+   :param list args: list of values from each dataset for the same key
+   :returns: the first value
+
+
+.. py:class:: CombinedDataModule(datamodules: list[matcha.datamodules.base_datamodule.BaseDataModule], merge_fn: dict[str, collections.abc.Callable] | None = {'y': default_merge}, is_classification: bool = False, scaler_type: str = 'standard', clip: bool = True, label_encoder_params: dict = {}, label_transform_params: dict = {}, batch_size: int = 256, num_workers: int = 0, augment_resonance: bool = False)
+
+   Bases: :py:obj:`matcha.datamodules.base_datamodule.BaseDataModule`
+
+
+   A DataModule that can combine multiple datamodules.
+
+   This class is useful when you have multiple datamodules that you want to combine into a single
+   datamodules.
+
+   If a key appears in multiple datamodules, the values get merged according to merge_fn.
+
+   :param datamodules: a list of datamodules to combine
+   :param merge_fn: a dictionary mapping keys to merge functions
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: datamodules
+
+
+   .. py:method:: generate_features(x: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None) -> matcha.datamodules.utils.CombinedStackDataset
+
+      Generate unscaled features for all sub-datamodules and combine them.
+      Calls parent generate_features for each datamodule.
+
+      Uses keyword arguments so that sub-datamodules with additional parameters
+      (e.g. CLMDataModule's ``augment`` / ``is_training``) receive the correct
+      values instead of swallowing ``n_jobs`` into a wrong positional slot.
+
+      ``is_training`` is forwarded to sub-datamodules whose ``generate_features``
+      accepts it (currently only :class:`CLMDataModule`), enabling the correct
+      augmentation count (train vs. test) inside a :class:`CombinedDataModule`.
+
+
+
+   .. py:method:: featurize(x: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None) -> matcha.datamodules.utils.CombinedStackDataset
+
+      Featurize molecules using all sub-datamodules and apply scaling.
+
+      :param list[Mol] x: list of rdkit molecules to process
+      :param np.ndarray | None y: labels array or None
+      :param list[str] | None bound_mask: bound mask or None
+      :param bool is_training: whether to fit scalers on the input
+      :param int | None n_jobs: number of parallel jobs
+      :returns: combined dataset with features from all sub-datamodules
+      :rtype: CombinedStackDataset
+
+
+
+   .. py:method:: fit(dataset: matcha.datamodules.utils.CombinedStackDataset) -> None
+
+      Fits scalers and other stateful transformations on the dataset.
+
+      For CombinedDataModule, this calls fit on all sub-datamodules with their
+      respective individual datasets.
+
+      :param CombinedStackDataset dataset: dataset to fit transformations on
+
+
+
+   .. py:method:: transform(dataset: matcha.datamodules.utils.CombinedStackDataset) -> matcha.datamodules.utils.CombinedStackDataset
+
+      Applies fitted transformations to the dataset.
+
+      For CombinedDataModule, this calls transform on all sub-datamodules with
+      their respective individual datasets.
+
+      :param CombinedStackDataset dataset: dataset to transform
+      :return CombinedStackDataset: transformed dataset (modified in-place)
+
+
+
+   .. py:method:: collate_fn(batch: list[dict[str, Any]]) -> dict[str, Any]
+
+      Collate a batch of items.
+
+      :param batch: a list of items to collate
+
+      :return: the collated batch
+
+
+
+   .. py:method:: invert_y(y: numpy.ndarray) -> numpy.ndarray
+
+      Inverts all y transformations from numpy arrays.
+
+      :param y: np.array to invert
+
+
+
+   .. py:method:: parse_output(output: numpy.ndarray, tag: str, convert_to_labels: bool = True)
+
+      Parse model output using the label encoder.
+
+      :param np.ndarray output: raw model output array
+      :param str tag: suffix for column names (e.g. ``'predictions'``)
+      :param bool convert_to_labels: whether to convert to class labels
+      :returns: labelled DataFrame with parsed outputs
+      :rtype: pandas.DataFrame
+
+
+
+   .. py:method:: configure_label_encoder(params)
+
+      Configure the label encoder with new parameters.
+
+      :param dict params: parameters for label encoder configuration
+
+
+
+   .. py:method:: has_class_labels()
+
+      Check whether the label encoder has classification thresholds configured.
+
+      :returns: True if class labels are configured and non-None
+      :rtype: bool
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Utility to make a dummy class with default params. Can be
+      combined with load_state_dict to recreate a datamodule from
+      a state dict
+
+
+

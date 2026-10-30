@@ -1,0 +1,285 @@
+matcha.cli.summarize
+====================
+
+.. py:module:: matcha.cli.summarize
+
+.. autoapi-nested-parse::
+
+   CLI command for summarizing and comparing MLflow experiment results.
+
+   Loads performance artifacts from MLflow runs, runs statistical tests
+   (parametric or non-parametric) to compare models, generates interactive
+   plots, and saves a summary report as MLflow artifacts.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.cli.summarize.ExperimentSummarizer
+   matcha.cli.summarize.MLflowExperimentSummarizer
+   matcha.cli.summarize.DirectoryExperimentSummarizer
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.summarize.main
+
+
+Module Contents
+---------------
+
+.. py:class:: ExperimentSummarizer(logger, statistical_test: str = 'non-parametric')
+
+   Bases: :py:obj:`abc.ABC`
+
+
+   Abstract base class for experiment summarizers.
+
+   Holds all shared analysis logic (artifact loading, statistical plots,
+   summary statistics). Subclasses implement run discovery
+   (:meth:`find_experiment_runs`) and result persistence
+   (:meth:`save_summary_to_backend`).
+
+
+   .. py:attribute:: logger
+
+
+   .. py:attribute:: comparison
+
+
+   .. py:attribute:: statistical_test
+      :value: 'non-parametric'
+
+
+
+   .. py:attribute:: source_identifier_key
+      :type:  str
+      :value: ''
+
+
+
+   .. py:attribute:: source_identifier
+      :type:  str
+      :value: ''
+
+
+
+   .. py:method:: find_experiment_runs(selected_runs: Optional[List[str]] = None) -> List[Dict[str, Any]]
+      :abstractmethod:
+
+
+      Discover runs and return a list of run-info dicts.
+
+      Each dict must contain ``run_id``, ``run_name``, and
+      ``artifact_path``.
+
+
+
+   .. py:method:: save_summary_to_backend(summary_data: Dict, plot_files: Dict[str, str] = None)
+      :abstractmethod:
+
+
+      Persist the summary JSON and plot files to the appropriate backend.
+
+
+
+   .. py:method:: load_performance_artifacts(run_info_list: List[Dict[str, Any]]) -> Tuple[Dict, Dict, int, Dict]
+
+      Load performance.json and performance_log10.json from all runs.
+
+
+
+   .. py:method:: load_predictions_artifacts(run_info_list: List[Dict[str, Any]]) -> Dict[str, Dict[str, pandas.DataFrame]]
+
+      Load prediction CSV files from all runs.
+
+      :param run_info_list: List of run info dicts from
+          :meth:`find_experiment_runs`.
+      :returns: Nested dict ``{run_id: {endpoint_split: DataFrame}}``.
+
+
+
+   .. py:method:: extract_split_metrics(performance_data: Dict) -> Tuple[Dict[str, Dict[str, Dict[str, List]]], List[str]]
+
+      Extract metrics organized by split, endpoint, and metric type.
+
+      :param performance_data: Per-run performance dict from
+          :meth:`load_performance_artifacts`.
+      :returns: Tuple of ``(organized_data, run_id_order)`` where
+          *organized_data* maps
+          ``{split_id: {endpoint: {metric: [values_across_runs]}}}``
+          and *run_id_order* is a list of run IDs.
+
+
+
+   .. py:method:: create_performance_plots(performance_data: Dict, performance_log10_data: Dict, run_id_to_name: Dict, corrected_results: List[Dict], corrected_log10_results: List[Dict] | None, omnibus_results: Optional[Dict[Tuple[str, str], Dict]] = None, omnibus_log10_results: Optional[Dict[Tuple[str, str], Dict]] = None, output_dir: Optional[str] = None) -> Dict[str, str]
+
+      Create scatter plots for each metric-endpoint combination.
+
+      Shows mean performance across runs with standard deviation error
+      bars, for both unscaled and log10-scaled data. Points are
+      color-coded based on statistical significance compared to the best
+      model: green for best, light green for non-significant, light blue
+      for significantly different.
+
+      :param output_dir: Directory to write HTML files. If ``None``, files
+          are written to the current working directory.
+      :returns: Dict mapping plot names to HTML file paths.
+
+
+
+   .. py:method:: create_correlation_heatmaps(predictions_data: Dict[str, Dict[str, pandas.DataFrame]], run_id_to_name: Dict[str, str], output_dir: Optional[str] = None) -> Dict[str, str]
+
+      Create correlation heatmaps between predictions and residuals across methods.
+
+      Aggregates predictions across all splits for each endpoint. Creates
+      two heatmaps per endpoint: one for prediction correlation and one
+      for residual correlation.
+
+      :param predictions_data: Per-run prediction DataFrames from
+          :meth:`load_predictions_artifacts`.
+      :param run_id_to_name: Mapping from run IDs to display names.
+      :param output_dir: Directory to write HTML files. If ``None``, files
+          are written to the current working directory.
+      :returns: Dict mapping plot names to HTML file paths.
+
+
+
+   .. py:method:: create_summary_statistics(performance_data: Dict, num_experiments: int, comparison_results: List[Dict], omnibus_results: Optional[Dict[Tuple[str, str], Dict]] = None) -> Dict
+
+      Create comprehensive summary statistics.
+
+
+
+.. py:class:: MLflowExperimentSummarizer(experiment_name: str, mlruns_path: str, logger, statistical_test: str = 'non-parametric')
+
+   Bases: :py:obj:`ExperimentSummarizer`
+
+
+   Summarizes MLflow experiments with statistical analysis.
+
+   Supports three statistical testing modes:
+   - "parametric": repeated-measures ANOVA (omnibus) + Tukey HSD against the
+     RM-ANOVA error term (pairwise)
+   - "non-parametric": Friedman chi-squared (omnibus) + Wilcoxon signed-rank + BH correction (pairwise)
+   - "bootstrap": no omnibus test; bootstrap percentile CIs + Holm-Bonferroni
+     pairwise comparisons (requires ``split.n_bootstrap > 1`` in evaluate config)
+
+   The statistical tests themselves live in
+   :mod:`matcha.cli.statistical_tests`; this class delegates omnibus,
+   pairwise, and correction work to a comparison strategy selected by
+   *statistical_test*.
+
+
+   .. py:attribute:: experiment_name
+
+
+   .. py:attribute:: mlruns_path
+
+
+   .. py:attribute:: source_identifier_key
+      :value: 'experiment_name'
+
+
+
+   .. py:attribute:: source_identifier
+
+
+   .. py:method:: find_experiment_runs(selected_runs: Optional[List[str]] = None) -> List[Dict[str, Any]]
+
+      Find all runs in the specified experiment and their artifact paths.
+
+      :param selected_runs: Optional list of run names to select. If
+          ``None``, all runs are returned. If provided, only runs whose
+          names match an entry in this list are included.
+      :returns: List of dicts with ``run_id``, ``run_name``, and
+          ``artifact_path`` for each qualifying run.
+
+
+
+   .. py:method:: save_summary_to_backend(summary_data: Dict, plot_files: Dict[str, str] = None)
+
+      Save summary analysis as a new MLflow run.
+
+
+
+.. py:class:: DirectoryExperimentSummarizer(root_dir: str, output_path: str, logger, statistical_test: str = 'non-parametric')
+
+   Bases: :py:obj:`ExperimentSummarizer`
+
+
+   Summarizes model runs stored as subdirectories on disk.
+
+   Each immediate subdirectory of *root_dir* is treated as one run.
+   ``performance.json``, ``performance_log10.json``, and ``*_preds.csv`` are
+   loaded directly from each subdirectory. Results are written to
+   *output_path* on disk.
+
+
+   .. py:attribute:: root_dir
+      :value: b'.'
+
+
+
+   .. py:attribute:: output_path
+      :value: b'.'
+
+
+
+   .. py:attribute:: source_identifier_key
+      :value: 'root_dir'
+
+
+
+   .. py:attribute:: source_identifier
+      :value: b'.'
+
+
+
+   .. py:method:: find_experiment_runs(selected_runs: Optional[List[str]] = None) -> List[Dict[str, Any]]
+
+      Discover runs as subdirectories of *root_dir*.
+
+      Each subdirectory that contains a ``performance.json`` file is
+      included. Subdirectories without it are skipped with a warning.
+
+      :param selected_runs: Optional list of subdirectory names to include.
+          If ``None``, all qualifying subdirectories are returned.
+      :returns: List of dicts with ``run_id``, ``run_name``, and
+          ``artifact_path`` for each qualifying subdirectory.
+
+
+
+   .. py:method:: save_summary_to_backend(summary_data: Dict, plot_files: Dict[str, str] = None)
+
+      Write summary JSON to *output_path*.
+
+      Plots are already written to *output_path* by the plot methods via
+      ``output_dir``; this method only persists the JSON and logs paths.
+
+
+
+.. py:function:: main(cfg=None)
+
+   Run experiment summarization from a YAML configuration.
+
+   Supports two modes selected by config fields:
+
+   - **MLflow mode** (``experiment_name`` + ``mlruns_path``): loads artifacts
+     from an MLflow tracking store, saves summary as MLflow artifacts.
+   - **Directory mode** (``root_dir``): treats each immediate subdirectory as
+     a run, reads artifacts directly from disk, writes results to
+     ``output_path``.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLISummarizeInputModel` instance
+       or a raw dict that will be validated.
+
+

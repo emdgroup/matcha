@@ -1,0 +1,289 @@
+matcha.utils.schemas.sklearn_api
+================================
+
+.. py:module:: matcha.utils.schemas.sklearn_api
+
+.. autoapi-nested-parse::
+
+   Pydantic schemas for scikit-learn-compatible matcha model configurations.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.schemas.sklearn_api.TrainingInputModel
+   matcha.utils.schemas.sklearn_api.MLFlowInputModel
+   matcha.utils.schemas.sklearn_api.RegressionInputModel
+   matcha.utils.schemas.sklearn_api.MetadataInputModel
+   matcha.utils.schemas.sklearn_api.TuningInputModel
+   matcha.utils.schemas.sklearn_api.ScikitLearnInputModel
+   matcha.utils.schemas.sklearn_api.ScikitLearnEnsembleInputModel
+
+
+Module Contents
+---------------
+
+.. py:class:: TrainingInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for training loop hyperparameters such as epochs, batch size, and early stopping.
+
+
+   .. py:attribute:: num_epochs
+      :type:  int
+      :value: 100
+
+
+
+   .. py:attribute:: batch_size
+      :type:  int
+      :value: 32
+
+
+
+   .. py:attribute:: stochastic_weight_averaging
+      :type:  bool
+      :value: False
+
+
+
+   .. py:attribute:: accelerator
+      :type:  str
+      :value: 'auto'
+
+
+
+   .. py:attribute:: devices
+      :type:  int
+      :value: 1
+
+
+
+   .. py:attribute:: early_stopping
+      :type:  bool
+      :value: True
+
+
+
+   .. py:attribute:: patience
+      :type:  int
+      :value: 10
+
+
+
+   .. py:attribute:: seed
+      :type:  int
+      :value: 0
+
+
+
+.. py:class:: MLFlowInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for MLflow tracking configuration including experiment name and server URI.
+
+
+   .. py:attribute:: experiment
+      :type:  str
+
+
+   .. py:attribute:: run
+      :type:  Optional[str]
+      :value: None
+
+
+
+   .. py:attribute:: tag
+      :type:  Optional[Dict[str, Any]]
+      :value: None
+
+
+
+   .. py:attribute:: log_dir
+      :type:  str
+      :value: './matcha_log'
+
+
+
+   .. py:attribute:: server_uri
+      :type:  Optional[str]
+      :value: None
+
+
+
+.. py:class:: RegressionInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema that specifies a regression task type.
+
+
+   .. py:attribute:: task_type
+      :type:  Literal['regression']
+      :value: 'regression'
+
+
+
+.. py:class:: MetadataInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for model metadata including ownership, versioning, and description.
+
+
+   .. py:attribute:: model_type
+      :type:  str
+
+
+   .. py:attribute:: model_version
+      :type:  int
+
+
+   .. py:attribute:: model_name
+      :type:  str
+
+
+   .. py:attribute:: model_owner
+      :type:  str
+
+
+   .. py:attribute:: model_scope
+      :type:  str
+
+
+   .. py:attribute:: matcha_version
+      :type:  str
+
+
+   .. py:attribute:: date
+      :type:  str
+
+
+   .. py:attribute:: description
+      :type:  str
+
+
+   .. py:attribute:: extra
+      :type:  dict[str, Any]
+
+
+.. py:class:: TuningInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for hyperparameter tuning configuration including search budgets and grids.
+
+
+   .. py:attribute:: architecture_search_budget
+      :type:  int
+
+
+   .. py:attribute:: architecture_grid
+      :type:  dict | None
+
+
+   .. py:attribute:: optimizer_search_budget
+      :type:  int
+
+
+   .. py:attribute:: optimizer_grid
+      :type:  dict | None
+
+
+   .. py:attribute:: scheduler_grid
+      :type:  dict | None
+
+
+.. py:class:: ScikitLearnInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Top-level schema for a single scikit-learn-compatible matcha model configuration.
+
+   Combines training, datamodule, model architecture, metadata, and optional
+   calibration and tuning settings.
+
+
+   .. py:attribute:: training
+      :type:  TrainingInputModel
+
+
+   .. py:attribute:: datamodule
+      :type:  matcha.utils.schemas.datamodules.DataModuleModel
+
+
+   .. py:attribute:: model
+      :type:  matcha.utils.schemas.torch_api.TorchModel
+
+
+   .. py:attribute:: metadata
+      :type:  MetadataInputModel
+
+
+   .. py:attribute:: task_type
+      :type:  Literal['regression', 'binary_classification']
+
+
+   .. py:attribute:: calibration
+      :type:  matcha.utils.schemas.calibration.CalibratorModel | None
+
+
+   .. py:attribute:: mlflow
+      :type:  MLFlowInputModel | None
+
+
+   .. py:attribute:: tuning
+      :type:  TuningInputModel | None
+
+
+.. py:class:: ScikitLearnEnsembleInputModel(/, **data: Any)
+
+   Bases: :py:obj:`matcha.utils.schemas.base.BaseDataModel`
+
+
+   Schema for an ensemble of scikit-learn-compatible matcha models.
+
+   Defines the ensemble architecture, base learner configuration, and number of models.
+
+
+   .. py:attribute:: architecture
+      :type:  str
+
+
+   .. py:attribute:: learner
+      :type:  ScikitLearnInputModel | dict
+
+
+   .. py:attribute:: n_models
+      :type:  int
+
+
+   .. py:attribute:: calibration
+      :type:  matcha.utils.schemas.calibration.CalibratorModel | None
+
+
+   .. py:attribute:: mlflow
+      :type:  MLFlowInputModel | None
+
+
+   .. py:attribute:: metadata
+      :type:  MetadataInputModel
+
+
+   .. py:attribute:: seed
+      :type:  int
+      :value: 0
+
+
+

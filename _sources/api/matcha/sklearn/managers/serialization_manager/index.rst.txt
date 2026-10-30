@@ -1,0 +1,113 @@
+matcha.sklearn.managers.serialization_manager
+=============================================
+
+.. py:module:: matcha.sklearn.managers.serialization_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.serialization_manager.SerializationManager
+
+
+Module Contents
+---------------
+
+.. py:class:: SerializationManager
+
+   Handles saving, loading, and exporting sklearn model artifacts.
+
+   Artifact layout::
+
+       <folder_path>/
+       ├── model.ckpt                     # Lightning checkpoint (weights only)
+       ├── config/
+       │   ├── manifest.yaml              # Serialization version & class info
+       │   ├── model.yaml                 # Model architecture params
+       │   ├── training.yaml              # Training params
+       │   ├── datamodule.yaml            # Datamodule params
+       │   ├── metadata.yaml              # Model metadata
+       │   ├── calibration.yaml           # Calibration params (optional)
+       │   ├── tuning.yaml               # HPO params (optional)
+       │   └── mlflow.yaml               # MLflow params (optional)
+       └── state/
+           ├── datamodule_state.pkl       # Fitted scalers, encoders, transforms
+           └── calibrator.pkl             # Fitted calibrator object (optional)
+
+
+   .. py:attribute:: logger
+
+
+   .. py:method:: save(model_instance, folder_path: str, quantize: bool = False)
+
+      Save all components of a sklearn model into the target folder.
+
+      :param model_instance: the sklearn model instance to save
+      :param str folder_path: root folder where artifacts are stored
+      :param bool quantize: whether to quantize the model before saving
+
+
+
+   .. py:method:: quantize(model_instance)
+
+      Apply dynamic quantization to the model.
+
+      :param model_instance: the sklearn model instance to quantize
+
+
+
+   .. py:method:: get_input_args(model_instance) -> dict
+
+      Return the input arguments for the model as a dictionary.
+
+      Merges datamodule, model, and training params, then filters to only
+      those that appear in the child class constructor signature.
+
+      :param model_instance: the sklearn model instance
+      :return dict: dictionary of constructor arguments
+
+
+
+   .. py:method:: export_to_yaml(model_instance, path: str) -> None
+
+      Export the model configuration YAMLs to a directory (no weights, no state).
+
+      Writes the same ``config/`` subtree that :meth:`save` produces, so the
+      output can be inspected, version-controlled, or used as a template.
+
+      :param model_instance: the sklearn model instance
+      :param str path: directory where the config YAMLs will be written
+
+
+
+   .. py:method:: load_from_folder(cls, folder_path: str, accelerator: str = 'cuda')
+      :staticmethod:
+
+
+      Reconstruct a fully restored copy of a saved sklearn model.
+
+      :param cls: the model class to instantiate
+      :param str folder_path: location of folder with saved model artifacts
+      :param str accelerator: accelerator to use for model loading
+      :return: fully restored class instance
+
+
+
+   .. py:method:: load_from_config(cls, param_dict: dict)
+      :staticmethod:
+
+
+      Create a new class instance 'shell' from saved params.
+
+      Expects a structured dict with top-level keys:
+      ``model``, ``training``, ``datamodule``, ``metadata``,
+      and optionally ``calibration``, ``tuning``.
+
+      :param cls: the model class to instantiate
+      :param dict param_dict: structured parameter dictionary
+      :return: class instance with architecture but no fitted weights
+
+
+

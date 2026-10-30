@@ -1,0 +1,104 @@
+matcha.datamodules.utils
+========================
+
+.. py:module:: matcha.datamodules.utils
+
+.. autoapi-nested-parse::
+
+   Utility classes and collation functions for datamodules.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.datamodules.utils.collate_fns
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.utils.HandleMissing
+   matcha.datamodules.utils.CombinedStackDataset
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.datamodules.utils.collate_fn_pyg_graph
+   matcha.datamodules.utils.concat_tensors_merge_fn
+
+
+Module Contents
+---------------
+
+.. py:function:: collate_fn_pyg_graph(graphs: list[torch_geometric.data.Data], collate_fn_map=None) -> torch_geometric.data.Data
+
+   Collate function for PyTorch Geometric graphs.
+
+   Batches a list of PyG Data objects into a single batched Data object.
+   Handles shortest path distances (spd) and virtual node initialization.
+
+   :param graphs: list of PyG Data objects
+   :param collate_fn_map: unused, for compatibility
+   :return: batched PyG Data object
+
+
+.. py:data:: collate_fns
+   :type:  dict[str, collections.abc.Callable]
+
+.. py:class:: HandleMissing(*args, **kwds)
+
+   Bases: :py:obj:`enum.Enum`
+
+
+   Enum class to handle missing values in the data.
+
+
+   .. py:attribute:: RAISE
+      :value: 'raise'
+
+
+
+   .. py:attribute:: FILL
+      :value: 'fill'
+
+
+
+.. py:function:: concat_tensors_merge_fn(values: list[torch.Tensor], dim=0) -> torch.Tensor
+
+   Merge a list of tensors by concatenating them.
+
+   :param values: a list of tensors to concatenate
+   :param dim: the dimension along which to concatenate the tensors
+
+   :return: the concatenated tensor
+
+
+.. py:class:: CombinedStackDataset(datasets: list[torch.utils.data.StackDataset], merge_fn: dict[str, collections.abc.Callable] = None)
+
+   Bases: :py:obj:`torch.utils.data.Dataset`
+
+
+   A Dataset that can combine multiple `StackDataset`s.
+
+   This class is useful when you have multiple datasets that you want to combine into a single
+   dataset.
+
+   If a key appears in multiple datasets, the values get merged according to merge_fn.
+
+   :param datasets: a list of datasets to combine
+
+
+   .. py:attribute:: datasets
+
+
+   .. py:attribute:: merge_fn
+
+

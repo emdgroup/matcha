@@ -1,0 +1,63 @@
+matcha.utils.wrapper
+====================
+
+.. py:module:: matcha.utils.wrapper
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.utils.wrapper.Wrapper
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.utils.wrapper.deepcopy_input
+   matcha.utils.wrapper.parallelize
+
+
+Module Contents
+---------------
+
+.. py:class:: Wrapper(method_name: str, module_name: str)
+
+   Utility class to wrap a module so that it can be used in parallel via
+   joblib. This is typically necessary with some RDKIT functions.
+
+
+   .. py:attribute:: method_name
+
+
+   .. py:attribute:: module
+
+
+   .. py:property:: method
+
+      Resolve and return the wrapped callable from the imported module.
+
+      :returns: The function or method referenced by :attr:`method_name`.
+      :rtype: Callable
+
+
+.. py:function:: deepcopy_input(func)
+
+   Decorator that copies the first positional argument before passing it.
+
+   Creates a numpy copy of the first argument to prevent in-place mutation
+   of the original array.
+
+   :param Callable func: The function to wrap.
+   :returns: Wrapped function that operates on a copy of its first argument.
+   :rtype: Callable
+
+
+.. py:function:: parallelize(func: Callable, input: list, n_jobs: int, **kwargs)
+
+   Simple parallelization wrapper for misc tasks
+
+

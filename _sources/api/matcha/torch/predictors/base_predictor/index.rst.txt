@@ -1,0 +1,73 @@
+matcha.torch.predictors.base_predictor
+======================================
+
+.. py:module:: matcha.torch.predictors.base_predictor
+
+.. autoapi-nested-parse::
+
+   Base class and registry for predictor heads used in classic models.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.torch.predictors.base_predictor.PredictorRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.predictors.base_predictor.BasePredictor
+
+
+Module Contents
+---------------
+
+.. py:class:: BasePredictor
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   Base class for all predictors.
+
+   Not meant to be instantiated directly; subclass this and define
+   ``self.layers`` (the hidden body) and ``self.prediction_head``
+   (the final linear mapping). The standard :meth:`forward` and
+   :meth:`encode` methods then work out of the box.
+
+
+   .. py:property:: latent_dim
+      :type: int
+
+
+      Dimensionality of the representation produced by the hidden layers,
+      i.e. the input to the prediction head.
+
+
+   .. py:method:: encode(mol_features: torch.Tensor) -> torch.Tensor
+
+      Extract the latent representation from the hidden layers.
+
+      :param mol_features: input tensor from the encoder.
+      :returns: latent representation tensor.
+      :rtype: torch.Tensor
+
+
+
+   .. py:method:: forward(mol_features: torch.Tensor) -> torch.Tensor
+
+      Run the full forward pass (hidden layers + prediction head).
+
+      :param mol_features: input tensor from the encoder.
+      :returns: predictions tensor.
+      :rtype: torch.Tensor
+
+
+
+.. py:data:: PredictorRegistry
+

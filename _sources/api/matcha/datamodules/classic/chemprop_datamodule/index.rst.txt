@@ -1,0 +1,136 @@
+matcha.datamodules.classic.chemprop_datamodule
+==============================================
+
+.. py:module:: matcha.datamodules.classic.chemprop_datamodule
+
+.. autoapi-nested-parse::
+
+   Chemprop-compatible molecular featurization using message-passing neural networks.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.chemprop_datamodule.ChempropDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: ChempropDataModule(feature_list: list[str] | None = None, engine_params: dict | None = None, is_classification: bool = False, scaler_type: str = 'standard', clip: bool = True, label_encoder_params: dict = {}, label_transform_params: dict = {}, batch_size: int = 256, num_workers: int = 0, augment_resonance: bool = False)
+
+   Bases: :py:obj:`matcha.datamodules.classic.tabular_datamodule.TabularDataModule`
+
+
+   Chemprop message-passing featurization class.
+
+   Extends :class:`TabularDataModule` to produce
+   :class:`chemprop.data.MoleculeDataset` objects compatible with the Chemprop
+   framework. Optionally includes tabular molecular features as extra
+   descriptors (``x_d``).
+
+   :param list[str] | None feature_list: list of tabular feature sets to
+       compute as extra descriptors, or None to use only MPNN features
+   :param dict | None engine_params: parameters for the RDKit engine
+
+
+   .. py:attribute:: params
+
+
+   .. py:property:: use_features
+      :type: bool
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generates unscaled features for ChemProp and creates a StackDataset.
+
+      This method only handles feature generation without any X/Y scaling.
+      Use featurize() for scaled features.
+
+      :param mol_list: list of rdkit molecules to process
+      :param y: array (N, X) of labels, or None
+      :param bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than', will be ignored if set
+          to None
+      :param n_jobs: number of cores to use when featurizing the input,
+          if None is passed a reasonable n_jobs value will be guessed from the
+          amount of data
+      :return: Unscaled StackDataset with all components for ChemProp
+
+
+
+   .. py:method:: create_dataloader(dataset, is_training)
+
+
+   .. py:method:: fit(dataset: torch.utils.data.StackDataset) -> None
+
+      Fits scalers and other stateful transformations on the dataset.
+
+      This method fits both X and Y scalers on the training data.
+
+      :param StackDataset dataset: dataset to fit transformations on
+
+
+
+   .. py:method:: transform(dataset: torch.utils.data.StackDataset) -> torch.utils.data.StackDataset
+
+      Applies fitted transformations to the dataset.
+
+      This method applies previously fitted X and Y scalers to the dataset.
+
+      :param StackDataset dataset: dataset to transform
+      :return StackDataset: transformed dataset (modified in-place)
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, is_training: bool = True, n_jobs: int | None = None) -> chemprop.data.MoleculeDataset
+
+      Processes a list of N molecules and a numpy array (N,X) encoding the
+      labels into a ChemProp MoleculeDataset, which can then be further processed
+      for ChemProp neural network training.
+
+      This method chains the unscaled feature generation with
+      the necessary scaling operations.
+
+      :param mol_list: list of N rdkit molecules to process
+      :param y: array (N, X), where X is the number of classes or
+          endpoints, or None
+      :param bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than', will be ignored if set
+          to None
+      :param is_training: Whether to fit the X and Y scalers on the input,
+          or leverage pre-existing ones to only normalize
+      :param n_jobs: number of cores to use when featurizing the input,
+          if None is passed a reasonable n_jobs value will be guessed from the
+          amount of data, defaults to None
+      :return: Processed MoleculeDataset ready for ChemProp neural network training
+
+
+
+   .. py:method:: state_dict()
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: load_state_dict(state_dict)
+
+      Utility for MLFlow logging
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Utility to make a dummy class with default params. Can be
+      combined with load_state_dict to recreate a datamodule from
+      a state dict
+
+
+

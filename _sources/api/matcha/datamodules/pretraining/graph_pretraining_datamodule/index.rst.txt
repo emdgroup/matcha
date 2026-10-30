@@ -1,0 +1,172 @@
+matcha.datamodules.pretraining.graph_pretraining_datamodule
+===========================================================
+
+.. py:module:: matcha.datamodules.pretraining.graph_pretraining_datamodule
+
+.. autoapi-nested-parse::
+
+   Graph pretraining DataModule for supervised multi-task learning on graphs.
+
+   Provides a datamodule that extends GraphDataModule to handle both molecule-level
+   and atom-level labels for pretraining graph neural networks such as GIN. The user
+   supplies external per-atom labels (e.g. partial charges, electronegativity, or any
+   computed atom-level property) alongside molecule-level labels. The model then
+   learns to predict both simultaneously.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: GraphPretrainingDataModule(scale_y_graph: bool = False, scale_y_node: bool = False, laplacian_k: int = 10, rwse_k: int = 20, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, compute_distances: bool = True, num_virtual_nodes: int = 0, init_virtual_nodes: bool = False, batch_size: int = 256, num_workers: int = 0, augment_resonance: bool = False)
+
+   Bases: :py:obj:`matcha.datamodules.classic.graph_datamodule.GraphDataModule`
+
+
+   Graph DataModule for multi-task pretraining with atom-level and molecule-level labels.
+
+   Extends :class:`GraphDataModule` to accept user-provided per-atom labels
+   alongside molecule-level labels. This enables supervised pretraining of graph
+   neural networks (e.g. :class:`GINPretraining`) that jointly predict atom-level
+   targets (such as partial charges, SASA, electronegativity, etc.) and
+   molecule-level targets (such as logP, molecular weight, etc.).
+
+   The atom-level labels are **not** derived from the graph's own atom features —
+   they are externally computed properties supplied by the user.
+
+   Example usage:
+
+   .. code-block:: python
+
+       dm = GraphPretrainingDataModule()
+
+       # y_node is a list of arrays, one per molecule, each of shape (num_atoms, T)
+       # y_graph is a numpy array of shape (N, G)
+       dataset = dm.featurize(
+           mol_list=mols,
+           y_graph=y_graph,
+           y_node=y_node,
+       )
+
+   :param bool scale_y_graph: whether to fit a scaler on the molecule-level
+       targets during training, defaults to False
+
+   All other parameters are inherited from :class:`GraphDataModule`.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: export_to_classic() -> matcha.datamodules.classic.graph_datamodule.GraphDataModule
+
+      Return a :class:`GraphDataModule` that mirrors the current state.
+
+      The exported instance inherits all graph-specific settings
+      (positional encoding dimensions, virtual nodes, etc.) so that it can
+      be used directly for downstream (non-pretraining) training or
+      inference.
+
+      :return GraphDataModule: a classic graph datamodule with the same state
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y_graph: numpy.ndarray | None = None, y_node: list[numpy.ndarray] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate unscaled graph features with atom-level and molecule-level labels.
+
+      :param mol_list: list of N RDKit molecules
+      :param y_graph: array ``(N, G)`` of molecule-level targets, or None
+      :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets,
+          or None
+      :param n_jobs: number of parallel workers (None = auto)
+      :return: ``StackDataset`` with keys ``graph`` and ``y_graph``
+          (atom-level labels are stored on each ``Data.y_node``)
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y_graph: numpy.ndarray | None = None, y_node: list[numpy.ndarray] | None = None, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate a dataset ready for graph pretraining.
+
+      Processes molecules alongside their molecule-level and atom-level
+      labels into a ``StackDataset`` that can be consumed by
+      :class:`BaseGraphPretrainingModel`.
+
+      :param mol_list: list of N RDKit molecules
+      :param y_graph: array ``(N, G)`` of molecule-level targets
+      :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level targets
+      :param is_training: whether to fit the Y scaler (only affects
+          ``y_graph`` scaling when ``scale_y_graph=True``)
+      :param n_jobs: number of parallel workers (None = auto)
+      :return: ``StackDataset`` with keys ``graph`` and ``y_graph``
+
+
+
+   .. py:method:: fit(dataset: torch.utils.data.StackDataset) -> None
+
+      Fit scalers on labels if scaling is enabled.
+
+      :param dataset: StackDataset produced by :meth:`generate_features`
+
+
+
+   .. py:method:: transform(dataset: torch.utils.data.StackDataset) -> torch.utils.data.StackDataset
+
+      Scale labels if scaling is enabled.
+
+      :param dataset: StackDataset to transform in-place
+      :return: the same dataset with scaled labels
+
+
+
+   .. py:method:: collate_fn(data: list[dict]) -> dict
+
+      Collate a list of samples into a pretraining batch.
+
+      Produces the batch format expected by
+      :class:`BaseGraphPretrainingModel`:
+
+      - ``graph``: batched PyG graph (``y_node`` is auto-concatenated
+        by ``Batch.from_data_list`` as a node-level attribute)
+      - ``y_node``: ``[total_nodes_in_batch, T]``
+      - ``y_graph``: ``[batch_size, G]``
+
+      :param data: list of dicts from the ``StackDataset``
+      :return: dict with keys ``graph``, ``y_node``, ``y_graph``
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, params, and fitted scalers
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Create a dummy instance with default parameters.
+
+      :return: a new :class:`GraphPretrainingDataModule` with default settings
+
+
+

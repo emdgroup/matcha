@@ -1,0 +1,40 @@
+matcha.cli.train
+================
+
+.. py:module:: matcha.cli.train
+
+.. autoapi-nested-parse::
+
+   CLI command for training a MATCHA sklearn model.
+
+   Loads a dataset, constructs an ensemble (or single) model from the
+   specified architecture, fits it, optionally calibrates uncertainty, and
+   serializes the trained artifact.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.train.main
+
+
+Module Contents
+---------------
+
+.. py:function:: main(cfg=None)
+
+   Train a MATCHA sklearn model from a YAML configuration.
+
+   Orchestrates the full training pipeline: dataset loading, optional
+   calibration set splitting, model instantiation (single or ensemble),
+   fitting, uncertainty calibration, MLflow logging, and serialization.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLITrainInputModel` instance or a
+       raw dict that will be validated.
+
+

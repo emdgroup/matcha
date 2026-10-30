@@ -1,0 +1,142 @@
+matcha.nn.multitask
+===================
+
+.. py:module:: matcha.nn.multitask
+
+.. autoapi-nested-parse::
+
+   Multitask utilities: task affinity computation (TAG) and dataset stitching.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.nn.multitask.TaskAffinityResult
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.nn.multitask.compute_task_affinity
+   matcha.nn.multitask.stitch_datasets
+
+
+Module Contents
+---------------
+
+.. py:class:: TaskAffinityResult
+
+   Container for Task Affinity Grouping (TAG) results.
+
+   Based on: https://arxiv.org/pdf/2109.04617
+
+   :param affinity_matrix: ``(num_tasks, num_tasks)`` matrix where entry ``[i, j]``
+       represents the affinity of task *i* to task *j*.
+   :type affinity_matrix: numpy.ndarray
+   :param task_names: Task names corresponding to matrix indices.
+   :type task_names: list[str]
+   :param int num_epochs: Number of epochs used to compute the affinity.
+
+
+   .. py:attribute:: affinity_matrix
+      :type:  numpy.ndarray
+
+
+   .. py:attribute:: task_names
+      :type:  List[str]
+
+
+   .. py:attribute:: num_epochs
+      :type:  int
+
+
+   .. py:method:: plot_affinity_matrix(title: str = 'Task Affinity Matrix', width: int = 700, height: int = 600, show_values: bool = True)
+
+      Create an interactive heatmap of the task affinity matrix using Plotly.
+
+      :param str title: Title of the plot.
+      :param int width: Width of the figure in pixels.
+      :param int height: Height of the figure in pixels.
+      :param bool show_values: Whether to annotate cells with affinity values.
+      :returns: Interactive heatmap figure.
+      :rtype: plotly.graph_objects.Figure
+
+
+
+   .. py:method:: get_top_k(source_task: int, k: int, include_self: bool = False) -> List[int]
+
+      Get the top-k most affine tasks for a given source task.
+
+      :param int source_task: Index of the source task.
+      :param int k: Number of top affine tasks to return.
+      :param bool include_self: Whether to include the source task in results.
+      :returns: Task indices sorted by affinity (highest first).
+      :rtype: list[int]
+      :raises ValueError: If ``source_task`` is out of bounds or ``k`` is invalid.
+
+
+
+.. py:function:: compute_task_affinity(sklearn_model: matcha.sklearn.base_sklearn_model.BaseScikitLearnModel, molecules: list, labels: numpy.ndarray, affinity_every_n_steps: int = 10, device: Optional[str] = None) -> TaskAffinityResult
+
+   Compute task affinity matrix using the Task Affinity Grouping (TAG) algorithm.
+
+   Trains a single multitask model, periodically measuring how each task's
+   gradient step affects all other tasks' losses. The collected affinity
+   snapshots are averaged to produce the final matrix.
+
+   The affinity ``Z[i, j]`` measures how much a gradient update on task *i*
+   affects task *j*'s loss. A positive affinity indicates that training on
+   task *i* reduces the loss of task *j*.
+
+   Based on: https://arxiv.org/pdf/2109.04617
+
+   :param sklearn_model: A fitted MATCHA sklearn model instance.
+   :type sklearn_model: matcha.sklearn.base_sklearn_model.BaseScikitLearnModel
+   :param list molecules: Training molecules (RDKit Mol objects or SMILES strings).
+   :param numpy.ndarray labels: Training labels of shape ``(n_samples, n_tasks)``.
+   :param int affinity_every_n_steps: Collect affinity every N training steps.
+   :param device: Device for computation (``'cuda'``, ``'cpu'``, or ``None`` for auto).
+   :type device: str or None
+   :returns: Object containing the affinity matrix and helper methods.
+   :rtype: TaskAffinityResult
+
+   Example::
+
+       from matcha.sklearn.graph import GraphRegressor
+       from matcha.nn.multitask import compute_task_affinity
+
+       model = GraphRegressor(num_endpoints=4)
+       model.fit(train_mols, train_labels)
+
+       result = compute_task_affinity(model, train_mols, train_labels)
+       fig = result.plot_affinity_matrix()
+       fig.show()
+
+       # Get top 2 most affine tasks for task 0
+       top_tasks = result.get_top_k(source_task=0, k=2)
+
+
+.. py:function:: stitch_datasets(df_list: list[pandas.DataFrame], property_list: list[str], smiles_key: str = 'SMILES', bound_key: str | None = 'OPERATOR', index_key: str | None = None, tag: str = 'endpoint') -> pandas.DataFrame
+
+   Stitch multiple single-endpoint DataFrames into one multitask DataFrame.
+
+   Pivots each DataFrame's property column into a wide-format table keyed by
+   SMILES, with NaN for missing task labels.
+
+   :param list[pd.DataFrame] df_list: DataFrames to stitch.
+   :param list[str] property_list: Property column name for each DataFrame.
+   :param str smiles_key: Column name for SMILES identifiers.
+   :param bound_key: Column name for bound/operator information, or ``None``.
+   :type bound_key: str or None
+   :param index_key: Optional column to preserve as a shared index.
+   :type index_key: str or None
+   :param str tag: Suffix appended to property column names in the output.
+   :returns: Wide-format DataFrame with one row per unique SMILES.
+   :rtype: pandas.DataFrame
+
+

@@ -1,0 +1,178 @@
+matcha.datamodules.pretraining.on_the_fly_mlm_datamodule
+========================================================
+
+.. py:module:: matcha.datamodules.pretraining.on_the_fly_mlm_datamodule
+
+.. autoapi-nested-parse::
+
+   On-the-fly DataModule variant for MLM pretraining.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataset
+   matcha.datamodules.pretraining.on_the_fly_mlm_datamodule.OnTheFlyMLMDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: OnTheFlyMLMDataset(smiles: list[str])
+
+   Dataset that stores raw SMILES for on-the-fly MLM featurization.
+
+   Unlike OnTheFlyDataset, this does not require labels or descriptors
+   since MLM is self-supervised.
+
+
+   .. py:attribute:: smiles
+
+
+.. py:class:: OnTheFlyMLMDataModule(base: matcha.datamodules.pretraining.clm_mlm_datamodule.CLMMLMDataModule, num_workers: int = 0, **kwargs)
+
+   Bases: :py:obj:`lightning.LightningDataModule`
+
+
+   DataModule that delays MLM feature generation until batch iteration time.
+
+   This wrapper takes a CLMMLMDataModule and modifies its behavior to generate
+   features on-the-fly during batch collation instead of upfront during setup.
+   This is useful for large-scale pretraining where memory is constrained.
+
+   The collate function converts SMILES to molecules, generates tokenized
+   features, and applies masking on-the-fly.
+
+   :param CLMMLMDataModule base: The base MLM datamodule to use for featurization
+   :param int num_workers: Number of dataloader workers, defaults to 0
+
+
+   .. py:attribute:: base
+
+
+   .. py:attribute:: params
+
+
+   .. py:attribute:: collate_fn_map
+
+
+   .. py:attribute:: num_workers
+      :value: 0
+
+
+
+   .. py:method:: train_dataloader()
+
+      Return the training dataloader.
+
+
+
+   .. py:method:: val_dataloader()
+
+      Return the validation dataloader, or an empty one if not set.
+
+
+
+   .. py:method:: test_dataloader()
+
+      Return the test dataloader.
+
+
+
+   .. py:method:: predict_dataloader()
+
+      Return the prediction dataloader.
+
+
+
+   .. py:method:: set_data(train_smiles: list[str] = None, val_smiles: list[str] = None, test_smiles: list[str] = None, predict_smiles: list[str] = None)
+
+      Set the raw SMILES data for each split.
+
+      For MLM, we only need SMILES - no labels required.
+
+      :param train_smiles: Training SMILES
+      :param val_smiles: Validation SMILES
+      :param test_smiles: Test SMILES
+      :param predict_smiles: Prediction SMILES
+
+
+
+   .. py:method:: collate_fn(batch: list[dict]) -> dict
+
+      Collate function that generates MLM features on-the-fly from batch SMILES.
+
+      Converts SMILES to molecules, generates tokenized features with masking,
+      and returns a batch ready for the MLM model.
+
+      :param batch: List of dicts with 'smiles' key
+      :return: Dict with 'token_ids', 'y', and 'mask' tensors
+
+
+
+   .. py:method:: featurize(mol_list, y=None, bound_mask=None, is_training: bool = True, n_jobs: int | None = None)
+
+      Delegate to base datamodule's featurize method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised)
+      :param bound_mask: ignored for MLM
+      :param is_training: whether to commit the dictionary
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: generate_features(mol_list, y=None, bound_mask=None, augment: bool = True, is_training: bool = True, n_jobs: int | None = None)
+
+      Delegate to base datamodule's generate_features method.
+
+      :param mol_list: list of RDKit molecules
+      :param y: ignored (MLM is self-supervised)
+      :param bound_mask: ignored for MLM
+      :param augment: whether to apply SMILES augmentation
+      :param is_training: whether to update the dictionary
+      :param n_jobs: number of parallel workers
+      :return: StackDataset with ``token_ids``, ``y``, and ``mask``
+
+
+
+   .. py:method:: fit_dictionary(smiles_list: list[str], n_jobs: int = 4)
+
+      Pre-fit the dictionary on a set of SMILES before using on-the-fly loading.
+
+      This is important for on-the-fly usage where we need a consistent
+      dictionary across all batches.
+
+      :param smiles_list: List of SMILES to fit dictionary on
+      :param n_jobs: Number of parallel jobs
+
+
+
+   .. py:method:: setup(stage: str)
+
+      Setup dataloaders using raw data instead of pre-computed features.
+
+      :param stage: one of ``"fit"``, ``"test"``, or ``"predict"``
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, base state, and num_workers
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+

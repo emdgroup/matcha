@@ -1,0 +1,58 @@
+matcha.nn.optimizers
+====================
+
+.. py:module:: matcha.nn.optimizers
+
+.. autoapi-nested-parse::
+
+   Optimizer wrappers registered in the :data:`OptimizerRegistry`.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.nn.optimizers.OptimizerRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.nn.optimizers.Adam
+   matcha.nn.optimizers.AdamW
+   matcha.nn.optimizers.SGD
+
+
+Module Contents
+---------------
+
+.. py:data:: OptimizerRegistry
+
+.. py:class:: Adam(params: torch.optim.optimizer.ParamsT, lr: Union[float, torch.Tensor] = 0.001, betas: tuple[Union[float, torch.Tensor], Union[float, torch.Tensor]] = (0.9, 0.999), eps: float = 1e-08, weight_decay: float = 0, amsgrad: bool = False, *, foreach: Optional[bool] = None, maximize: bool = False, capturable: bool = False, differentiable: bool = False, fused: Optional[bool] = None, decoupled_weight_decay: bool = False)
+
+   Bases: :py:obj:`torch.optim.Adam`
+
+
+   Adam optimizer (wraps :class:`torch.optim.Adam`).
+
+
+.. py:class:: AdamW(params: torch.optim.optimizer.ParamsT, lr: Union[float, torch.Tensor] = 0.001, betas: tuple[Union[float, torch.Tensor], Union[float, torch.Tensor]] = (0.9, 0.999), eps: float = 1e-08, weight_decay: float = 0.01, amsgrad: bool = False, *, maximize: bool = False, foreach: Optional[bool] = None, capturable: bool = False, differentiable: bool = False, fused: Optional[bool] = None)
+
+   Bases: :py:obj:`torch.optim.AdamW`
+
+
+   AdamW optimizer with decoupled weight decay (wraps :class:`torch.optim.AdamW`).
+
+
+.. py:class:: SGD(params: torch.optim.optimizer.ParamsT, lr: Union[float, torch.Tensor] = 0.001, momentum: float = 0, dampening: float = 0, weight_decay: Union[float, torch.Tensor] = 0, nesterov: bool = False, *, maximize: bool = False, foreach: Optional[bool] = None, differentiable: bool = False, fused: Optional[bool] = None)
+
+   Bases: :py:obj:`torch.optim.SGD`
+
+
+   Stochastic gradient descent optimizer (wraps :class:`torch.optim.SGD`).
+
+

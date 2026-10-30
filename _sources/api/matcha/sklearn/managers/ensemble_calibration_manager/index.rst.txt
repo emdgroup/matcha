@@ -1,0 +1,75 @@
+matcha.sklearn.managers.ensemble_calibration_manager
+====================================================
+
+.. py:module:: matcha.sklearn.managers.ensemble_calibration_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.ensemble_calibration_manager.EnsembleCalibrationManager
+
+
+Module Contents
+---------------
+
+.. py:class:: EnsembleCalibrationManager
+
+   Manages calibration for ensemble models.
+
+   Unlike :class:`UncertaintyManager` (which handles MC-dropout-based
+   uncertainty for single models), this manager works with the ensemble's
+   built-in variance across members as the uncertainty signal.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: calibrator
+
+      The calibrator object, if one has been fitted.
+
+
+   .. py:property:: params
+      :type: matcha.utils.schemas.calibration.CalibratorModel | None
+
+
+      The calibration params, or None if no calibrator exists.
+
+
+   .. py:method:: create_calibrator(name: str = 'inductive_conformal', params: dict | None = None, config: matcha.utils.schemas.calibration.CalibratorModel | None = None) -> None
+
+      Factory method to create a calibrator instance.
+
+      :param str name: name of the calibration algorithm
+      :param dict | None params: parameters for the calibrator
+      :param CalibratorModel | None config: optional config (overrides name/params)
+
+
+
+   .. py:method:: calibrate(ensemble, calibration_mols, calibration_y: numpy.ndarray, algorithm: str = 'inductive_conformal', algorithm_args: dict | None = None) -> None
+
+      Calibrate uncertainty estimates using a calibration set.
+
+      Performs ensemble prediction to get mean and std, creates a
+      calibrator, and fits it on the calibration data.
+
+      :param ensemble: the Ensemble instance
+      :param calibration_mols: molecules for calibration
+      :param np.ndarray calibration_y: true labels for calibration
+      :param str algorithm: calibration algorithm name
+      :param dict | None algorithm_args: arguments for the calibration algorithm
+
+
+
+   .. py:method:: compute_uncertainty(std: numpy.ndarray) -> numpy.ndarray
+
+      Adjust raw ensemble std using the fitted calibrator.
+
+      :param np.ndarray std: raw standard deviation from ensemble predictions
+      :return np.ndarray: calibrated uncertainty estimates
+
+
+

@@ -1,0 +1,41 @@
+matcha.cli.autotune
+===================
+
+.. py:module:: matcha.cli.autotune
+
+.. autoapi-nested-parse::
+
+   CLI command for automated hyperparameter optimization.
+
+   Performs architecture and optimizer search using MATCHA's built-in tuning
+   infrastructure, saves the optimal parameter set as YAML, and optionally
+   logs results to MLflow.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.autotune.main
+
+
+Module Contents
+---------------
+
+.. py:function:: main(cfg=None)
+
+   Run hyperparameter optimization from a YAML configuration.
+
+   Loads training data, generates train/validation splits, creates a model
+   instance, computes features, and runs a two-stage search (architecture
+   then optimizer) to find optimal hyperparameters. The best configuration
+   is saved as YAML.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLIAutotuneOutput` instance or a
+       raw dict that will be validated.
+
+

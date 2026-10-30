@@ -1,0 +1,128 @@
+matcha.torch.models.pretraining.base_pretraining_model
+======================================================
+
+.. py:module:: matcha.torch.models.pretraining.base_pretraining_model
+
+.. autoapi-nested-parse::
+
+   Base class for pretraining models.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.torch.models.pretraining.base_pretraining_model.PretrainingModelRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.models.pretraining.base_pretraining_model.BasePretrainingModel
+
+
+Module Contents
+---------------
+
+.. py:class:: BasePretrainingModel
+
+   Bases: :py:obj:`lightning.LightningModule`, :py:obj:`abc.ABC`
+
+
+   Base class for all pretraining models.
+
+   This class provides common functionality for pretraining models,
+   including loss function parsing, optimizer/scheduler configuration, and
+   training/validation step logic.
+
+   Subclasses must implement:
+       - forward(): Returns predictions for the pretraining task
+       - encode(): Returns learned representations
+
+
+   .. py:attribute:: encoder
+      :value: None
+
+
+
+   .. py:attribute:: prediction_head
+      :value: None
+
+
+
+   .. py:method:: forward(batch: dict[str, Any]) -> torch.Tensor
+      :abstractmethod:
+
+
+      Forward pass for pretraining.
+
+      :param batch: Input batch
+      :return: Predictions for the pretraining task
+
+
+
+   .. py:method:: encode(batch: dict[str, Any]) -> torch.Tensor
+      :abstractmethod:
+
+
+      Extract learned representations.
+
+      :param batch: Input batch
+      :return: Learned representations
+
+
+
+   .. py:method:: training_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Training step logic.
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Loss value
+
+
+
+   .. py:method:: validation_step(batch: dict[str, Any], batch_idx: int) -> torch.Tensor
+
+      Validation step logic.
+
+      :param batch: Input batch
+      :param batch_idx: Batch index
+      :return: Loss value
+
+
+
+   .. py:method:: predict_step(batch: dict[str, Any]) -> torch.Tensor
+
+      Prediction step logic.
+
+      :param batch: Input batch
+      :return: Predictions
+
+
+
+   .. py:method:: configure_optimizers()
+
+      Configure optimizers and schedulers for Lightning Trainer.
+
+
+
+   .. py:method:: export_encoder_checkpoint(path: str) -> None
+
+      Save only the encoder weights for downstream finetuning.
+
+      Writes ``encoder.ckpt`` containing the encoder's ``state_dict``
+      into the given directory.  This file is consumed by
+      :class:`PretrainedEncoderWrapper` when a finetuner loads a
+      pretrained artifact with ``origin_type == "pretraining"``.
+
+      :param str path: directory where ``encoder.ckpt`` will be written
+
+
+
+.. py:data:: PretrainingModelRegistry
+

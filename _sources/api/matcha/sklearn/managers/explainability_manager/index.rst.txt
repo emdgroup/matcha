@@ -1,0 +1,56 @@
+matcha.sklearn.managers.explainability_manager
+==============================================
+
+.. py:module:: matcha.sklearn.managers.explainability_manager
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.managers.explainability_manager.ExplainabilityManager
+
+
+Module Contents
+---------------
+
+.. py:class:: ExplainabilityManager
+
+   Manages LIME-based explainability.
+
+
+   .. py:attribute:: logger
+
+
+   .. py:property:: explainer
+
+      The explainer object, if one has been created.
+
+
+   .. py:method:: create_explainer(params: dict) -> None
+
+      Factory method to create an explainer instance.
+
+      :param dict params: parameters for the MatchaExplainer
+
+
+
+   .. py:method:: explain(model_instance, input_mol: rdkit.Chem.rdchem.Mol, task_idx: int = 0, lime_bootstrap_num: int = 25, lime_descriptor_set: list[str] | None = None, use_std: bool = False) -> matcha.explainability.MatchaExplanation
+
+      Generate LIME explanations for a molecule prediction.
+
+      :param model_instance: the sklearn model instance
+      :param Mol input_mol: RDKit molecule to explain
+      :param int task_idx: index of the task to explain
+      :param int lime_bootstrap_num: exact number of row-bootstrap LIME fits
+      :param list[str] | None lime_descriptor_set: RDKit descriptors for LIME
+      :param bool use_std: use uncertainty estimates for predictions
+      :return MatchaExplanation: LIME results with plotting methods
+
+      The default manager-constructed explainer uses ``random_seed=0``. Callers
+      who need a different seed must construct a ``MatchaExplainer`` with that
+      seed and register it via :meth:`create_explainer` before calling this method.
+
+
+

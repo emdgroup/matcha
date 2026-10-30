@@ -1,0 +1,152 @@
+matcha.nn.activations
+=====================
+
+.. py:module:: matcha.nn.activations
+
+.. autoapi-nested-parse::
+
+   Activation functions registered in the :data:`ActivationRegistry`.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.nn.activations.ActivationRegistry
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.nn.activations.GEGLU
+   matcha.nn.activations.ReLU
+   matcha.nn.activations.LeakyReLU
+   matcha.nn.activations.PReLU
+   matcha.nn.activations.SELU
+   matcha.nn.activations.SILU
+   matcha.nn.activations.Tanh
+   matcha.nn.activations.ELU
+   matcha.nn.activations.Mish
+   matcha.nn.activations.GELU
+   matcha.nn.activations.Sigmoid
+   matcha.nn.activations.Softmax
+
+
+Module Contents
+---------------
+
+.. py:data:: ActivationRegistry
+
+.. py:class:: GEGLU(*args, **kwargs)
+
+   Bases: :py:obj:`torch.nn.Module`
+
+
+   GEGLU activation function.
+
+   Splits the input along the last dimension into a value half and a gate half,
+   then returns ``value * GELU(gate)``.
+
+   Reference: https://arxiv.org/abs/2002.05202v1
+
+
+   .. py:method:: forward(x) -> torch.Tensor
+
+      :param torch.Tensor x: Input tensor whose last dimension is split in two.
+      :returns: Gated output with half the last-dimension size.
+      :rtype: torch.Tensor
+
+
+
+.. py:class:: ReLU(inplace: bool = False)
+
+   Bases: :py:obj:`torch.nn.ReLU`
+
+
+   Rectified Linear Unit (wraps :class:`torch.nn.ReLU`).
+
+
+.. py:class:: LeakyReLU(negative_slope: float = 0.01, inplace: bool = False)
+
+   Bases: :py:obj:`torch.nn.LeakyReLU`
+
+
+   Leaky ReLU (wraps :class:`torch.nn.LeakyReLU`).
+
+
+.. py:class:: PReLU(num_parameters: int = 1, init: float = 0.25, device=None, dtype=None)
+
+   Bases: :py:obj:`torch.nn.PReLU`
+
+
+   Parametric ReLU (wraps :class:`torch.nn.PReLU`).
+
+
+.. py:class:: SELU(inplace: bool = False)
+
+   Bases: :py:obj:`torch.nn.SELU`
+
+
+   Scaled Exponential Linear Unit (wraps :class:`torch.nn.SELU`).
+
+
+.. py:class:: SILU(inplace: bool = False)
+
+   Bases: :py:obj:`torch.nn.SiLU`
+
+
+   SiLU / Swish activation (wraps :class:`torch.nn.SiLU`).
+
+
+.. py:class:: Tanh(*args, **kwargs)
+
+   Bases: :py:obj:`torch.nn.Tanh`
+
+
+   Hyperbolic tangent (wraps :class:`torch.nn.Tanh`).
+
+
+.. py:class:: ELU(alpha: float = 1.0, inplace: bool = False)
+
+   Bases: :py:obj:`torch.nn.ELU`
+
+
+   Exponential Linear Unit (wraps :class:`torch.nn.ELU`).
+
+
+.. py:class:: Mish(inplace: bool = False)
+
+   Bases: :py:obj:`torch.nn.Mish`
+
+
+   Mish activation (wraps :class:`torch.nn.Mish`).
+
+
+.. py:class:: GELU(approximate: str = 'none')
+
+   Bases: :py:obj:`torch.nn.GELU`
+
+
+   Gaussian Error Linear Unit (wraps :class:`torch.nn.GELU`).
+
+
+.. py:class:: Sigmoid(*args, **kwargs)
+
+   Bases: :py:obj:`torch.nn.Sigmoid`
+
+
+   Sigmoid activation (wraps :class:`torch.nn.Sigmoid`).
+
+
+.. py:class:: Softmax(dim: Optional[int] = None)
+
+   Bases: :py:obj:`torch.nn.Softmax`
+
+
+   Softmax activation (wraps :class:`torch.nn.Softmax`).
+
+

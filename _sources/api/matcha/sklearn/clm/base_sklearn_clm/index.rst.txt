@@ -1,0 +1,48 @@
+matcha.sklearn.clm.base_sklearn_clm
+===================================
+
+.. py:module:: matcha.sklearn.clm.base_sklearn_clm
+
+.. autoapi-nested-parse::
+
+   Base class for sklearn-compatible chemical language model (CLM) wrappers.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.sklearn.clm.base_sklearn_clm.BaseScikitLearnCLM
+
+
+Module Contents
+---------------
+
+.. py:class:: BaseScikitLearnCLM(params)
+
+   Bases: :py:obj:`matcha.sklearn.base_sklearn_model.BaseScikitLearnModel`
+
+
+   Base class for all sklearn-compatible CLM models.
+
+   Not meant to be instantiated directly; serves as a parent class for each
+   CLM model variant. Adapts :class:`BaseScikitLearnModel` for chemical
+   language inputs by configuring CLM-specific datamodules and training
+   managers.
+
+
+   .. py:method:: fit(x: list[rdkit.Chem.rdchem.Mol] | list[str] | torch.utils.data.StackDataset, y: numpy.ndarray | None = None, bound_mask: list[str] | None = None, validation_set: torch.utils.data.StackDataset | None = None)
+
+      Runs training with the desired model architecture.
+
+      :param list[Mol] | StackDataset x: either a list of molecules
+          or a StackDataset computed by the appropriate datamodule
+      :param np.ndarray | None y: property labels in a numpy array or None
+      :param list[str] | None bound_mask: list of str (N) defining whether the value
+          is exact or is 'less than' / 'more than'
+      :param StackDataset | None validation_set: pre-transformed data for early-stopping
+
+
+

@@ -1,0 +1,144 @@
+matcha.datamodules.pretraining.graph_3d_pretraining_datamodule
+==============================================================
+
+.. py:module:: matcha.datamodules.pretraining.graph_3d_pretraining_datamodule
+
+.. autoapi-nested-parse::
+
+   3D graph pretraining DataModule with user-supplied atomic coordinates.
+
+   Extends :class:`GraphPretrainingDataModule` with a required ``coords`` argument
+   supplied by the user at featurize time. Coordinates are validated against the
+   canonical-SMILES atom count, reordered to the canonical atom ordering that
+   :meth:`GraphDataModule._calculate_graph` produces, and attached to each
+   per-molecule :class:`torch_geometric.data.Data` on ``pos`` — the PyG
+   convention. ``Batch.from_data_list`` then auto-concatenates ``pos`` alongside
+   ``x``, ``y_node`` and the positional encodings, so the pretraining collate
+   function inherited from the parent needs no changes and the encoder reads
+   coords from ``graph.pos`` inside its per-layer hook.
+
+   ETKDG-style on-the-fly conformer generation is never performed inside this
+   datamodule.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.pretraining.graph_3d_pretraining_datamodule.Graph3DPretrainingDataModule
+
+
+Module Contents
+---------------
+
+.. py:class:: Graph3DPretrainingDataModule(scale_y_graph: bool = False, scale_y_node: bool = False, laplacian_k: int = 10, rwse_k: int = 20, elstatic_k: int = 0, distmat_k: int = 0, rrwp_k: int = 20, compute_distances: bool = True, num_virtual_nodes: int = 0, init_virtual_nodes: bool = False, batch_size: int = 256, num_workers: int = 0, augment_resonance: bool = False)
+
+   Bases: :py:obj:`matcha.datamodules.pretraining.graph_pretraining_datamodule.GraphPretrainingDataModule`
+
+
+   3D graph pretraining datamodule with user-supplied atomic coordinates.
+
+   Extends :class:`GraphPretrainingDataModule` with a required ``coords``
+   argument supplied at featurize time. Per-molecule 3D coordinates ride on
+   ``Data.pos`` so that :class:`torch_geometric.data.Batch` auto-concatenates
+   them alongside ``x``, ``y_node`` and the positional encodings — the parent
+   collate function needs no changes.
+
+   Example usage:
+
+   .. code-block:: python
+
+       dm = Graph3DPretrainingDataModule()
+
+       # coords is a list of arrays, one per molecule, each of shape (num_atoms, 3)
+       # y_node is a list of arrays, one per molecule, each of shape (num_atoms, T)
+       # y_graph is a numpy array of shape (N, G)
+       dataset = dm.featurize(
+           mol_list=mols,
+           y_graph=y_graph,
+           y_node=y_node,
+           coords=coords,
+       )
+
+   All constructor parameters are inherited from
+   :class:`GraphPretrainingDataModule`.
+
+
+   .. py:attribute:: params
+
+
+   .. py:method:: export_to_classic() -> matcha.datamodules.classic.graph_datamodule.Graph3DDataModule
+
+      Return a :class:`Graph3DDataModule` that mirrors the current state.
+
+      The exported instance inherits the positional-encoding settings from
+      the pretraining datamodule so that downstream ``E3GNNModel``
+      finetuning uses a matching featurization. ``embed_timeout`` is left at
+      its :class:`Graph3DDataModule` default — the pretraining variant never
+      runs ETKDG, so it has no timeout parameter of its own.
+
+      :return Graph3DDataModule: a classic 3D graph datamodule with the
+          same positional-encoding config
+
+
+
+   .. py:method:: generate_features(mol_list: list[rdkit.Chem.rdchem.Mol], y_graph: numpy.ndarray | None = None, y_node: list[numpy.ndarray] | None = None, coords: list[numpy.ndarray] | None = None, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate unscaled features with node labels and 3D coordinates.
+
+      :param mol_list: list of N RDKit molecules
+      :param y_graph: array ``(N, G)`` of molecule-level targets, or None
+      :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level
+          targets in canonical atom order
+      :param coords: list of N arrays, each ``(A_i, 3)`` of 3D coordinates
+          in the input mol's atom order (reordered internally)
+      :param n_jobs: number of parallel workers (None = auto)
+      :return: ``StackDataset`` with keys ``graph`` and ``y_graph``. Each
+          ``graph`` has ``y_node`` and ``pos`` attributes.
+
+
+
+   .. py:method:: featurize(mol_list: list[rdkit.Chem.rdchem.Mol], y_graph: numpy.ndarray | None = None, y_node: list[numpy.ndarray] | None = None, coords: list[numpy.ndarray] | None = None, is_training: bool = True, n_jobs: int | None = None) -> torch.utils.data.StackDataset
+
+      Generate a dataset ready for 3D graph pretraining.
+
+      :param mol_list: list of N RDKit molecules
+      :param y_graph: array ``(N, G)`` of molecule-level targets
+      :param y_node: list of N arrays, each ``(A_i, T)`` of atom-level
+          targets in canonical atom order
+      :param coords: list of N arrays, each ``(A_i, 3)`` of 3D coordinates
+          in the input mol's atom order
+      :param is_training: whether to fit the Y scaler
+      :param n_jobs: number of parallel workers (None = auto)
+      :return: ``StackDataset`` with keys ``graph`` and ``y_graph``
+
+
+
+   .. py:method:: state_dict() -> dict
+
+      Serialise state for MLFlow logging.
+
+      :return: dict containing ID, params, and fitted scalers
+
+
+
+   .. py:method:: load_state_dict(state_dict: dict)
+
+      Restore state from a previously serialised dict.
+
+      :param state_dict: dict produced by :meth:`state_dict`
+
+
+
+   .. py:method:: dummy()
+      :classmethod:
+
+
+      Create a dummy instance with default parameters.
+
+      :return: a new :class:`Graph3DPretrainingDataModule` with default settings
+
+
+

@@ -1,0 +1,51 @@
+matcha.torch.predictors.mlp
+===========================
+
+.. py:module:: matcha.torch.predictors.mlp
+
+.. autoapi-nested-parse::
+
+   Multi-Layer Perceptron predictor head with optional per-task branches.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.torch.predictors.mlp.MLP
+
+
+Module Contents
+---------------
+
+.. py:class:: MLP(input_dim: int, hidden_dims: list[int] | None, task_head_dims: list[int] | None, num_endpoints: int, dropout: float, activation: str, norm: str | None)
+
+   Bases: :py:obj:`matcha.torch.predictors.base_predictor.BasePredictor`
+
+
+   Multi Layer Perceptron (MLP) utility class.
+   It inherits from :class:`.BasePredictor` for common routines (e.g. forward pass).
+
+   It is intended to be used inside a :class:`BaseClassicModel` instance. Check
+   the docs of :class:`matcha.torch.models.classic.MLPModel` for further details.
+
+   :param int input_dim: input feature dimensionality
+
+   :param list[int] hidden_dims: shape of shared hidden MLP layers in the predictor
+       across all endpoints
+
+   :param list[int] task_head_dims: shape of the MLP layers dedicated to each
+       task independently, defaults to None (skipped)
+
+   :param str activation: activation function to use across the network
+
+   :param float dropout: dropout rate between all layers
+
+   :param int num_endpoints: number of endpoints (if multitasking) or classes,
+       (if classification) to predict
+
+   :param bool batchnorm: whether to use batchnorm across all layers
+
+

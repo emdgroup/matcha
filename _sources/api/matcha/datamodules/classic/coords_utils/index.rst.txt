@@ -1,0 +1,72 @@
+matcha.datamodules.classic.coords_utils
+=======================================
+
+.. py:module:: matcha.datamodules.classic.coords_utils
+
+.. autoapi-nested-parse::
+
+   Shared helpers for user-supplied 3D atomic coordinates.
+
+   Both :class:`Graph3DDataModule` (classic) and
+   :class:`Graph3DPretrainingDataModule` (pretraining) accept per-molecule 3D
+   coordinates supplied at featurize time. They live on different inheritance
+   branches, so validation and canonical-atom-order remapping are factored out
+   here as module-level helpers rather than hoisted onto a common base.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.coords_utils.validate_coords
+   matcha.datamodules.classic.coords_utils.reorder_coords_to_canonical
+
+
+Module Contents
+---------------
+
+.. py:function:: validate_coords(mol_list: list[rdkit.Chem.rdchem.Mol], coords: list[numpy.ndarray]) -> list[numpy.ndarray]
+
+   Validate that user-supplied 3D coordinates match the molecules.
+
+   Checks that:
+
+   - ``len(coords) == len(mol_list)``
+   - Each ``coords[i]`` has shape ``(A_i, 3)`` where ``A_i`` is the number
+     of heavy atoms in the canonical SMILES of molecule *i*.
+   - Each ``coords[i]`` contains only finite values (no NaN, no Inf).
+     Non-finite entries would silently corrupt downstream distance
+     features, so they are rejected up front.
+
+   :param mol_list: list of RDKit molecules
+   :param coords: list of per-molecule coord arrays
+   :raises ValueError: on length, shape, atom-count, or finite-value
+       violations
+   :return: validated ``coords`` (each entry cast to ``float32`` ndarray)
+
+
+.. py:function:: reorder_coords_to_canonical(mol: rdkit.Chem.rdchem.Mol, coords_i: numpy.ndarray) -> numpy.ndarray
+
+   Reorder user-supplied coords to the canonical atom ordering.
+
+   :meth:`GraphDataModule._calculate_graph` reparses the molecule via its
+   canonical SMILES, so the atom indices on the resulting graph do not
+   necessarily match the original ``mol``'s atom order. Coordinates
+   supplied by the user in the original atom order therefore need to be
+   remapped, otherwise ``graph.pos`` would be misaligned with ``graph.x``
+   and ``y_node`` — a silent bug that would train the encoder on wrong
+   atom-to-coord assignments.
+
+   Uses ``mol.GetSubstructMatch(canonical_mol)`` to obtain, for each atom
+   in the canonical mol, the index in the original mol.
+
+   :param mol: RDKit molecule in user-supplied atom order
+   :param coords_i: coordinate array of shape ``(A, 3)`` in the same atom
+       order as ``mol``
+   :raises ValueError: if the canonical mol cannot be matched back to the
+       input atoms
+   :return: coordinate array in canonical atom order
+
+

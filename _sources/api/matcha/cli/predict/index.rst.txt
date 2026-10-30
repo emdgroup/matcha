@@ -1,0 +1,39 @@
+matcha.cli.predict
+==================
+
+.. py:module:: matcha.cli.predict
+
+.. autoapi-nested-parse::
+
+   CLI command for running inference with a trained MATCHA model.
+
+   Loads a serialized model, reads an input dataset (CSV or SDF), runs
+   predictions and uncertainty estimation, and writes output CSV files.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.predict.main
+
+
+Module Contents
+---------------
+
+.. py:function:: main(cfg=None)
+
+   Run predictions on a dataset using a serialized MATCHA model.
+
+   Loads the model from disk, converts input molecules to RDKit ``Mol``
+   objects, runs batch inference (predictions and uncertainty), parses the
+   raw output into labeled columns, and saves results as CSV.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLIPredictInputModel` instance or
+       a raw dict that will be validated.
+
+

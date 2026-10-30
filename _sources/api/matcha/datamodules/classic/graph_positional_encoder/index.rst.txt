@@ -1,0 +1,104 @@
+matcha.datamodules.classic.graph_positional_encoder
+===================================================
+
+.. py:module:: matcha.datamodules.classic.graph_positional_encoder
+
+.. autoapi-nested-parse::
+
+   Graph Positional Encodings for PyTorch Geometric graphs.
+
+   This module provides various positional encoding methods for molecular graphs
+   represented as PyTorch Geometric Data objects.
+
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   matcha.datamodules.classic.graph_positional_encoder.GraphPE
+
+
+Module Contents
+---------------
+
+.. py:class:: GraphPE
+
+   Class providing static methods for computing various positional encodings
+   on PyTorch Geometric graphs.
+
+
+   .. py:method:: lap_pe(graph: torch_geometric.data.Data, k: int) -> torch.Tensor
+      :classmethod:
+
+
+      Compute Laplacian Positional Encoding.
+
+      Uses the eigenvectors of the graph Laplacian as positional encodings.
+
+      :param graph: PyTorch Geometric Data object
+      :param k: number of eigenvectors to use
+      :return: tensor of shape (num_nodes, k) containing Laplacian PE
+
+
+
+   .. py:method:: rw_se(graph: torch_geometric.data.Data, k: int) -> torch.Tensor
+      :classmethod:
+
+
+      Compute Random Walk Structural Encoding.
+
+      Uses the diagonal of powers of the random walk transition matrix.
+
+      :param graph: PyTorch Geometric Data object
+      :param k: number of random walk steps
+      :return: tensor of shape (num_nodes, k) containing RWSE
+
+
+
+   .. py:method:: rrwp_re(graph: torch_geometric.data.Data, k: int) -> torch.Tensor
+      :classmethod:
+
+
+      Compute Relative Random Walk Probabilities for edges.
+
+      For each edge (i, j), computes the k-step random walk probabilities
+      from i to j.
+
+      :param graph: PyTorch Geometric Data object
+      :param k: number of random walk steps
+      :return: tensor of shape (num_edges, k) containing RRWP
+
+
+
+   .. py:method:: elstatic_pe(mol: rdkit.Chem.rdchem.Mol, k: int) -> torch.Tensor
+      :classmethod:
+
+
+      Compute electrostatic-inspired positional encoding.
+
+      Uses statistics of the pseudo-inverse of the graph Laplacian
+      derived from the adjacency matrix.
+
+      :param mol: RDKit molecule object
+      :param k: number of statistical features to compute
+      :return: tensor of shape (num_atoms, k) containing electrostatic PE
+
+
+
+   .. py:method:: distmat_pe(mol: rdkit.Chem.rdchem.Mol, k: int) -> torch.Tensor
+      :classmethod:
+
+
+      Compute distance matrix-based positional encoding.
+
+      Uses statistics of the pseudo-inverse of the graph Laplacian
+      derived from the distance matrix.
+
+      :param mol: RDKit molecule object
+      :param k: number of statistical features to compute
+      :return: tensor of shape (num_atoms, k) containing distance matrix PE
+
+
+

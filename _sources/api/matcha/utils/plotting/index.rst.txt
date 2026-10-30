@@ -1,0 +1,76 @@
+matcha.utils.plotting
+=====================
+
+.. py:module:: matcha.utils.plotting
+
+.. autoapi-nested-parse::
+
+   Plotting utilities for regression and classification model evaluation.
+
+   Provides interactive Plotly-based visualizations including scatter plots with
+   trendlines and fold-error boundaries for regression, and ROC/PR curves with
+   probability histograms for classification.
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.utils.plotting.plot_regression
+   matcha.utils.plotting.plot_classification
+   matcha.utils.plotting.save_plot
+
+
+Module Contents
+---------------
+
+.. py:function:: plot_regression(true_values: numpy.ndarray, pred_values: numpy.ndarray, plot_title: str = 'Regression performance', labels: list = None, is_log10: bool = False)
+
+   Create a scatter plot of true vs predicted values with trendline using Plotly.
+
+   Includes OLS trendline, perfect prediction diagonal, and 2-fold/3-fold
+   error boundary lines.
+
+   :param numpy.ndarray true_values: Array of true target values.
+   :param numpy.ndarray pred_values: Array of predicted target values.
+   :param str plot_title: Title for the plot.
+   :param list labels: Optional list of labels for hover data corresponding to
+       each data point.
+   :param bool is_log10: Whether the values are log10-transformed. Adjusts
+       fold-error boundary calculations accordingly.
+   :returns: A Plotly figure object, or ``None`` if no valid data points exist.
+   :rtype: plotly.graph_objects.Figure or None
+
+
+.. py:function:: plot_classification(true_values: numpy.ndarray, pred_values: numpy.ndarray, prob_values: numpy.ndarray, plot_title: str = 'Classification performance', model: matcha.sklearn.base_sklearn_model.BaseScikitLearnModel | None = None)
+
+   Create a three-panel classification plot with ROC, PR, and probability histograms.
+
+   Generates an interactive Plotly figure with ROC-AUC curve,
+   Precision-Recall curve, and predicted probability distribution histograms
+   for each class.
+
+   :param numpy.ndarray true_values: Array of true binary labels (0 or 1).
+   :param numpy.ndarray pred_values: Array of predicted binary labels (0 or 1).
+   :param numpy.ndarray prob_values: Array of predicted probabilities for the
+       positive class.
+   :param str plot_title: Title for the plot.
+   :param model: Optional model instance used to encode labels via its
+       internal label encoder.
+   :type model: BaseScikitLearnModel or None
+   :returns: A Plotly figure object, or ``None`` if no valid data points exist.
+   :rtype: plotly.graph_objects.Figure or None
+
+
+.. py:function:: save_plot(fig, file_path)
+
+   Save a Plotly figure as an HTML file.
+
+   Creates parent directories if they do not exist.
+
+   :param plotly.graph_objects.Figure fig: The Plotly figure to save.
+   :param str file_path: Destination file path (should end in ``.html``).
+
+

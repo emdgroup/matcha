@@ -1,0 +1,164 @@
+matcha.torch.tuning.routine
+===========================
+
+.. py:module:: matcha.torch.tuning.routine
+
+.. autoapi-nested-parse::
+
+   Optuna-based hyperparameter tuning with architecture and optimizer search phases.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.torch.tuning.routine.logger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.torch.tuning.routine.parse_betas
+   matcha.torch.tuning.routine.parse_num_heads
+   matcha.torch.tuning.routine.parse_config
+   matcha.torch.tuning.routine.load_default_architecture_grid
+   matcha.torch.tuning.routine.load_default_optimizer_grid
+   matcha.torch.tuning.routine.load_default_scheduler_grid
+   matcha.torch.tuning.routine.run_hparam_tuning
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: parse_betas(dictionary: dict) -> dict
+
+   Convert ``beta_1`` key into a ``betas`` tuple expected by PyTorch optimizers.
+
+   :param dictionary: parameter dictionary containing a ``beta_1`` key.
+   :returns: updated dictionary with ``betas`` tuple and ``beta_1`` removed.
+   :rtype: dict
+
+
+.. py:function:: parse_num_heads(dictionary: dict) -> dict
+
+   Adjust ``enc_num_heads`` so it evenly divides the hidden dimension.
+
+   :param dictionary: parameter dictionary potentially containing ``enc_num_heads``
+       and a hidden dimension key.
+   :returns: dictionary with ``enc_num_heads`` corrected if necessary.
+   :rtype: dict
+
+
+.. py:function:: parse_config(trial: parse_config.trial, dictionary: dict) -> dict
+
+   Helper function to update the model params with the new
+   suggested ones from the optimizer
+
+   :param Trial trial: Optuna class for handling hparam process
+
+   :param dict dictionary: params of the model
+
+   :return dict: new params of the model to eval in next iteration
+
+
+.. py:function:: load_default_architecture_grid(architecture) -> dict
+
+   Load the default architecture search space from a bundled JSON file.
+
+   :param str architecture: name of the architecture to look up.
+   :returns: search space dictionary for the given architecture.
+   :rtype: dict
+
+
+.. py:function:: load_default_optimizer_grid(optimizer) -> dict
+
+   Load the default optimizer search space from a bundled JSON file.
+
+   :param str optimizer: name of the optimizer to look up.
+   :returns: search space dictionary for the given optimizer.
+   :rtype: dict
+
+
+.. py:function:: load_default_scheduler_grid(scheduler_name: str | None) -> dict
+
+   Load the default scheduler search space for a given scheduler.
+
+   :param scheduler_name: name of the active scheduler, or None.
+   :returns: search space dictionary for the scheduler, or empty dict if the
+       scheduler has no tunable parameters.
+   :rtype: dict
+
+
+.. py:function:: run_hparam_tuning(train_set: list[torch.utils.data.DataLoader] | torch.utils.data.DataLoader, val_set: list[torch.utils.data.DataLoader], model_architecture: str | matcha.torch.models.classic.base_classic_model.BaseClassicModel, model_params: dict, optimizer: str = 'adam', num_epochs: int = 200, patience: int = 20, stochastic_weight_averaging: bool = True, accelerator: str = 'gpu', devices: int = 1, architecture_search_budget: int = 70, architecture_grid: dict | None = None, optimizer_search_budget: int = 30, optimizer_grid: dict | None = None, scheduler_grid: dict | None = None, logging_uri: str | None = None, study_name_arc: str = 'architecture_search', study_name_opt: str = 'optimizer_search') -> dict[str, Any]
+
+   Hyperparameter optimization function for MATCHA models.
+
+   It first runs a QMC scan across different architecture configurations. Then,
+   it runs bayesian optimization via TPE on the parameters of the learning rate.
+   Each trial runs with early stopping to terminate underperforming runs.
+
+   The procedure was adapted from here:
+   https://github.com/google-research/tuning_playbook
+
+   :param tuple train_set: training set to use for hparam scan, should be the
+       output of the correct featurizer
+
+   :param tuple val_set: validation set to improve on (ideally time split),
+       should be the output of the correct featurizer using is_training=False
+
+   :param str model_architecture: name of the model to optimize, or model to
+       use for tuning (useful for pretrained ones)
+
+   :param dict model_params: custom params to keep fixed during the process,
+       a typical example would be in case extra features are used one has
+       to specify additional_mol_features_dim
+
+   :param str optimizer: which optimizer to use for model training and for
+       tuning its hparams, defaults to "adam"
+
+   :param int num_epochs: max number of epochs to use, defaults to 200
+
+   :param int patience: how many epochs to wait before early stopping, defaults
+       to 20
+
+   :param bool stochastic_weight_averaging: whether to use SWA
+
+   :param str accelerator: whether to train on cpu or gpu, defaults to "gpu"
+
+   :param int architecture_search_budget: how many QMC sampling iterations
+       to do for the architecture search step, defaults to 70
+
+   :param dict | None architecture_grid: which params to change for the
+       given architecture, defaults to None, meaning it will be loaded
+       from architecture_grid.json
+
+   :param int optimizer_search_budget: How many TPE steps to do when
+       tuning the learning rate parameters, defaults to 30
+
+   :param dict | None optimizer_grid: which params to tune for the
+       optimizer, defaults to None, meaning it will be loaded
+       from optimizer_grid.json
+
+   :param dict | None scheduler_grid: search space for scheduler parameters
+       to tune in Phase 2, defaults to None, meaning it will be loaded
+       from scheduler_grid.json based on the active scheduler
+
+   :param str | None logging_uri: MLflow tracking URI for logging trials.
+       If None, logging is disabled.
+
+   :param str study_name_arc: Optuna study name for the architecture search phase.
+
+   :param str study_name_opt: Optuna study name for the optimizer search phase.
+
+   :returns: dictionary with keys ``"optimum"`` (best params), ``"architecture"``
+       (Optuna study or ``"Not executed"``), and ``"optimizer"`` (Optuna study
+       or ``"Not executed"``).
+   :rtype: dict[str, Any]
+
+

@@ -1,0 +1,52 @@
+matcha.cli.baseline
+===================
+
+.. py:module:: matcha.cli.baseline
+
+.. autoapi-nested-parse::
+
+   CLI command for scikit-learn baseline evaluation.
+
+   Evaluates simple scikit-learn models (Random Forest, SVM, KNN, etc.) with
+   RDKit molecular descriptors as features, using the same splitting and
+   metrics infrastructure as the MATCHA evaluate command.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   matcha.cli.baseline.model_registry
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   matcha.cli.baseline.main
+
+
+Module Contents
+---------------
+
+.. py:data:: model_registry
+
+.. py:function:: main(cfg=None)
+
+   Run baseline evaluation using scikit-learn models with molecular descriptors.
+
+   For each cross-validation split, computes RDKit features, fits a
+   scikit-learn model (e.g. Random Forest), evaluates predictions, and
+   aggregates metrics. Supports both regression and classification
+   endpoints with optional label transforms and bootstrapped confidence
+   intervals.
+
+   :param cfg: Pre-parsed configuration object or ``None`` to parse from
+       CLI ``--config`` argument. Accepts a
+       :class:`~matcha.utils.schemas.cli.CLIBaselineInputModel` instance
+       or a raw dict that will be validated.
+
+
