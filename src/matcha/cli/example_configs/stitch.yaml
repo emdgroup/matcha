@@ -1,0 +1,18 @@
+# ── Example config: Stitch multiple datasets ──────────────────────────
+#
+# Merge individual SDF files into a single multi-task CSV for training.
+#
+# Usage:
+#   matcha stitch --config stitch.yaml
+
+input:
+  folder_path: /path/to/data/raw
+  dataset_names: ['Fub_human.sdf', 'Fub_mouse.sdf', 'Fub_rat.sdf', 'Fu_mic.sdf']
+  label_keys: ["Fub", "Fub", "Fub", "Fu_mic"]
+  tag: "endpoint"
+  operator_key: "OPERATOR"
+  smiles_key: "SMILES"
+
+output:
+  folder_path: /path/to/data/aggregated
+  filename: "dataset.csv"

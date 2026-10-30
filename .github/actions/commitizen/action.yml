@@ -1,0 +1,68 @@
+name: Commitizen Bump
+description: >-
+  Bump project version with Commitizen, optionally create an annotated tag
+  with the changelog increment as body, and push.
+
+inputs:
+  commitizen_version:
+    description: Commitizen version to install via pip (or "latest" for newest)
+    required: false
+    default: "latest"
+  increment:
+    description: "Override version increment: MAJOR, MINOR, or PATCH"
+    required: false
+    default: ""
+  prerelease:
+    description: "Prerelease identifier: alpha, beta, or rc"
+    required: false
+    default: ""
+  devrelease:
+    description: Whether this is a PEP 440 dev release bump
+    required: false
+    default: "false"
+  manual_version:
+    description: Explicit target version; bypasses increment logic
+    required: false
+    default: ""
+  create_tag:
+    description: Whether to create and push an annotated tag
+    required: false
+    default: "true"
+  changelog_increment_filename:
+    description: File to write the incremental changelog to
+    required: false
+    default: "body.md"
+
+outputs:
+  previous_version:
+    description: Project version before bump
+    value: ${{ steps.bump.outputs.previous_version }}
+  changelog_body:
+    description: Multiline incremental changelog (for GH Release body)
+    value: ${{ steps.bump.outputs.changelog_body }}
+  version:
+    description: Project version after bump
+    value: ${{ steps.bump.outputs.version }}
+  bumped:
+    description: '"true" if version changed, "false" otherwise'
+    value: ${{ steps.bump.outputs.bumped }}
+  revision_tag:
+    description: Tag name per configured format (e.g. v2.1.0)
+    value: ${{ steps.bump.outputs.revision_tag }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run Commitizen bump
+      id: bump
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        INPUT_COMMITIZEN_VERSION: ${{ inputs.commitizen_version }}
+        INPUT_INCREMENT: ${{ inputs.increment }}
+        INPUT_PRERELEASE: ${{ inputs.prerelease }}
+        INPUT_DEVRELEASE: ${{ inputs.devrelease }}
+        INPUT_MANUAL_VERSION: ${{ inputs.manual_version }}
+        INPUT_CREATE_TAG: ${{ inputs.create_tag }}
+        INPUT_CHANGELOG_INCREMENT_FILENAME: ${{ inputs.changelog_increment_filename }}
+      run: ${{ github.action_path }}/entrypoint.sh

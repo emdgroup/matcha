@@ -1,0 +1,20 @@
+# ── Example config: Run predictions with a trained model ───────────────
+#
+# Load a serialized MATCHA model and run inference on new molecules.
+#
+# Usage:
+#   matcha predict --config predict.yaml
+
+dataset:
+  path: /path/to/data/inference.csv
+  smiles_key: SMILES
+  keep_cols: True
+
+output: /path/to/predictions
+
+model:
+  path: /path/to/models/my_model
+  inference:
+    accelerator: cpu
+    devices: 1
+    batch_size: 256

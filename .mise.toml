@@ -1,0 +1,17 @@
+[tools]
+"pipx:pre-commit" = "4.6.0"
+"pipx:commitizen" = "4.16.2"
+"pipx:zizmor" = "1.25.2"
+"npm:markdownlint-cli" = "0.48.0"
+just = "1.51.0"
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+shfmt = "3.13.1"
+
+[hooks.enter]
+shell = "bash"
+script = """
+if [ -d .git ] && [ ! -f .git/hooks/pre-commit ]; then
+  pre-commit install --install-hooks
+fi
+"""

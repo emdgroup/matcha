@@ -1,0 +1,12 @@
+name: Pull Request
+
+on:
+  pull_request:
+
+jobs:
+  pre-commit:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/pre-commit.yml
+    with:
+      skip: "no-commit-to-branch"

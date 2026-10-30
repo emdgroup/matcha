@@ -1,0 +1,270 @@
+"""Pydantic schemas for PyTorch-based model architectures in matcha."""
+
+import pydantic as pyd
+from typing import Annotated, Any, Literal, Sequence
+from matcha.utils.schemas.generic_models import (
+    ClassicMatchaModel,
+    PretrainingMatchaModel,
+    GraphMixin,
+    GraphPretrainingMixin,
+    GINMixin,
+    AttentiveFPMixin,
+    MPNNMixin,
+    GatedGCNMixin,
+    E3GNNMixin,
+    GPSMixin,
+    GPS3DMixin,
+    GTMixin,
+    GT3DMixin,
+    CLMMixin,
+    CNNMixin,
+    RNNMixin,
+    RoFormerMixin,
+    TabularMixin,
+    MLPMixin,
+    SNNMixin,
+    FinetunerMixin,
+    ChempropFinetunerMixin,
+    UncertaintyMethod,
+    _validate_mve_pairing_rules,
+)
+from matcha.utils.schemas.base import BaseDataModel
+
+_CHEMPROP_MVE_ALIASES = frozenset({"mve"})
+
+
+class GINInputModel(ClassicMatchaModel, GraphMixin, GINMixin):
+    """Schema for the Graph Isomorphism Network (GIN) model configuration."""
+
+    torch_type: Literal["gin"] = "gin"
+
+
+class AttentiveFPInputModel(ClassicMatchaModel, GraphMixin, AttentiveFPMixin):
+    """Schema for the AttentiveFP graph attention model configuration."""
+
+    torch_type: Literal["attentivefp"] = "attentivefp"
+    enc_activation: str | None = pyd.Field(
+        default=None,
+        exclude=True,
+        description="Not used. AttentiveFP uses fixed activations following the original paper.",
+    )
+
+
+class MPNNInputModel(ClassicMatchaModel, GraphMixin, MPNNMixin):
+    """Schema for the Message Passing Neural Network (MPNN) model configuration."""
+
+    torch_type: Literal["mpnn"] = "mpnn"
+
+
+class GatedGCNInputModel(ClassicMatchaModel, GraphMixin, GatedGCNMixin):
+    """Schema for the Gated Graph Convolutional Network model configuration."""
+
+    torch_type: Literal["gatedgcn"] = "gatedgcn"
+
+
+class GPSInputModel(ClassicMatchaModel, GraphMixin, GPSMixin):
+    """Schema for the General Powerful Scalable (GPS) graph transformer configuration."""
+
+    torch_type: Literal["gps"] = "gps"
+
+
+class E3GNNInputModel(ClassicMatchaModel, GraphMixin, E3GNNMixin):
+    """Schema for the E(3)-equivariant Graph Neural Network model configuration."""
+
+    torch_type: Literal["e3gnn"] = "e3gnn"
+
+
+class E3GNNPretrainingInputModel(
+    PretrainingMatchaModel, GraphMixin, GraphPretrainingMixin, E3GNNMixin
+):
+    """Schema for the E(3)-equivariant GNN pretraining model configuration.
+
+    Combines the graph encoder surface (:class:`GraphMixin`) with
+    E3GNN-specific coordinate-update parameters (:class:`E3GNNMixin`) and
+    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).
+
+    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from
+    :class:`GraphMixin` but unused by pretraining models — the joint node /
+    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /
+    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default
+    to ``None`` here so pretraining callers do not need to pass them.
+    """
+
+    torch_type: Literal["e3gnn_pretraining"] = "e3gnn_pretraining"
+    pred_hidden_dims: list[int] | None = None
+    pred_task_head_dims: list[int] | None = None
+
+
+class GPS3DInputModel(ClassicMatchaModel, GraphMixin, GPS3DMixin):
+    """Schema for the 3D GPS graph transformer model configuration."""
+
+    torch_type: Literal["gps3d"] = "gps3d"
+
+
+class GPS3DPretrainingInputModel(
+    PretrainingMatchaModel, GraphMixin, GraphPretrainingMixin, GPS3DMixin
+):
+    """Schema for the 3D-aware GPS graph transformer pretraining configuration.
+
+    Combines the graph encoder surface (:class:`GraphMixin`) with
+    GPS3D-specific spatial-encoding parameters (:class:`GPS3DMixin`) and
+    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).
+
+    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from
+    :class:`GraphMixin` but unused by pretraining models — the joint node /
+    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /
+    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default
+    to ``None`` here so pretraining callers do not need to pass them.
+    """
+
+    torch_type: Literal["gps3d_pretraining"] = "gps3d_pretraining"
+    pred_hidden_dims: list[int] | None = None
+    pred_task_head_dims: list[int] | None = None
+
+
+class GT3DInputModel(ClassicMatchaModel, GraphMixin, GT3DMixin):
+    """Schema for the 3D Graph Transformer model configuration."""
+
+    torch_type: Literal["gt3d"] = "gt3d"
+
+
+class GT3DPretrainingInputModel(
+    PretrainingMatchaModel, GraphMixin, GraphPretrainingMixin, GT3DMixin
+):
+    """Schema for the 3D-aware Graph Transformer pretraining configuration.
+
+    Combines the graph encoder surface (:class:`GraphMixin`) with
+    GT3D-specific spatial-encoding parameters (:class:`GT3DMixin`) and
+    the graph-pretraining head configuration (:class:`GraphPretrainingMixin`).
+
+    ``pred_hidden_dims`` and ``pred_task_head_dims`` are inherited from
+    :class:`GraphMixin` but unused by pretraining models — the joint node /
+    graph heads are configured via ``node_head_dims`` / ``graph_head_dims`` /
+    ``node_task_head_dims`` / ``graph_task_head_dims`` instead. They default
+    to ``None`` here so pretraining callers do not need to pass them.
+    """
+
+    torch_type: Literal["gt3d_pretraining"] = "gt3d_pretraining"
+    pred_hidden_dims: list[int] | None = None
+    pred_task_head_dims: list[int] | None = None
+
+
+class GTInputModel(ClassicMatchaModel, GraphMixin, GTMixin):
+    """Schema for the Graph Transformer model configuration."""
+
+    torch_type: Literal["gt"] = "gt"
+
+
+class CNNInputModel(ClassicMatchaModel, CLMMixin, CNNMixin):
+    """Schema for the 1D Convolutional Neural Network model on character sequences."""
+
+    torch_type: Literal["cnn"] = "cnn"
+
+
+class RoFormerInputModel(ClassicMatchaModel, CLMMixin, RoFormerMixin):
+    """Schema for the RoFormer (rotary position embedding transformer) model configuration."""
+
+    torch_type: Literal["roformer"] = "roformer"
+
+
+class RNNInputModel(ClassicMatchaModel, CLMMixin, RNNMixin):
+    """Schema for the Recurrent Neural Network model on character sequences."""
+
+    torch_type: Literal["rnn"] = "rnn"
+
+
+class MLPInputModel(ClassicMatchaModel, TabularMixin, MLPMixin):
+    """Schema for the Multi-Layer Perceptron model on tabular features."""
+
+    torch_type: Literal["mlp"] = "mlp"
+
+
+class SNNInputModel(ClassicMatchaModel, TabularMixin, SNNMixin):
+    """Schema for the Self-Normalizing Neural Network model on tabular features."""
+
+    torch_type: Literal["snn"] = "snn"
+
+
+class FinetunerInputModel(FinetunerMixin):
+    """Schema for the pretrained model finetuning configuration."""
+
+    torch_type: Literal["finetuner"] = "finetuner"
+
+
+class ChempropFinetunerInputModel(ChempropFinetunerMixin):
+    """Schema for the Chemprop pretrained model finetuning configuration."""
+
+    torch_type: Literal["chemprop_finetuner"] = "chemprop_finetuner"
+
+
+class ChempropInputModel(BaseDataModel):
+    """Schema for the Chemprop directed message passing neural network configuration."""
+
+    torch_type: Literal["chemprop"] = "chemprop"
+    enc_atom_hidden_dim: int
+    enc_num_layers: int
+    enc_dropout: float
+    enc_activation: str
+    enc_readout: str
+    additional_mol_features_dim: int
+    pred_hidden_dim: int
+    pred_num_layers: int
+    pred_dropout: float
+    pred_activation: str
+    num_endpoints: int
+    loss_fn: str
+    optimizer: str
+    optimizer_args: dict
+    scheduler: str
+    scheduler_args: dict
+    uncertainty: UncertaintyMethod = "mc-dropout"
+
+    @pyd.field_validator("uncertainty", mode="before")
+    @classmethod
+    def _normalize_legacy_uncertainty(cls, value: Any) -> Any:
+        # Match ClassicMatchaModel's legacy None -> "mc-dropout" behaviour so
+        # pre-issue-99 YAML configs continue to validate.
+        if value is None:
+            return "mc-dropout"
+        return value
+
+    @pyd.model_validator(mode="after")
+    def _validate_mve_pairing(self) -> "ChempropInputModel":
+        # Chemprop paths only accept chemprop's own MVELoss (alias "mve").
+        # β-NLL and bounded-β-NLL are matcha-only.
+        _validate_mve_pairing_rules(
+            self.loss_fn,
+            self.uncertainty,
+            mve_aliases=_CHEMPROP_MVE_ALIASES,
+        )
+        return self
+
+
+TorchModel = (
+    GINInputModel
+    | AttentiveFPInputModel
+    | MPNNInputModel
+    | GatedGCNInputModel
+    | E3GNNInputModel
+    | E3GNNPretrainingInputModel
+    | GPSInputModel
+    | GPS3DInputModel
+    | GPS3DPretrainingInputModel
+    | GTInputModel
+    | GT3DInputModel
+    | GT3DPretrainingInputModel
+    | ChempropInputModel
+    | CNNInputModel
+    | RNNInputModel
+    | RoFormerInputModel
+    | MLPInputModel
+    | SNNInputModel
+    | FinetunerInputModel
+    | ChempropFinetunerInputModel
+)
+
+
+class TorchModels(BaseDataModel):
+    """Container schema for a sequence of discriminated PyTorch model configurations."""
+
+    inputmodels: Sequence[Annotated[TorchModel, pyd.Field(discriminator="torch_type")]]

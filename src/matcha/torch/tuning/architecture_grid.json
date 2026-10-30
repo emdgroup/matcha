@@ -1,0 +1,159 @@
+{
+    "ChempropModel": {
+        "enc_atom_hidden_dim":  ["int", {"low": 256, "high":1024, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":5}],
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.2}],
+        "enc_activation":       ["choice", ["prelu", "leakyrelu", "relu", "elu", "tanh"]],
+        "pred_hidden_dim":      ["int", {"low": 256, "high":1024, "step":64}],
+        "pred_num_layers":      ["int", {"low": 1, "high":4}],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.2}],
+        "pred_activation":      ["choice", ["prelu", "leakyrelu", "relu", "elu", "tanh"]]
+    },
+
+    "GINModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "enc_atom_hidden_dim":  ["int", {"low": 128, "high":1024, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":6}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024], [256, 256, 256], [1024, 512, 256]]],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+    "AttentiveFPModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_atom_hidden_dim":  ["int", {"low": 128, "high":1024, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":6}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024], [256, 256, 256], [1024, 512, 256]]],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+    "GatedGCNModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "enc_atom_hidden_dim":  ["int", {"low": 64, "high":1024, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":6}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024], [256, 256, 256], [1024, 512, 256]]],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+    "GPSModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "enc_atom_hidden_dim":  ["int", {"low": 64, "high":512, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":12}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "enc_num_heads":        ["int", {"low": 4, "high":12, "step": 2}],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+    "GTModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "enc_atom_hidden_dim":  ["int", {"low": 64, "high":512, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":12}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "enc_num_heads":        ["int", {"low": 4, "high":12, "step":2}],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+    },
+
+    "E3GNNModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "enc_atom_hidden_dim":  ["int", {"low": 128, "high":1024, "step":64}],
+        "enc_num_layers":       ["int", {"low": 1, "high":6}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+    "GPS3DModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "enc_atom_hidden_dim":  ["int", {"low": 64, "high":512, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":12}],
+        "enc_num_heads":        ["int", {"low": 4, "high":12, "step": 2}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+    "GT3DModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "enc_atom_hidden_dim":  ["int", {"low": 64, "high":512, "step":64}],
+        "enc_num_layers":       ["int", {"low": 2, "high":12}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "enc_num_heads":        ["int", {"low": 4, "high":12, "step":2}],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+    },
+
+    "RoFormerModel": {
+        "enc_hidden_dim":        ["int", {"low": 64, "high": 512, "step": 64}],
+        "enc_expansion_dim":     ["choice", [256, 512, 1024, 2048]],
+        "enc_num_heads":         ["int", {"low": 4, "high": 12, "step": 2}],
+        "enc_num_layers":        ["int", {"low": 2, "high": 8}],
+        "enc_attention_dropout": ["float", {"low": 0.0, "high": 0.4}],
+        "enc_hidden_dropout":    ["float", {"low": 0.0, "high": 0.4}],
+        "pred_hidden_dims":      ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "pred_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":          ["float", {"low": 0.0, "high": 0.4}]
+    },
+
+    "CNNModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "enc_activation":       ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "enc_num_heads":        ["int", {"low": 4, "high":12, "step": 2}],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+    "RNNModel": {
+        "enc_dropout":          ["float", {"low": 0.0, "high":0.4}],
+        "pred_hidden_dims":     ["choice", ["none", [256], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "enc_bidirectional":    ["choice", [true, false]],
+        "enc_hidden_dim":       ["int", {"low": 128, "high":1024, "step":64}],
+        "enc_num_layers":       ["int", {"low": 1, "high":3}],
+        "enc_num_heads":        ["int", {"low": 4, "high":12, "step": 2}],
+        "pred_activation":      ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}]
+            },
+
+
+    "MLPModel": {
+        "dropout":              ["float", {"low": 0.0, "high":0.4}],
+        "activation":           ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish"]],
+        "hidden_dims":          ["choice", ["none", [128], [256], [512], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024],
+                                            [128, 128, 128], [256, 256, 256], [512, 512, 512]]],
+        "deep_lasso_weight":    ["float", {"low": 0.0, "high":0.4}]
+        },
+
+    "SNNModel": {
+        "dropout":              ["float", {"low": 0.0, "high":0.1}],
+        "hidden_dims":          ["choice", ["none", [128], [256], [512], [256, 128], [256, 256], [512, 256], [512, 512],
+                                            [128, 128, 128], [256, 256, 256]]],
+        "num_parallel":         ["int", {"low": 2, "high":8}],
+        "deep_lasso_weight":    ["float", {"low": 0.0, "high":0.4}]
+        },
+
+    "Finetuner": {
+        "pred_hidden_dims":     ["choice", ["none", [64], [128], [256], [128, 128], [256, 128], [256, 256], [512, 256], [512, 512], [1024, 1024]]],
+        "dropout":              ["float", {"low": 0.0, "high":0.4}],
+        "activation":           ["choice", ["swish", "leaky_relu", "relu", "gelu", "mish", "prelu"]],
+        "pretrain_lr":          ["float", {"low": 1e-6, "high":1e-3, "log":true}],
+        "pretrain_decay":       ["float", {"low": 0.1, "high":1.0}]
+    },
+
+    "ChempropFinetuner": {
+        "pred_hidden_dim":      ["int", {"low": 256, "high":1024, "step":64}],
+        "pred_num_layers":      ["int", {"low": 1, "high":4}],
+        "pred_dropout":         ["float", {"low": 0.0, "high":0.4}],
+        "pred_activation":      ["choice", ["prelu", "leakyrelu", "relu", "elu", "tanh"]]
+    }
+}

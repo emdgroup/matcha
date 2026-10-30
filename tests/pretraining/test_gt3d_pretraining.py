@@ -1,0 +1,251 @@
+"""Tests for :class:`matcha.torch.models.pretraining.gt3d_pretraining.GT3DPretraining`.
+
+Locks in the issue #34 contract for GT3D:
+
+- the pretraining model wires up the canonical :class:`GT3D` encoder rather
+  than a pretraining-specific twin;
+- coordinates flow through ``batch["graph"].pos`` (never a separate
+  ``coords`` collate key);
+- a one-step ``training_step`` produces a finite scalar loss on a synthetic
+  dataset with per-atom and per-molecule targets;
+- ``save_hyperparameters`` round-trips through the encoder ``state_dict``;
+- encoder weights transfer cleanly into a matching :class:`GT3DModel` for
+  downstream finetuning — the acceptance criterion the whole issue is about.
+"""
+
+import pytest
+import torch
+
+
+pyg = pytest.importorskip("torch_geometric")
+from torch_geometric.data import Batch, Data  # noqa: E402
+from torch.nn.utils import parameters_to_vector  # noqa: E402
+
+from matcha.datamodules.classic.graph_datamodule import (  # noqa: E402
+    ATOM_FEAT_DIM,
+    BOND_FEAT_DIM,
+)
+from matcha.torch.encoders.gt3d import GT3D  # noqa: E402
+from matcha.torch.models.classic.gt3d_model import GT3DModel  # noqa: E402
+from matcha.torch.models.pretraining.base_pretraining_model import (  # noqa: E402
+    PretrainingModelRegistry,
+)
+from matcha.torch.models.pretraining.gt3d_pretraining import (  # noqa: E402
+    GT3DPretraining,
+)
+
+
+_ATOM_HIDDEN_DIM = 16
+_NUM_LAYERS = 2
+
+
+def _make_model(**overrides) -> GT3DPretraining:
+    """Build a tiny GT3DPretraining with positional encodings disabled."""
+    kwargs = dict(
+        num_node_targets=2,
+        num_graph_targets=1,
+        enc_num_layers=_NUM_LAYERS,
+        enc_atom_hidden_dim=_ATOM_HIDDEN_DIM,
+        enc_num_heads=4,
+        enc_num_kernels=4,
+        enc_expansion_k=1,
+        enc_jk="last",
+        enc_readout="sum",
+        enc_activation="relu",
+        enc_dropout=0.0,
+        enc_laplacian_k=0,
+        enc_rwse_k=0,
+        enc_elstatic_k=0,
+        enc_distmat_k=0,
+        enc_rrwp_k=0,
+        node_head_dims=[8],
+        graph_head_dims=[8],
+        pred_activation="relu",
+        pred_dropout=0.0,
+    )
+    kwargs.update(overrides)
+    return GT3DPretraining(**kwargs)
+
+
+def _make_batch(
+    batch_size: int = 2,
+    n_nodes_per_graph: int = 4,
+    num_node_targets: int = 2,
+    num_graph_targets: int = 1,
+) -> dict:
+    """Minimal batch dict matching :class:`Graph3DPretrainingDataModule` output."""
+    graphs = []
+    for _ in range(batch_size):
+        src = list(range(n_nodes_per_graph - 1)) + list(range(1, n_nodes_per_graph))
+        dst = list(range(1, n_nodes_per_graph)) + list(range(n_nodes_per_graph - 1))
+        edge_index = torch.tensor([src, dst], dtype=torch.long)
+        graphs.append(
+            Data(
+                x=torch.randn(n_nodes_per_graph, ATOM_FEAT_DIM),
+                edge_index=edge_index,
+                edge_attr=torch.randn(edge_index.size(1), BOND_FEAT_DIM),
+                pos=torch.randn(n_nodes_per_graph, 3),
+            )
+        )
+    graph = Batch.from_data_list(graphs)
+    return {
+        "graph": graph,
+        "y_node": torch.randn(batch_size * n_nodes_per_graph, num_node_targets),
+        "y_graph": torch.randn(batch_size, num_graph_targets),
+    }
+
+
+def test_encoder_is_canonical_gt3d():
+    """The pretraining model instantiates the canonical :class:`GT3D` encoder."""
+    model = _make_model()
+    assert isinstance(model.encoder, GT3D)
+
+
+def test_registered_on_pretraining_registry():
+    """``GT3DPretraining`` is discoverable via the pretraining registry."""
+    assert "gt3dpretraining" in PretrainingModelRegistry
+    assert PretrainingModelRegistry["gt3dpretraining"] is GT3DPretraining
+
+
+def test_forward_returns_expected_shapes():
+    """End-to-end forward produces the correct node/graph output shapes."""
+    torch.manual_seed(0)
+    model = _make_model()
+    model.eval()
+
+    batch = _make_batch(batch_size=2, n_nodes_per_graph=4)
+    with torch.no_grad():
+        out = model(batch)
+
+    assert set(out.keys()) == {"node", "graph"}
+    assert out["node"].shape == (2 * 4, 2)
+    assert out["graph"].shape == (2, 1)
+
+
+def test_per_layer_embeddings_length_matches_num_layers():
+    """Base-class hook returns one node-feature tensor per encoder layer."""
+    model = _make_model(enc_num_layers=3)
+    model.eval()
+
+    batch = _make_batch()
+    with torch.no_grad():
+        per_layer, _ = model._get_per_layer_embeddings(batch)
+
+    assert isinstance(per_layer, list)
+    assert len(per_layer) == 3
+
+
+def _silence_lightning_log(model: GT3DPretraining) -> None:
+    """Stub ``self.log`` / ``self.log_dict`` — no Trainer is attached in unit tests."""
+    model.log = lambda *a, **k: None  # type: ignore[assignment]
+    model.log_dict = lambda *a, **k: None  # type: ignore[assignment]
+
+
+def test_training_step_returns_finite_scalar_loss():
+    """A single ``training_step`` on a synthetic batch yields a finite loss."""
+    torch.manual_seed(0)
+    model = _make_model()
+    _silence_lightning_log(model)
+    model.train()
+
+    batch = _make_batch(batch_size=3, n_nodes_per_graph=4)
+    loss = model.training_step(batch, batch_idx=0)
+
+    assert loss.ndim == 0
+    assert torch.isfinite(loss)
+    assert loss.requires_grad
+
+
+def test_training_step_backward_updates_parameters():
+    """One optimizer step actually moves the encoder's parameters."""
+    torch.manual_seed(0)
+    model = _make_model()
+    _silence_lightning_log(model)
+    model.train()
+
+    optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
+
+    batch = _make_batch(batch_size=3, n_nodes_per_graph=4)
+    before = parameters_to_vector(model.encoder.parameters()).detach().clone()
+    optimizer.zero_grad()
+    loss = model.training_step(batch, batch_idx=0)
+    loss.backward()
+    optimizer.step()
+    after = parameters_to_vector(model.encoder.parameters()).detach().clone()
+
+    assert not torch.allclose(before, after)
+
+
+def test_forward_raises_when_pos_missing():
+    """Missing ``graph.pos`` surfaces the encoder's clear error message."""
+    model = _make_model()
+    model.eval()
+
+    batch = _make_batch()
+    del batch["graph"].pos
+
+    with pytest.raises(ValueError, match="graph.pos"):
+        model(batch)
+
+
+def test_save_hyperparameters_round_trip_through_state_dict():
+    """A fresh model rebuilt from the same hparams matches the encoder state."""
+    torch.manual_seed(0)
+    model = _make_model()
+
+    hparams = dict(model.hparams)
+    fresh = GT3DPretraining(**hparams)
+    fresh.load_state_dict(model.state_dict())
+
+    for (k1, v1), (k2, v2) in zip(
+        model.state_dict().items(), fresh.state_dict().items()
+    ):
+        assert k1 == k2
+        assert torch.equal(v1, v2)
+
+
+def test_encoder_weights_transfer_to_gt3d_model():
+    """Encoder weights from a pretrained model load cleanly into ``GT3DModel``.
+
+    Headline acceptance criterion for issue #34: after a pretraining run,
+    users must be able to hand the encoder weights to :class:`GT3DModel`
+    for downstream supervised finetuning without any shape mismatch.
+    """
+    torch.manual_seed(0)
+    pretrain = _make_model()
+
+    shared_encoder_kwargs = dict(
+        enc_num_layers=_NUM_LAYERS,
+        enc_atom_input_dim=ATOM_FEAT_DIM,
+        enc_bond_input_dim=BOND_FEAT_DIM,
+        enc_atom_hidden_dim=_ATOM_HIDDEN_DIM,
+        enc_num_heads=4,
+        enc_num_kernels=4,
+        enc_expansion_k=1,
+        enc_jk="last",
+        enc_readout="sum",
+        enc_activation="relu",
+        enc_dropout=0.0,
+        enc_laplacian_k=0,
+        enc_rwse_k=0,
+        enc_elstatic_k=0,
+        enc_distmat_k=0,
+        enc_rrwp_k=0,
+    )
+    classic = GT3DModel(
+        pred_hidden_dims=[8],
+        pred_activation="relu",
+        pred_dropout=0.0,
+        num_endpoints=1,
+        **shared_encoder_kwargs,
+    )
+
+    missing, unexpected = classic.encoder.load_state_dict(
+        pretrain.encoder.state_dict(), strict=True
+    )
+    assert missing == []
+    assert unexpected == []
+
+    src = parameters_to_vector(pretrain.encoder.parameters()).detach()
+    dst = parameters_to_vector(classic.encoder.parameters()).detach()
+    assert torch.equal(src, dst)

@@ -1,0 +1,54 @@
+# ── Example config: Hyperparameter optimization ───────────────────────
+#
+# Run architecture and optimizer search for a ChempropRegressor on
+# fraction-unbound data with temporal splits.
+#
+# Usage:
+#   matcha autotune --config autotune.yaml
+
+dataset:
+  path: /path/to/data/train.csv
+  smiles_key: SMILES
+  label_key: endpoint
+  operator_key: OPERATOR
+
+split:
+  method: time
+  n_subset: 3
+  method_params:
+    key: compound_id
+    split_size: 0.05
+
+tuning:
+  architecture_search:
+    config: default
+    budget: 100
+  optimizer_search:
+    config: default
+    budget: 30
+
+model:
+  architecture: ChempropRegressor
+  params:
+    feature_list: ["rdkit_all_descriptors"]
+    loss_fn: "bounded-mse"
+    num_endpoints: 4
+    num_epochs: 50
+    batch_size: 64
+    label_encoder_params: {
+          0: {"task_label": "Fub_human"},
+          1: {"task_label": "Fub_mouse"},
+          2: {"task_label": "Fub_rat"},
+          3: {"task_label": "Fu_mic"},
+            }
+
+output:
+  mlflow:
+    experiment_name: "tuning-chemprop-fu-small"
+    tags:
+      version: 1.0
+      reason: "test"
+    log_dir: /path/to/mlflow
+  optimum:
+    path: /path/to/optima
+    filename: chemprop_fu_small
